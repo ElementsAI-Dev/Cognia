@@ -3,8 +3,9 @@
  */
 
 import { act } from '@testing-library/react';
-import { useSpeedPassStore } from './speedpass-store';
+import { extractSpeedPassPersistedState, useSpeedPassStore } from './speedpass-store';
 import {
+  DEFAULT_SPEEDPASS_COURSE_ID,
   TextbookChapter,
   TextbookKnowledgePoint,
   TextbookQuestion,
@@ -801,14 +802,16 @@ describe('SpeedPass Store', () => {
           questionCount: 2,
         });
         useSpeedPassStore.getState().startQuiz(quiz.id);
-        useSpeedPassStore.getState().answerQuestion(quiz.id, 0, 'A');
-        useSpeedPassStore.getState().answerQuestion(quiz.id, 1, 'B');
+        useSpeedPassStore.getState().answerQuestion(quiz.id, 0, 'wrong-answer-1');
+        useSpeedPassStore.getState().answerQuestion(quiz.id, 1, 'wrong-answer-2');
         useSpeedPassStore.getState().completeQuiz(quiz.id);
       });
 
       const completedQuiz = useSpeedPassStore.getState().quizzes[quiz.id];
       expect(completedQuiz.completedAt).toBeDefined();
       expect(completedQuiz.totalScore).toBeDefined();
+      expect(Object.keys(useSpeedPassStore.getState().wrongQuestions).length).toBeGreaterThan(0);
+      expect(Object.keys(useSpeedPassStore.getState().eventStatements).length).toBeGreaterThan(0);
     });
   });
 
@@ -836,6 +839,199 @@ describe('SpeedPass Store', () => {
 
       const record = useSpeedPassStore.getState().wrongQuestions[recordId!];
       expect(record.reviewCount).toBe(1);
+    });
+  });
+
+  describe('Course ID Normalization', () => {
+    const textbookId = 'tb-course-normalization';
+
+    const seedTutorialSource = () => {
+      act(() => {
+        useSpeedPassStore.getState().addTextbook({
+          id: textbookId,
+          name: '线性代数',
+          author: '作者',
+          publisher: '出版社',
+          source: 'official',
+          isPublic: true,
+          usageCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          parseStatus: 'completed',
+        } as Textbook);
+        useSpeedPassStore.getState().setTextbookChapters(textbookId, [
+          {
+            id: 'chapter-1',
+            textbookId,
+            chapterNumber: '1',
+            title: '矩阵',
+            level: 1,
+            orderIndex: 1,
+            pageStart: 1,
+            pageEnd: 10,
+            knowledgePointCount: 1,
+            exampleCount: 1,
+            exerciseCount: 1,
+          },
+        ] as TextbookChapter[]);
+        useSpeedPassStore.getState().setTextbookKnowledgePoints(textbookId, [
+          {
+            id: 'kp-course',
+            textbookId,
+            chapterId: 'chapter-1',
+            title: '矩阵运算',
+            content: '矩阵加法与乘法',
+            type: 'concept',
+            importance: 'critical',
+            difficulty: 0.5,
+            pageNumber: 2,
+            extractionConfidence: 0.9,
+            verified: true,
+          },
+        ] as TextbookKnowledgePoint[]);
+        useSpeedPassStore.getState().setTextbookQuestions(textbookId, [
+          {
+            id: 'q-course',
+            textbookId,
+            chapterId: 'chapter-1',
+            sourceType: 'exercise',
+            questionNumber: '1',
+            pageNumber: 3,
+            content: '计算矩阵乘积',
+            questionType: 'calculation',
+            hasSolution: true,
+            difficulty: 0.4,
+            knowledgePointIds: ['kp-course'],
+            learningValue: 'essential',
+            extractionConfidence: 0.9,
+            verified: true,
+          },
+        ] as TextbookQuestion[]);
+      });
+    };
+
+    it('should resolve tutorial courseId from explicit input', async () => {
+      seedTutorialSource();
+
+      let tutorialCourseId = '';
+      await act(async () => {
+        const tutorial = await useSpeedPassStore.getState().createTutorial({
+          textbookId,
+          mode: 'speed',
+          courseId: 'course-explicit',
+        });
+        tutorialCourseId = tutorial.courseId;
+      });
+
+      expect(tutorialCourseId).toBe('course-explicit');
+    });
+
+    it('should resolve tutorial courseId from user textbook mapping when input is omitted', async () => {
+      seedTutorialSource();
+      act(() => {
+        useSpeedPassStore.getState().addUserTextbook({
+          userId: 'user-1',
+          textbookId,
+          courseId: 'course-from-textbook',
+          source: 'uploaded',
+        });
+      });
+
+      let tutorialCourseId = '';
+      await act(async () => {
+        const tutorial = await useSpeedPassStore.getState().createTutorial({
+          textbookId,
+          mode: 'speed',
+        });
+        tutorialCourseId = tutorial.courseId;
+      });
+
+      expect(tutorialCourseId).toBe('course-from-textbook');
+    });
+
+    it('should fallback to single enrolled academic course when mapping is missing', async () => {
+      seedTutorialSource();
+      act(() => {
+        useSpeedPassStore.getState().setAcademicProfile({
+          universityId: 'u-1',
+          majorId: 'm-1',
+          grade: 1,
+          currentSemester: 1,
+          enrolledCourses: ['course-only'],
+        });
+      });
+
+      let tutorialCourseId = '';
+      await act(async () => {
+        const tutorial = await useSpeedPassStore.getState().createTutorial({
+          textbookId,
+          mode: 'speed',
+        });
+        tutorialCourseId = tutorial.courseId;
+      });
+
+      expect(tutorialCourseId).toBe('course-only');
+    });
+
+    it('should fallback to unassigned course when no mapping is available', async () => {
+      seedTutorialSource();
+
+      let tutorialCourseId = '';
+      await act(async () => {
+        const tutorial = await useSpeedPassStore.getState().createTutorial({
+          textbookId,
+          mode: 'speed',
+        });
+        tutorialCourseId = tutorial.courseId;
+      });
+
+      expect(tutorialCourseId).toBe(DEFAULT_SPEEDPASS_COURSE_ID);
+    });
+
+    it('should normalize empty courseId fields during hydrateFromSnapshot', () => {
+      seedTutorialSource();
+      const snapshot = extractSpeedPassPersistedState(useSpeedPassStore.getState());
+      const snapshotWithLegacyCourseIds = {
+        ...snapshot,
+        userTextbooks: [
+          {
+            id: 'user-book-1',
+            userId: 'user-1',
+            textbookId,
+            courseId: '',
+            source: 'uploaded' as UserTextbook['source'],
+            addedAt: new Date(),
+          },
+        ],
+        tutorials: {
+          'tutorial-legacy': {
+            id: 'tutorial-legacy',
+            userId: 'user-legacy',
+            courseId: '',
+            textbookId,
+            mode: 'speed' as const,
+            title: 'legacy tutorial',
+            overview: 'legacy overview',
+            sections: [],
+            totalEstimatedMinutes: 30,
+            createdAt: new Date(),
+            progress: 0,
+            completedSectionIds: [],
+            teacherKeyPointIds: [],
+          },
+        },
+      };
+
+      act(() => {
+        useSpeedPassStore.getState().hydrateFromSnapshot(snapshotWithLegacyCourseIds);
+      });
+
+      expect(useSpeedPassStore.getState().userTextbooks[0]?.courseId).toBe(
+        DEFAULT_SPEEDPASS_COURSE_ID
+      );
+      expect(useSpeedPassStore.getState().tutorials['tutorial-legacy']?.courseId).toBe(
+        DEFAULT_SPEEDPASS_COURSE_ID
+      );
     });
   });
 

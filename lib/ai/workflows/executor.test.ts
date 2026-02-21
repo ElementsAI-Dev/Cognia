@@ -608,12 +608,13 @@ describe('executor', () => {
       });
     });
 
-    describe('Advanced passthrough steps', () => {
-      it('should not fail on advanced node types and return structured passthrough output', async () => {
+    describe('Advanced structured steps', () => {
+      it('should execute knowledge retrieval node and return structured retrieval output', async () => {
         const workflow = createMockWorkflow([
           {
             id: 'advanced-step',
             type: 'knowledgeRetrieval',
+            knowledgeBaseIds: ['default'],
           },
         ]);
 
@@ -630,8 +631,10 @@ describe('executor', () => {
         const advancedStep = result.execution.steps.find((step) => step.stepId === 'advanced-step');
         expect(advancedStep?.status).toBe('completed');
         expect(advancedStep?.output).toMatchObject({
-          passthrough: true,
-          stepType: 'knowledgeRetrieval',
+          query: 'hello',
+          results: expect.any(Array),
+          context: expect.any(String),
+          collectionsUsed: expect.any(Array),
         });
       });
     });

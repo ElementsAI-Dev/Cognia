@@ -38,6 +38,7 @@ jest.mock('lucide-react', () => {
 // Mock cn utility
 jest.mock('@/lib/utils', () => ({
   cn: (...args: (string | boolean | undefined | null)[]) => args.filter(Boolean).join(' '),
+  isTauri: jest.fn(() => true),
 }));
 
 // Mock external agent presets
@@ -571,7 +572,6 @@ describe('ExternalAgentManager', () => {
           name: 'My Agent',
           protocol: 'acp',
           transport: 'stdio',
-          enabled: true,
           process: { command: 'npx', args: ['@anthropics/claude-code', '--stdio'] },
         })
       );
@@ -634,7 +634,6 @@ describe('ExternalAgentManager', () => {
         name: 'HTTP Agent',
         protocol: 'acp',
         transport: 'http',
-        enabled: true,
         network: { endpoint: 'http://localhost:9999' },
       })
     );

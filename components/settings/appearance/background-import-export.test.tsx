@@ -2,7 +2,7 @@
  * BackgroundImportExport Component Tests
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { BackgroundImportExport } from './background-import-export';
 import { useSettingsStore } from '@/stores';
 import { NextIntlClientProvider } from 'next-intl';
@@ -240,6 +240,108 @@ describe('BackgroundImportExport', () => {
         expect(fileInput).toBeInTheDocument();
         expect(fileInput).toHaveAttribute('accept', '.json');
       });
+    });
+
+    it('rejects unsafe imported URLs', async () => {
+      renderWithProviders(<BackgroundImportExport />);
+      fireEvent.click(screen.getByRole('button', { name: /import.*export/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /select file/i })).toBeInTheDocument();
+      });
+
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      const unsafePayload = JSON.stringify({
+        version: '1.0',
+        settings: {
+          enabled: true,
+          source: 'url',
+          imageUrl: 'javascript:alert(1)',
+        },
+      });
+      const file = new File(
+        [unsafePayload],
+        'invalid.json',
+        { type: 'application/json' }
+      );
+
+      const mockFileReader = {
+        readAsText: jest.fn(),
+        onload: null as ((e: ProgressEvent<FileReader>) => void) | null,
+      };
+      jest.spyOn(global, 'FileReader').mockImplementation(
+        () => mockFileReader as unknown as FileReader
+      );
+
+      Object.defineProperty(fileInput, 'files', { value: [file] });
+      fireEvent.change(fileInput);
+
+      await waitFor(() => {
+        expect(mockFileReader.readAsText).toHaveBeenCalled();
+      });
+
+      if (mockFileReader.onload) {
+        await act(async () => {
+          mockFileReader.onload?.({
+            target: { result: unsafePayload },
+          } as unknown as ProgressEvent<FileReader>);
+        });
+      }
+
+      const setBackgroundSettingsMock = useSettingsStore.getState()
+        .setBackgroundSettings as jest.Mock;
+      expect(setBackgroundSettingsMock).not.toHaveBeenCalled();
+    });
+
+    it('downgrades imported local source without asset to none', async () => {
+      renderWithProviders(<BackgroundImportExport />);
+      fireEvent.click(screen.getByRole('button', { name: /import.*export/i }));
+
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      const legacyLocalPayload = JSON.stringify({
+        version: '1.0',
+        settings: {
+          enabled: true,
+          source: 'local',
+          imageUrl: '',
+          localAssetId: null,
+        },
+      });
+      const file = new File(
+        [legacyLocalPayload],
+        'legacy-local.json',
+        { type: 'application/json' }
+      );
+
+      const mockFileReader = {
+        readAsText: jest.fn(),
+        onload: null as ((e: ProgressEvent<FileReader>) => void) | null,
+      };
+      jest.spyOn(global, 'FileReader').mockImplementation(
+        () => mockFileReader as unknown as FileReader
+      );
+
+      const setBackgroundSettingsMock = useSettingsStore.getState()
+        .setBackgroundSettings as jest.Mock;
+      setBackgroundSettingsMock.mockClear();
+
+      Object.defineProperty(fileInput, 'files', { value: [file] });
+      fireEvent.change(fileInput);
+
+      await waitFor(() => {
+        expect(mockFileReader.readAsText).toHaveBeenCalled();
+      });
+
+      if (mockFileReader.onload) {
+        await act(async () => {
+          mockFileReader.onload?.({
+            target: { result: legacyLocalPayload },
+          } as unknown as ProgressEvent<FileReader>);
+        });
+      }
+
+      expect(setBackgroundSettingsMock).toHaveBeenCalled();
+      expect(setBackgroundSettingsMock.mock.calls[0][0].source).toBe('none');
     });
   });
 

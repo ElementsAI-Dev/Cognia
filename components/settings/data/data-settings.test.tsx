@@ -37,6 +37,19 @@ jest.mock('@/stores', () => {
       };
       return selector(state);
     },
+    useProjectStore: (selector: (state: Record<string, unknown>) => unknown) => {
+      const state = {
+        projects: [],
+        clearAllProjects: jest.fn(),
+      };
+      return selector(state);
+    },
+    useSummaryStore: (selector: (state: Record<string, unknown>) => unknown) => {
+      const state = {
+        setCurrentSession: jest.fn(),
+      };
+      return selector(state);
+    },
   };
 });
 
@@ -115,7 +128,7 @@ describe('DataSettings', () => {
 
   it('displays Import button', () => {
     render(<DataSettings />);
-    expect(screen.getByText('Import')).toBeInTheDocument();
+    expect(screen.getAllByText('Import').length).toBeGreaterThan(0);
   });
 
   it('displays Batch Export button', () => {
@@ -156,5 +169,10 @@ describe('DataSettings', () => {
   it('displays IndexedDB info', () => {
     render(<DataSettings />);
     expect(screen.getByText('IndexedDB')).toBeInTheDocument();
+  });
+
+  it('displays optional manual passphrase field', () => {
+    render(<DataSettings />);
+    expect(screen.getByText('Optional manual passphrase')).toBeInTheDocument();
   });
 });

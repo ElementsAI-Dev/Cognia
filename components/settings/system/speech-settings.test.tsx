@@ -4,6 +4,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { SpeechSettings } from './speech-settings';
+import { DEFAULT_SPEECH_SETTINGS } from '@/types/media/speech';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -52,6 +53,17 @@ jest.mock('next-intl', () => ({
       notSupported: 'Not Supported',
       browserSupportNote: 'Speech features depend on browser support',
       processing: 'Processing...',
+      localKey: 'Local key',
+      noLocalKey: 'No local key',
+      serverKey: 'Server key',
+      noServerKey: 'No server key',
+      unavailable: 'Unavailable',
+      edgeRate: 'Edge Rate',
+      edgePitch: 'Edge Pitch',
+      enableCache: 'Enable Cache',
+      enableCacheDesc: 'Enable cache description',
+      enableStreaming: 'Enable Streaming',
+      enableStreamingDesc: 'Enable streaming description',
     };
     return translations[key] || key;
   },
@@ -59,6 +71,7 @@ jest.mock('next-intl', () => ({
 
 // Mock stores
 const mockSpeechSettings = {
+  ...DEFAULT_SPEECH_SETTINGS,
   sttEnabled: true,
   sttLanguage: 'zh-CN',
   sttProvider: 'system',
@@ -73,6 +86,15 @@ const mockSpeechSettings = {
   ttsVolume: 1.0,
   ttsAutoPlay: false,
 };
+
+jest.mock('@/hooks', () => ({
+  useTTS: () => ({
+    speak: jest.fn(),
+    stop: jest.fn(),
+    isPlaying: false,
+    isLoading: false,
+  }),
+}));
 
 const mockSetters = {
   setSttEnabled: jest.fn(),
@@ -195,6 +217,9 @@ Object.defineProperty(window, 'SpeechSynthesisUtterance', {
 describe('SpeechSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    global.fetch = jest.fn(async () => ({
+      json: async () => ({ status: {} }),
+    })) as unknown as typeof fetch;
   });
 
   it('renders without crashing', () => {

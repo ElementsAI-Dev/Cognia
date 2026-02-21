@@ -15,6 +15,8 @@ export interface LMNTTTSOptions {
   voice?: LMNTTTSVoice;
   speed?: number; // 0.5 - 2.0
   format?: 'mp3' | 'wav';
+  language?: string;
+  sampleRate?: number;
 }
 
 /**
@@ -28,6 +30,9 @@ export async function generateLMNTTTS(
     apiKey,
     voice = 'lily',
     speed = 1.0,
+    format = 'mp3',
+    language = 'auto',
+    sampleRate = 24000,
   } = options;
 
   // Validate API key
@@ -49,7 +54,7 @@ export async function generateLMNTTTS(
 
   try {
     // Use LMNT REST API directly for better compatibility
-    const response = await proxyFetch('https://api.lmnt.com/v1/ai/speech', {
+    const response = await proxyFetch('https://api.lmnt.com/v1/ai/speech/bytes', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -59,7 +64,9 @@ export async function generateLMNTTTS(
         text,
         voice,
         speed: Math.min(2.0, Math.max(0.5, speed)),
-        format: 'mp3',
+        format,
+        language,
+        sample_rate: sampleRate,
       }),
     });
 
@@ -76,7 +83,7 @@ export async function generateLMNTTTS(
     return {
       success: true,
       audioData,
-      mimeType: 'audio/mpeg',
+      mimeType: format === 'wav' ? 'audio/wav' : 'audio/mpeg',
     };
   } catch (error) {
     log.error('LMNT TTS error', error as Error);
@@ -97,6 +104,9 @@ export async function generateLMNTTTSViaApi(
   const {
     voice = 'lily',
     speed = 1.0,
+    format = 'mp3',
+    language = 'auto',
+    sampleRate = 24000,
   } = options;
 
   try {
@@ -109,6 +119,9 @@ export async function generateLMNTTTSViaApi(
         text,
         voice,
         speed,
+        format,
+        language,
+        sampleRate,
       }),
     });
 
@@ -125,7 +138,7 @@ export async function generateLMNTTTSViaApi(
     return {
       success: true,
       audioData,
-      mimeType: 'audio/mpeg',
+      mimeType: format === 'wav' ? 'audio/wav' : 'audio/mpeg',
     };
   } catch (error) {
     log.error('LMNT TTS API error', error as Error);
@@ -148,6 +161,9 @@ export async function streamLMNTTTS(
     apiKey,
     voice = 'lily',
     speed = 1.0,
+    format = 'mp3',
+    language = 'auto',
+    sampleRate = 24000,
   } = options;
 
   if (!apiKey) {
@@ -158,7 +174,7 @@ export async function streamLMNTTTS(
   }
 
   try {
-    const response = await proxyFetch('https://api.lmnt.com/v1/ai/speech/stream', {
+    const response = await proxyFetch('https://api.lmnt.com/v1/ai/speech/bytes', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -168,7 +184,9 @@ export async function streamLMNTTTS(
         text,
         voice,
         speed: Math.min(2.0, Math.max(0.5, speed)),
-        format: 'mp3',
+        format,
+        language,
+        sample_rate: sampleRate,
       }),
     });
 
@@ -210,7 +228,7 @@ export async function streamLMNTTTS(
     return {
       success: true,
       audioData: audioData.buffer,
-      mimeType: 'audio/mpeg',
+      mimeType: format === 'wav' ? 'audio/wav' : 'audio/mpeg',
     };
   } catch (error) {
     log.error('LMNT TTS streaming error', error as Error);

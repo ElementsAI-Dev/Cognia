@@ -2,10 +2,6 @@ import type { StoreApi } from 'zustand';
 import { nanoid } from 'nanoid';
 import {
   type CustomModeConfig,
-  type CustomModeCategory,
-  type CustomModeA2UITemplate,
-  type ModeGenerationRequest,
-  type GeneratedModeResult,
 } from '../definitions';
 import { analyzeModeDescription } from '../helpers';
 import { initialState } from '../initial-state';

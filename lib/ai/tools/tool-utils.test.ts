@@ -80,7 +80,7 @@ describe('Tool Utilities', () => {
       const tools2 = { tool2: { description: 'Tool 2' } };
       const tools3 = { tool3: { description: 'Tool 3' } };
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const combined = combineTools(tools1 as any, tools2 as any, tools3 as any);
       
       expect(combined).toHaveProperty('tool1');

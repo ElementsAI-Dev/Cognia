@@ -140,22 +140,22 @@ export {
   PluginHotReload,
   getPluginHotReload,
   resetPluginHotReload,
-  usePluginHotReload,
   type HotReloadConfig,
   type FileChangeEvent,
   type ReloadResult,
 } from './devtools/hot-reload';
+export { usePluginHotReload } from './devtools/hot-reload.client';
 
 export {
   PluginDevServer,
   getPluginDevServer,
   resetPluginDevServer,
-  usePluginDevServer,
   type DevServerConfig,
   type DevServerStatus,
   type DevConsoleMessage,
   type PluginBuildResult,
 } from './devtools/dev-server';
+export { usePluginDevServer } from './devtools/dev-server.client';
 
 // =============================================================================
 // Security - Permission and signature verification

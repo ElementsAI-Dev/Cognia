@@ -18,7 +18,11 @@ import { useVectorStore, useSettingsStore } from '@/stores';
 import type { VectorDBProvider } from '@/stores/data';
 import { useVectorDB } from '@/hooks/rag';
 import { cn } from '@/lib/utils';
-import { DEFAULT_EMBEDDING_MODELS, type EmbeddingProvider } from '@/lib/vector/embedding';
+import {
+  DEFAULT_EMBEDDING_MODELS,
+  type EmbeddingProvider,
+  isEmbeddingProviderConfigured,
+} from '@/lib/vector/embedding';
 import { Slider } from '@/components/ui/slider';
 import {
   SettingsCard,
@@ -60,9 +64,11 @@ export function VectorSettings() {
   const vector = useVectorDB({ collectionName: 'default', autoInitialize: false });
 
   // Check if embedding API key is configured
-  const hasEmbeddingKey = Boolean(
-    providerSettings[settings.embeddingProvider]?.apiKey
+  const hasEmbeddingKey = isEmbeddingProviderConfigured(
+    settings.embeddingProvider,
+    providerSettings as Record<string, { apiKey?: string }>
   );
+  const currentEmbeddingModel = DEFAULT_EMBEDDING_MODELS[settings.embeddingProvider];
 
   // Show setup guide for first-time users
   useEffect(() => {
@@ -75,6 +81,13 @@ export function VectorSettings() {
     setTestResult(null);
     setTestError(null);
   }, [settings.provider, settings.mode, settings.serverUrl]);
+
+  useEffect(() => {
+    const expectedModel = DEFAULT_EMBEDDING_MODELS[settings.embeddingProvider]?.model;
+    if (expectedModel && settings.embeddingModel !== expectedModel) {
+      updateSettings({ embeddingModel: expectedModel });
+    }
+  }, [settings.embeddingModel, settings.embeddingProvider, updateSettings]);
 
   const handleTestConnection = async () => {
     setTesting(true);
@@ -92,6 +105,14 @@ export function VectorSettings() {
 
   const handleProviderChange = (provider: VectorDBProvider) => {
     updateSettings({ provider });
+  };
+
+  const handleEmbeddingProviderChange = (provider: EmbeddingProvider) => {
+    const defaultModel = DEFAULT_EMBEDDING_MODELS[provider]?.model;
+    updateSettings({
+      embeddingProvider: provider,
+      embeddingModel: defaultModel || settings.embeddingModel,
+    });
   };
 
   const handleSetupComplete = () => {
@@ -271,6 +292,40 @@ export function VectorSettings() {
                   className="h-9"
                 />
               </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">{t('providers.milvus.username')}</Label>
+                <Input
+                  value={settings.milvusUsername || ''}
+                  onChange={(e) => updateSettings({ milvusUsername: e.target.value })}
+                  placeholder={t('providers.milvus.usernamePlaceholder')}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">{t('providers.milvus.password')}</Label>
+                <Input
+                  type="password"
+                  value={settings.milvusPassword || ''}
+                  onChange={(e) => updateSettings({ milvusPassword: e.target.value })}
+                  placeholder={t('providers.milvus.passwordPlaceholder')}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">{t('providers.milvus.ssl')}</Label>
+                <Select
+                  value={settings.milvusSsl ? 'true' : 'false'}
+                  onValueChange={(value) => updateSettings({ milvusSsl: value === 'true' })}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="false">{t('providers.milvus.sslDisabled')}</SelectItem>
+                    <SelectItem value="true">{t('providers.milvus.sslEnabled')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </SettingsGrid>
           )}
         </div>
@@ -295,9 +350,7 @@ export function VectorSettings() {
             <Label className="text-sm">{t('embedding.provider')}</Label>
             <Select
               value={settings.embeddingProvider}
-              onValueChange={(value) =>
-                updateSettings({ embeddingProvider: value as EmbeddingProvider })
-              }
+              onValueChange={(value) => handleEmbeddingProviderChange(value as EmbeddingProvider)}
             >
               <SelectTrigger className="h-9">
                 <SelectValue />
@@ -321,14 +374,11 @@ export function VectorSettings() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {EMBEDDING_PROVIDERS.map((provider) => {
-                  const config = DEFAULT_EMBEDDING_MODELS[provider];
-                  return (
-                    <SelectItem key={config.model} value={config.model}>
-                      {config.model} ({config.dimensions}d)
-                    </SelectItem>
-                  );
-                })}
+                {currentEmbeddingModel && (
+                  <SelectItem value={currentEmbeddingModel.model}>
+                    {currentEmbeddingModel.model} ({currentEmbeddingModel.dimensions}d)
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>

@@ -4,7 +4,12 @@
 import React from 'react';
 import { render, waitFor, act } from '@testing-library/react';
 import { MonacoSandpackEditor } from './monaco-sandpack-editor';
-import { isTauriRuntime } from '@/lib/monaco/lsp/lsp-client';
+import {
+  isTauriRuntime,
+  lspGetServerStatus,
+  lspListenInstallProgress,
+  lspListenServerStatusChanged,
+} from '@/lib/monaco/lsp/lsp-client';
 
 // Mock designer store
 const mockSetCode = jest.fn();
@@ -21,13 +26,49 @@ jest.mock('@/stores/designer', () => ({
 }));
 
 // Mock settings store
-jest.mock('@/stores', () => ({
-  useSettingsStore: (selector: (state: unknown) => unknown) => {
-    const state = {
-      theme: 'light',
-    };
-    return selector(state);
+const mockSetEditorSettings = jest.fn();
+const mockSettingsState = {
+  theme: 'light',
+  editorSettings: {
+    appearance: {
+      fontSize: 14,
+      tabSize: 2,
+      wordWrap: false,
+      minimap: false,
+      cursorStyle: 'line',
+      renderWhitespace: 'selection',
+      formatOnPaste: false,
+      formatOnType: false,
+      bracketPairColorization: true,
+      stickyScroll: true,
+      autoSave: true,
+    },
+    lsp: {
+      enabled: true,
+      protocolV2Enabled: true,
+      autoInstall: true,
+      providerOrder: ['open_vsx', 'vs_marketplace'],
+      timeoutMs: 10_000,
+    },
+    palette: {
+      showContextCommands: true,
+      groupByContext: true,
+    },
+    diagnostics: {
+      debounceMs: 300,
+      minimumSeverity: 'hint',
+    },
   },
+  setEditorSettings: mockSetEditorSettings,
+};
+function mockUseSettingsStore(selector: (state: typeof mockSettingsState) => unknown) {
+  return selector(mockSettingsState);
+}
+
+jest.mock('@/stores', () => ({
+  useSettingsStore: Object.assign(mockUseSettingsStore, {
+    getState: () => mockSettingsState,
+  }),
 }));
 
 // Mock snippet registration
@@ -64,10 +105,18 @@ const mockCreateMonacoLspAdapter = jest.fn((_options?: unknown) => ({
       completion: false,
       hover: false,
       definition: false,
+      references: false,
+      rename: false,
+      implementation: false,
+      typeDefinition: false,
+      signatureHelp: false,
+      documentHighlight: false,
       documentSymbols: false,
       codeActions: false,
       formatting: false,
       workspaceSymbols: false,
+      inlayHints: false,
+      semanticTokens: false,
     },
   })),
   dispose: jest.fn(async () => undefined),
@@ -78,6 +127,17 @@ jest.mock('@/lib/monaco/lsp/monaco-lsp-adapter', () => ({
 
 jest.mock('@/lib/monaco/lsp/lsp-client', () => ({
   isTauriRuntime: jest.fn(() => false),
+  lspGetServerStatus: jest.fn(async () => ({
+    languageId: 'typescript',
+    normalizedLanguageId: 'typescript',
+    supported: true,
+    installed: false,
+    ready: false,
+    args: [],
+    needsApproval: false,
+  })),
+  lspListenInstallProgress: jest.fn(async () => jest.fn()),
+  lspListenServerStatusChanged: jest.fn(async () => jest.fn()),
 }));
 
 // Mock TypeScript config to prevent setEagerModelSync errors
@@ -103,6 +163,7 @@ const mockEditor = {
   setValue: jest.fn(),
   dispose: mockDispose,
   onDidChangeModelContent: jest.fn(() => ({ dispose: jest.fn() })),
+  onDidFocusEditorText: jest.fn(() => ({ dispose: jest.fn() })),
   onDidChangeCursorPosition: jest.fn(() => ({ dispose: jest.fn() })),
   onDidChangeCursorSelection: jest.fn(() => ({ dispose: jest.fn() })),
   addCommand: jest.fn(),
@@ -163,11 +224,52 @@ jest.mock('monaco-editor', () => mockMonaco, { virtual: true });
 
 describe('MonacoSandpackEditor', () => {
   const mockIsTauriRuntime = isTauriRuntime as jest.MockedFunction<typeof isTauriRuntime>;
+  const mockLspGetServerStatus = lspGetServerStatus as jest.MockedFunction<typeof lspGetServerStatus>;
+  const mockLspListenInstallProgress = lspListenInstallProgress as jest.MockedFunction<typeof lspListenInstallProgress>;
+  const mockLspListenServerStatusChanged = lspListenServerStatusChanged as jest.MockedFunction<typeof lspListenServerStatusChanged>;
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    mockSetEditorSettings.mockImplementation((settings: Partial<typeof mockSettingsState.editorSettings>) => {
+      mockSettingsState.editorSettings = {
+        ...mockSettingsState.editorSettings,
+        ...settings,
+        appearance: {
+          ...mockSettingsState.editorSettings.appearance,
+          ...(settings.appearance ?? {}),
+        },
+        lsp: {
+          ...mockSettingsState.editorSettings.lsp,
+          ...(settings.lsp ?? {}),
+        },
+        palette: {
+          ...mockSettingsState.editorSettings.palette,
+          ...(settings.palette ?? {}),
+        },
+        diagnostics: {
+          ...mockSettingsState.editorSettings.diagnostics,
+          ...(settings.diagnostics ?? {}),
+        },
+      };
+    });
+    mockSettingsState.theme = 'light';
+    mockSettingsState.editorSettings.lsp.enabled = true;
+    mockSettingsState.editorSettings.lsp.protocolV2Enabled = true;
+    mockSettingsState.editorSettings.lsp.autoInstall = true;
+    mockSettingsState.editorSettings.lsp.providerOrder = ['open_vsx', 'vs_marketplace'];
     mockIsTauriRuntime.mockReturnValue(false);
+    mockLspGetServerStatus.mockResolvedValue({
+      languageId: 'typescript',
+      normalizedLanguageId: 'typescript',
+      supported: true,
+      installed: false,
+      ready: false,
+      args: [],
+      needsApproval: false,
+    });
+    mockLspListenInstallProgress.mockResolvedValue(jest.fn());
+    mockLspListenServerStatusChanged.mockResolvedValue(jest.fn());
     localStorage.clear();
   });
 
@@ -464,7 +566,8 @@ describe('MonacoSandpackEditor', () => {
 
     it('passes protocol v2 enabled by default when tauri LSP is active', async () => {
       mockIsTauriRuntime.mockReturnValue(true);
-      localStorage.setItem('cognia-designer-lsp-enabled', 'true');
+      mockSettingsState.editorSettings.lsp.enabled = true;
+      mockSettingsState.editorSettings.lsp.protocolV2Enabled = true;
 
       await act(async () => {
         render(<MonacoSandpackEditor language="typescript" />);
@@ -481,8 +584,8 @@ describe('MonacoSandpackEditor', () => {
 
     it('passes protocol v2 disabled when feature flag is set to false', async () => {
       mockIsTauriRuntime.mockReturnValue(true);
-      localStorage.setItem('cognia-designer-lsp-enabled', 'true');
-      localStorage.setItem('cognia-designer-lsp-protocol-v2', 'false');
+      mockSettingsState.editorSettings.lsp.enabled = true;
+      mockSettingsState.editorSettings.lsp.protocolV2Enabled = false;
 
       await act(async () => {
         render(<MonacoSandpackEditor language="typescript" />);

@@ -20,6 +20,8 @@ export interface BatchImage {
   progress: number;
   error?: string;
   outputPath?: string;
+  attempts?: number;
+  lastError?: string;
 }
 
 export interface BatchPreset {
@@ -81,7 +83,12 @@ export interface BatchEditState {
     imageId: string,
     status: BatchImage['status'],
     progress?: number,
-    error?: string
+    error?: string,
+    metadata?: {
+      outputPath?: string;
+      attempts?: number;
+      lastError?: string;
+    }
   ) => void;
 
   // Preset actions
@@ -193,14 +200,22 @@ export const useBatchEditStore = create<BatchEditState>()(
         }));
       },
 
-      updateImageStatus: (jobId, imageId, status, progress = 0, error) => {
+      updateImageStatus: (jobId, imageId, status, progress = 0, error, metadata) => {
         set((state) => ({
           jobs: state.jobs.map((job) => {
             if (job.id !== jobId) return job;
 
             const updatedImages = job.images.map((img) =>
               img.id === imageId
-                ? { ...img, status, progress, error }
+                ? {
+                    ...img,
+                    status,
+                    progress,
+                    error,
+                    outputPath: metadata?.outputPath ?? img.outputPath,
+                    attempts: metadata?.attempts ?? img.attempts,
+                    lastError: metadata?.lastError ?? (status === 'error' ? error : img.lastError),
+                  }
                 : img
             );
 

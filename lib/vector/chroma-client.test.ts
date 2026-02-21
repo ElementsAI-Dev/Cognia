@@ -51,7 +51,7 @@ jest.mock('chromadb', () => {
   const MockChromaClient = jest.fn().mockImplementation(() => ({
     getOrCreateCollection: jest.fn().mockResolvedValue(mockCollection),
     deleteCollection: jest.fn().mockResolvedValue(undefined),
-    listCollections: jest.fn().mockResolvedValue(['collection1', 'collection2']),
+    listCollections: jest.fn().mockResolvedValue([{ name: 'collection1' }, { name: 'collection2' }]),
     getCollection: jest.fn().mockResolvedValue(mockCollection),
   }));
 

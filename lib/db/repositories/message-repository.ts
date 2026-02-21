@@ -30,6 +30,7 @@ function toUIMessage(dbMessage: DBMessage): UIMessage {
     isBookmarked: dbMessage.isBookmarked,
     bookmarkedAt: dbMessage.bookmarkedAt,
     reaction: dbMessage.reaction as UIMessage['reaction'],
+    reactions: dbMessage.reactions ? JSON.parse(dbMessage.reactions) : undefined,
   } as UIMessage;
 }
 
@@ -55,6 +56,7 @@ function toDBMessage(message: UIMessage, sessionId: string, branchId?: string): 
     isBookmarked: message.isBookmarked,
     bookmarkedAt: message.bookmarkedAt,
     reaction: message.reaction,
+    reactions: message.reactions ? JSON.stringify(message.reactions) : undefined,
   };
 }
 
@@ -129,6 +131,7 @@ export const messageRepository = {
     if (updates.isBookmarked !== undefined) updateData.isBookmarked = updates.isBookmarked;
     if (updates.bookmarkedAt !== undefined) updateData.bookmarkedAt = updates.bookmarkedAt;
     if (updates.reaction !== undefined) updateData.reaction = updates.reaction;
+    if (updates.reactions !== undefined) updateData.reactions = JSON.stringify(updates.reactions);
 
     await withRetry(async () => {
       await db.messages.update(id, updateData);

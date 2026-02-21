@@ -41,6 +41,7 @@ import { cn } from '@/lib/utils';
 import { ExternalAgentManager } from './external-agent-manager';
 import { useExternalAgentStore } from '@/stores/agent/external-agent-store';
 import type { ExternalAgentConnectionStatus } from '@/types/agent/external-agent';
+import { getExternalAgentExecutionBlockReason } from '@/lib/ai/agent/external/config-normalizer';
 
 // =============================================================================
 // Types
@@ -226,11 +227,13 @@ export function ExternalAgentSelector({
                 {agents.map((agent) => {
                   const status = getConnectionStatus(agent.id);
                   const isSelected = agent.id === selectedAgentId;
+                  const executionBlockedReason = getExternalAgentExecutionBlockReason(agent);
                   return (
                     <DropdownMenuItem
                       key={agent.id}
                       onClick={() => handleAgentSelect(agent.id)}
                       className="flex items-center gap-3 p-3"
+                      disabled={!!executionBlockedReason}
                     >
                       <div
                         className={cn(
@@ -249,8 +252,18 @@ export function ExternalAgentSelector({
                           <Badge variant="outline" className="text-[10px] h-4 px-1">
                             {agent.protocol.toUpperCase()}
                           </Badge>
+                          {executionBlockedReason && (
+                            <Badge variant="destructive" className="text-[10px] h-4 px-1">
+                              Coming Soon
+                            </Badge>
+                          )}
                           <ConnectionStatusBadge status={status} t={t} />
                         </div>
+                        {executionBlockedReason && (
+                          <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">
+                            {executionBlockedReason}
+                          </p>
+                        )}
                       </div>
                     </DropdownMenuItem>
                   );

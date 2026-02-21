@@ -25,6 +25,7 @@ jest.mock('@/lib/learning/speedpass/knowledge-extractor', () => ({
 
 // Helper to mock store actions
 const mockActions = {
+  updateTextbook: jest.fn(),
   setTextbookChapters: jest.fn(),
   setTextbookKnowledgePoints: jest.fn(),
   setTextbookQuestions: jest.fn(),

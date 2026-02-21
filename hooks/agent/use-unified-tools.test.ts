@@ -105,6 +105,11 @@ jest.mock('@/lib/skills/executor', () => ({
   createSkillTools: jest.fn(() => ({})),
 }));
 
+jest.mock('@/lib/vector/embedding', () => ({
+  isEmbeddingProviderConfigured: jest.fn(() => true),
+  resolveEmbeddingApiKey: jest.fn(() => 'test-key'),
+}));
+
 // Import after mocks
 import { useUnifiedTools } from './use-unified-tools';
 

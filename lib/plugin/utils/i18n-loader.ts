@@ -4,8 +4,8 @@
  * Handles loading and managing plugin localization resources.
  */
 
-import { invoke } from '@tauri-apps/api/core';
 import { loggers } from '../core/logger';
+import { readTextFile } from '@/lib/file/file-operations';
 
 // =============================================================================
 // Types
@@ -103,8 +103,11 @@ export class PluginI18nLoader {
 
       for (const pattern of patterns) {
         try {
-          const content = await invoke<string>('plugin_read_file', { path: pattern });
-          return JSON.parse(content);
+          const result = await readTextFile(pattern);
+          if (!result.success || !result.content) {
+            continue;
+          }
+          return JSON.parse(result.content);
         } catch {
           // Try next pattern
         }

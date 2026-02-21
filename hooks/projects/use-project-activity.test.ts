@@ -24,7 +24,7 @@ import { useProjectActivity } from './use-project-activity';
 
 // Helper to get the mock store for test manipulation
 function getMockStore() {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
+   
   return (require('@/stores') as any).useProjectActivityStore;
 }
 

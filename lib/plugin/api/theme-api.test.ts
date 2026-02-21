@@ -56,30 +56,60 @@ jest.mock('@/stores', () => ({
   },
 }));
 
-jest.mock('@/lib/themes', () => ({
-  THEME_PRESETS: {
-    default: {
-      light: {
-        primary: 'oklch(0.6 0.2 250)',
-        primaryForeground: 'oklch(0.98 0.01 0)',
-        secondary: 'oklch(0.9 0.02 250)',
-        background: 'oklch(0.99 0.01 0)',
-        foreground: 'oklch(0.15 0.02 250)',
-      },
-      dark: {
-        primary: 'oklch(0.6 0.2 250)',
-        primaryForeground: 'oklch(0.98 0.01 0)',
-        secondary: 'oklch(0.25 0.02 250)',
-        background: 'oklch(0.15 0.02 250)',
-        foreground: 'oklch(0.95 0.01 0)',
-      },
-    },
-    ocean: {
-      light: { primary: 'oklch(0.5 0.2 220)' },
-      dark: { primary: 'oklch(0.5 0.2 220)' },
-    },
-  },
-}));
+jest.mock('@/lib/themes', () => {
+  const createColors = (suffix: string) => ({
+    primary: `${suffix}-primary`,
+    primaryForeground: `${suffix}-primary-foreground`,
+    secondary: `${suffix}-secondary`,
+    secondaryForeground: `${suffix}-secondary-foreground`,
+    accent: `${suffix}-accent`,
+    accentForeground: `${suffix}-accent-foreground`,
+    background: `${suffix}-background`,
+    foreground: `${suffix}-foreground`,
+    muted: `${suffix}-muted`,
+    mutedForeground: `${suffix}-muted-foreground`,
+    card: `${suffix}-card`,
+    cardForeground: `${suffix}-card-foreground`,
+    border: `${suffix}-border`,
+    ring: `${suffix}-ring`,
+    destructive: `${suffix}-destructive`,
+    destructiveForeground: `${suffix}-destructive-foreground`,
+  });
+
+  return {
+    resolveActiveThemeColors: jest.fn((input: {
+      colorTheme: string;
+      resolvedTheme: 'light' | 'dark';
+      activeCustomThemeId: string | null;
+      customThemes: CustomTheme[];
+    }) => {
+      const activeCustomTheme = input.activeCustomThemeId
+        ? input.customThemes.find((theme) => theme.id === input.activeCustomThemeId) ?? null
+        : null;
+
+      if (activeCustomTheme) {
+        const customColors = createColors('custom');
+        return {
+          themeSource: 'custom',
+          colors: {
+            ...customColors,
+            ...activeCustomTheme.colors,
+          },
+          derivedVariables: {},
+          activeCustomTheme,
+        };
+      }
+
+      const suffix = `${input.colorTheme}-${input.resolvedTheme}`;
+      return {
+        themeSource: 'preset',
+        colors: createColors(suffix),
+        derivedVariables: {},
+        activeCustomTheme: null,
+      };
+    }),
+  };
+});
 
 describe('Theme API', () => {
   const testPluginId = 'test-plugin';
@@ -124,6 +154,7 @@ describe('Theme API', () => {
       expect(theme.mode).toBe('light');
       expect(theme.resolvedMode).toBe('light');
       expect(theme.colorPreset).toBe('default');
+      expect(theme.themeSource).toBe('preset');
       expect(theme.colors).toBeDefined();
     });
   });
@@ -222,7 +253,32 @@ describe('Theme API', () => {
 
       const colors = api.getColors();
 
-      expect(colors.background).toContain('0.15');
+      expect(colors.background).toBe('default-dark-background');
+    });
+
+    it('should return active custom theme colors when custom theme is active', () => {
+      mockTheme = 'dark';
+      mockActiveCustomThemeId = 'custom-theme';
+      mockCustomThemes.push({
+        id: 'custom-theme',
+        name: 'Custom Theme',
+        isDark: true,
+        colors: {
+          primary: '#112233',
+          secondary: '#223344',
+          accent: '#334455',
+          background: '#111111',
+          foreground: '#eeeeee',
+          muted: '#222222',
+        },
+      });
+
+      const api = createThemeAPI(testPluginId);
+      const theme = api.getTheme();
+
+      expect(theme.themeSource).toBe('custom');
+      expect(theme.colors.primary).toBe('#112233');
+      expect(theme.customThemeId).toBe('custom-theme');
     });
   });
 
@@ -330,6 +386,44 @@ describe('Theme API', () => {
 
       unsubscribe();
       expect(mockSubscribers.length).toBe(0);
+    });
+
+    it('emits changes when active custom theme colors are updated', () => {
+      mockActiveCustomThemeId = 'custom-theme';
+      mockCustomThemes.push({
+        id: 'custom-theme',
+        name: 'Custom',
+        isDark: false,
+        colors: {
+          primary: '#000000',
+          secondary: '#111111',
+          accent: '#222222',
+          background: '#ffffff',
+          foreground: '#000000',
+          muted: '#f1f5f9',
+        },
+      });
+
+      const api = createThemeAPI(testPluginId);
+      const handler = jest.fn();
+      const unsubscribe = api.onThemeChange(handler);
+
+      mockCustomThemes[0].colors.primary = '#123456';
+      mockSubscribers.forEach((callback) =>
+        callback({
+          theme: mockTheme,
+          colorTheme: mockColorTheme,
+          activeCustomThemeId: mockActiveCustomThemeId,
+          customThemes: mockCustomThemes,
+        })
+      );
+
+      expect(handler).toHaveBeenCalled();
+      const payload = handler.mock.calls[0][0];
+      expect(payload.themeSource).toBe('custom');
+      expect(payload.colors.primary).toBe('#123456');
+
+      unsubscribe();
     });
   });
 

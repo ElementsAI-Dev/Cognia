@@ -9,7 +9,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type {
-  ExternalAgentConfig,
+  CreateExternalAgentInput,
   ExternalAgentSession,
   ExternalAgentEvent,
   ExternalAgentResult,
@@ -29,6 +29,12 @@ import type {
 } from '@/types/agent/external-agent';
 import type { AgentTool } from '@/lib/ai/agent';
 import { getPluginEventHooks } from '@/lib/plugin';
+import { useExternalAgentStore } from '@/stores/agent/external-agent-store';
+import {
+  getExternalAgentExecutionBlockReason,
+  isExternalAgentExecutable,
+  normalizeExternalAgentConfigInput,
+} from '@/lib/ai/agent/external/config-normalizer';
 
 // ============================================================================
 // Types
@@ -73,7 +79,7 @@ export interface UseExternalAgentState {
  */
 export interface UseExternalAgentActions {
   /** Add a new external agent configuration */
-  addAgent: (config: ExternalAgentConfig) => Promise<ExternalAgentInstance>;
+  addAgent: (config: CreateExternalAgentInput) => Promise<ExternalAgentInstance>;
   /** Remove an external agent */
   removeAgent: (agentId: string) => Promise<void>;
   /** Connect to an external agent */
@@ -170,9 +176,16 @@ export type UseExternalAgentReturn = UseExternalAgentState & UseExternalAgentAct
  * ```
  */
 export function useExternalAgent(): UseExternalAgentReturn {
+  const storeActiveAgentId = useExternalAgentStore((state) => state.activeAgentId);
+  const storeSetActiveAgent = useExternalAgentStore((state) => state.setActiveAgent);
+  const storeGetAllAgents = useExternalAgentStore((state) => state.getAllAgents);
+  const storeGetConnectionStatus = useExternalAgentStore((state) => state.getConnectionStatus);
+  const storeAddAgent = useExternalAgentStore((state) => state.addAgent);
+  const storeRemoveAgent = useExternalAgentStore((state) => state.removeAgent);
+  const storeSetConnectionStatus = useExternalAgentStore((state) => state.setConnectionStatus);
+
   // State
   const [agents, setAgents] = useState<ExternalAgentInstance[]>([]);
-  const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
   const [activeSession, setActiveSession] = useState<ExternalAgentSession | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -185,6 +198,7 @@ export function useExternalAgent(): UseExternalAgentReturn {
   const [streamingResponse, setStreamingResponse] = useState('');
   const [configOptions, setConfigOptions] = useState<AcpConfigOption[]>([]);
   const [lastResult, setLastResult] = useState<ExternalAgentResult | null>(null);
+  const activeAgentId = storeActiveAgentId;
 
   // Type for the external agent manager
   type ExternalAgentManagerType = Awaited<ReturnType<typeof import('@/lib/ai/agent/external/manager').getExternalAgentManager>>;
@@ -193,6 +207,8 @@ export function useExternalAgent(): UseExternalAgentReturn {
   const abortControllerRef = useRef<AbortController | null>(null);
   const managerRef = useRef<ExternalAgentManagerType | null>(null);
   const permissionResolveRef = useRef<((response: AcpPermissionResponse) => void) | null>(null);
+  const executingSessionIdRef = useRef<string | null>(null);
+  const previousActiveAgentIdRef = useRef<string | null>(activeAgentId);
 
   // Get the external agent manager
   const getManager = useCallback(async (): Promise<ExternalAgentManagerType> => {
@@ -207,11 +223,38 @@ export function useExternalAgent(): UseExternalAgentReturn {
   const refresh = useCallback(async () => {
     try {
       const manager = await getManager();
-      setAgents(manager.getAllAgents());
+      const managerAgents = manager.getAllAgents();
+      const managerMap = new Map(managerAgents.map((agent) => [agent.config.id, agent]));
+      const storeAgents = storeGetAllAgents();
+
+      const mergedAgents: ExternalAgentInstance[] = storeAgents.map((config) => {
+        const runtime = managerMap.get(config.id);
+        if (runtime) {
+          storeSetConnectionStatus(config.id, runtime.connectionStatus);
+          return runtime;
+        }
+
+        return {
+          config,
+          connectionStatus: storeGetConnectionStatus(config.id),
+          status: 'idle',
+          sessions: new Map(),
+          connectionAttempts: 0,
+          stats: {
+            totalExecutions: 0,
+            successfulExecutions: 0,
+            failedExecutions: 0,
+            totalTokensUsed: 0,
+            averageResponseTime: 0,
+          },
+        };
+      });
+
+      setAgents(mergedAgents);
     } catch (err) {
       console.error('[useExternalAgent] Failed to refresh agents:', err);
     }
-  }, [getManager]);
+  }, [getManager, storeGetAllAgents, storeSetConnectionStatus, storeGetConnectionStatus]);
 
   // Initialize on mount and cleanup on unmount
   useEffect(() => {
@@ -239,6 +282,28 @@ export function useExternalAgent(): UseExternalAgentReturn {
       }
     };
   }, [refresh]);
+
+  useEffect(() => {
+    const unsubscribe = useExternalAgentStore.subscribe((state, previousState) => {
+      if (
+        state.agents !== previousState.agents ||
+        state.connectionStatus !== previousState.connectionStatus ||
+        state.activeAgentId !== previousState.activeAgentId
+      ) {
+        void refresh();
+      }
+    });
+
+    return unsubscribe;
+  }, [refresh]);
+
+  useEffect(() => {
+    if (previousActiveAgentIdRef.current !== activeAgentId) {
+      setActiveSession(null);
+      executingSessionIdRef.current = null;
+    }
+    previousActiveAgentIdRef.current = activeAgentId;
+  }, [activeAgentId]);
 
   // Subscribe to ACP session updates for commands/plan
   useEffect(() => {
@@ -307,13 +372,51 @@ export function useExternalAgent(): UseExternalAgentReturn {
 
   // Add a new agent
   const addAgent = useCallback(
-    async (config: ExternalAgentConfig): Promise<ExternalAgentInstance> => {
+    async (input: CreateExternalAgentInput): Promise<ExternalAgentInstance> => {
       setIsLoading(true);
       setError(null);
 
       try {
+        const defaultPermissionMode = useExternalAgentStore.getState().defaultPermissionMode;
+        const normalized = normalizeExternalAgentConfigInput(input, {
+          defaultPermissionMode,
+        });
+        const createdAgentId = storeAddAgent({
+          ...input,
+          protocol: normalized.protocol,
+          transport: normalized.transport,
+          metadata: normalized.metadata,
+        });
+        const storedConfig = useExternalAgentStore.getState().getAgent(createdAgentId);
+        if (!storedConfig) {
+          throw new Error('Failed to persist external agent configuration.');
+        }
+
+        if (!isExternalAgentExecutable(storedConfig)) {
+          storeSetConnectionStatus(
+            createdAgentId,
+            storedConfig.protocol === 'acp' ? 'disconnected' : 'error'
+          );
+          await refresh();
+          return {
+            config: storedConfig,
+            connectionStatus: storeGetConnectionStatus(createdAgentId),
+            status: 'idle',
+            sessions: new Map(),
+            connectionAttempts: 0,
+            stats: {
+              totalExecutions: 0,
+              successfulExecutions: 0,
+              failedExecutions: 0,
+              totalTokensUsed: 0,
+              averageResponseTime: 0,
+            },
+          };
+        }
+
         const manager = await getManager();
-        const instance = await manager.addAgent(config);
+        const instance = await manager.addAgent(storedConfig);
+        storeSetConnectionStatus(createdAgentId, instance.connectionStatus);
         await refresh();
         return instance;
       } catch (err) {
@@ -324,7 +427,7 @@ export function useExternalAgent(): UseExternalAgentReturn {
         setIsLoading(false);
       }
     },
-    [getManager, refresh]
+    [getManager, refresh, storeAddAgent, storeSetConnectionStatus, storeGetConnectionStatus]
   );
 
   // Remove an agent
@@ -335,10 +438,14 @@ export function useExternalAgent(): UseExternalAgentReturn {
 
       try {
         const manager = await getManager();
-        await manager.removeAgent(agentId);
+        const runtimeAgent = manager.getAgent(agentId);
+        if (runtimeAgent) {
+          await manager.removeAgent(agentId);
+        }
+        storeRemoveAgent(agentId);
 
         if (activeAgentId === agentId) {
-          setActiveAgentId(null);
+          storeSetActiveAgent(null);
           setActiveSession(null);
         }
 
@@ -351,7 +458,7 @@ export function useExternalAgent(): UseExternalAgentReturn {
         setIsLoading(false);
       }
     },
-    [getManager, refresh, activeAgentId]
+    [getManager, refresh, activeAgentId, storeRemoveAgent, storeSetActiveAgent]
   );
 
   // Connect to an agent
@@ -361,8 +468,21 @@ export function useExternalAgent(): UseExternalAgentReturn {
       setError(null);
 
       try {
+        const targetConfig = useExternalAgentStore.getState().getAgent(agentId);
+        if (!targetConfig) {
+          throw new Error(`Agent not found: ${agentId}`);
+        }
+        const blockedReason = getExternalAgentExecutionBlockReason(targetConfig);
+        if (blockedReason) {
+          storeSetConnectionStatus(agentId, targetConfig.protocol === 'acp' ? 'disconnected' : 'error');
+          throw new Error(blockedReason);
+        }
+
+        storeSetConnectionStatus(agentId, 'connecting');
         const manager = await getManager();
         await manager.connect(agentId);
+        const updated = manager.getAgent(agentId);
+        storeSetConnectionStatus(agentId, updated?.connectionStatus ?? 'connected');
         await refresh();
 
         // Dispatch external agent connect hook
@@ -371,13 +491,14 @@ export function useExternalAgent(): UseExternalAgentReturn {
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
+        storeSetConnectionStatus(agentId, 'error');
         getPluginEventHooks().dispatchExternalAgentError(agentId, message);
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [getManager, refresh]
+    [getManager, refresh, storeSetConnectionStatus]
   );
 
   // Disconnect from an agent
@@ -389,6 +510,7 @@ export function useExternalAgent(): UseExternalAgentReturn {
       try {
         const manager = await getManager();
         await manager.disconnect(agentId);
+        storeSetConnectionStatus(agentId, 'disconnected');
 
         if (activeAgentId === agentId) {
           setActiveSession(null);
@@ -406,7 +528,7 @@ export function useExternalAgent(): UseExternalAgentReturn {
         setIsLoading(false);
       }
     },
-    [getManager, refresh, activeAgentId]
+    [getManager, refresh, activeAgentId, storeSetConnectionStatus]
   );
 
   // Reconnect to an agent
@@ -416,26 +538,31 @@ export function useExternalAgent(): UseExternalAgentReturn {
       setError(null);
 
       try {
+        storeSetConnectionStatus(agentId, 'reconnecting');
         const manager = await getManager();
         await manager.reconnect(agentId);
+        const updated = manager.getAgent(agentId);
+        storeSetConnectionStatus(agentId, updated?.connectionStatus ?? 'connected');
         await refresh();
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
+        storeSetConnectionStatus(agentId, 'error');
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [getManager, refresh]
+    [getManager, refresh, storeSetConnectionStatus]
   );
 
   // Set active agent
   const setActiveAgent = useCallback((agentId: string | null) => {
-    setActiveAgentId(agentId);
+    storeSetActiveAgent(agentId);
     setActiveSession(null);
+    executingSessionIdRef.current = null;
     setError(null);
-  }, []);
+  }, [storeSetActiveAgent]);
 
   // Create a new session
   const createSession = useCallback(
@@ -453,6 +580,7 @@ export function useExternalAgent(): UseExternalAgentReturn {
           systemPrompt: options?.systemPrompt,
         });
         setActiveSession(session);
+        executingSessionIdRef.current = session.id;
         return session;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -481,6 +609,7 @@ export function useExternalAgent(): UseExternalAgentReturn {
 
         if (activeSession?.id === sessionId) {
           setActiveSession(null);
+          executingSessionIdRef.current = null;
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -513,6 +642,7 @@ export function useExternalAgent(): UseExternalAgentReturn {
       const manager = await getManager();
       const forked = await manager.forkSession(activeAgentId, sessionId);
       setActiveSession(forked);
+      executingSessionIdRef.current = forked.id;
       return forked;
     },
     [getManager, activeAgentId]
@@ -528,6 +658,7 @@ export function useExternalAgent(): UseExternalAgentReturn {
         systemPrompt: options?.systemPrompt,
       });
       setActiveSession(resumed);
+      executingSessionIdRef.current = resumed.id;
       return resumed;
     },
     [getManager, activeAgentId]
@@ -551,6 +682,17 @@ export function useExternalAgent(): UseExternalAgentReturn {
 
       try {
         const manager = await getManager();
+        const configuredAgent = useExternalAgentStore.getState().getAgent(activeAgentId);
+        if (!configuredAgent) {
+          throw new Error('External agent configuration not found.');
+        }
+        const blockedReason = getExternalAgentExecutionBlockReason(configuredAgent);
+        if (blockedReason) {
+          throw new Error(blockedReason);
+        }
+        const resolvedSessionId =
+          options?.sessionId || activeSession?.id || executingSessionIdRef.current || undefined;
+        executingSessionIdRef.current = resolvedSessionId ?? null;
 
         // Create permission request handler
         const onPermissionRequest = async (
@@ -564,11 +706,12 @@ export function useExternalAgent(): UseExternalAgentReturn {
         };
 
         // Dispatch external agent execution start hook
-        const sessionId = activeSession?.id || '';
+        const sessionId = resolvedSessionId || '';
         getPluginEventHooks().dispatchExternalAgentExecutionStart(activeAgentId, sessionId, prompt);
 
         const result = await manager.execute(activeAgentId, prompt, {
           ...options,
+          sessionId: resolvedSessionId,
           onProgress: (p: number, message?: string) => {
             setProgress(p);
             options?.onProgress?.(p, message);
@@ -578,11 +721,19 @@ export function useExternalAgent(): UseExternalAgentReturn {
         });
 
         setLastResult(result);
+        const nextSessionId = result.sessionId || resolvedSessionId || null;
+        executingSessionIdRef.current = nextSessionId;
+        if (nextSessionId) {
+          const latestSession = manager.getSession(activeAgentId, nextSessionId);
+          if (latestSession) {
+            setActiveSession(latestSession);
+          }
+        }
 
         // Dispatch external agent execution complete hook
         getPluginEventHooks().dispatchExternalAgentExecutionComplete(
           activeAgentId,
-          sessionId,
+          nextSessionId || sessionId,
           result.success,
           result.finalResponse
         );
@@ -624,11 +775,34 @@ export function useExternalAgent(): UseExternalAgentReturn {
 
       try {
         const manager = await getManager();
+        const configuredAgent = useExternalAgentStore.getState().getAgent(activeAgentId);
+        if (!configuredAgent) {
+          throw new Error('External agent configuration not found.');
+        }
+        const blockedReason = getExternalAgentExecutionBlockReason(configuredAgent);
+        if (blockedReason) {
+          throw new Error(blockedReason);
+        }
+        const resolvedSessionId =
+          options?.sessionId || activeSession?.id || executingSessionIdRef.current || undefined;
+        executingSessionIdRef.current = resolvedSessionId ?? null;
 
         for await (const event of manager.executeStreaming(activeAgentId, prompt, {
           ...options,
+          sessionId: resolvedSessionId,
           signal: abortControllerRef.current.signal,
         })) {
+          if ('sessionId' in event && typeof event.sessionId === 'string') {
+            executingSessionIdRef.current = event.sessionId;
+          }
+
+          if (event.type === 'session_start' && typeof event.sessionId === 'string') {
+            const latestSession = manager.getSession(activeAgentId, event.sessionId);
+            if (latestSession) {
+              setActiveSession(latestSession);
+            }
+          }
+
           // Update streaming response for text events
           if (event.type === 'message_delta' && event.delta.type === 'text') {
             setStreamingResponse((prev) => prev + event.delta.text);
@@ -657,7 +831,7 @@ export function useExternalAgent(): UseExternalAgentReturn {
         abortControllerRef.current = null;
       }
     },
-    [getManager, activeAgentId]
+    [getManager, activeAgentId, activeSession]
   );
 
   // Cancel execution
@@ -666,10 +840,11 @@ export function useExternalAgent(): UseExternalAgentReturn {
       abortControllerRef.current.abort();
     }
 
-    if (activeAgentId && activeSession) {
+    const targetSessionId = executingSessionIdRef.current || activeSession?.id;
+    if (activeAgentId && targetSessionId) {
       try {
         const manager = await getManager();
-        await manager.cancel(activeAgentId, activeSession.id);
+        await manager.cancel(activeAgentId, targetSessionId);
       } catch (err) {
         console.error('[useExternalAgent] Failed to cancel:', err);
       }
@@ -692,7 +867,11 @@ export function useExternalAgent(): UseExternalAgentReturn {
       if (activeAgentId && pendingRequest) {
         try {
           const manager = await getManager();
-          await manager.respondToPermission(activeAgentId, pendingRequest.sessionId ?? '', response);
+          const sessionId = pendingRequest.sessionId ?? executingSessionIdRef.current;
+          if (!sessionId) {
+            throw new Error('Unable to resolve external agent session for permission response.');
+          }
+          await manager.respondToPermission(activeAgentId, sessionId, response);
         } catch (err) {
           console.error('[useExternalAgent] Failed to respond to permission:', err);
           setError(err instanceof Error ? err.message : String(err));

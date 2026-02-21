@@ -12,6 +12,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBatchEditStore, type BatchImage, type BatchJob } from '@/stores/media/batch-edit-store';
 import { useWorkerProcessor } from './use-worker-processor';
 import type { ImageAdjustments } from '@/types/media/image-studio';
+import { exists, writeBinaryFile } from '@/lib/file/file-operations';
+import { isTauri } from '@/lib/utils';
 
 export interface UseBatchProcessorOptions {
   onProgress?: (jobId: string, progress: number) => void;
@@ -47,9 +49,125 @@ export function useBatchProcessor(
   const isPausedRef = useRef(false);
   const isCancelledRef = useRef(false);
   const activeWorkersRef = useRef(0);
+  const webOutputNamesRef = useRef(new Set<string>());
 
   const store = useBatchEditStore();
   const workerProcessor = useWorkerProcessor({ workerCount: store.concurrency });
+
+  const resolveOutputPath = useCallback(async (desiredPath: string, overwrite: boolean): Promise<string> => {
+    if (overwrite) {
+      return desiredPath;
+    }
+
+    const normalizedPath = desiredPath.replace(/\\/g, '/');
+    const extIndex = normalizedPath.lastIndexOf('.');
+    const hasExt = extIndex > normalizedPath.lastIndexOf('/');
+    const base = hasExt ? normalizedPath.slice(0, extIndex) : normalizedPath;
+    const ext = hasExt ? normalizedPath.slice(extIndex) : '';
+
+    let candidate = normalizedPath;
+    let index = 1;
+    while (await exists(candidate)) {
+      candidate = `${base}_${index}${ext}`;
+      index += 1;
+    }
+    return candidate;
+  }, []);
+
+  const saveBlobWeb = useCallback(
+    async (blob: Blob, outputDirectory: string, fileName: string, overwrite: boolean): Promise<string> => {
+      let resolvedName = fileName;
+      if (!overwrite) {
+        const extIndex = fileName.lastIndexOf('.');
+        const hasExt = extIndex > 0;
+        const base = hasExt ? fileName.slice(0, extIndex) : fileName;
+        const ext = hasExt ? fileName.slice(extIndex) : '';
+        let suffix = 1;
+        while (webOutputNamesRef.current.has(`${outputDirectory}/${resolvedName}`)) {
+          resolvedName = `${base}_${suffix}${ext}`;
+          suffix += 1;
+        }
+      }
+
+      const path = `${outputDirectory}/${resolvedName}`;
+      webOutputNamesRef.current.add(path);
+
+      if (typeof window !== 'undefined' && 'showSaveFilePicker' in window) {
+        const picker = window as Window & {
+          showSaveFilePicker?: (options: {
+            suggestedName: string;
+            types?: Array<{ description?: string; accept: Record<string, string[]> }>;
+          }) => Promise<{
+            createWritable: () => Promise<{ write: (data: Blob) => Promise<void>; close: () => Promise<void> }>;
+          }>;
+        };
+        try {
+          const handle = await picker.showSaveFilePicker?.({
+            suggestedName: resolvedName,
+            types: [
+              {
+                description: 'Image files',
+                accept: { [blob.type || 'image/jpeg']: ['.jpg', '.jpeg', '.png', '.webp', '.avif'] },
+              },
+            ],
+          });
+          if (handle) {
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            return path;
+          }
+        } catch {
+          // User cancelled picker, fallback to download.
+        }
+      }
+
+      const hasDownloadFallback =
+        typeof document !== 'undefined' &&
+        typeof URL !== 'undefined' &&
+        typeof URL.createObjectURL === 'function';
+
+      if (!hasDownloadFallback) {
+        return path;
+      }
+
+      const url = URL.createObjectURL(blob);
+      try {
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = resolvedName;
+        anchor.style.display = 'none';
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+      return path;
+    },
+    []
+  );
+
+  const saveOutputBlob = useCallback(
+    async (job: BatchJob, blob: Blob, fileName: string): Promise<string> => {
+      const desiredPath = `${job.outputDirectory}/${fileName}`;
+      if (!isTauri()) {
+        return saveBlobWeb(blob, job.outputDirectory, fileName, job.overwrite);
+      }
+
+      const finalPath = await resolveOutputPath(desiredPath, job.overwrite);
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const writeResult = await writeBinaryFile(finalPath, bytes, {
+        overwrite: true,
+        createDirectories: true,
+      });
+      if (!writeResult.success) {
+        throw new Error(writeResult.error || 'Failed to write processed image');
+      }
+      return finalPath;
+    },
+    [resolveOutputPath, saveBlobWeb]
+  );
 
   // Process a single image
   const processImage = useCallback(
@@ -58,8 +176,9 @@ export function useBatchProcessor(
       image: BatchImage,
       adjustments: Partial<ImageAdjustments>
     ): Promise<string> => {
+      const attempts = (image.attempts ?? 0) + 1;
       // Update status to processing
-      store.updateImageStatus(job.id, image.id, 'processing', 0);
+      store.updateImageStatus(job.id, image.id, 'processing', 0, undefined, { attempts });
 
       try {
         // Load image
@@ -122,7 +241,7 @@ export function useBatchProcessor(
         const quality = (job.preset?.export?.quality || 90) / 100;
         const suffix = job.preset?.export?.suffix || '_edited';
 
-        const _outputBlob = await canvas.convertToBlob({
+        const outputBlob = await canvas.convertToBlob({
           type: `image/${format}`,
           quality,
         });
@@ -130,22 +249,27 @@ export function useBatchProcessor(
         // Generate output path
         const baseName = image.filename.replace(/\.[^/.]+$/, '');
         const outputFileName = `${baseName}${suffix}.${format}`;
-        const outputPath = `${job.outputDirectory}/${outputFileName}`;
+        const outputPath = await saveOutputBlob(job, outputBlob, outputFileName);
 
         store.updateImageStatus(job.id, image.id, 'processing', 90);
 
-        // In a real implementation, we would save the blob to disk here
-        // For now, we just simulate completion
-        store.updateImageStatus(job.id, image.id, 'completed', 100);
+        store.updateImageStatus(job.id, image.id, 'completed', 100, undefined, {
+          outputPath,
+          attempts,
+          lastError: undefined,
+        });
 
         return outputPath;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        store.updateImageStatus(job.id, image.id, 'error', 0, errorMessage);
+        store.updateImageStatus(job.id, image.id, 'error', 0, errorMessage, {
+          attempts,
+          lastError: errorMessage,
+        });
         throw error;
       }
     },
-    [store, workerProcessor]
+    [saveOutputBlob, store, workerProcessor]
   );
 
   // Process queue with concurrency control
@@ -184,10 +308,12 @@ export function useBatchProcessor(
           }
 
           // Update overall progress
-          const completed = job.images.filter(
-            (img) => img.status === 'completed' || img.status === 'error'
-          ).length;
-          const newProgress = (completed / job.images.length) * 100;
+          const latestJob = store.getJob(job.id);
+          const totalImages = latestJob?.images.length ?? job.images.length;
+          const completed =
+            latestJob?.images.filter((img) => img.status === 'completed' || img.status === 'error')
+              .length ?? 0;
+          const newProgress = totalImages > 0 ? (completed / totalImages) * 100 : 0;
           setProgress(newProgress);
           onProgress?.(job.id, newProgress);
         }
@@ -200,7 +326,7 @@ export function useBatchProcessor(
 
       await Promise.all(workers);
     },
-    [store.concurrency, processImage, onProgress, onImageComplete, onImageError]
+    [store, processImage, onProgress, onImageComplete, onImageError]
   );
 
   // Start processing a job

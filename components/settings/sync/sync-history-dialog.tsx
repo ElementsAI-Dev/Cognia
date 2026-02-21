@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,12 +40,13 @@ import type { BackupInfo } from '@/types/sync';
 export function SyncHistoryDialog() {
   const t = useTranslations('syncSettings');
 
-  const { syncHistory, listBackups, deleteBackup } = useSyncStore();
+  const { syncHistory, listBackups, deleteBackup, restoreBackup } = useSyncStore();
 
   const [isOpen, setIsOpen] = useState(false);
   const [backups, setBackups] = useState<BackupInfo[]>([]);
   const [isLoadingBackups, setIsLoadingBackups] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
 
   // Load backups when dialog opens
   useEffect(() => {
@@ -80,6 +82,22 @@ export function SyncHistoryDialog() {
       toast.error(t('deleteFailed') || 'Failed to delete backup');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleRestore = async (backupId: string) => {
+    setRestoringId(backupId);
+    try {
+      const success = await restoreBackup(backupId);
+      if (success) {
+        toast.success(t('restoreSuccess') || 'Backup restored');
+      } else {
+        toast.error(t('restoreFailed') || 'Failed to restore backup');
+      }
+    } catch (_error) {
+      toast.error(t('restoreFailed') || 'Failed to restore backup');
+    } finally {
+      setRestoringId(null);
     }
   };
 
@@ -188,7 +206,7 @@ export function SyncHistoryDialog() {
                     <TableHead>{t('filename') || 'Filename'}</TableHead>
                     <TableHead>{t('size') || 'Size'}</TableHead>
                     <TableHead>{t('created') || 'Created'}</TableHead>
-                    <TableHead className="w-[100px]">{t('actions') || 'Actions'}</TableHead>
+                    <TableHead className="w-[140px]">{t('actions') || 'Actions'}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -215,19 +233,36 @@ export function SyncHistoryDialog() {
                           {backup.createdAt ? new Date(backup.createdAt).toLocaleString() : '-'}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => handleDelete(backup.id)}
-                            disabled={deletingId === backup.id}
-                          >
-                            {deletingId === backup.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => handleRestore(backup.id)}
+                              disabled={restoringId === backup.id || deletingId === backup.id}
+                              aria-label={t('restore') || 'Restore backup'}
+                            >
+                              {restoringId === backup.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <RotateCcw className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(backup.id)}
+                              disabled={deletingId === backup.id || restoringId === backup.id}
+                              aria-label={t('deleteBackup') || 'Delete backup'}
+                            >
+                              {deletingId === backup.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))

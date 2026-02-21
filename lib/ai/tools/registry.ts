@@ -142,6 +142,9 @@ import {
   displayReviewSessionInputSchema,
   displayProgressSummaryInputSchema,
   displayConceptExplanationInputSchema,
+  displayStepGuideInputSchema,
+  displayConceptMapInputSchema,
+  displayAnimationInputSchema,
   executeDisplayFlashcard,
   executeDisplayFlashcardDeck,
   executeDisplayQuiz,
@@ -149,6 +152,9 @@ import {
   executeDisplayReviewSession,
   executeDisplayProgressSummary,
   executeDisplayConceptExplanation,
+  executeDisplayStepGuide,
+  executeDisplayConceptMap,
+  executeDisplayAnimation,
   type DisplayFlashcardInput,
   type DisplayFlashcardDeckInput,
   type DisplayQuizInput,
@@ -156,6 +162,9 @@ import {
   type DisplayReviewSessionInput,
   type DisplayProgressSummaryInput,
   type DisplayConceptExplanationInput,
+  type DisplayStepGuideInput,
+  type DisplayConceptMapInput,
+  type DisplayAnimationInput,
 } from './learning-tools';
 import { registerArtifactTools } from './artifact-tool';
 import { registerAppBuilderTools } from './app-builder-tool';
@@ -340,7 +349,21 @@ Convert mode: set mode="convert" with value, fromUnit, toUnit, category (length/
     parameters: ragSearchInputSchema,
     requiresApproval: false,
     category: 'search',
-    create: (config) => (input: unknown) => executeRAGSearch(input as RAGSearchInput, config as unknown as RAGSearchConfig),
+    create: (config) => (input: unknown) => {
+      const runtimeConfig =
+        (config as { runtimeConfig?: RAGSearchConfig['runtimeConfig']; ragConfig?: RAGSearchConfig['runtimeConfig'] }).runtimeConfig ||
+        (config as { ragConfig?: RAGSearchConfig['runtimeConfig'] }).ragConfig;
+      if (!runtimeConfig) {
+        return Promise.resolve({
+          success: false,
+          error: 'RAG runtime configuration is missing',
+        });
+      }
+      return executeRAGSearch(input as RAGSearchInput, {
+        runtimeConfig,
+        defaultCollectionName: (config as { defaultCollectionName?: string }).defaultCollectionName,
+      });
+    },
   });
 
   // Web search tool
@@ -822,6 +845,33 @@ Features: multiple sizes, quality options, style options, and batch generation.`
     requiresApproval: false,
     category: 'learning',
     create: () => (input: unknown) => executeDisplayConceptExplanation(input as DisplayConceptExplanationInput),
+  });
+
+  registry.register({
+    name: 'display_step_guide',
+    description: 'Display an interactive step-by-step guide for learning a process or procedure.',
+    parameters: displayStepGuideInputSchema,
+    requiresApproval: false,
+    category: 'learning',
+    create: () => (input: unknown) => executeDisplayStepGuide(input as DisplayStepGuideInput),
+  });
+
+  registry.register({
+    name: 'display_concept_map',
+    description: 'Display an interactive concept visualization (flow diagram, hierarchy, network graph, or layered diagram).',
+    parameters: displayConceptMapInputSchema,
+    requiresApproval: false,
+    category: 'learning',
+    create: () => (input: unknown) => executeDisplayConceptMap(input as DisplayConceptMapInput),
+  });
+
+  registry.register({
+    name: 'display_animation',
+    description: 'Display an interactive step-by-step animation with playback controls.',
+    parameters: displayAnimationInputSchema,
+    requiresApproval: false,
+    category: 'learning',
+    create: () => (input: unknown) => executeDisplayAnimation(input as DisplayAnimationInput),
   });
 
   // Shell tools

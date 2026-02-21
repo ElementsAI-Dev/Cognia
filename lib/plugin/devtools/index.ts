@@ -41,19 +41,19 @@ export {
   PluginHotReload,
   getPluginHotReload,
   resetPluginHotReload,
-  usePluginHotReload,
   type HotReloadConfig,
   type FileChangeEvent,
   type ReloadResult,
 } from './hot-reload';
+export { usePluginHotReload } from './hot-reload.client';
 
 export {
   PluginDevServer,
   getPluginDevServer,
   resetPluginDevServer,
-  usePluginDevServer,
   type DevServerConfig,
   type DevServerStatus,
   type DevConsoleMessage,
   type PluginBuildResult,
 } from './dev-server';
+export { usePluginDevServer } from './dev-server.client';

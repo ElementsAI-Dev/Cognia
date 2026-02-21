@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { StandaloneThemeSyncProvider } from "@/components/providers/ui";
 import "../../globals.css";
 
 export const metadata: Metadata = {
@@ -21,7 +22,12 @@ export default function RecordingClickOverlayLayout({
           padding: 0,
         }}
       >
-        {children}
+        <StandaloneThemeSyncProvider
+          allowBackgroundImage={false}
+          forceTransparent={true}
+        >
+          {children}
+        </StandaloneThemeSyncProvider>
       </body>
     </html>
   );

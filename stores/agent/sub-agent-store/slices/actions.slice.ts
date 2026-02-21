@@ -4,14 +4,9 @@ import {
   DEFAULT_SUB_AGENT_CONFIG,
   type SubAgent,
   type SubAgentConfig,
-  type SubAgentStatus,
-  type SubAgentResult,
   type SubAgentLog,
   type SubAgentGroup,
-  type SubAgentTemplate,
   type SubAgentMetrics,
-  type UpdateSubAgentInput,
-  type SubAgentExecutionMode,
 } from '@/types/agent/sub-agent';
 import { initialState, builtInTemplatesMap } from '../initial-state';
 import type { SubAgentState } from '../types';

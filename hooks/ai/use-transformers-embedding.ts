@@ -1,10 +1,7 @@
 'use client';
 
 /**
- * useTransformersEmbedding - Specialized hook for browser-based embedding generation
- *
- * Wraps TransformersManager.generateEmbedding() with React state management.
- * Can be used as a drop-in replacement for cloud embedding providers (no API key needed).
+ * useTransformersEmbedding - Specialized hook for browser-based embedding generation.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -16,7 +13,14 @@ import type {
   ModelDownloadProgress,
 } from '@/types/transformers';
 import { useTransformersStore } from '@/stores/ai/transformers-store';
-import { isWebGPUAvailable, isWebWorkerAvailable, TRANSFORMERS_EMBEDDING_MODELS } from '@/lib/ai/transformers';
+import {
+  isWebGPUAvailable,
+  isWebWorkerAvailable,
+  TRANSFORMERS_EMBEDDING_MODELS,
+  resolveTransformersRuntimeOptions,
+  syncTransformersManagerRuntime,
+  mapTransformersProgressStatus,
+} from '@/lib/ai/transformers';
 import type { TransformersEmbeddingModelId } from '@/lib/ai/transformers';
 
 export interface UseTransformersEmbeddingOptions {
@@ -42,6 +46,7 @@ export interface UseTransformersEmbeddingReturn {
 }
 
 const DEFAULT_EMBEDDING_MODEL: TransformersEmbeddingModelId = 'Xenova/all-MiniLM-L6-v2';
+const EMBEDDING_TASK = 'feature-extraction' as const;
 
 export function useTransformersEmbedding(
   options: UseTransformersEmbeddingOptions = {}
@@ -64,40 +69,46 @@ export function useTransformersEmbedding(
   const { settings, setModelStatus, updateModelProgress, isModelReady, setWebGPUAvailable } =
     useTransformersStore();
 
-  const isReady = isModelReady(modelId);
+  const isReady = isModelReady(EMBEDDING_TASK, modelId);
   const isSupported = isWebWorkerAvailable();
 
-  // Get dimension for the model
   const dimension =
     (TRANSFORMERS_EMBEDDING_MODELS as Record<string, { dimensions: number }>)[modelId]?.dimensions ?? 384;
 
-  // Check WebGPU on mount
+  const runtime = resolveTransformersRuntimeOptions(settings, { device, dtype });
+
   useEffect(() => {
     setWebGPUAvailable(isWebGPUAvailable());
   }, [setWebGPUAvailable]);
 
-  // Get or create manager (lazy)
   const getManager = useCallback(async () => {
     if (!managerRef.current) {
       const { getTransformersManager } = await import('@/lib/ai/transformers/transformers-manager');
       managerRef.current = getTransformersManager();
     }
-    return managerRef.current;
-  }, []);
 
-  const resolvedDevice = device ?? (settings.preferWebGPU && isWebGPUAvailable() ? 'webgpu' : 'wasm');
-  const resolvedDtype = dtype ?? settings.defaultDtype;
+    syncTransformersManagerRuntime(managerRef.current, settings);
+    return managerRef.current;
+  }, [settings]);
+
+  useEffect(() => {
+    if (managerRef.current) {
+      syncTransformersManagerRuntime(managerRef.current, settings);
+    }
+  }, [settings]);
 
   const handleProgress = useCallback(
     (p: ModelDownloadProgress) => {
       setProgress(p.progress);
       updateModelProgress(p);
+      if (p.task === EMBEDDING_TASK && p.modelId === modelId) {
+        setModelStatus(EMBEDDING_TASK, modelId, mapTransformersProgressStatus(p.status), p.progress, p.error);
+      }
       onProgress?.(p);
     },
-    [updateModelProgress, onProgress]
+    [modelId, onProgress, setModelStatus, updateModelProgress]
   );
 
-  // Load model
   const loadModel = useCallback(async () => {
     if (!isSupported || !settings.enabled) {
       setError('Transformers.js is not enabled or not supported');
@@ -107,34 +118,33 @@ export function useTransformersEmbedding(
     setIsLoading(true);
     setError(null);
     setProgress(0);
-    setModelStatus(modelId, 'feature-extraction', 'downloading', 0);
+    setModelStatus(EMBEDDING_TASK, modelId, 'downloading', 0);
 
     try {
       const manager = await getManager();
-      await manager.loadModel('feature-extraction', modelId, {
-        device: resolvedDevice,
-        dtype: resolvedDtype,
+      await manager.loadModel(EMBEDDING_TASK, modelId, {
+        device: runtime.device,
+        dtype: runtime.dtype,
+        cachePolicy: runtime.cachePolicy,
         onProgress: handleProgress,
       });
-      setModelStatus(modelId, 'feature-extraction', 'ready', 100);
+      setModelStatus(EMBEDDING_TASK, modelId, 'ready', 100);
       setProgress(100);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
-      setModelStatus(modelId, 'feature-extraction', 'error', 0, message);
+      setModelStatus(EMBEDDING_TASK, modelId, 'error', 0, message);
     } finally {
       setIsLoading(false);
     }
-  }, [isSupported, settings.enabled, modelId, resolvedDevice, resolvedDtype, getManager, handleProgress, setModelStatus]);
+  }, [getManager, handleProgress, isSupported, modelId, runtime.cachePolicy, runtime.device, runtime.dtype, setModelStatus, settings.enabled]);
 
-  // Auto-load
   useEffect(() => {
     if (autoLoad && settings.enabled && isSupported && !isReady && !isLoading) {
       loadModel();
     }
   }, [autoLoad, settings.enabled, isSupported, isReady, isLoading, loadModel]);
 
-  // Embed single text
   const embed = useCallback(
     async (text: string): Promise<TransformersEmbeddingResult> => {
       if (!isSupported || !settings.enabled) {
@@ -147,10 +157,12 @@ export function useTransformersEmbedding(
       try {
         const manager = await getManager();
         const result = await manager.generateEmbedding(text, modelId, {
-          device: resolvedDevice,
-          dtype: resolvedDtype,
+          device: runtime.device,
+          dtype: runtime.dtype,
+          cachePolicy: runtime.cachePolicy,
           onProgress: handleProgress,
         });
+        setModelStatus(EMBEDDING_TASK, modelId, 'ready', 100);
         return result;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -160,10 +172,9 @@ export function useTransformersEmbedding(
         setIsEmbedding(false);
       }
     },
-    [isSupported, settings.enabled, modelId, resolvedDevice, resolvedDtype, getManager, handleProgress]
+    [getManager, handleProgress, isSupported, modelId, runtime.cachePolicy, runtime.device, runtime.dtype, setModelStatus, settings.enabled]
   );
 
-  // Embed batch
   const embedBatch = useCallback(
     async (texts: string[]): Promise<TransformersBatchEmbeddingResult> => {
       if (!isSupported || !settings.enabled) {
@@ -176,10 +187,12 @@ export function useTransformersEmbedding(
       try {
         const manager = await getManager();
         const result = await manager.generateEmbeddings(texts, modelId, {
-          device: resolvedDevice,
-          dtype: resolvedDtype,
+          device: runtime.device,
+          dtype: runtime.dtype,
+          cachePolicy: runtime.cachePolicy,
           onProgress: handleProgress,
         });
+        setModelStatus(EMBEDDING_TASK, modelId, 'ready', 100);
         return result;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -189,19 +202,18 @@ export function useTransformersEmbedding(
         setIsEmbedding(false);
       }
     },
-    [isSupported, settings.enabled, modelId, resolvedDevice, resolvedDtype, getManager, handleProgress]
+    [getManager, handleProgress, isSupported, modelId, runtime.cachePolicy, runtime.device, runtime.dtype, setModelStatus, settings.enabled]
   );
 
-  // Dispose
   const dispose = useCallback(async () => {
     try {
       const manager = await getManager();
-      await manager.dispose('feature-extraction', modelId);
-      setModelStatus(modelId, 'feature-extraction', 'idle', 0);
+      await manager.dispose(EMBEDDING_TASK, modelId);
+      setModelStatus(EMBEDDING_TASK, modelId, 'idle', 0);
     } catch (err) {
       console.error('Failed to dispose embedding model:', err);
     }
-  }, [modelId, getManager, setModelStatus]);
+  }, [getManager, modelId, setModelStatus]);
 
   return {
     embed,

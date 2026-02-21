@@ -3,8 +3,8 @@
 //! Core service for managing Skill Seekers CLI execution, job management,
 //! and integration with the virtual environment system.
 
-use crate::skill_seekers::types::*;
 use crate::skill::SkillService;
+use crate::skill_seekers::types::*;
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use serde_json;
@@ -980,14 +980,14 @@ impl SkillSeekersService {
                     let skill_path = output_dir.join(&job.name).to_string_lossy().to_string();
                     let skill_path_buf = PathBuf::from(&skill_path);
                     let skill_md_path = skill_path_buf.join("SKILL.md");
-                    let page_count = job
-                        .progress
-                        .pages_total
-                        .or(if job.progress.pages_scraped > 0 {
-                            Some(job.progress.pages_scraped)
-                        } else {
-                            None
-                        });
+                    let page_count =
+                        job.progress
+                            .pages_total
+                            .or(if job.progress.pages_scraped > 0 {
+                                Some(job.progress.pages_scraped)
+                            } else {
+                                None
+                            });
 
                     job.complete(skill_path.clone());
 
@@ -1000,7 +1000,7 @@ impl SkillSeekersService {
                         output_dir: skill_path,
                         skill_md_path: skill_md_path.to_string_lossy().to_string(),
                         package_path: None,
-                        created_at: job.completed_at.clone().unwrap_or_else(Utc::now),
+                        created_at: job.completed_at.unwrap_or_else(Utc::now),
                         enhanced_at: if enhanced_requested {
                             Some(Utc::now())
                         } else {
@@ -1097,7 +1097,10 @@ impl SkillSeekersService {
                             }
                         }
                         Err(e) => {
-                            log::warn!("Failed to initialize skill service for auto-install: {}", e);
+                            log::warn!(
+                                "Failed to initialize skill service for auto-install: {}",
+                                e
+                            );
                         }
                     }
                 }

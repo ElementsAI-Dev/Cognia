@@ -2,9 +2,9 @@
 
 use crate::input_completion::types::CompletionStats;
 use crate::input_completion::{
-    CompletionConfig, CompletionFeedback, CompletionRequestV2, CompletionResult,
-    CompletionResultV2, CompletionStatus, CompletionSuggestion, CompletionSuggestionRef, ImeState,
-    InputCompletionManager,
+    CompletionConfig, CompletionFeedback, CompletionRequestV2, CompletionRequestV3,
+    CompletionResult, CompletionResultV2, CompletionResultV3, CompletionStatus,
+    CompletionSuggestion, CompletionSuggestionRef, ImeState, InputCompletionManager,
 };
 use tauri::State;
 
@@ -38,7 +38,11 @@ pub fn input_completion_get_ime_state(
 pub fn input_completion_get_suggestion(
     manager: State<'_, InputCompletionManager>,
 ) -> Result<Option<CompletionSuggestion>, String> {
-    Ok(manager.get_current_suggestion())
+    if let Some(current) = manager.get_current_suggestion() {
+        return Ok(Some(current));
+    }
+
+    Ok(manager.get_active_suggestions().into_iter().next())
 }
 
 /// Accept the current suggestion
@@ -55,6 +59,13 @@ pub fn input_completion_accept_v2(
     manager: State<'_, InputCompletionManager>,
     suggestion: CompletionSuggestionRef,
 ) -> Result<Option<CompletionSuggestion>, String> {
+    if !suggestion.suggestion_id.is_empty() && !manager.has_suggestion_id(&suggestion.suggestion_id)
+    {
+        return Ok(None);
+    }
+    if !suggestion.suggestion_id.is_empty() {
+        let _ = manager.get_suggestion_by_id(&suggestion.suggestion_id);
+    }
     Ok(manager.accept_suggestion_v2(suggestion))
 }
 
@@ -118,6 +129,15 @@ pub async fn input_completion_trigger_v2(
     manager.trigger_completion_v2(request).await
 }
 
+/// Trigger completion with v3 alignment payload.
+#[tauri::command]
+pub async fn input_completion_trigger_v3(
+    manager: State<'_, InputCompletionManager>,
+    request: CompletionRequestV3,
+) -> Result<CompletionResultV3, String> {
+    manager.trigger_completion_v3(request).await
+}
+
 /// Check if input completion is running
 #[tauri::command]
 pub fn input_completion_is_running(
@@ -157,7 +177,6 @@ pub fn input_completion_clear_cache(
 pub async fn input_completion_test_connection(
     manager: State<'_, InputCompletionManager>,
 ) -> Result<CompletionResult, String> {
-    // Test with a simple prompt
     manager.trigger_completion("Hello").await
 }
 

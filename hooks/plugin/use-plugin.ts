@@ -5,6 +5,7 @@
 import { useMemo, useCallback, useEffect } from 'react';
 import { usePluginStore } from '@/stores/plugin';
 import type { Plugin, PluginManifest } from '@/types/plugin';
+import { getPluginManager } from '@/lib/plugin';
 
 interface UsePluginReturn {
   plugin: Plugin | undefined;
@@ -21,8 +22,7 @@ interface UsePluginReturn {
  * Hook to access and control a specific plugin
  */
 export function usePlugin(pluginId: string): UsePluginReturn {
-  const { plugins, loading, errors, enablePlugin, disablePlugin, setPluginConfig } =
-    usePluginStore();
+  const { plugins, loading, errors, setPluginConfig } = usePluginStore();
 
   const plugin = plugins[pluginId];
   const manifest = plugin?.manifest;
@@ -31,12 +31,12 @@ export function usePlugin(pluginId: string): UsePluginReturn {
   const error = errors[pluginId] || null;
 
   const enable = useCallback(async () => {
-    await enablePlugin(pluginId);
-  }, [pluginId, enablePlugin]);
+    await getPluginManager().enablePlugin(pluginId);
+  }, [pluginId]);
 
   const disable = useCallback(async () => {
-    await disablePlugin(pluginId);
-  }, [pluginId, disablePlugin]);
+    await getPluginManager().disablePlugin(pluginId);
+  }, [pluginId]);
 
   const configure = useCallback(
     (config: Record<string, unknown>) => {

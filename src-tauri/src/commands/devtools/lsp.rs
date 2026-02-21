@@ -2,6 +2,18 @@
 //!
 //! This module provides protocol-level language server support over stdio.
 
+use super::lsp_events::{emit_server_status_changed, LspServerStatusChangedEvent};
+use super::lsp_installer::{
+    ensure_server_ready, get_server_status, install_server, list_installed_servers, resolve_launch,
+    uninstall_server, LspGetServerStatusRequest, LspInstallServerRequest, LspInstallServerResult,
+    LspResolveLaunchRequest, LspServerStatusResponse, LspUninstallServerRequest,
+};
+use super::lsp_registry::{
+    recommended_servers, registry_search, LspRegistryRecommendedResponse, LspRegistrySearchRequest,
+};
+use super::lsp_resolver::{
+    is_command_allowed, normalize_language_id, LspProvider, LspResolvedLaunch,
+};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -40,6 +52,12 @@ pub struct LspStartSessionRequest {
     pub initialization_options: Option<Value>,
     pub command: Option<String>,
     pub args: Option<Vec<String>>,
+    #[serde(default)]
+    pub auto_install: Option<bool>,
+    #[serde(default)]
+    pub preferred_providers: Option<Vec<LspProvider>>,
+    #[serde(default)]
+    pub allow_fallback: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -47,6 +65,8 @@ pub struct LspStartSessionRequest {
 pub struct LspStartSessionResponse {
     pub session_id: String,
     pub capabilities: Value,
+    pub resolved_command: Option<String>,
+    pub resolved_args: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,9 +140,44 @@ pub struct LspPositionRequest {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct LspReferencesRequest {
+    pub session_id: String,
+    pub uri: String,
+    pub line: u32,
+    pub character: u32,
+    #[serde(default)]
+    pub include_declaration: Option<bool>,
+    #[serde(flatten)]
+    pub meta: LspRequestMeta,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LspRenameRequest {
+    pub session_id: String,
+    pub uri: String,
+    pub line: u32,
+    pub character: u32,
+    pub new_name: String,
+    #[serde(flatten)]
+    pub meta: LspRequestMeta,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LspDocumentRequest {
     pub session_id: String,
     pub uri: String,
+    #[serde(flatten)]
+    pub meta: LspRequestMeta,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LspInlayHintsRequest {
+    pub session_id: String,
+    pub uri: String,
+    pub range: LspRangeRequest,
     #[serde(flatten)]
     pub meta: LspRequestMeta,
 }
@@ -858,18 +913,29 @@ async fn terminate_lsp_session(
 }
 
 fn default_server_for_language(language: &str) -> (String, Vec<String>) {
-    let normalized = language.to_lowercase();
-    if normalized.contains("typescript") || normalized.contains("javascript") {
-        return (
+    let normalized = normalize_language_id(language);
+    match normalized.as_str() {
+        "html" => (
+            "vscode-html-language-server".to_string(),
+            vec!["--stdio".to_string()],
+        ),
+        "css" => (
+            "vscode-css-language-server".to_string(),
+            vec!["--stdio".to_string()],
+        ),
+        "json" => (
+            "vscode-json-language-server".to_string(),
+            vec!["--stdio".to_string()],
+        ),
+        "eslint" => (
+            "vscode-eslint-language-server".to_string(),
+            vec!["--stdio".to_string()],
+        ),
+        _ => (
             "typescript-language-server".to_string(),
             vec!["--stdio".to_string()],
-        );
+        ),
     }
-
-    (
-        "typescript-language-server".to_string(),
-        vec!["--stdio".to_string()],
-    )
 }
 
 fn normalize_location(value: &Value) -> Option<Value> {
@@ -904,6 +970,15 @@ fn normalize_location_result(raw: Value) -> Value {
         Value::Object(_) => normalize_location(&raw)
             .map(|location| Value::Array(vec![location]))
             .unwrap_or_else(|| json!([])),
+        _ => json!([]),
+    }
+}
+
+fn normalize_array_result(raw: Value) -> Value {
+    match raw {
+        Value::Array(_) => raw,
+        Value::Null => json!([]),
+        Value::Object(_) => Value::Array(vec![raw]),
         _ => json!([]),
     }
 }
@@ -947,6 +1022,31 @@ fn initialize_capabilities() -> Value {
             "definition": {
                 "linkSupport": true
             },
+            "references": {
+                "dynamicRegistration": false
+            },
+            "rename": {
+                "dynamicRegistration": false,
+                "prepareSupport": true,
+                "honorsChangeAnnotations": false
+            },
+            "implementation": {
+                "linkSupport": true
+            },
+            "typeDefinition": {
+                "linkSupport": true
+            },
+            "signatureHelp": {
+                "signatureInformation": {
+                    "documentationFormat": ["markdown", "plaintext"],
+                    "parameterInformation": {
+                        "labelOffsetSupport": true
+                    }
+                }
+            },
+            "documentHighlight": {
+                "dynamicRegistration": false
+            },
             "documentSymbol": {
                 "hierarchicalDocumentSymbolSupport": true
             },
@@ -964,6 +1064,29 @@ fn initialize_capabilities() -> Value {
             "formatting": {
                 "dynamicRegistration": false
             },
+            "inlayHint": {
+                "dynamicRegistration": false
+            },
+            "semanticTokens": {
+                "dynamicRegistration": false,
+                "requests": {
+                    "range": true,
+                    "full": true
+                },
+                "tokenTypes": [
+                    "namespace", "type", "class", "enum", "interface", "struct", "typeParameter",
+                    "parameter", "variable", "property", "enumMember", "event", "function",
+                    "method", "macro", "keyword", "modifier", "comment", "string", "number",
+                    "regexp", "operator"
+                ],
+                "tokenModifiers": [
+                    "declaration", "definition", "readonly", "static", "deprecated", "abstract",
+                    "async", "modification", "documentation", "defaultLibrary"
+                ],
+                "formats": ["relative"],
+                "multilineTokenSupport": true,
+                "overlappingTokenSupport": true
+            },
             "publishDiagnostics": {
                 "relatedInformation": true,
                 "versionSupport": true,
@@ -980,9 +1103,83 @@ pub async fn lsp_start_session(
     request: LspStartSessionRequest,
     app: AppHandle,
 ) -> Result<LspStartSessionResponse, String> {
-    let (default_command, default_args) = default_server_for_language(&request.language);
-    let command = request.command.unwrap_or(default_command);
-    let args = request.args.unwrap_or(default_args);
+    let auto_install = request.auto_install.unwrap_or(true);
+    let allow_fallback = request.allow_fallback.unwrap_or(true);
+    let preferred_providers = request.preferred_providers.clone();
+    let requested_language = request.language.clone();
+
+    emit_server_status_changed(
+        &app,
+        &LspServerStatusChangedEvent {
+            language_id: requested_language.clone(),
+            status: "starting".to_string(),
+            session_id: None,
+            reason: None,
+        },
+    );
+
+    let resolved_launch = if let Some(explicit_command) = request.command.clone() {
+        let explicit_args = request.args.clone().unwrap_or_default();
+        if !is_command_allowed(&explicit_command) {
+            return Err(format!(
+                "LSP_COMMAND_NOT_TRUSTED: command '{}' is not on the trusted allowlist",
+                explicit_command
+            ));
+        }
+        LspResolvedLaunch {
+            language_id: request.language.clone(),
+            normalized_language_id: normalize_language_id(&request.language),
+            command: explicit_command,
+            args: explicit_args,
+            cwd: None,
+            source: "explicit_request".to_string(),
+            extension_id: None,
+            trusted: true,
+            requires_approval: false,
+            npm_package: None,
+        }
+    } else {
+        match ensure_server_ready(
+            &app,
+            &request.language,
+            auto_install,
+            preferred_providers.clone(),
+        )
+        .await
+        {
+            Ok(launch) => launch,
+            Err(_error) if allow_fallback => {
+                let (default_command, default_args) =
+                    default_server_for_language(&request.language);
+                LspResolvedLaunch {
+                    language_id: request.language.clone(),
+                    normalized_language_id: normalize_language_id(&request.language),
+                    command: default_command,
+                    args: default_args,
+                    cwd: None,
+                    source: "legacy_fallback".to_string(),
+                    extension_id: None,
+                    trusted: is_command_allowed("typescript-language-server"),
+                    requires_approval: false,
+                    npm_package: Some("typescript-language-server".to_string()),
+                }
+            }
+            Err(error) => {
+                emit_server_status_changed(
+                    &app,
+                    &LspServerStatusChangedEvent {
+                        language_id: request.language.clone(),
+                        status: "error".to_string(),
+                        session_id: None,
+                        reason: Some(error.clone()),
+                    },
+                );
+                return Err(error);
+            }
+        }
+    };
+    let command = resolved_launch.command.clone();
+    let args = resolved_launch.args.clone();
 
     let workspace_folders = derive_workspace_folders(
         request.root_uri.as_deref(),
@@ -1074,6 +1271,15 @@ pub async fn lsp_start_session(
             if let Some(existing_session) = remove_lsp_session(&session_id).await {
                 terminate_lsp_session(&session_id, existing_session, &app, false).await;
             }
+            emit_server_status_changed(
+                &app,
+                &LspServerStatusChangedEvent {
+                    language_id: request.language.clone(),
+                    status: "error".to_string(),
+                    session_id: Some(session_id.clone()),
+                    reason: Some(error.clone()),
+                },
+            );
             return Err(error);
         }
     };
@@ -1092,13 +1298,88 @@ pub async fn lsp_start_session(
         if let Some(existing_session) = remove_lsp_session(&session_id).await {
             terminate_lsp_session(&session_id, existing_session, &app, false).await;
         }
+        emit_server_status_changed(
+            &app,
+            &LspServerStatusChangedEvent {
+                language_id: request.language.clone(),
+                status: "error".to_string(),
+                session_id: Some(session_id.clone()),
+                reason: Some(error.clone()),
+            },
+        );
         return Err(error);
     }
+
+    emit_server_status_changed(
+        &app,
+        &LspServerStatusChangedEvent {
+            language_id: requested_language,
+            status: "connected".to_string(),
+            session_id: Some(session_id.clone()),
+            reason: Some(format!("using {}", resolved_launch.source)),
+        },
+    );
 
     Ok(LspStartSessionResponse {
         session_id,
         capabilities: initialize_result,
+        resolved_command: Some(command),
+        resolved_args: Some(args),
     })
+}
+
+#[tauri::command]
+pub async fn lsp_registry_search(
+    request: LspRegistrySearchRequest,
+) -> Result<Vec<super::lsp_registry::LspRegistryEntry>, String> {
+    registry_search(request).await
+}
+
+#[tauri::command]
+pub async fn lsp_registry_get_recommended(
+    language_id: String,
+    providers: Option<Vec<LspProvider>>,
+) -> Result<LspRegistryRecommendedResponse, String> {
+    recommended_servers(&language_id, providers).await
+}
+
+#[tauri::command]
+pub async fn lsp_install_server(
+    request: LspInstallServerRequest,
+    app: AppHandle,
+) -> Result<LspInstallServerResult, String> {
+    install_server(&app, request).await
+}
+
+#[tauri::command]
+pub fn lsp_uninstall_server(
+    request: LspUninstallServerRequest,
+    app: AppHandle,
+) -> Result<bool, String> {
+    uninstall_server(&app, request)
+}
+
+#[tauri::command]
+pub fn lsp_list_installed_servers(
+    app: AppHandle,
+) -> Result<Vec<super::lsp_installer::InstalledServerRecord>, String> {
+    list_installed_servers(&app)
+}
+
+#[tauri::command]
+pub fn lsp_get_server_status(
+    request: LspGetServerStatusRequest,
+    app: AppHandle,
+) -> Result<LspServerStatusResponse, String> {
+    get_server_status(&app, request)
+}
+
+#[tauri::command]
+pub fn lsp_resolve_launch(
+    request: LspResolveLaunchRequest,
+    app: AppHandle,
+) -> Result<LspResolvedLaunch, String> {
+    resolve_launch(&app, request)
 }
 
 #[tauri::command]
@@ -1253,6 +1534,151 @@ pub async fn lsp_definition(request: LspPositionRequest) -> Result<Value, String
 }
 
 #[tauri::command]
+pub async fn lsp_references(request: LspReferencesRequest) -> Result<Value, String> {
+    let session = get_lsp_session(&request.session_id).await?;
+    let params = json!({
+        "textDocument": {
+            "uri": request.uri
+        },
+        "position": {
+            "line": request.line,
+            "character": request.character
+        },
+        "context": {
+            "includeDeclaration": request.include_declaration.unwrap_or(true)
+        }
+    });
+
+    let raw = lsp_send_request(
+        session.as_ref(),
+        "textDocument/references",
+        params,
+        &request.meta,
+    )
+    .await?;
+    Ok(normalize_location_result(raw))
+}
+
+#[tauri::command]
+pub async fn lsp_rename(request: LspRenameRequest) -> Result<Value, String> {
+    let session = get_lsp_session(&request.session_id).await?;
+    let params = json!({
+        "textDocument": {
+            "uri": request.uri
+        },
+        "position": {
+            "line": request.line,
+            "character": request.character
+        },
+        "newName": request.new_name
+    });
+
+    let raw = lsp_send_request(
+        session.as_ref(),
+        "textDocument/rename",
+        params,
+        &request.meta,
+    )
+    .await?;
+    if raw.is_null() {
+        return Ok(json!({}));
+    }
+    Ok(raw)
+}
+
+#[tauri::command]
+pub async fn lsp_implementation(request: LspPositionRequest) -> Result<Value, String> {
+    let session = get_lsp_session(&request.session_id).await?;
+    let params = json!({
+        "textDocument": {
+            "uri": request.uri
+        },
+        "position": {
+            "line": request.line,
+            "character": request.character
+        }
+    });
+
+    let raw = lsp_send_request(
+        session.as_ref(),
+        "textDocument/implementation",
+        params,
+        &request.meta,
+    )
+    .await?;
+    Ok(normalize_location_result(raw))
+}
+
+#[tauri::command]
+pub async fn lsp_type_definition(request: LspPositionRequest) -> Result<Value, String> {
+    let session = get_lsp_session(&request.session_id).await?;
+    let params = json!({
+        "textDocument": {
+            "uri": request.uri
+        },
+        "position": {
+            "line": request.line,
+            "character": request.character
+        }
+    });
+
+    let raw = lsp_send_request(
+        session.as_ref(),
+        "textDocument/typeDefinition",
+        params,
+        &request.meta,
+    )
+    .await?;
+    Ok(normalize_location_result(raw))
+}
+
+#[tauri::command]
+pub async fn lsp_signature_help(request: LspPositionRequest) -> Result<Value, String> {
+    let session = get_lsp_session(&request.session_id).await?;
+    let params = json!({
+        "textDocument": {
+            "uri": request.uri
+        },
+        "position": {
+            "line": request.line,
+            "character": request.character
+        }
+    });
+
+    lsp_send_request(
+        session.as_ref(),
+        "textDocument/signatureHelp",
+        params,
+        &request.meta,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn lsp_document_highlights(request: LspPositionRequest) -> Result<Value, String> {
+    let session = get_lsp_session(&request.session_id).await?;
+    let params = json!({
+        "textDocument": {
+            "uri": request.uri
+        },
+        "position": {
+            "line": request.line,
+            "character": request.character
+        }
+    });
+
+    let raw = lsp_send_request(
+        session.as_ref(),
+        "textDocument/documentHighlight",
+        params,
+        &request.meta,
+    )
+    .await?;
+
+    Ok(normalize_array_result(raw))
+}
+
+#[tauri::command]
 pub async fn lsp_document_symbols(request: LspDocumentRequest) -> Result<Value, String> {
     let session = get_lsp_session(&request.session_id).await?;
     let params = json!({
@@ -1296,6 +1722,52 @@ pub async fn lsp_format_document(request: LspFormatDocumentRequest) -> Result<Va
         return Ok(json!([]));
     }
     Ok(raw)
+}
+
+#[tauri::command]
+pub async fn lsp_inlay_hints(request: LspInlayHintsRequest) -> Result<Value, String> {
+    let session = get_lsp_session(&request.session_id).await?;
+    let params = json!({
+        "textDocument": {
+            "uri": request.uri
+        },
+        "range": {
+            "start": {
+                "line": request.range.start.line,
+                "character": request.range.start.character
+            },
+            "end": {
+                "line": request.range.end.line,
+                "character": request.range.end.character
+            }
+        }
+    });
+
+    let raw = lsp_send_request(
+        session.as_ref(),
+        "textDocument/inlayHint",
+        params,
+        &request.meta,
+    )
+    .await?;
+    Ok(normalize_array_result(raw))
+}
+
+#[tauri::command]
+pub async fn lsp_semantic_tokens_full(request: LspDocumentRequest) -> Result<Value, String> {
+    let session = get_lsp_session(&request.session_id).await?;
+    let params = json!({
+        "textDocument": {
+            "uri": request.uri
+        }
+    });
+    lsp_send_request(
+        session.as_ref(),
+        "textDocument/semanticTokens/full",
+        params,
+        &request.meta,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -1391,6 +1863,15 @@ pub async fn lsp_shutdown_session(
     };
 
     terminate_lsp_session(&request.session_id, session, &app, true).await;
+    emit_server_status_changed(
+        &app,
+        &LspServerStatusChangedEvent {
+            language_id: "unknown".to_string(),
+            status: "disconnected".to_string(),
+            session_id: Some(request.session_id),
+            reason: None,
+        },
+    );
     Ok(())
 }
 
@@ -1515,5 +1996,31 @@ mod tests {
             vec!["file:///a.ts".to_string(), "file:///b.ts".to_string()]
         );
         assert!(open_documents.is_empty());
+    }
+
+    #[test]
+    fn resolves_default_server_for_extended_languages() {
+        let (command, args) = default_server_for_language("html");
+        assert_eq!(command, "vscode-html-language-server");
+        assert_eq!(args, vec!["--stdio".to_string()]);
+
+        let (command, args) = default_server_for_language("typescriptreact");
+        assert_eq!(command, "typescript-language-server");
+        assert_eq!(args, vec!["--stdio".to_string()]);
+    }
+
+    #[test]
+    fn normalizes_array_like_lsp_results() {
+        assert_eq!(normalize_array_result(Value::Null), json!([]));
+        assert_eq!(
+            normalize_array_result(
+                json!({ "range": { "start": { "line": 0, "character": 0 }, "end": { "line": 0, "character": 1 } } })
+            ),
+            json!([{ "range": { "start": { "line": 0, "character": 0 }, "end": { "line": 0, "character": 1 } } }])
+        );
+        assert_eq!(
+            normalize_array_result(json!([{"kind": 2}])),
+            json!([{"kind": 2}])
+        );
     }
 }

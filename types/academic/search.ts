@@ -55,12 +55,20 @@ export interface AggregatedSearchResult {
   papers: Paper[];
   totalResults: number;
   providerResults: Record<
-    AcademicProviderType,
+    string,
     {
       count: number;
       success: boolean;
       error?: string;
     }
   >;
+  degradedProviders?: Record<
+    string,
+    {
+      reason: string;
+      retriable: boolean;
+    }
+  >;
   searchTime: number;
+  searchTimeMs?: number;
 }

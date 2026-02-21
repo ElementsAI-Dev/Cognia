@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { InlineLoading } from '@/components/ui/loading-states';
 import { cn } from '@/lib/utils';
+import { isBackgroundRenderable } from '@/lib/themes';
 import { useSettingsStore } from '@/stores';
 import { usePluginMarketplaceStore } from '@/stores/plugin';
 import { TRANSPARENCY_CONFIG } from '@/lib/constants/transparency';
@@ -100,7 +101,7 @@ export function PluginCard({
   const { favorites, toggleFavorite } = usePluginMarketplaceStore();
   const isFavorite = !!favorites[manifest.id];
   const backgroundSettings = useSettingsStore((state) => state.backgroundSettings);
-  const isBackgroundActive = backgroundSettings.enabled && backgroundSettings.source !== 'none';
+  const isBackgroundActive = isBackgroundRenderable(backgroundSettings);
 
   // Get status styling
   const getStatusConfig = () => {

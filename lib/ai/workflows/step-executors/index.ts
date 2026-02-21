@@ -15,3 +15,4 @@ export { executeWebhookStep } from './webhook-executor';
 export { executeDelayStep } from './delay-executor';
 export { executeMergeStep } from './merge-executor';
 export { executeSubworkflowStep, setExecuteWorkflowFn } from './subworkflow-executor';
+export { executeKnowledgeRetrievalStep } from './knowledge-retrieval-executor';

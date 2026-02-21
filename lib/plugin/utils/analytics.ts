@@ -3,8 +3,6 @@
  * Tracks plugin usage, performance, and provides learning insights
  */
 
-import { invoke } from '@tauri-apps/api/core';
-
 // =============================================================================
 // Types
 // =============================================================================
@@ -87,10 +85,45 @@ class PluginAnalyticsStore {
   private stats: Map<string, PluginUsageStats> = new Map();
   private maxEventsInMemory = 1000;
   private persistKey = 'plugin_analytics';
+  private memoryPersistence = new Map<string, string>();
+
+  private readPersistedValue(key: string): string | null {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        return localStorage.getItem(key);
+      }
+    } catch {
+      // ignore localStorage failure
+    }
+    return this.memoryPersistence.get(key) ?? null;
+  }
+
+  private writePersistedValue(key: string, value: string): void {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(key, value);
+        return;
+      }
+    } catch {
+      // ignore localStorage failure
+    }
+    this.memoryPersistence.set(key, value);
+  }
+
+  private removePersistedValue(key: string): void {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(key);
+      }
+    } catch {
+      // ignore localStorage failure
+    }
+    this.memoryPersistence.delete(key);
+  }
 
   async initialize(): Promise<void> {
     try {
-      const stored = await invoke<string>('get_storage_value', { key: this.persistKey });
+      const stored = this.readPersistedValue(this.persistKey);
       if (stored) {
         const data = JSON.parse(stored);
         this.stats = new Map(Object.entries(data.stats || {}));
@@ -231,10 +264,7 @@ class PluginAnalyticsStore {
         stats: Object.fromEntries(this.stats),
         lastUpdated: Date.now(),
       };
-      await invoke('set_storage_value', {
-        key: this.persistKey,
-        value: JSON.stringify(data),
-      });
+      this.writePersistedValue(this.persistKey, JSON.stringify(data));
     } catch {
       // Ignore persistence errors
     }
@@ -244,7 +274,7 @@ class PluginAnalyticsStore {
     this.events = [];
     this.stats.clear();
     try {
-      await invoke('delete_storage_value', { key: this.persistKey });
+      this.removePersistedValue(this.persistKey);
     } catch {
       // Ignore
     }

@@ -69,24 +69,49 @@ describe('Native Skill Module', () => {
     it('should add a skill repository', async () => {
       mockInvoke.mockResolvedValue(undefined);
 
-      await addSkillRepo('test-owner', 'test-repo', 'develop');
-
-      expect(mockInvoke).toHaveBeenCalledWith('skill_add_repo', {
+      await addSkillRepo({
         owner: 'test-owner',
         name: 'test-repo',
         branch: 'develop',
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('skill_add_repo', {
+        repoUrl: undefined,
+        owner: 'test-owner',
+        name: 'test-repo',
+        branch: 'develop',
+        sourcePath: undefined,
       });
     });
 
     it('should add a skill repository with default branch', async () => {
       mockInvoke.mockResolvedValue(undefined);
 
-      await addSkillRepo('test-owner', 'test-repo');
+      await addSkillRepo({ owner: 'test-owner', name: 'test-repo' });
 
       expect(mockInvoke).toHaveBeenCalledWith('skill_add_repo', {
+        repoUrl: undefined,
         owner: 'test-owner',
         name: 'test-repo',
         branch: undefined,
+        sourcePath: undefined,
+      });
+    });
+
+    it('should add a skill repository using github source URL', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      await addSkillRepo({
+        repoUrl: 'https://github.com/openclaw/skills/tree/main/skills',
+        sourcePath: 'skills',
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('skill_add_repo', {
+        repoUrl: 'https://github.com/openclaw/skills/tree/main/skills',
+        owner: undefined,
+        name: undefined,
+        branch: undefined,
+        sourcePath: 'skills',
       });
     });
 
@@ -549,6 +574,7 @@ describe('Native Skill Module', () => {
         owner: 'test',
         name: 'test',
         branch: 'main',
+        sourcePath: null,
         enabled: true,
       };
 

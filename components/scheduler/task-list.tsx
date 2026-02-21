@@ -117,6 +117,7 @@ export function TaskList({
   const sortedTasks = tasks;
 
   const parentRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: sortedTasks.length,
     getScrollElement: () => parentRef.current,

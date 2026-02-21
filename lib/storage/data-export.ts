@@ -1,31 +1,31 @@
 /**
- * Data Export Utilities
- * Comprehensive data export with checksum and validation
+ * Data Export Utilities (Backup Package v3)
  */
 
 import { db } from '@/lib/db';
-import type { ExportData } from './data-import';
-import { generateChecksum } from './data-import';
 import { loggers } from '@/lib/logger';
+import { getDefaultBackupPassphrase } from './persistence/backup-key';
+import { encryptBackupPackage, sha256Hex } from './persistence/crypto';
+import { storageFeatureFlags } from './persistence/feature-flags';
+import { unifiedPersistenceService } from './persistence/unified-persistence-service';
+import type {
+  BackupPackageV3,
+  EncryptedEnvelopeV1,
+  ExportSelectionOptions,
+} from './persistence/types';
 
 const log = loggers.store;
 
 /**
  * Export options
  */
-export interface ExportOptions {
-  /** Include sessions from Zustand store */
-  includeSessions?: boolean;
-  /** Include settings */
-  includeSettings?: boolean;
-  /** Include artifacts */
-  includeArtifacts?: boolean;
-  /** Include IndexedDB data */
-  includeIndexedDB?: boolean;
-  /** Include checksum for integrity verification */
-  includeChecksum?: boolean;
+export interface ExportOptions extends ExportSelectionOptions {
   /** Pretty print JSON */
   prettyPrint?: boolean;
+  /** Encrypt exported artifact (default true) */
+  encrypt?: boolean;
+  /** Optional passphrase override (Web only) */
+  passphrase?: string;
 }
 
 /**
@@ -38,137 +38,75 @@ const DEFAULT_EXPORT_OPTIONS: ExportOptions = {
   includeIndexedDB: true,
   includeChecksum: true,
   prettyPrint: true,
+  encrypt: storageFeatureFlags.encryptedBackupV3Enabled,
 };
 
-/**
- * Create a full backup of all data
- */
 export async function createFullBackup(
   options: Partial<ExportOptions> = {}
-): Promise<ExportData> {
+): Promise<BackupPackageV3> {
   const opts = { ...DEFAULT_EXPORT_OPTIONS, ...options };
+  const payload = await unifiedPersistenceService.backup.exportPayload(opts);
+  const payloadString = JSON.stringify(payload);
+  const checksum = opts.includeChecksum === false ? '' : await sha256Hex(payloadString);
 
-  const exportData: ExportData = {
-    version: '2.0',
-    exportedAt: new Date().toISOString(),
+  return {
+    version: '3.0',
+    manifest: {
+      version: '3.0',
+      schemaVersion: 3,
+      traceId: globalThis.crypto?.randomUUID?.() || `backup-${Date.now()}`,
+      exportedAt: new Date().toISOString(),
+      backend: unifiedPersistenceService.getBackend(),
+      integrity: {
+        algorithm: 'SHA-256',
+        checksum,
+      },
+    },
+    payload,
   };
-
-  // Export sessions from Zustand store
-  if (opts.includeSessions) {
-    try {
-      const { useSessionStore } = await import('@/stores');
-      exportData.sessions = useSessionStore.getState().sessions;
-    } catch (error) {
-      log.error('Failed to export sessions', error as Error);
-    }
-  }
-
-  // Export settings
-  if (opts.includeSettings) {
-    try {
-      const { useSettingsStore } = await import('@/stores');
-      const state = useSettingsStore.getState();
-      exportData.settings = {
-        theme: state.theme,
-        defaultProvider: state.defaultProvider,
-        providerSettings: state.providerSettings,
-        language: state.language,
-      };
-    } catch (error) {
-      log.error('Failed to export settings', error as Error);
-    }
-  }
-
-  // Export artifacts
-  if (opts.includeArtifacts) {
-    try {
-      const { useArtifactStore } = await import('@/stores');
-      const state = useArtifactStore.getState();
-      exportData.artifacts = state.artifacts;
-      exportData.canvasDocuments = state.canvasDocuments;
-    } catch (error) {
-      log.error('Failed to export artifacts', error as Error);
-    }
-  }
-
-  // Export IndexedDB data
-  if (opts.includeIndexedDB) {
-    try {
-      const [
-        sessions,
-        messages,
-        documents,
-        projects,
-        workflows,
-        workflowExecutions,
-        summaries,
-        knowledgeFiles,
-        agentTraces,
-        folders,
-        mcpServers,
-      ] = await Promise.all([
-        db.sessions.toArray(),
-        db.messages.toArray(),
-        db.documents.toArray(),
-        db.projects.toArray(),
-        db.workflows.toArray(),
-        db.workflowExecutions.toArray(),
-        db.summaries.toArray(),
-        db.knowledgeFiles.toArray(),
-        db.agentTraces.toArray(),
-        db.folders.toArray(),
-        db.mcpServers.toArray(),
-      ]);
-
-      exportData.indexedDB = {
-        sessions,
-        messages,
-        documents,
-        projects,
-      };
-
-      // Include non-empty tables
-      if (workflows.length > 0) exportData.indexedDB.workflows = workflows;
-      if (workflowExecutions.length > 0) exportData.indexedDB.workflowExecutions = workflowExecutions;
-      if (summaries.length > 0) exportData.indexedDB.summaries = summaries;
-      if (knowledgeFiles.length > 0) exportData.indexedDB.knowledgeFiles = knowledgeFiles;
-      if (agentTraces.length > 0) exportData.indexedDB.agentTraces = agentTraces;
-      if (folders.length > 0) exportData.indexedDB.folders = folders;
-      if (mcpServers.length > 0) exportData.indexedDB.mcpServers = mcpServers;
-    } catch (error) {
-      log.error('Failed to export IndexedDB', error as Error);
-    }
-  }
-
-  // Generate checksum
-  if (opts.includeChecksum) {
-    const dataString = JSON.stringify(exportData);
-    exportData.checksum = generateChecksum(dataString);
-  }
-
-  return exportData;
 }
 
-/**
- * Export data to JSON string
- */
+async function serializeBackupForExport(
+  backup: BackupPackageV3,
+  options: ExportOptions
+): Promise<BackupPackageV3 | EncryptedEnvelopeV1> {
+  if (!options.encrypt) {
+    return backup;
+  }
+
+  const passphrase = options.passphrase || (await getDefaultBackupPassphrase());
+  if (!passphrase) {
+    throw new Error('Encrypted backup is enabled but no encryption key is available');
+  }
+
+  const { integrity, ...manifestWithoutIntegrity } = backup.manifest;
+  const plainText = JSON.stringify(backup);
+  const envelope = await encryptBackupPackage(plainText, passphrase, {
+    ...manifestWithoutIntegrity,
+    encryption: {
+      enabled: true,
+      format: 'encrypted-envelope-v1',
+    },
+  });
+
+  if (integrity.checksum) {
+    envelope.checksum = integrity.checksum;
+  }
+  return envelope;
+}
+
 export async function exportToJSON(options: Partial<ExportOptions> = {}): Promise<string> {
   const opts = { ...DEFAULT_EXPORT_OPTIONS, ...options };
-  const data = await createFullBackup(opts);
-  return JSON.stringify(data, null, opts.prettyPrint ? 2 : 0);
+  const backup = await createFullBackup(opts);
+  const exported = await serializeBackupForExport(backup, opts);
+  return JSON.stringify(exported, null, opts.prettyPrint ? 2 : 0);
 }
 
-/**
- * Export data to Blob
- */
 export async function exportToBlob(options: Partial<ExportOptions> = {}): Promise<Blob> {
   const json = await exportToJSON(options);
   return new Blob([json], { type: 'application/json' });
 }
 
-/**
- * Download export file
- */
 export async function downloadExport(
   options: Partial<ExportOptions> = {},
   filename?: string
@@ -176,7 +114,8 @@ export async function downloadExport(
   const blob = await exportToBlob(options);
   const url = URL.createObjectURL(blob);
 
-  const defaultFilename = `cognia-backup-${new Date().toISOString().split('T')[0]}.json`;
+  const suffix = options.encrypt === false ? 'plain' : 'encrypted';
+  const defaultFilename = `cognia-backup-v3-${suffix}-${new Date().toISOString().split('T')[0]}.json`;
   const a = document.createElement('a');
   a.href = url;
   a.download = filename || defaultFilename;
@@ -186,9 +125,6 @@ export async function downloadExport(
   URL.revokeObjectURL(url);
 }
 
-/**
- * Get export size estimate
- */
 export async function getExportSizeEstimate(): Promise<{
   sessions: number;
   settings: number;
@@ -203,20 +139,10 @@ export async function getExportSizeEstimate(): Promise<{
 
   try {
     const { useSessionStore, useSettingsStore, useArtifactStore } = await import('@/stores');
+    sessions = JSON.stringify(useSessionStore.getState().sessions).length * 2;
+    settings = JSON.stringify(useSettingsStore.getState()).length * 2;
+    artifacts = JSON.stringify(useArtifactStore.getState().artifacts).length * 2;
 
-    // Estimate sessions size
-    const sessionsData = JSON.stringify(useSessionStore.getState().sessions);
-    sessions = sessionsData.length * 2; // UTF-16
-
-    // Estimate settings size
-    const settingsData = JSON.stringify(useSettingsStore.getState());
-    settings = settingsData.length * 2;
-
-    // Estimate artifacts size
-    const artifactsData = JSON.stringify(useArtifactStore.getState().artifacts);
-    artifacts = artifactsData.length * 2;
-
-    // Estimate IndexedDB size
     const counts = await Promise.all([
       db.sessions.count(),
       db.messages.count(),
@@ -227,23 +153,30 @@ export async function getExportSizeEstimate(): Promise<{
       db.summaries.count(),
       db.knowledgeFiles.count(),
       db.agentTraces.count(),
+      db.checkpoints.count(),
+      db.contextFiles.count(),
+      db.videoProjects.count(),
+      db.assets.count(),
       db.folders.count(),
       db.mcpServers.count(),
     ]);
 
-    // Rough estimates per record (bytes)
     indexedDB =
-      counts[0] * 512 +   // sessions
-      counts[1] * 2048 +  // messages
-      counts[2] * 4096 +  // documents
-      counts[3] * 1024 +  // projects
-      counts[4] * 2048 +  // workflows
-      counts[5] * 4096 +  // workflowExecutions
-      counts[6] * 1024 +  // summaries
-      counts[7] * 2048 +  // knowledgeFiles
-      counts[8] * 4096 +  // agentTraces
-      counts[9] * 256 +   // folders
-      counts[10] * 1024;  // mcpServers
+      counts[0] * 1024 +
+      counts[1] * 4096 +
+      counts[2] * 4096 +
+      counts[3] * 2048 +
+      counts[4] * 2048 +
+      counts[5] * 4096 +
+      counts[6] * 2048 +
+      counts[7] * 2048 +
+      counts[8] * 4096 +
+      counts[9] * 1024 +
+      counts[10] * 2048 +
+      counts[11] * 4096 +
+      counts[12] * 8192 +
+      counts[13] * 512 +
+      counts[14] * 1024;
   } catch (error) {
     log.error('Failed to estimate export size', error as Error);
   }

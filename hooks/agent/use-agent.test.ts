@@ -71,6 +71,7 @@ jest.mock('@/stores/agent', () => ({
 const mockExecuteAgent = jest.fn();
 const mockExecuteAgentLoop = jest.fn();
 const mockCreateAgent = jest.fn();
+const mockCreateAgentLoopCancellationToken = jest.fn();
 const mockUseSkillStore = useSkillStore as jest.MockedFunction<typeof useSkillStore>;
 const mockBuildMultiSkillSystemPrompt =
   buildMultiSkillSystemPrompt as jest.MockedFunction<typeof buildMultiSkillSystemPrompt>;
@@ -83,6 +84,8 @@ jest.mock('@/lib/ai/agent', () => ({
   executeContextAwareAgent: (...args: unknown[]) => mockExecuteAgent(...args),
   executeAgentLoop: (...args: unknown[]) => mockExecuteAgentLoop(...args),
   createAgent: (...args: unknown[]) => mockCreateAgent(...args),
+  createAgentLoopCancellationToken: (...args: unknown[]) =>
+    mockCreateAgentLoopCancellationToken(...args),
   createMcpToolsFromStore: jest.fn(() => ({})),
   createRAGSearchTool: jest.fn(() => ({})),
   createListRAGCollectionsTool: jest.fn(() => ({})),
@@ -99,6 +102,11 @@ jest.mock('@/lib/skills/executor', () => ({
 describe('useAgent', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCreateAgentLoopCancellationToken.mockImplementation(() => ({
+      cancel: jest.fn(),
+      isCancelled: false,
+      onCancel: jest.fn(() => () => {}),
+    }));
 
     mockUseSkillStore.mockImplementation((selector) => {
       const state = {
@@ -355,6 +363,9 @@ describe('useAgent', () => {
       });
 
       expect(result.current.isRunning).toBe(false);
+      const runConfig = mockExecuteAgent.mock.calls[0]?.[1] as { abortSignal?: AbortSignal };
+      expect(runConfig?.abortSignal?.aborted).toBe(true);
+      expect(mockCreateAgentLoopCancellationToken).toHaveBeenCalledTimes(1);
 
       // Cleanup
       await act(async () => {

@@ -427,6 +427,20 @@ export const useProjectStore = create<ProjectState>()(
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState: unknown, version: number) => {
         const state = persistedState as Record<string, unknown>;
+        if (typeof window !== 'undefined' && Array.isArray(state.projects) && state.projects.length > 0) {
+          try {
+            localStorage.setItem(
+              'cognia-projects-legacy-snapshot-v3',
+              JSON.stringify({
+                state: {
+                  projects: state.projects,
+                },
+              })
+            );
+          } catch {
+            // ignore snapshot write failures
+          }
+        }
         if (version === 0) {
           // v0 -> v1: Ensure knowledgeBase and tags exist on each project
           if (Array.isArray(state.projects)) {

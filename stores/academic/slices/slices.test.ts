@@ -136,7 +136,7 @@ describe('Academic Store Slices', () => {
         annotation: {
           type: 'highlight',
           content: 'Important finding',
-          page_number: 5,
+          pageNumber: 5,
           position: undefined,
           color: undefined,
         },
@@ -411,10 +411,10 @@ describe('Academic Store Slices', () => {
         data: '@article{test}',
         format: 'bibtex',
         options: {
-          merge_strategy: 'skip',
-          import_annotations: true,
-          import_notes: true,
-          target_collection: undefined,
+          mergeStrategy: 'skip',
+          importAnnotations: true,
+          importNotes: true,
+          targetCollection: undefined,
         },
       });
       expect(importResult).toEqual(mockResult);
@@ -438,10 +438,10 @@ describe('Academic Store Slices', () => {
         data: '@article{test}',
         format: 'bibtex',
         options: {
-          merge_strategy: 'replace',
-          import_annotations: true,
-          import_notes: true,
-          target_collection: 'col-1',
+          mergeStrategy: 'replace',
+          importAnnotations: true,
+          importNotes: true,
+          targetCollection: 'col-1',
         },
       });
     });
@@ -474,9 +474,9 @@ describe('Academic Store Slices', () => {
         collectionId: undefined,
         format: 'bibtex',
         options: {
-          include_annotations: true,
-          include_notes: true,
-          include_ai_analysis: true,
+          includeAnnotations: true,
+          includeNotes: true,
+          includeAiAnalysis: true,
         },
       });
       expect(exportResult).toEqual(mockResult);

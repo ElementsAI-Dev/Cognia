@@ -15,6 +15,7 @@ export interface HumeTTSOptions {
   voice?: HumeTTSVoice;
   actingInstructions?: string;
   sampleRate?: number;
+  version?: 1 | 2;
 }
 
 /**
@@ -28,6 +29,7 @@ export async function generateHumeTTS(
     apiKey,
     voice = 'kora',
     actingInstructions,
+    version = 1,
   } = options;
 
   // Validate API key
@@ -50,13 +52,17 @@ export async function generateHumeTTS(
   try {
     // Use Hume REST API directly for better compatibility
     const requestBody: Record<string, unknown> = {
-      text,
-      voice: { name: voice },
+      utterances: [
+        {
+          text,
+          voice: { name: voice },
+          ...(actingInstructions ? { description: actingInstructions } : {}),
+        },
+      ],
+      version,
+      format: { type: 'mp3' },
+      num_generations: 1,
     };
-
-    if (actingInstructions) {
-      requestBody.acting_instructions = actingInstructions;
-    }
 
     const response = await proxyFetch('https://api.hume.ai/v0/tts', {
       method: 'POST',
@@ -75,12 +81,28 @@ export async function generateHumeTTS(
       };
     }
 
-    const audioData = await response.arrayBuffer();
+    const result = await response.json().catch(() => null);
+    const generation = result?.generations?.[0];
+    const audioBase64 = generation?.audio;
+    const formatType = generation?.encoding?.format || 'mp3';
+
+    if (!audioBase64 || typeof audioBase64 !== 'string') {
+      return {
+        success: false,
+        error: getTTSError('api-error', 'No audio returned by Hume API').message,
+      };
+    }
+
+    const binaryString = atob(audioBase64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let index = 0; index < binaryString.length; index++) {
+      bytes[index] = binaryString.charCodeAt(index);
+    }
 
     return {
       success: true,
-      audioData,
-      mimeType: 'audio/mpeg',
+      audioData: bytes.buffer,
+      mimeType: formatType === 'wav' ? 'audio/wav' : formatType === 'pcm' ? 'audio/pcm' : 'audio/mpeg',
     };
   } catch (error) {
     log.error('Hume TTS error', error as Error);

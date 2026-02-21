@@ -18,8 +18,8 @@ export interface CartesiaTTSOptions {
   voice?: CartesiaTTSVoice;
   model?: CartesiaTTSModel;
   language?: string;
-  speed?: number; // -1.0 to 1.0 (normal = 0)
-  emotion?: string; // e.g., 'positivity:high', 'curiosity:high'
+  speed?: number;
+  emotion?: string;
   outputFormat?: 'mp3' | 'wav' | 'raw';
 }
 
@@ -65,7 +65,6 @@ export async function generateCartesiaTTS(
         ? { container: 'wav', encoding: 'pcm_s16le', sample_rate: 24000 }
         : { container: 'raw', encoding: 'pcm_s16le', sample_rate: 24000 };
 
-    // Build voice config with optional speed/emotion
     const voiceConfig: Record<string, unknown> = {
       mode: 'id',
       id: voice,
@@ -80,19 +79,21 @@ export async function generateCartesiaTTS(
       output_format: outputFormatConfig,
     };
 
-    // Add speed control if specified
-    if (speed !== undefined && speed !== 0) {
-      body.speed = speed > 0 ? 'fastest' : 'slowest';
+    const generation_config: Record<string, unknown> = {};
+    if (typeof speed === 'number') {
+      generation_config.speed = speed;
     }
-
-    // Add emotion control via SSML-like __emotion tags if specified
-    if (emotion) {
-      body.transcript = `<emotion name="${emotion}">${text}</emotion>`;
+    if (emotion && emotion.trim()) {
+      generation_config.emotion = emotion.trim();
+    }
+    if (Object.keys(generation_config).length > 0) {
+      body.generation_config = generation_config;
     }
 
     const response = await proxyFetch(`${CARTESIA_API_BASE}/tts/bytes`, {
       method: 'POST',
       headers: {
+        Authorization: `Bearer ${apiKey}`,
         'Cartesia-Version': CARTESIA_API_VERSION,
         'X-API-Key': apiKey,
         'Content-Type': 'application/json',
@@ -134,13 +135,8 @@ export async function generateCartesiaTTSViaApi(
   text: string,
   options: Omit<CartesiaTTSOptions, 'apiKey'>
 ): Promise<TTSResponse> {
-  const {
-    voice = 'a0e99841-438c-4a64-b679-ae501e7d6091',
-    model = 'sonic-3',
-    language = 'en',
-    speed,
-    emotion,
-  } = options;
+    const { voice = 'a0e99841-438c-4a64-b679-ae501e7d6091', model = 'sonic-3', language = 'en', speed, emotion } =
+      options;
 
   try {
     const response = await fetch('/api/tts/cartesia', {
@@ -171,7 +167,7 @@ export async function generateCartesiaTTSViaApi(
     return {
       success: true,
       audioData,
-      mimeType: 'audio/mpeg',
+      mimeType: response.headers.get('content-type') || 'audio/mpeg',
     };
   } catch (error) {
     log.error('Cartesia TTS API error', error as Error);
@@ -190,14 +186,8 @@ export async function streamCartesiaTTS(
   options: CartesiaTTSOptions,
   onChunk: (chunk: Uint8Array) => void
 ): Promise<TTSResponse> {
-  const {
-    apiKey,
-    voice = 'a0e99841-438c-4a64-b679-ae501e7d6091',
-    model = 'sonic-3',
-    language = 'en',
-    speed,
-    emotion,
-  } = options;
+  const { apiKey, voice = 'a0e99841-438c-4a64-b679-ae501e7d6091', model = 'sonic-3', language = 'en', speed, emotion } =
+    options;
 
   if (!apiKey) {
     return {
@@ -209,7 +199,7 @@ export async function streamCartesiaTTS(
   try {
     const body: Record<string, unknown> = {
       model_id: model,
-      transcript: emotion ? `<emotion name="${emotion}">${text}</emotion>` : text,
+      transcript: text,
       voice: { mode: 'id', id: voice },
       language,
       output_format: {
@@ -219,13 +209,21 @@ export async function streamCartesiaTTS(
       },
     };
 
-    if (speed !== undefined && speed !== 0) {
-      body.speed = speed > 0 ? 'fastest' : 'slowest';
+    const generation_config: Record<string, unknown> = {};
+    if (typeof speed === 'number') {
+      generation_config.speed = speed;
+    }
+    if (emotion && emotion.trim()) {
+      generation_config.emotion = emotion.trim();
+    }
+    if (Object.keys(generation_config).length > 0) {
+      body.generation_config = generation_config;
     }
 
     const response = await proxyFetch(`${CARTESIA_API_BASE}/tts/bytes`, {
       method: 'POST',
       headers: {
+        Authorization: `Bearer ${apiKey}`,
         'Cartesia-Version': CARTESIA_API_VERSION,
         'X-API-Key': apiKey,
         'Content-Type': 'application/json',

@@ -60,7 +60,7 @@ jest.mock('@/stores/workflow', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   Button: ({ children, onClick, asChild, ...props }: any) => {
     if (asChild && React.isValidElement(children)) {
       return children;
@@ -82,10 +82,10 @@ jest.mock('@/components/ui/collapsible', () => ({
   CollapsibleContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="collapsible-content">{children}</div>
   ),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   CollapsibleTrigger: ({ children, asChild, ...props }: any) => {
     if (asChild && React.isValidElement(children)) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       return React.cloneElement(children as React.ReactElement, { 'data-testid': 'collapsible-trigger' } as any);
     }
     return <button data-testid="collapsible-trigger" {...props}>{children}</button>;
@@ -311,7 +311,7 @@ describe('SidebarWorkflows', () => {
     expect(container.querySelector('.animate-spin')).toBeInTheDocument();
 
     // Resolve the promise
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     resolveGetAll!(mockWorkflows as any);
     
     await waitFor(() => {

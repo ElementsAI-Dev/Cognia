@@ -79,6 +79,8 @@ const VALID_PLUGIN_TYPES: PluginType[] = ['frontend', 'python', 'hybrid'];
 
 const ID_PATTERN = /^[a-z0-9]([a-z0-9-_.]*[a-z0-9])?$/;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+(-[a-z0-9]+)?$/i;
+const ACTIVATION_EVENT_PATTERN =
+  /^(startup|onStartup|onCommand:\*|onCommand:.+|onTool:\*|onTool:.+|onAgentTool:\*|onAgentTool:.+|onChat:\*|onAgent:start|onA2UI:surface|onLanguage:.+|onFile:.+)$/;
 
 // =============================================================================
 // Manifest Validation
@@ -217,6 +219,52 @@ export function validatePluginManifest(manifest: unknown): ValidationResult {
         errors.push(`Mode at index ${i} missing "icon" field`);
       }
     }
+  }
+
+  if (m.commands && Array.isArray(m.commands)) {
+    for (let i = 0; i < m.commands.length; i++) {
+      const command = m.commands[i] as Record<string, unknown>;
+      if (!command.id || typeof command.id !== 'string') {
+        errors.push(`Command at index ${i} missing "id" field`);
+      }
+      if (!command.name || typeof command.name !== 'string') {
+        errors.push(`Command at index ${i} missing "name" field`);
+      }
+      if (command.description !== undefined && typeof command.description !== 'string') {
+        errors.push(`Command at index ${i} has invalid "description" field`);
+      }
+      if (command.icon !== undefined && typeof command.icon !== 'string') {
+        errors.push(`Command at index ${i} has invalid "icon" field`);
+      }
+      if (command.aliases !== undefined) {
+        if (!Array.isArray(command.aliases)) {
+          errors.push(`Command at index ${i} has invalid "aliases" field (must be an array)`);
+        } else if (!command.aliases.every((alias) => typeof alias === 'string')) {
+          errors.push(`Command at index ${i} has invalid "aliases" field (must contain strings)`);
+        }
+      }
+    }
+  }
+
+  if (m.activationEvents !== undefined) {
+    if (!Array.isArray(m.activationEvents)) {
+      errors.push('"activationEvents" must be an array');
+    } else {
+      for (let i = 0; i < m.activationEvents.length; i++) {
+        const event = m.activationEvents[i];
+        if (typeof event !== 'string') {
+          errors.push(`Activation event at index ${i} must be a string`);
+          continue;
+        }
+        if (!ACTIVATION_EVENT_PATTERN.test(event)) {
+          warnings.push(`Unknown activation event "${event}"`);
+        }
+      }
+    }
+  }
+
+  if (m.activateOnStartup !== undefined && typeof m.activateOnStartup !== 'boolean') {
+    errors.push('"activateOnStartup" must be a boolean');
   }
 
   return {

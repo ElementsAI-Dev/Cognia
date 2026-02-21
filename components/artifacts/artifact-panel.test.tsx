@@ -173,7 +173,7 @@ jest.mock('./panel-designer-wrapper', () => ({
 jest.mock('next/dynamic', () => {
   return function dynamic(_loader: () => Promise<{ default: React.ComponentType }>) {
     const Component = (props: Record<string, unknown>) => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const Comp = require('@monaco-editor/react').default;
       return <Comp {...props} />;
     };

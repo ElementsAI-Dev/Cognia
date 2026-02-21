@@ -14,7 +14,7 @@
  * work together with the useVideoEditor and useVideoTimeline hooks.
  */
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { loggers } from '@/lib/logger';
@@ -54,9 +54,11 @@ import { ExportDialog, type ExportSettings } from '../export/export-dialog';
 import { AudioMixerPanel, type AudioTrack } from '../audio/audio-mixer-panel';
 import { LayerPanel, type VideoLayer } from '../composition/layer-panel';
 import { useVideoEditor } from '@/hooks/video-studio/use-video-editor';
-import type { VideoClip, EditorMode, SidePanelTab } from '@/types/video-studio/types';
+import { normalizeClipEffects } from '@/types/video-studio/types';
+import type { VideoClip, EditorMode, SidePanelTab, AudioMixTrack } from '@/types/video-studio/types';
 import { useVideoTimeline } from '@/hooks/video-studio/use-video-timeline';
 import { useVideoSubtitles } from '@/hooks/video-studio/use-video-subtitles';
+import type { SubtitleFormat } from '@/types/media/subtitle';
 import { useVideoEditorStore } from '@/stores/media';
 import type { ExportProgress } from '@/lib/plugin/api/media-api';
 import { Progress } from '@/components/ui/progress';
@@ -74,6 +76,49 @@ export function VideoEditorPanel({
   onSave: _onSave,
   className,
 }: VideoEditorPanelProps) {
+  const toSubtitleFormat = useCallback(
+    (format: SubtitleFormat): 'srt' | 'vtt' | 'ass' | 'ssa' => {
+      if (format === 'srt' || format === 'vtt' || format === 'ass' || format === 'ssa') {
+        return format;
+      }
+      return 'vtt';
+    },
+    []
+  );
+
+  const toExportSubtitleFormat = useCallback(
+    (format: SubtitleFormat): 'srt' | 'vtt' | 'ass' => {
+      if (format === 'srt' || format === 'vtt') {
+        return format;
+      }
+      if (format === 'ass' || format === 'ssa') {
+        return 'ass';
+      }
+      return 'vtt';
+    },
+    []
+  );
+
+  const toMarkerColor = useCallback((color?: string): Marker['color'] => {
+    switch (color) {
+      case 'red':
+      case 'orange':
+      case 'yellow':
+      case 'green':
+      case 'blue':
+      case 'purple':
+      case 'pink':
+      case 'gray':
+        return color;
+      default:
+        return 'blue';
+    }
+  }, []);
+
+  const toEffectParams = useCallback((value: object): Record<string, unknown> => {
+    return value as Record<string, unknown>;
+  }, []);
+
   const t = useTranslations('editorPanel');
   // State
   const [editorMode, setEditorMode] = useState<EditorMode>('timeline');
@@ -81,9 +126,9 @@ export function VideoEditorPanel({
   const [showTrimDialog, setShowTrimDialog] = useState(false);
   const [showTransitionsDialog, setShowTransitionsDialog] = useState(false);
   const [transitionClipId, setTransitionClipId] = useState<string | null>(null);
+  const [transitionTargetClipId, setTransitionTargetClipId] = useState<string | null>(null);
   const [selectedTransitionId, setSelectedTransitionId] = useState<string | null>(null);
   const [transitionDuration, setTransitionDuration] = useState(1);
-  const [appliedEffects, setAppliedEffects] = useState<AppliedEffect[]>([]);
   const [selectedSubtitleCueIds, setSelectedSubtitleCueIds] = useState<string[]>([]);
   
   // New state for enhanced features
@@ -91,7 +136,6 @@ export function VideoEditorPanel({
   const [showSidePanel, setShowSidePanel] = useState(false);
   const [colorSettings, setColorSettings] = useState<ColorCorrectionSettings>(DEFAULT_COLOR_CORRECTION_SETTINGS);
   const [speedSettings, setSpeedSettings] = useState<SpeedSettings>(DEFAULT_SPEED_SETTINGS);
-  const [markers, setMarkers] = useState<Marker[]>([]);
   // Use the video editor store for history management
   const {
     pushHistory,
@@ -109,7 +153,6 @@ export function VideoEditorPanel({
   const [showProjectSettings, setShowProjectSettings] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
-  const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
   const [masterVolume, setMasterVolume] = useState(1);
   const [masterMuted, setMasterMuted] = useState(false);
   const [layers, setLayers] = useState<VideoLayer[]>([]);
@@ -148,6 +191,10 @@ export function VideoEditorPanel({
       loggers.media.debug('Subtitles loaded', { count: tracks.length });
     },
   });
+  const subtitleTracks = subtitles.tracks;
+  const setSubtitlePlaybackTime = subtitles.setPlaybackTime;
+  const setSubtitleBindings = editor.setSubtitleBindings;
+  const setTimelineLayers = editor.setTimelineLayers;
 
   // Get the currently selected clip
   const selectedClip = useMemo(() => {
@@ -159,6 +206,122 @@ export function VideoEditorPanel({
     }
     return null;
   }, [editor.state.selectedClipIds, editor.state.tracks]);
+
+  const selectedTrack = useMemo(() => {
+    if (!selectedClip) {
+      return null;
+    }
+    return editor.state.tracks.find((track) => track.clips.some((clip) => clip.id === selectedClip.id)) ?? null;
+  }, [editor.state.tracks, selectedClip]);
+
+  const adjacentClip = useMemo(() => {
+    if (!selectedClip || !selectedTrack) {
+      return null;
+    }
+    const ordered = [...selectedTrack.clips].sort((a, b) => a.startTime - b.startTime);
+    const selectedIndex = ordered.findIndex((clip) => clip.id === selectedClip.id);
+    if (selectedIndex === -1) {
+      return null;
+    }
+    return ordered[selectedIndex + 1] ?? null;
+  }, [selectedClip, selectedTrack]);
+
+  const markers = useMemo<Marker[]>(
+    () =>
+      editor.timeline.markers.map((marker, index) => ({
+        id: marker.id,
+        time: marker.time,
+        name: marker.name ?? marker.label ?? `Marker ${index + 1}`,
+        type: marker.type ?? 'marker',
+        description: marker.description,
+        completed: marker.completed,
+        color: toMarkerColor(marker.color),
+      })),
+    [editor.timeline.markers, toMarkerColor]
+  );
+
+  const appliedEffects = useMemo<AppliedEffect[]>(() => {
+    if (!selectedClip) {
+      return [];
+    }
+    return normalizeClipEffects(selectedClip.effects).map((effect) => ({
+      id: effect.id,
+      effectId: effect.effectId,
+      name: effect.effectId.split(':').pop() || effect.effectId,
+      enabled: effect.enabled,
+      params: effect.params,
+    }));
+  }, [selectedClip]);
+
+  useEffect(() => {
+    setSubtitlePlaybackTime(editor.state.currentTime * 1000);
+  }, [editor.state.currentTime, setSubtitlePlaybackTime]);
+
+  useEffect(() => {
+    const bindings = subtitleTracks.map((track) => ({
+      id: track.id,
+      trackId: track.id,
+      source: track.source,
+      format: toSubtitleFormat(track.format),
+      burnIn: true,
+      offsetMs: 0,
+    }));
+    setSubtitleBindings(bindings);
+  }, [setSubtitleBindings, subtitleTracks, toSubtitleFormat]);
+
+  const audioTracks = useMemo<AudioTrack[]>(() => {
+    const mixLookup = new Map(editor.timeline.audioMix.map((track) => [track.id, track]));
+    return editor.state.tracks.map((track) => {
+      const mixTrack = mixLookup.get(track.id);
+      return {
+        id: track.id,
+        name: track.name,
+        type: track.type === 'audio' ? 'audio' : 'video',
+        volume: mixTrack?.volume ?? track.volume,
+        pan: mixTrack?.pan ?? 0,
+        muted: mixTrack?.muted ?? track.muted,
+        solo: Boolean(mixTrack?.solo),
+        level: track.muted ? 0 : (mixTrack?.volume ?? track.volume),
+      };
+    });
+  }, [editor.state.tracks, editor.timeline.audioMix]);
+
+  const buildMixTracks = useCallback(
+    (tracks: AudioTrack[]): AudioMixTrack[] => {
+      return tracks.map((track) => ({
+        id: track.id,
+        sourceTrackId: track.id,
+        volume: track.volume,
+        muted: track.muted,
+        pan: track.pan,
+        solo: track.solo,
+      }));
+    },
+    []
+  );
+
+  const displayMasterVolume = editor.state.tracks.length > 0 ? masterVolume : 0;
+
+  useEffect(() => {
+    const mappedLayers = layers.map((layer, index) => ({
+      id: layer.id,
+      name: layer.name,
+      type: layer.type,
+      visible: layer.visible,
+      locked: layer.locked,
+      opacity: layer.opacity,
+      startTime: layer.startTime,
+      duration: layer.duration,
+      zIndex: index,
+      payload: {
+        blendMode: layer.blendMode,
+        position: layer.position,
+        scale: layer.scale,
+        rotation: layer.rotation,
+      },
+    }));
+    setTimelineLayers(mappedLayers);
+  }, [layers, setTimelineLayers]);
 
   // Get preview URL (first selected clip or first clip overall)
   const previewUrl = useMemo(() => {
@@ -221,36 +384,54 @@ export function VideoEditorPanel({
   }, []);
 
   // Handle transitions
+  const handleEditorModeChange = useCallback(
+    (nextMode: EditorMode) => {
+      if (nextMode !== 'transitions') {
+        setEditorMode(nextMode);
+        return;
+      }
+
+      if (!selectedClip || !adjacentClip) {
+        setShowTransitionsDialog(false);
+        setTransitionClipId(null);
+        setTransitionTargetClipId(null);
+        setSelectedTransitionId(null);
+        setEditorMode('timeline');
+        return;
+      }
+
+      setTransitionClipId(selectedClip.id);
+      setTransitionTargetClipId(adjacentClip.id);
+      setShowTransitionsDialog(true);
+      setEditorMode(nextMode);
+    },
+    [adjacentClip, selectedClip]
+  );
+
   const handleTransitionApply = useCallback(() => {
-    if (transitionClipId && selectedTransitionId) {
-      editor.addTransition(transitionClipId, '', selectedTransitionId, transitionDuration);
+    if (transitionClipId && transitionTargetClipId && selectedTransitionId) {
+      editor.addTransition(transitionClipId, transitionTargetClipId, selectedTransitionId, transitionDuration);
     }
     setShowTransitionsDialog(false);
     setTransitionClipId(null);
+    setTransitionTargetClipId(null);
     setSelectedTransitionId(null);
-  }, [transitionClipId, selectedTransitionId, transitionDuration, editor]);
+    setEditorMode('timeline');
+  }, [transitionClipId, transitionTargetClipId, selectedTransitionId, transitionDuration, editor]);
 
   const handleTransitionCancel = useCallback(() => {
     setShowTransitionsDialog(false);
     setTransitionClipId(null);
+    setTransitionTargetClipId(null);
     setSelectedTransitionId(null);
+    setEditorMode('timeline');
   }, []);
 
   // Handle effects
   const handleAddEffect = useCallback(
     (effectId: string, defaultParams?: Record<string, unknown>) => {
       if (!selectedClip) return;
-
-      const newEffect: AppliedEffect = {
-        id: `effect-${Date.now()}`,
-        effectId,
-        name: effectId.split(':').pop() || effectId,
-        enabled: true,
-        params: defaultParams ?? {},
-      };
-
-      setAppliedEffects((prev) => [...prev, newEffect]);
-      editor.addEffect(selectedClip.id, effectId);
+      editor.addEffect(selectedClip.id, effectId, defaultParams);
     },
     [selectedClip, editor]
   );
@@ -261,34 +442,36 @@ export function VideoEditorPanel({
       if (effect && selectedClip) {
         editor.removeEffect(selectedClip.id, effect.effectId);
       }
-      setAppliedEffects((prev) => prev.filter((e) => e.id !== id));
     },
     [appliedEffects, selectedClip, editor]
   );
 
-  const handleToggleEffect = useCallback((id: string, enabled: boolean) => {
-    setAppliedEffects((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, enabled } : e))
-    );
-  }, []);
+  const handleToggleEffect = useCallback(
+    (id: string, enabled: boolean) => {
+      if (selectedClip) {
+        editor.setEffectEnabled(selectedClip.id, id, enabled);
+      }
+    },
+    [editor, selectedClip]
+  );
 
   const handleUpdateEffectParams = useCallback(
     (id: string, params: Record<string, unknown>) => {
-      setAppliedEffects((prev) =>
-        prev.map((e) => (e.id === id ? { ...e, params } : e))
-      );
+      if (selectedClip) {
+        editor.updateEffectParams(selectedClip.id, id, params);
+      }
     },
-    []
+    [editor, selectedClip]
   );
 
-  const handleReorderEffects = useCallback((fromIndex: number, toIndex: number) => {
-    setAppliedEffects((prev) => {
-      const newEffects = [...prev];
-      const [removed] = newEffects.splice(fromIndex, 1);
-      newEffects.splice(toIndex, 0, removed);
-      return newEffects;
-    });
-  }, []);
+  const handleReorderEffects = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      if (selectedClip) {
+        editor.reorderEffects(selectedClip.id, fromIndex, toIndex);
+      }
+    },
+    [editor, selectedClip]
+  );
 
   // Handle export
   const handleExport = useCallback(async (settings: ExportSettings) => {
@@ -299,11 +482,25 @@ export function VideoEditorPanel({
     setShowExportDialog(false);
     setExportProgress({ phase: 'preparing', percent: 0, message: 'Starting export...' });
 
+    const subtitleMode: 'burn-in' | 'sidecar' | 'both' = 'both';
+    const subtitleTracks = subtitles.tracks.map((track) => {
+      const exported = subtitles.exportForVideo(track.id, subtitleMode, track.format);
+      return {
+        id: track.id,
+        format: toExportSubtitleFormat(track.format),
+        content: exported.sidecar ?? exported.burnIn ?? '',
+        burnIn: true,
+      };
+    });
+
     const blob = await editor.exportVideo({
       format: exportFormat,
       resolution: exportResolution,
       fps: settings.fps,
       quality: exportQuality,
+      includeSubtitles: subtitleTracks.length > 0,
+      subtitleMode,
+      subtitleTracks,
       onProgress: (progress) => {
         setExportProgress(progress);
         if (progress.phase === 'complete' || progress.phase === 'error') {
@@ -315,7 +512,7 @@ export function VideoEditorPanel({
     if (blob && onExport) {
       onExport(blob);
     }
-  }, [editor, onExport]);
+  }, [editor, onExport, subtitles, toExportSubtitleFormat]);
 
   // Handle markers
   const handleAddMarker = useCallback((marker: Omit<Marker, 'id'>) => {
@@ -323,16 +520,54 @@ export function VideoEditorPanel({
       ...marker,
       id: `marker-${Date.now()}`,
     };
-    setMarkers(prev => [...prev, newMarker].sort((a, b) => a.time - b.time));
-  }, []);
+    const nextMarkers = [...markers, newMarker].sort((a, b) => a.time - b.time);
+    editor.setTimelineMarkers(
+      nextMarkers.map((item) => ({
+        id: item.id,
+        time: item.time,
+        name: item.name,
+        label: item.name,
+        type: item.type,
+        description: item.description,
+        completed: item.completed,
+        color: item.color,
+      }))
+    );
+  }, [editor, markers]);
 
   const handleUpdateMarker = useCallback((id: string, updates: Partial<Marker>) => {
-    setMarkers(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
-  }, []);
+    const nextMarkers = markers.map((marker) =>
+      marker.id === id ? { ...marker, ...updates } : marker
+    );
+    editor.setTimelineMarkers(
+      nextMarkers.map((item) => ({
+        id: item.id,
+        time: item.time,
+        name: item.name,
+        label: item.name,
+        type: item.type,
+        description: item.description,
+        completed: item.completed,
+        color: item.color,
+      }))
+    );
+  }, [editor, markers]);
 
   const handleDeleteMarker = useCallback((id: string) => {
-    setMarkers(prev => prev.filter(m => m.id !== id));
-  }, []);
+    const nextMarkers = markers.filter((marker) => marker.id !== id);
+    editor.setTimelineMarkers(
+      nextMarkers.map((item) => ({
+        id: item.id,
+        time: item.time,
+        name: item.name,
+        label: item.name,
+        type: item.type,
+        description: item.description,
+        completed: item.completed,
+        color: item.color,
+      }))
+    );
+  }, [editor, markers]);
 
   const handleJumpToMarker = useCallback((time: number) => {
     editor.seek(time);
@@ -370,7 +605,7 @@ export function VideoEditorPanel({
       {/* Toolbar */}
       <EditorToolbar
         editorMode={editorMode}
-        setEditorMode={setEditorMode}
+        setEditorMode={handleEditorModeChange}
         showSidePanel={showSidePanel}
         sidePanelTab={sidePanelTab}
         onToggleSidePanel={handleToggleSidePanel}
@@ -565,22 +800,89 @@ export function VideoEditorPanel({
               <TabsContent value="color" className="flex-1 overflow-auto p-4 mt-0">
                 <ColorCorrectionPanel
                   settings={colorSettings}
-                  onSettingsChange={(updates) => setColorSettings(prev => ({ ...prev, ...updates }))}
-                  onReset={() => setColorSettings(DEFAULT_COLOR_CORRECTION_SETTINGS)}
+                  onSettingsChange={(updates) => {
+                    const nextSettings = { ...colorSettings, ...updates };
+                    setColorSettings(nextSettings);
+                    if (selectedClip) {
+                      const params = toEffectParams(nextSettings);
+                      editor.addEffect(selectedClip.id, 'color-correction', params);
+                      editor.updateEffectParams(selectedClip.id, 'color-correction', params);
+                    }
+                  }}
+                  onReset={() => {
+                    setColorSettings(DEFAULT_COLOR_CORRECTION_SETTINGS);
+                    if (selectedClip) {
+                      const params = toEffectParams(DEFAULT_COLOR_CORRECTION_SETTINGS);
+                      editor.addEffect(selectedClip.id, 'color-correction', params);
+                      editor.updateEffectParams(
+                        selectedClip.id,
+                        'color-correction',
+                        params
+                      );
+                    }
+                  }}
                 />
               </TabsContent>
               
               <TabsContent value="audio" className="flex-1 overflow-auto p-4 mt-0">
                 <AudioMixerPanel
                   tracks={audioTracks}
-                  masterVolume={masterVolume}
+                  masterVolume={displayMasterVolume}
                   masterMuted={masterMuted}
-                  onTrackVolumeChange={(id, vol) => setAudioTracks(prev => prev.map(t => t.id === id ? { ...t, volume: vol } : t))}
-                  onTrackPanChange={(id, pan) => setAudioTracks(prev => prev.map(t => t.id === id ? { ...t, pan } : t))}
-                  onTrackMuteToggle={(id) => setAudioTracks(prev => prev.map(t => t.id === id ? { ...t, muted: !t.muted } : t))}
-                  onTrackSoloToggle={(id) => setAudioTracks(prev => prev.map(t => t.id === id ? { ...t, solo: !t.solo } : t))}
-                  onMasterVolumeChange={setMasterVolume}
-                  onMasterMuteToggle={() => setMasterMuted(!masterMuted)}
+                  onTrackVolumeChange={(id, vol) => {
+                    editor.setTrackVolume(id, vol);
+                    const nextTracks = audioTracks.map((track) =>
+                      track.id === id ? { ...track, volume: vol } : track
+                    );
+                    editor.setAudioMixTracks(buildMixTracks(nextTracks));
+                  }}
+                  onTrackPanChange={(id, pan) => {
+                    const nextTracks = audioTracks.map((track) =>
+                      track.id === id ? { ...track, pan } : track
+                    );
+                    editor.setAudioMixTracks(buildMixTracks(nextTracks));
+                  }}
+                  onTrackMuteToggle={(id) => {
+                    const nextTracks = audioTracks.map((track) =>
+                      track.id === id ? { ...track, muted: !track.muted } : track
+                    );
+                    const mutedTrack = nextTracks.find((track) => track.id === id);
+                    if (mutedTrack) {
+                      editor.setTrackMuted(id, mutedTrack.muted);
+                    }
+                    editor.setAudioMixTracks(buildMixTracks(nextTracks));
+                  }}
+                  onTrackSoloToggle={(id) => {
+                    const nextTracks = audioTracks.map((track) =>
+                      track.id === id ? { ...track, solo: !track.solo } : track
+                    );
+                    editor.setAudioMixTracks(buildMixTracks(nextTracks));
+                  }}
+                  onMasterVolumeChange={(volume) => {
+                    setMasterVolume(volume);
+                    const mixTracks: AudioMixTrack[] = audioTracks.map((track) => ({
+                      id: track.id,
+                      sourceTrackId: track.id,
+                      volume: Math.max(0, Math.min(1, track.volume * volume)),
+                      muted: masterMuted || track.muted,
+                      pan: track.pan,
+                      solo: track.solo,
+                    }));
+                    editor.setAudioMixTracks(mixTracks);
+                  }}
+                  onMasterMuteToggle={() => {
+                    const nextMuted = !masterMuted;
+                    setMasterMuted(nextMuted);
+                    const mixTracks: AudioMixTrack[] = audioTracks.map((track) => ({
+                      id: track.id,
+                      sourceTrackId: track.id,
+                      volume: track.volume,
+                      muted: nextMuted || track.muted,
+                      pan: track.pan,
+                      solo: track.solo,
+                    }));
+                    editor.setAudioMixTracks(mixTracks);
+                  }}
                 />
               </TabsContent>
               
@@ -642,9 +944,32 @@ export function VideoEditorPanel({
             {editorMode === 'speed' && (
               <SpeedControls
                 settings={speedSettings}
-                onSettingsChange={(updates) => setSpeedSettings(prev => ({ ...prev, ...updates }))}
+                onSettingsChange={(updates) => {
+                  const nextSettings = { ...speedSettings, ...updates };
+                  setSpeedSettings(nextSettings);
+                  if (selectedClip) {
+                    editor.updateClip(selectedClip.id, {
+                      playbackSpeed: Math.max(0.1, Math.min(4, nextSettings.speed)),
+                    });
+                    const params = toEffectParams(nextSettings);
+                    editor.addEffect(selectedClip.id, 'speed-ramp', params);
+                    editor.updateEffectParams(selectedClip.id, 'speed-ramp', params);
+                  }
+                }}
                 duration={selectedClip?.duration || editor.state.duration}
-                onReset={() => setSpeedSettings(DEFAULT_SPEED_SETTINGS)}
+                onReset={() => {
+                  setSpeedSettings(DEFAULT_SPEED_SETTINGS);
+                  if (selectedClip) {
+                    editor.updateClip(selectedClip.id, {
+                      playbackSpeed: DEFAULT_SPEED_SETTINGS.speed,
+                    });
+                    editor.updateEffectParams(
+                      selectedClip.id,
+                      'speed-ramp',
+                      toEffectParams(DEFAULT_SPEED_SETTINGS)
+                    );
+                  }
+                }}
                 className="h-full"
               />
             )}
@@ -686,7 +1011,16 @@ export function VideoEditorPanel({
       </Dialog>
 
       {/* Transitions Dialog */}
-      <Dialog open={showTransitionsDialog} onOpenChange={setShowTransitionsDialog}>
+      <Dialog
+        open={showTransitionsDialog}
+        onOpenChange={(open) => {
+          setShowTransitionsDialog(open);
+          if (!open) {
+            setTransitionClipId(null);
+            setTransitionTargetClipId(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{t('addTransition')}</DialogTitle>

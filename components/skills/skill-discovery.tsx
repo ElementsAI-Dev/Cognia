@@ -19,9 +19,6 @@ import {
   Package,
   GitBranch,
   AlertCircle,
-  Settings,
-  Plus,
-  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -29,17 +26,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/toaster';
@@ -49,8 +35,8 @@ import {
   useNativeSkills,
   useNativeSkillAvailable,
   type DiscoverableSkill,
-  type SkillRepo,
 } from '@/hooks/skills';
+import { SkillRepoManagerDialog } from './skill-repo-manager-dialog';
 
 interface SkillDiscoveryProps {
   className?: string;
@@ -137,134 +123,6 @@ function DiscoverableSkillCard({
 }
 
 /**
- * Repository management dialog
- */
-function RepoManagerDialog({
-  repos,
-  onAddRepo,
-  onRemoveRepo,
-  onToggleRepo,
-}: {
-  repos: SkillRepo[];
-  onAddRepo: (owner: string, name: string, branch?: string) => Promise<void>;
-  onRemoveRepo: (owner: string, name: string) => Promise<void>;
-  onToggleRepo: (owner: string, name: string, enabled: boolean) => Promise<void>;
-}) {
-  const t = useTranslations('skills');
-  const [open, setOpen] = useState(false);
-  const [newOwner, setNewOwner] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newBranch, setNewBranch] = useState('main');
-  const [isAdding, setIsAdding] = useState(false);
-
-  const handleAdd = async () => {
-    if (!newOwner || !newName) return;
-    setIsAdding(true);
-    try {
-      await onAddRepo(newOwner, newName, newBranch || undefined);
-      setNewOwner('');
-      setNewName('');
-      setNewBranch('main');
-    } finally {
-      setIsAdding(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Settings className="h-4 w-4 mr-2" />
-          {t('manageRepos')}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{t('skillRepositories')}</DialogTitle>
-          <DialogDescription>
-            {t('repoManagerDescription')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {/* Existing repos */}
-          <div className="space-y-2">
-            {repos.map((repo) => (
-              <div
-                key={`${repo.owner}/${repo.name}`}
-                className="flex items-center justify-between p-2 rounded-lg border"
-              >
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={repo.enabled}
-                    onCheckedChange={(checked) =>
-                      onToggleRepo(repo.owner, repo.name, checked)
-                    }
-                  />
-                  <div>
-                    <p className="text-sm font-medium">
-                      {repo.owner}/{repo.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t('branch')}: {repo.branch}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onRemoveRepo(repo.owner, repo.name)}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
-          </div>
-
-          {/* Add new repo */}
-          <div className="border-t pt-4">
-            <Label className="text-sm font-medium">{t('addRepository')}</Label>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              <Input
-                placeholder={t('ownerPlaceholder')}
-                value={newOwner}
-                onChange={(e) => setNewOwner(e.target.value)}
-              />
-              <Input
-                placeholder={t('repoNamePlaceholder')}
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <Input
-                placeholder={t('branchPlaceholder')}
-                value={newBranch}
-                onChange={(e) => setNewBranch(e.target.value)}
-                className="flex-1"
-              />
-              <Button onClick={handleAdd} disabled={isAdding || !newOwner || !newName}>
-                {isAdding ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Plus className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            {t('close')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/**
  * Main skill discovery component
  */
 export function SkillDiscovery({ className, onSkillInstalled }: SkillDiscoveryProps) {
@@ -307,8 +165,14 @@ export function SkillDiscovery({ className, onSkillInstalled }: SkillDiscoveryPr
   // Check if skill is already installed
   const isInstalled = useCallback(
     (skill: DiscoverableSkill) => {
-      const installName = skill.directory.split('/').pop() || skill.directory;
-      return installed.some((i) => i.directory === installName || i.name === skill.name);
+      const legacyInstallName = skill.directory.split('/').pop() || skill.directory;
+      return installed.some(
+        (i) =>
+          i.id === skill.key ||
+          i.directory === skill.directory ||
+          i.directory === legacyInstallName ||
+          i.name === skill.name
+      );
     },
     [installed]
   );
@@ -368,7 +232,7 @@ export function SkillDiscovery({ className, onSkillInstalled }: SkillDiscoveryPr
         </div>
         <div className="flex items-center gap-2">
           {isNativeAvailable && (
-            <RepoManagerDialog
+            <SkillRepoManagerDialog
               repos={repos}
               onAddRepo={addRepo}
               onRemoveRepo={removeRepo}

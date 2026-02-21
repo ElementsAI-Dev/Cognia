@@ -19,6 +19,7 @@ import type {
   PPTOutlineItem,
 } from '@/types/workflow';
 import { DEFAULT_PPT_THEMES } from '@/types/workflow';
+import type { ProviderName } from '@/types/provider';
 
 /**
  * Simplified paper type for PPT generation input
@@ -218,79 +219,57 @@ function getImageSuggestion(
  */
 function extractKeyPointsForSection(
   paper: InputPaper,
-  section: PaperPPTSection,
-  _audienceLevel: string
+  section: PaperPPTSection
 ): string[] {
   const abstract = paper.abstract || '';
-  
-  // Generate placeholder key points based on section
-  // In production, this would use AI to extract actual content
-  const keyPointsMap: Record<PaperPPTSection, string[]> = {
+  const abstractSentences = abstract
+    .split(/[.。!?]/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  if (section === 'title') {
+    return [];
+  }
+  if (section === 'authors') {
+    return paper.authors.map((author) =>
+      `${author.name}${author.affiliation ? ` (${author.affiliation})` : ''}`
+    );
+  }
+  if (abstractSentences.length === 0) {
+    return [];
+  }
+
+  const sectionKeywords: Record<PaperPPTSection, string[]> = {
     title: [],
-    authors: paper.authors.map((a: { name: string; affiliation?: string }) => `${a.name}${a.affiliation ? ` (${a.affiliation})` : ''}`),
-    abstract: abstract.split('. ').slice(0, 3).map((s: string) => s.trim()).filter(Boolean),
-    introduction: [
-      'Research motivation and problem statement',
-      'Key challenges in the field',
-      'Main contributions of this work',
-    ],
-    background: [
-      'Foundational concepts',
-      'Previous approaches',
-      'Key terminology',
-    ],
-    'related-work': [
-      'Prior research in this area',
-      'Comparison with existing methods',
-      'Gap in current literature',
-    ],
-    methodology: [
-      'Proposed approach overview',
-      'Key technical components',
-      'Implementation details',
-    ],
-    experiments: [
-      'Experimental setup',
-      'Datasets and benchmarks',
-      'Evaluation metrics',
-    ],
-    results: [
-      'Main findings',
-      'Quantitative results',
-      'Qualitative analysis',
-    ],
-    discussion: [
-      'Interpretation of results',
-      'Implications for the field',
-      'Comparison with baselines',
-    ],
-    limitations: [
-      'Current limitations',
-      'Assumptions made',
-      'Scope constraints',
-    ],
-    'future-work': [
-      'Potential extensions',
-      'Open research questions',
-      'Planned improvements',
-    ],
-    conclusion: [
-      'Summary of contributions',
-      'Key takeaways',
-      'Final remarks',
-    ],
-    references: [
-      'Key cited works',
-      'Foundational papers',
-      'Recent related publications',
-    ],
-    qa: [
-      'Thank you for your attention',
-      'Questions and discussion welcome',
-    ],
+    authors: [],
+    abstract: ['summary', 'overview', 'propose', 'study'],
+    introduction: ['motivation', 'problem', 'challenge', 'goal'],
+    background: ['background', 'prior', 'existing', 'context'],
+    'related-work': ['related', 'previous', 'prior', 'baseline'],
+    methodology: ['method', 'approach', 'architecture', 'algorithm'],
+    experiments: ['experiment', 'dataset', 'evaluation', 'benchmark'],
+    results: ['result', 'performance', 'improvement', 'accuracy'],
+    discussion: ['implication', 'analysis', 'interpretation', 'impact'],
+    limitations: ['limitation', 'constraint', 'future', 'assumption'],
+    'future-work': ['future', 'next', 'extension', 'direction'],
+    conclusion: ['conclusion', 'contribution', 'takeaway', 'summary'],
+    references: ['reference', 'citation', 'related'],
+    qa: ['question', 'discussion'],
   };
 
-  return keyPointsMap[section] || [];
+  const keywords = sectionKeywords[section];
+  const ranked = abstractSentences
+    .map((sentence) => ({
+      sentence,
+      score: keywords.reduce(
+        (score, keyword) => score + (sentence.toLowerCase().includes(keyword) ? 1 : 0),
+        0
+      ),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.sentence);
+
+  return ranked.slice(0, 4);
 }
 
 /**
@@ -332,45 +311,145 @@ function generateSpeakerNotes(
 // Main Execution Functions
 // =====================
 
+function buildHeuristicOutline(input: PaperToPPTInput): PaperPPTOutlineItem[] {
+  const mainPaper = input.papers[0];
+  const sections = input.includeSections || DEFAULT_PPT_SECTIONS[input.style];
+  return sections.map((section, index) => {
+    const needsImage = input.generateImages && sectionNeedsImage(section);
+    return {
+      id: `slide-${index + 1}`,
+      section,
+      title: section === 'title' ? mainPaper.title : getSectionTitle(section, input.audienceLevel, input.language),
+      keyPoints: extractKeyPointsForSection(mainPaper, section),
+      suggestedLayout: getLayoutForSection(section),
+      imageNeeded: needsImage,
+      imageSuggestion: needsImage ? getImageSuggestion(section, mainPaper.title, input.imageStyle) : undefined,
+      citations: input.includeCitations ? [] : undefined,
+      speakerNotes: input.includeNotes ? generateSpeakerNotes(section, mainPaper, input.audienceLevel) : undefined,
+    };
+  });
+}
+
+async function generateOutlineWithAI(input: PaperToPPTInput): Promise<PaperPPTOutlineItem[]> {
+  const [{ useSettingsStore }, { getProxyProviderModel }, { parseAIJSON }, { generateText }] =
+    await Promise.all([
+      import('@/stores'),
+      import('@/lib/ai/core/proxy-client'),
+      import('@/lib/ai/utils/parse-ai-json'),
+      import('ai'),
+    ]);
+
+  const settings = useSettingsStore.getState();
+  const defaultProvider = settings.defaultProvider;
+  const providerSettings = settings.providerSettings;
+  const prompt = buildAcademicPPTPrompt(input);
+  const providers: ProviderName[] = [
+    defaultProvider as ProviderName,
+    ...(Object.keys(providerSettings).filter(
+      (provider) => provider !== defaultProvider
+    ) as ProviderName[]),
+  ];
+
+  const sections = new Set<PaperPPTSection>(
+    (Object.values(DEFAULT_PPT_SECTIONS).flat() as PaperPPTSection[]).concat(input.includeSections || [])
+  );
+
+  let lastError: unknown;
+  for (const provider of providers) {
+    const setting = providerSettings[provider as keyof typeof providerSettings];
+    if (!setting?.defaultModel) {
+      continue;
+    }
+    const apiKey = setting.apiKey || '';
+    if (!apiKey && provider !== 'ollama') {
+      continue;
+    }
+
+    try {
+      const model = getProxyProviderModel(
+        provider,
+        setting.defaultModel,
+        apiKey,
+        setting.baseURL,
+        true
+      );
+
+      const { text } = await generateText({
+        model,
+        temperature: 0.25,
+        prompt,
+      });
+
+      const parsed = parseAIJSON(text);
+      if (!Array.isArray(parsed)) {
+        throw new Error('AI outline response is not an array');
+      }
+
+      const outline = parsed
+        .map((item, index): PaperPPTOutlineItem | null => {
+          if (!item || typeof item !== 'object') {
+            return null;
+          }
+          const raw = item as Record<string, unknown>;
+          const section = String(raw.section || '').trim() as PaperPPTSection;
+          const title = String(raw.title || '').trim();
+          if (!title) {
+            return null;
+          }
+          return {
+            id: String(raw.id || `slide-${index + 1}`),
+            section: sections.has(section) ? section : (input.includeSections?.[index] || 'discussion'),
+            title,
+            keyPoints: Array.isArray(raw.keyPoints)
+              ? raw.keyPoints
+                  .filter((point): point is string => typeof point === 'string')
+                  .map((point) => point.trim())
+                  .filter(Boolean)
+                  .slice(0, 6)
+              : [],
+            suggestedLayout:
+              (typeof raw.suggestedLayout === 'string' ? raw.suggestedLayout : getLayoutForSection('discussion')) as PaperPPTOutlineItem['suggestedLayout'],
+            imageNeeded: Boolean(raw.imageNeeded),
+            imageSuggestion: typeof raw.imageSuggestion === 'string' ? raw.imageSuggestion : undefined,
+            citations: input.includeCitations ? [] : undefined,
+            speakerNotes: typeof raw.speakerNotes === 'string' ? raw.speakerNotes : undefined,
+          };
+        })
+        .filter((item): item is PaperPPTOutlineItem => Boolean(item));
+
+      if (outline.length > 0) {
+        return outline.slice(0, input.slideCount);
+      }
+    } catch (error) {
+      lastError = error;
+      console.warn('[academic-ppt] fallback provider', {
+        provider,
+        model: setting.defaultModel,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  throw (lastError instanceof Error ? lastError : new Error('No provider available for PPT generation'));
+}
+
 /**
  * Generate PPT outline from papers
  */
-export function executePaperToPPTOutline(input: PaperToPPTInput): {
+export async function executePaperToPPTOutline(input: PaperToPPTInput): Promise<{
   success: boolean;
   outline?: PaperPPTOutlineItem[];
   error?: string;
-} {
+}> {
   try {
-    const mainPaper = input.papers[0];
-    const sections = input.includeSections || DEFAULT_PPT_SECTIONS[input.style];
-    
-    const outline: PaperPPTOutlineItem[] = sections.map((section, index) => {
-      const needsImage = input.generateImages && sectionNeedsImage(section);
-      
-      return {
-        id: `slide-${index + 1}`,
-        section,
-        title: section === 'title' 
-          ? mainPaper.title 
-          : getSectionTitle(section, input.audienceLevel, input.language),
-        keyPoints: extractKeyPointsForSection(mainPaper, section, input.audienceLevel),
-        suggestedLayout: getLayoutForSection(section),
-        imageNeeded: needsImage,
-        imageSuggestion: needsImage 
-          ? getImageSuggestion(section, mainPaper.title, input.imageStyle)
-          : undefined,
-        citations: input.includeCitations ? [] : undefined,
-        speakerNotes: input.includeNotes 
-          ? generateSpeakerNotes(section, mainPaper, input.audienceLevel)
-          : undefined,
-      };
-    });
-
+    const outline = await generateOutlineWithAI(input);
     return { success: true, outline };
   } catch (error) {
+    const fallback = buildHeuristicOutline(input);
     return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to generate outline',
+      success: true,
+      outline: fallback,
+      error: error instanceof Error ? error.message : 'AI outline generation failed; used heuristic fallback',
     };
   }
 }
@@ -378,15 +457,14 @@ export function executePaperToPPTOutline(input: PaperToPPTInput): {
 /**
  * Generate full PPT presentation from papers
  */
-export function executePaperToPPT(input: PaperToPPTInput): {
+export async function executePaperToPPT(input: PaperToPPTInput): Promise<{
   success: boolean;
   presentation?: PPTPresentation;
   outline?: PaperPPTOutlineItem[];
   error?: string;
-} {
+}> {
   try {
-    // Generate outline first
-    const outlineResult = executePaperToPPTOutline(input);
+    const outlineResult = await executePaperToPPTOutline(input);
     if (!outlineResult.success || !outlineResult.outline) {
       return { success: false, error: outlineResult.error };
     }

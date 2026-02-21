@@ -15,3 +15,7 @@ export * from './color-utils';
 export * from './validation';
 export * from './appearance-utils';
 export * from './appearance-constants';
+export * from './background-safety';
+export * from './background-activity';
+export * from './background-migration';
+export * from './theme-resolver';

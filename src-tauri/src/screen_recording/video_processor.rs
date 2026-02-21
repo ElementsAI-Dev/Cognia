@@ -835,10 +835,9 @@ mod tests {
 
     #[test]
     fn test_check_ffmpeg_returns_bool() {
-        // check_ffmpeg should return a boolean indicating FFmpeg availability
         let result = VideoProcessor::check_ffmpeg();
-        // Result is environment-dependent, just verify it returns a bool
-        assert!(result == true || result == false);
+        // Environment-dependent, but should be stable across consecutive checks.
+        assert_eq!(result, VideoProcessor::check_ffmpeg());
     }
 
     #[test]

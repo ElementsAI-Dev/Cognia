@@ -27,6 +27,18 @@ function now(): Date {
   return new Date();
 }
 
+type RuntimeSource = NonNullable<WorkflowTrigger['config']['runtimeSource']>;
+
+function backendToRuntimeSource(backend: TriggerBackend): RuntimeSource | undefined {
+  if (backend === 'system') return 'system-scheduler';
+  if (backend === 'app') return 'app-scheduler';
+  return undefined;
+}
+
+function runtimeSourceToBackend(runtimeSource: RuntimeSource): TriggerBackend {
+  return runtimeSource === 'system-scheduler' ? 'system' : 'app';
+}
+
 function buildTriggerTaskName(workflow: VisualWorkflow, trigger: WorkflowTrigger): string {
   return `[Workflow] ${workflow.name} :: ${trigger.name}`;
 }
@@ -77,7 +89,7 @@ function toAppSchedulerTrigger(trigger: WorkflowTrigger): TaskTrigger {
   };
 }
 
-async function syncToAppScheduler(
+async function createInAppScheduler(
   workflow: VisualWorkflow,
   trigger: WorkflowTrigger
 ): Promise<string> {
@@ -107,8 +119,46 @@ async function syncToAppScheduler(
     tags: ['workflow-trigger', workflow.id, trigger.id],
   };
 
-  if (trigger.config.bindingTaskId) {
-    const updated = await scheduler.updateTask(trigger.config.bindingTaskId, {
+  const created = await scheduler.createTask(input);
+  if (!trigger.enabled) {
+    await scheduler.pauseTask(created.id);
+  }
+  return created.id;
+}
+
+async function upsertInAppScheduler(
+  workflow: VisualWorkflow,
+  trigger: WorkflowTrigger,
+  currentTaskId?: string
+): Promise<string> {
+  await initSchedulerSystem();
+  const scheduler = getTaskScheduler();
+
+  const triggerPayload = {
+    workflowId: workflow.id,
+    triggerId: trigger.id,
+    workflowDefinition: visualToDefinition(workflow),
+    input: {},
+  };
+
+  const input: CreateScheduledTaskInput = {
+    name: buildTriggerTaskName(workflow, trigger),
+    description: `Workflow trigger sync (${trigger.type})`,
+    type: 'workflow',
+    trigger: toAppSchedulerTrigger(trigger),
+    payload: triggerPayload,
+    notification: {
+      onStart: false,
+      onComplete: false,
+      onError: true,
+      onProgress: false,
+      channels: ['toast'],
+    },
+    tags: ['workflow-trigger', workflow.id, trigger.id],
+  };
+
+  if (currentTaskId) {
+    const updated = await scheduler.updateTask(currentTaskId, {
       name: input.name,
       description: input.description,
       trigger: input.trigger,
@@ -165,24 +215,11 @@ function toSystemSchedulerInput(
   };
 }
 
-async function syncToSystemScheduler(
+async function createInSystemScheduler(
   workflow: VisualWorkflow,
   trigger: WorkflowTrigger
 ): Promise<string> {
   const input = toSystemSchedulerInput(workflow, trigger);
-
-  if (trigger.config.bindingTaskId) {
-    const updated = await updateSystemTask(trigger.config.bindingTaskId, input, true);
-    if (isTaskOperationSuccess(updated)) {
-      return updated.task.id;
-    }
-    if (isConfirmationRequired(updated)) {
-      throw new Error(updated.confirmation.warnings.join('; ') || 'System scheduler confirmation required');
-    }
-    if (isTaskOperationError(updated)) {
-      throw new Error(updated.message);
-    }
-  }
 
   const created = await createSystemTask(input, false);
   if (isTaskOperationSuccess(created)) {
@@ -194,6 +231,75 @@ async function syncToSystemScheduler(
   throw new Error(
     isTaskOperationError(created) ? created.message : 'Failed to create system scheduler task'
   );
+}
+
+async function upsertInSystemScheduler(
+  workflow: VisualWorkflow,
+  trigger: WorkflowTrigger,
+  currentTaskId?: string
+): Promise<string> {
+  const input = toSystemSchedulerInput(workflow, trigger);
+
+  if (currentTaskId) {
+    const updated = await updateSystemTask(currentTaskId, input, true);
+    if (isTaskOperationSuccess(updated)) {
+      return updated.task.id;
+    }
+    if (isConfirmationRequired(updated)) {
+      throw new Error(
+        updated.confirmation.warnings.join('; ') || 'System scheduler confirmation required'
+      );
+    }
+    if (isTaskOperationError(updated)) {
+      throw new Error(updated.message);
+    }
+  }
+
+  return createInSystemScheduler(workflow, trigger);
+}
+
+async function deleteFromAppScheduler(taskId: string): Promise<void> {
+  await initSchedulerSystem();
+  await getTaskScheduler().deleteTask(taskId);
+}
+
+async function deleteFromSystemScheduler(taskId: string): Promise<void> {
+  const deleted = await deleteSystemTask(taskId);
+  if (!deleted) {
+    throw new Error(`System scheduler task not found: ${taskId}`);
+  }
+}
+
+async function createOnBackend(
+  backend: Exclude<TriggerBackend, 'none'>,
+  workflow: VisualWorkflow,
+  trigger: WorkflowTrigger
+): Promise<string> {
+  return backend === 'system'
+    ? createInSystemScheduler(workflow, trigger)
+    : createInAppScheduler(workflow, trigger);
+}
+
+async function upsertOnBackend(
+  backend: Exclude<TriggerBackend, 'none'>,
+  workflow: VisualWorkflow,
+  trigger: WorkflowTrigger,
+  currentTaskId?: string
+): Promise<string> {
+  return backend === 'system'
+    ? upsertInSystemScheduler(workflow, trigger, currentTaskId)
+    : upsertInAppScheduler(workflow, trigger, currentTaskId);
+}
+
+async function deleteFromRuntimeSource(runtimeSource: RuntimeSource, taskId: string): Promise<void> {
+  if (runtimeSource === 'system-scheduler') {
+    if (!isTauri()) {
+      throw new Error('System scheduler migration requires desktop runtime');
+    }
+    await deleteFromSystemScheduler(taskId);
+    return;
+  }
+  await deleteFromAppScheduler(taskId);
 }
 
 function toSyncedTriggerConfig(
@@ -227,52 +333,135 @@ function toSyncErrorTrigger(trigger: WorkflowTrigger, error: unknown): WorkflowT
   };
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export class WorkflowTriggerSyncService {
   private readonly syncAllLocks = new Map<string, Promise<WorkflowTrigger[]>>();
+  private readonly syncTriggerLocks = new Map<string, Promise<WorkflowTrigger>>();
 
-  async syncTrigger(workflow: VisualWorkflow, trigger: WorkflowTrigger): Promise<WorkflowTrigger> {
-    if (trigger.type === 'manual' || trigger.type === 'webhook') {
-      return {
-        ...trigger,
-        config: {
-          ...trigger.config,
-          backend: 'none',
-          syncStatus: 'idle',
-          bindingTaskId: undefined,
-          lastSyncedAt: now(),
-          lastSyncError: undefined,
-        },
-      };
+  private async withSyncTriggerLock(
+    workflowId: string,
+    triggerId: string,
+    action: () => Promise<WorkflowTrigger>
+  ): Promise<WorkflowTrigger> {
+    const key = `${workflowId}:${triggerId}`;
+    const existing = this.syncTriggerLocks.get(key);
+    if (existing) {
+      return existing;
     }
 
-    const backend = resolveTriggerBackend(trigger);
-    if (backend === 'none') {
-      return trigger;
-    }
+    const promise = action();
+    this.syncTriggerLocks.set(key, promise);
 
     try {
-      const taskId =
-        backend === 'system'
-          ? await syncToSystemScheduler(workflow, trigger)
-          : await syncToAppScheduler(workflow, trigger);
-      return toSyncedTriggerConfig(trigger, backend, taskId);
-    } catch (error) {
-      return toSyncErrorTrigger(trigger, error);
+      return await promise;
+    } finally {
+      this.syncTriggerLocks.delete(key);
     }
+  }
+
+  private async migrateTrigger(
+    workflow: VisualWorkflow,
+    trigger: WorkflowTrigger,
+    targetBackend: Exclude<TriggerBackend, 'none'>,
+    sourceRuntime: RuntimeSource,
+    sourceTaskId: string
+  ): Promise<WorkflowTrigger> {
+    let targetTaskId: string | undefined;
+    let migrationPhase: 'create_target' | 'delete_source' | 'rollback_target' = 'create_target';
+
+    try {
+      targetTaskId = await createOnBackend(targetBackend, workflow, trigger);
+      migrationPhase = 'delete_source';
+      await deleteFromRuntimeSource(sourceRuntime, sourceTaskId);
+      return toSyncedTriggerConfig(trigger, targetBackend, targetTaskId);
+    } catch (migrationError) {
+      if (!targetTaskId) {
+        throw new Error(
+          `Trigger migration failed at phase=${migrationPhase}: ${errorMessage(migrationError)}`
+        );
+      }
+
+      migrationPhase = 'rollback_target';
+      try {
+        const targetRuntime = backendToRuntimeSource(targetBackend);
+        if (!targetRuntime) {
+          throw new Error('Cannot resolve target runtime source');
+        }
+        await deleteFromRuntimeSource(targetRuntime, targetTaskId);
+      } catch (rollbackError) {
+        throw new Error(
+          `Trigger migration failed at phase=delete_source: ${errorMessage(
+            migrationError
+          )}; rollback failed at phase=${migrationPhase}: ${errorMessage(rollbackError)}`
+        );
+      }
+
+      throw new Error(
+        `Trigger migration failed at phase=delete_source: ${errorMessage(
+          migrationError
+        )}; target task rollback completed`
+      );
+    }
+  }
+
+  async syncTrigger(workflow: VisualWorkflow, trigger: WorkflowTrigger): Promise<WorkflowTrigger> {
+    return this.withSyncTriggerLock(workflow.id, trigger.id, async () => {
+      if (trigger.type === 'manual' || trigger.type === 'webhook') {
+        return {
+          ...trigger,
+          config: {
+            ...trigger.config,
+            backend: 'none',
+            syncStatus: 'idle',
+            bindingTaskId: undefined,
+            lastSyncedAt: now(),
+            lastSyncError: undefined,
+          },
+        };
+      }
+
+      const backend = resolveTriggerBackend(trigger);
+      if (backend === 'none') {
+        return trigger;
+      }
+
+      try {
+        const currentRuntime = trigger.config.runtimeSource;
+        const currentTaskId = trigger.config.bindingTaskId;
+        const currentBackend = currentRuntime ? runtimeSourceToBackend(currentRuntime) : undefined;
+
+        if (
+          currentTaskId &&
+          currentRuntime &&
+          currentBackend !== 'none' &&
+          currentBackend !== backend
+        ) {
+          return await this.migrateTrigger(workflow, trigger, backend, currentRuntime, currentTaskId);
+        }
+
+        const upsertTaskId = currentTaskId && (!currentBackend || currentBackend === backend)
+          ? currentTaskId
+          : undefined;
+        const taskId = await upsertOnBackend(backend, workflow, trigger, upsertTaskId);
+        return toSyncedTriggerConfig(trigger, backend, taskId);
+      } catch (error) {
+        return toSyncErrorTrigger(trigger, error);
+      }
+    });
   }
 
   async unsyncTrigger(trigger: WorkflowTrigger): Promise<WorkflowTrigger> {
     const backend = trigger.config.backend || 'none';
     const taskId = trigger.config.bindingTaskId;
+    const runtimeSource =
+      trigger.config.runtimeSource || (backendToRuntimeSource(backend) as RuntimeSource | undefined);
 
-    if (taskId) {
+    if (taskId && runtimeSource) {
       try {
-        if (backend === 'system' && isTauri()) {
-          await deleteSystemTask(taskId);
-        } else if (backend === 'app') {
-          await initSchedulerSystem();
-          await getTaskScheduler().deleteTask(taskId);
-        }
+        await deleteFromRuntimeSource(runtimeSource, taskId);
       } catch {
         // no-op: unsync should still clear stale binding metadata
       }

@@ -97,7 +97,7 @@ jest.mock('@/stores', () => {
   (global as Record<string, unknown>).__mockToolHistoryState = mockState;
 
   const store = Object.assign(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     (selector: (s: typeof mockState) => any) => selector(mockState),
     {
       getState: () => mockState,

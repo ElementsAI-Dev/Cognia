@@ -28,6 +28,7 @@ describe('Academic Search Tool', () => {
         papers: [],
         totalResults: 0,
         providerResults: {},
+        degradedProviders: {},
         searchTime: 100,
       };
 
@@ -62,6 +63,7 @@ describe('Academic Search Tool', () => {
         ],
         totalResults: 1,
         providerResults: { arxiv: { count: 1, success: true } },
+        degradedProviders: {},
         searchTime: 500,
       };
 

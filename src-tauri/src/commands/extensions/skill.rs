@@ -43,12 +43,7 @@ pub async fn skill_add_repo(
     input: AddRepoInput,
 ) -> Result<(), String> {
     let service = state.0.read().await;
-    let repo = SkillRepo {
-        owner: input.owner,
-        name: input.name,
-        branch: input.branch.unwrap_or_else(|| "main".to_string()),
-        enabled: true,
-    };
+    let repo = input.into_skill_repo()?;
     service.add_repo(repo).await.map_err(|e| e.to_string())
 }
 

@@ -24,3 +24,12 @@ export {
   type TransformersEmbeddingModelId,
   type ModelSize,
 } from './models';
+
+export {
+  resolveTransformersDevice,
+  resolveTransformersDtype,
+  resolveTransformersRuntimeOptions,
+  mapTransformersProgressStatus,
+  syncTransformersManagerRuntime,
+  type TransformersRuntimeResolvedOptions,
+} from './runtime-adapter';

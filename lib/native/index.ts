@@ -38,3 +38,4 @@ export * as externalAgent from './external-agent';
 // Logging integration
 export * from './tauri-log-bridge';
 export * from './invoke-with-trace';
+export * from './academic-runtime';

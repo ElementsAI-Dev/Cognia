@@ -9,6 +9,7 @@ import type {
   LibraryPaper,
   PaperAnalysisType,
 } from '@/types/academic';
+import type { ProviderName } from '@/types/provider';
 
 export const academicAnalysisInputSchema = z.object({
   paperId: z.string().optional().describe('ID of paper from library to analyze'),
@@ -342,9 +343,190 @@ export function buildAnalysisPrompt(
   return ANALYSIS_PROMPTS[analysisType](paper, depth);
 }
 
+interface StructuredAnalysisPayload {
+  summary?: string;
+  keyInsights?: string[];
+  methodology?: string;
+  findings?: string[];
+  limitations?: string[];
+  futureWork?: string[];
+  technicalDetails?: string;
+  critique?: {
+    strengths?: string[];
+    weaknesses?: string[];
+  };
+}
+
+function normalizeStringList(value: unknown, maxItems: number = 8): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, maxItems);
+}
+
+function buildAnalysisMarkdown(structured: StructuredAnalysisPayload): string {
+  const sections: string[] = [];
+  if (structured.summary) {
+    sections.push(`## Summary\n${structured.summary}`);
+  }
+  if (structured.keyInsights?.length) {
+    sections.push(`## Key Insights\n${structured.keyInsights.map((item) => `- ${item}`).join('\n')}`);
+  }
+  if (structured.methodology) {
+    sections.push(`## Methodology\n${structured.methodology}`);
+  }
+  if (structured.findings?.length) {
+    sections.push(`## Findings\n${structured.findings.map((item) => `- ${item}`).join('\n')}`);
+  }
+  if (structured.limitations?.length) {
+    sections.push(`## Limitations\n${structured.limitations.map((item) => `- ${item}`).join('\n')}`);
+  }
+  if (structured.futureWork?.length) {
+    sections.push(`## Future Work\n${structured.futureWork.map((item) => `- ${item}`).join('\n')}`);
+  }
+  if (structured.technicalDetails) {
+    sections.push(`## Technical Details\n${structured.technicalDetails}`);
+  }
+  if (structured.critique) {
+    const strengths = normalizeStringList(structured.critique.strengths, 6);
+    const weaknesses = normalizeStringList(structured.critique.weaknesses, 6);
+    if (strengths.length || weaknesses.length) {
+      sections.push(
+        `## Critique\n${[
+          strengths.length ? `**Strengths**\n${strengths.map((item) => `- ${item}`).join('\n')}` : '',
+          weaknesses.length ? `**Weaknesses**\n${weaknesses.map((item) => `- ${item}`).join('\n')}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n\n')}`
+      );
+    }
+  }
+  return sections.join('\n\n');
+}
+
+async function generateStructuredAnalysis(
+  analysisPrompt: string,
+  language: string
+): Promise<StructuredAnalysisPayload> {
+  const [{ useSettingsStore }, { getProxyProviderModel }, { parseAIJSON }, { generateText }] =
+    await Promise.all([
+      import('@/stores'),
+      import('@/lib/ai/core/proxy-client'),
+      import('@/lib/ai/utils/parse-ai-json'),
+      import('ai'),
+    ]);
+
+  const settings = useSettingsStore.getState();
+  const providerSettings = settings.providerSettings;
+  const defaultProvider = settings.defaultProvider as ProviderName;
+
+  const candidates: Array<{
+    provider: ProviderName;
+    model: string;
+    apiKey: string;
+    baseURL?: string;
+  }> = [];
+
+  const pushCandidate = (provider: ProviderName) => {
+    const setting = providerSettings[provider];
+    if (!setting) {
+      return;
+    }
+    const model = setting.defaultModel || '';
+    if (!model) {
+      return;
+    }
+    const apiKey = setting.apiKey || '';
+    if (!apiKey && provider !== 'ollama') {
+      return;
+    }
+    candidates.push({
+      provider,
+      model,
+      apiKey,
+      baseURL: setting.baseURL,
+    });
+  };
+
+  pushCandidate(defaultProvider);
+  for (const provider of Object.keys(providerSettings) as ProviderName[]) {
+    if (provider !== defaultProvider) {
+      pushCandidate(provider);
+    }
+  }
+
+  if (candidates.length === 0) {
+    throw new Error('No available AI provider/model configured for academic analysis');
+  }
+
+  let lastError: unknown;
+  for (const candidate of candidates) {
+    try {
+      const model = getProxyProviderModel(
+        candidate.provider,
+        candidate.model,
+        candidate.apiKey,
+        candidate.baseURL,
+        true
+      );
+
+      const { text } = await generateText({
+        model,
+        temperature: 0.2,
+        prompt: `${analysisPrompt}
+
+Return strict JSON only in this shape:
+{
+  "summary": "string",
+  "keyInsights": ["string"],
+  "methodology": "string",
+  "findings": ["string"],
+  "limitations": ["string"],
+  "futureWork": ["string"],
+  "technicalDetails": "string",
+  "critique": {
+    "strengths": ["string"],
+    "weaknesses": ["string"]
+  }
+}
+
+Write in language: ${language}.`,
+      });
+
+      const parsed = (parseAIJSON(text) || {}) as StructuredAnalysisPayload;
+      return {
+        summary: typeof parsed.summary === 'string' ? parsed.summary.trim() : undefined,
+        keyInsights: normalizeStringList(parsed.keyInsights, 10),
+        methodology: typeof parsed.methodology === 'string' ? parsed.methodology.trim() : undefined,
+        findings: normalizeStringList(parsed.findings, 10),
+        limitations: normalizeStringList(parsed.limitations, 8),
+        futureWork: normalizeStringList(parsed.futureWork, 8),
+        technicalDetails:
+          typeof parsed.technicalDetails === 'string' ? parsed.technicalDetails.trim() : undefined,
+        critique: {
+          strengths: normalizeStringList(parsed.critique?.strengths, 8),
+          weaknesses: normalizeStringList(parsed.critique?.weaknesses, 8),
+        },
+      };
+    } catch (error) {
+      lastError = error;
+      console.warn('[academic-analysis] provider fallback', {
+        provider: candidate.provider,
+        model: candidate.model,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  throw (lastError instanceof Error ? lastError : new Error(String(lastError)));
+}
+
 /**
  * Execute academic paper analysis
- * Returns the analysis prompt and metadata - actual AI generation happens in the agent
  */
 export async function executeAcademicAnalysis(
   input: AcademicAnalysisInput
@@ -377,14 +559,51 @@ export async function executeAcademicAnalysis(
   const suggestedQuestions = generateSuggestedQuestions(paper, analysisType as PaperAnalysisType);
   const relatedTopics = extractRelatedTopics(paper);
 
-  return {
-    success: true,
-    analysisType: analysisType as PaperAnalysisType,
-    paperTitle: paper.title,
-    analysis: analysisPrompt,
-    suggestedQuestions,
-    relatedTopics,
-  };
+  try {
+    const structured = await generateStructuredAnalysis(analysisPrompt, input.language || 'en');
+    const analysis = buildAnalysisMarkdown(structured);
+    return {
+      success: true,
+      analysisType: analysisType as PaperAnalysisType,
+      paperTitle: paper.title,
+      analysis: analysis || structured.summary || 'Analysis generated successfully.',
+      structuredAnalysis: {
+        summary: structured.summary,
+        keyInsights: structured.keyInsights,
+        methodology: structured.methodology,
+        findings: structured.findings,
+        limitations: structured.limitations,
+        futureWork: structured.futureWork,
+        technicalDetails: structured.technicalDetails,
+        critique: structured.critique
+          ? {
+              strengths: structured.critique.strengths || [],
+              weaknesses: structured.critique.weaknesses || [],
+            }
+          : undefined,
+      },
+      suggestedQuestions,
+      relatedTopics,
+    };
+  } catch (error) {
+    const fallback = [
+      paper.abstract || '',
+      paper.content?.slice(0, 800) || '',
+    ]
+      .filter(Boolean)
+      .join('\n\n')
+      .trim();
+
+    return {
+      success: true,
+      analysisType: analysisType as PaperAnalysisType,
+      paperTitle: paper.title,
+      analysis: fallback || 'AI analysis generation failed; no content available for fallback.',
+      suggestedQuestions,
+      relatedTopics,
+      error: error instanceof Error ? error.message : 'AI analysis generation failed',
+    };
+  }
 }
 
 /**
@@ -420,7 +639,7 @@ export const academicAnalysisTool = {
 - Compare multiple papers
 - Critically evaluate research
 
-The tool generates analysis prompts and metadata. Use the output to structure your response to the user.`,
+The tool returns real AI-generated structured analysis output.`,
   parameters: academicAnalysisInputSchema,
   execute: executeAcademicAnalysis,
 };

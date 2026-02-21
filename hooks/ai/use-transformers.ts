@@ -2,9 +2,6 @@
 
 /**
  * useTransformers - React hook for browser-based ML inference via Transformers.js
- *
- * Manages Web Worker lifecycle, model loading, inference, and progress tracking.
- * All heavy computation runs off the main thread.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -17,7 +14,14 @@ import type {
   ModelDownloadProgress,
 } from '@/types/transformers';
 import { useTransformersStore } from '@/stores/ai/transformers-store';
-import { isWebGPUAvailable, isWebWorkerAvailable, DEFAULT_TASK_MODELS } from '@/lib/ai/transformers';
+import {
+  isWebGPUAvailable,
+  isWebWorkerAvailable,
+  DEFAULT_TASK_MODELS,
+  resolveTransformersRuntimeOptions,
+  syncTransformersManagerRuntime,
+  mapTransformersProgressStatus,
+} from '@/lib/ai/transformers';
 
 export interface UseTransformersOptions {
   task: TransformersTask;
@@ -49,46 +53,48 @@ export function useTransformers(options: UseTransformersOptions): UseTransformer
   const [error, setError] = useState<string | null>(null);
 
   const managerRef = useRef<import('@/lib/ai/transformers/transformers-manager').TransformersManager | null>(null);
-  const abortRef = useRef(false);
 
   const { settings, setModelStatus, updateModelProgress, isModelReady, setWebGPUAvailable } =
     useTransformersStore();
 
-  // Resolve model ID from defaults if not provided
   const modelId = initialModelId ?? DEFAULT_TASK_MODELS[task] ?? `Xenova/${task}`;
-  const modelReady = isModelReady(modelId);
-
+  const modelReady = isModelReady(task, modelId);
   const isSupported = isWebWorkerAvailable();
 
-  // Check WebGPU on mount
+  const runtime = resolveTransformersRuntimeOptions(settings, { device, dtype });
+
   useEffect(() => {
     setWebGPUAvailable(isWebGPUAvailable());
   }, [setWebGPUAvailable]);
 
-  // Get or create manager (lazy)
   const getManager = useCallback(async () => {
     if (!managerRef.current) {
       const { getTransformersManager } = await import('@/lib/ai/transformers/transformers-manager');
       managerRef.current = getTransformersManager();
     }
+
+    syncTransformersManagerRuntime(managerRef.current, settings);
     return managerRef.current;
-  }, []);
+  }, [settings]);
 
-  // Resolve device
-  const resolvedDevice = device ?? (settings.preferWebGPU && isWebGPUAvailable() ? 'webgpu' : 'wasm');
-  const resolvedDtype = dtype ?? settings.defaultDtype;
+  useEffect(() => {
+    if (managerRef.current) {
+      syncTransformersManagerRuntime(managerRef.current, settings);
+    }
+  }, [settings]);
 
-  // Progress handler
   const handleProgress = useCallback(
     (p: ModelDownloadProgress) => {
       setProgress(p.progress);
       updateModelProgress(p);
+      if (p.task === task && p.modelId === modelId) {
+        setModelStatus(task, modelId, mapTransformersProgressStatus(p.status), p.progress, p.error);
+      }
       onProgress?.(p);
     },
-    [updateModelProgress, onProgress]
+    [modelId, onProgress, setModelStatus, task, updateModelProgress]
   );
 
-  // Load model
   const loadModel = useCallback(async () => {
     if (!isSupported || !settings.enabled) {
       setError('Transformers.js is not enabled or not supported');
@@ -98,34 +104,33 @@ export function useTransformers(options: UseTransformersOptions): UseTransformer
     setIsLoading(true);
     setError(null);
     setProgress(0);
-    setModelStatus(modelId, task, 'downloading', 0);
+    setModelStatus(task, modelId, 'downloading', 0);
 
     try {
       const manager = await getManager();
       await manager.loadModel(task, modelId, {
-        device: resolvedDevice,
-        dtype: resolvedDtype,
+        device: runtime.device,
+        dtype: runtime.dtype,
+        cachePolicy: runtime.cachePolicy,
         onProgress: handleProgress,
       });
-      setModelStatus(modelId, task, 'ready', 100);
+      setModelStatus(task, modelId, 'ready', 100);
       setProgress(100);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
-      setModelStatus(modelId, task, 'error', 0, message);
+      setModelStatus(task, modelId, 'error', 0, message);
     } finally {
       setIsLoading(false);
     }
-  }, [isSupported, settings.enabled, modelId, task, resolvedDevice, resolvedDtype, getManager, handleProgress, setModelStatus]);
+  }, [getManager, handleProgress, isSupported, modelId, runtime.cachePolicy, runtime.device, runtime.dtype, setModelStatus, settings.enabled, task]);
 
-  // Auto-load if enabled
   useEffect(() => {
     if (autoLoad && settings.enabled && isSupported && !modelReady && !isLoading) {
       loadModel();
     }
   }, [autoLoad, settings.enabled, isSupported, modelReady, isLoading, loadModel]);
 
-  // Run inference
   const infer = useCallback(
     async (input: unknown, inferenceOptions?: TransformersInferenceOptions): Promise<TransformersInferenceResult> => {
       if (!isSupported || !settings.enabled) {
@@ -138,12 +143,15 @@ export function useTransformers(options: UseTransformersOptions): UseTransformer
       try {
         const manager = await getManager();
         const result = await manager.infer(task, modelId, input, {
-          inferenceOptions: inferenceOptions,
-          device: resolvedDevice,
-          dtype: resolvedDtype,
+          inferenceOptions,
+          device: runtime.device,
+          dtype: runtime.dtype,
+          cachePolicy: runtime.cachePolicy,
           onProgress: handleProgress,
+          autoLoad: true,
         });
 
+        setModelStatus(task, modelId, 'ready', 100);
         return result;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -153,27 +161,18 @@ export function useTransformers(options: UseTransformersOptions): UseTransformer
         setIsInferring(false);
       }
     },
-    [isSupported, settings.enabled, task, modelId, resolvedDevice, resolvedDtype, getManager, handleProgress]
+    [getManager, handleProgress, isSupported, modelId, runtime.cachePolicy, runtime.device, runtime.dtype, setModelStatus, settings.enabled, task]
   );
 
-  // Dispose model
   const dispose = useCallback(async () => {
     try {
       const manager = await getManager();
       await manager.dispose(task, modelId);
-      setModelStatus(modelId, task, 'idle', 0);
+      setModelStatus(task, modelId, 'idle', 0);
     } catch (err) {
       console.error('Failed to dispose model:', err);
     }
-  }, [task, modelId, getManager, setModelStatus]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    abortRef.current = false;
-    return () => {
-      abortRef.current = true;
-    };
-  }, []);
+  }, [getManager, modelId, setModelStatus, task]);
 
   return {
     infer,

@@ -15,6 +15,7 @@ import type {
 import type { Artifact, ArtifactLanguage } from '../artifact/artifact';
 import type { CanvasDocumentVersion, CanvasSuggestion } from '../artifact/artifact';
 import type { ChatMode } from '../core/session';
+import type { PluginMediaAPI } from '@/lib/plugin/api/media-api';
 
 // =============================================================================
 // Session API - Chat Session Management
@@ -414,6 +415,7 @@ export interface ThemeState {
   resolvedMode: 'light' | 'dark';
   colorPreset: ColorThemePreset;
   customThemeId: string | null;
+  themeSource?: 'preset' | 'custom';
   colors: ThemeColors;
 }
 
@@ -1057,6 +1059,11 @@ export type PluginAPIPermission =
   | 'export:project'
   | 'theme:read'
   | 'theme:write'
+  | 'media:image:read'
+  | 'media:image:write'
+  | 'media:video:read'
+  | 'media:video:write'
+  | 'media:video:export'
   | 'extension:ui'
   | 'notification:show';
 
@@ -1111,6 +1118,9 @@ export interface PluginContextAPI {
 
   /** Artifact management API */
   artifact: PluginArtifactAPI;
+
+  /** Media processing API */
+  media: PluginMediaAPI;
 
   /** Notification center API */
   notifications: PluginNotificationCenterAPI;

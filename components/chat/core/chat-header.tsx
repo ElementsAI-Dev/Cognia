@@ -287,6 +287,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
     if (session) {
       updateSession(session.id, {
         externalAgentId: agentId,
+        externalAgentSessionId: undefined,
       } as Parameters<typeof updateSession>[1]);
     }
   };

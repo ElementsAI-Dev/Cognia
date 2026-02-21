@@ -5,7 +5,7 @@
  * memoized callbacks, and integration with the history optimizer.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { useToolHistoryStore, createToolId } from '@/stores';
 import {
   getPromptSuggestions,
@@ -174,19 +174,13 @@ export function useToolHistory(options: UseToolHistoryOptions = {}): UseToolHist
   const storeGetPinnedTools = useToolHistoryStore((state) => state.getPinnedTools);
 
   // Computed values
-  const recentTools = useMemo(
-    () => storeGetRecentTools(recentLimit),
-    [storeGetRecentTools, recentLimit, usageStats]
-  );
+  const recentTools = storeGetRecentTools(recentLimit);
 
-  const frequentTools = useMemo(
-    () => storeGetFrequentTools(frequentLimit),
-    [storeGetFrequentTools, frequentLimit, usageStats]
-  );
+  const frequentTools = storeGetFrequentTools(frequentLimit);
 
-  const favorites = useMemo(() => storeGetFavorites(), [storeGetFavorites, usageStats]);
+  const favorites = storeGetFavorites();
 
-  const pinnedTools = useMemo(() => storeGetPinnedTools(), [storeGetPinnedTools, usageStats]);
+  const pinnedTools = storeGetPinnedTools();
 
   // Actions
   const recordCall = useCallback(

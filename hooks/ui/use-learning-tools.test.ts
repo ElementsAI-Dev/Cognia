@@ -20,58 +20,123 @@ jest.mock('@/stores/chat');
 
 // Mock the learning tools
 jest.mock('@/lib/ai/tools/learning-tools', () => ({
-  learningTools: {
-    displayFlashcard: {
-      name: 'displayFlashcard',
+  learningToolsByCanonicalName: {
+    display_flashcard: {
+      name: 'display_flashcard',
       description: 'Display a flashcard',
       parameters: { type: 'object', properties: {} },
     },
-    displayFlashcardDeck: {
-      name: 'displayFlashcardDeck',
+    display_flashcard_deck: {
+      name: 'display_flashcard_deck',
       description: 'Display a deck of flashcards',
       parameters: { type: 'object', properties: {} },
     },
-    displayQuiz: {
-      name: 'displayQuiz',
+    display_quiz: {
+      name: 'display_quiz',
       description: 'Display a quiz',
       parameters: { type: 'object', properties: {} },
     },
-    displayQuizQuestion: {
-      name: 'displayQuizQuestion',
+    display_quiz_question: {
+      name: 'display_quiz_question',
       description: 'Display a quiz question',
       parameters: { type: 'object', properties: {} },
     },
-    displayReviewSession: {
-      name: 'displayReviewSession',
+    display_review_session: {
+      name: 'display_review_session',
       description: 'Display a review session',
       parameters: { type: 'object', properties: {} },
     },
-    displayProgressSummary: {
-      name: 'displayProgressSummary',
+    display_progress_summary: {
+      name: 'display_progress_summary',
       description: 'Display progress summary',
       parameters: { type: 'object', properties: {} },
     },
-    displayConceptExplanation: {
-      name: 'displayConceptExplanation',
+    display_concept_explanation: {
+      name: 'display_concept_explanation',
       description: 'Display concept explanation',
       parameters: { type: 'object', properties: {} },
     },
-    displayStepGuide: {
-      name: 'displayStepGuide',
+    display_step_guide: {
+      name: 'display_step_guide',
       description: 'Display step guide',
       parameters: { type: 'object', properties: {} },
     },
-    displayConceptMap: {
-      name: 'displayConceptMap',
+    display_concept_map: {
+      name: 'display_concept_map',
       description: 'Display concept map',
       parameters: { type: 'object', properties: {} },
     },
-    displayAnimation: {
-      name: 'displayAnimation',
+    display_animation: {
+      name: 'display_animation',
       description: 'Display animation',
       parameters: { type: 'object', properties: {} },
     },
   },
+  learningTools: {
+    displayFlashcard: {
+      name: 'display_flashcard',
+      description: 'Display a flashcard',
+      parameters: { type: 'object', properties: {} },
+    },
+    displayFlashcardDeck: {
+      name: 'display_flashcard_deck',
+      description: 'Display a deck of flashcards',
+      parameters: { type: 'object', properties: {} },
+    },
+    displayQuiz: {
+      name: 'display_quiz',
+      description: 'Display a quiz',
+      parameters: { type: 'object', properties: {} },
+    },
+    displayQuizQuestion: {
+      name: 'display_quiz_question',
+      description: 'Display a quiz question',
+      parameters: { type: 'object', properties: {} },
+    },
+    displayReviewSession: {
+      name: 'display_review_session',
+      description: 'Display a review session',
+      parameters: { type: 'object', properties: {} },
+    },
+    displayProgressSummary: {
+      name: 'display_progress_summary',
+      description: 'Display progress summary',
+      parameters: { type: 'object', properties: {} },
+    },
+    displayConceptExplanation: {
+      name: 'display_concept_explanation',
+      description: 'Display concept explanation',
+      parameters: { type: 'object', properties: {} },
+    },
+    displayStepGuide: {
+      name: 'display_step_guide',
+      description: 'Display step guide',
+      parameters: { type: 'object', properties: {} },
+    },
+    displayConceptMap: {
+      name: 'display_concept_map',
+      description: 'Display concept map',
+      parameters: { type: 'object', properties: {} },
+    },
+    displayAnimation: {
+      name: 'display_animation',
+      description: 'Display animation',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  toLearningToolAliasName: (name: string) =>
+    ({
+      display_flashcard: 'displayFlashcard',
+      display_flashcard_deck: 'displayFlashcardDeck',
+      display_quiz: 'displayQuiz',
+      display_quiz_question: 'displayQuizQuestion',
+      display_review_session: 'displayReviewSession',
+      display_progress_summary: 'displayProgressSummary',
+      display_concept_explanation: 'displayConceptExplanation',
+      display_step_guide: 'displayStepGuide',
+      display_concept_map: 'displayConceptMap',
+      display_animation: 'displayAnimation',
+    })[name],
   executeDisplayFlashcard: jest.fn().mockResolvedValue({ success: true }),
   executeDisplayFlashcardDeck: jest.fn().mockResolvedValue({ success: true }),
   executeDisplayQuiz: jest.fn().mockResolvedValue({ success: true }),
@@ -200,7 +265,7 @@ describe('useLearningTools', () => {
       const { result } = renderHook(() => useLearningTools());
 
       const flashcardTool = result.current.tools.displayFlashcard;
-      expect(flashcardTool).toHaveProperty('name', 'displayFlashcard');
+      expect(flashcardTool).toHaveProperty('name', 'display_flashcard');
       expect(flashcardTool).toHaveProperty('description');
       expect(flashcardTool).toHaveProperty('parameters');
       expect(flashcardTool).toHaveProperty('execute');

@@ -3,6 +3,7 @@
  */
 
 export { DesktopSettings } from './desktop-settings';
+export { EditorSettings } from './editor-settings';
 export { EnvironmentSettings } from './environment-settings';
 export { KeyboardSettings } from './keyboard-settings';
 export { ProxySettings } from './proxy-settings';

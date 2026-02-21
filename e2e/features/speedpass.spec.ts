@@ -7,10 +7,11 @@ import { waitForAnimation } from '../utils/test-helpers';
  * tutorials, quizzes, and study analytics
  */
 
+test.describe.configure({ timeout: 120000 });
+
 test.describe('SpeedPass Page Layout', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/speedpass');
-    await page.waitForLoadState('domcontentloaded');
+    await page.goto('/speedpass', { waitUntil: 'domcontentloaded', timeout: 60000 });
   });
 
   test('should load speedpass page', async ({ page }) => {
@@ -25,66 +26,51 @@ test.describe('SpeedPass Page Layout', () => {
 
   test('should have settings button', async ({ page }) => {
     const settingsBtn = page.locator('button:has-text("Settings"), button:has(svg.lucide-settings)').first();
-
-    if (await settingsBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(settingsBtn).toBeEnabled();
-    }
+    await expect(settingsBtn).toBeVisible({ timeout: 5000 });
+    await expect(settingsBtn).toBeEnabled();
   });
 
   test('should have add textbook button', async ({ page }) => {
     const addBtn = page.locator('button:has-text("Add"), button:has(svg.lucide-plus)').first();
-
-    if (await addBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(addBtn).toBeEnabled();
-    }
+    await expect(addBtn).toBeVisible({ timeout: 5000 });
+    await expect(addBtn).toBeEnabled();
   });
 });
 
 test.describe('SpeedPass Tabs Navigation', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/speedpass');
-    await page.waitForLoadState('domcontentloaded');
+    await page.goto('/speedpass', { waitUntil: 'domcontentloaded', timeout: 60000 });
   });
 
   test('should display tab navigation', async ({ page }) => {
     const tabsList = page.locator('[role="tablist"]').first();
-
-    if (await tabsList.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(tabsList).toBeVisible();
-    }
+    await expect(tabsList).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[role="tab"]')).toHaveCount(6);
   });
 
   test('should switch between tabs', async ({ page }) => {
     const tabs = page.locator('[role="tab"]');
-    const tabCount = await tabs.count();
-
-    if (tabCount > 1) {
-      const secondTab = tabs.nth(1);
-      await secondTab.click();
-      await waitForAnimation(page);
-
-      await expect(secondTab).toHaveAttribute('aria-selected', 'true');
-    }
+    const secondTab = tabs.nth(1);
+    await secondTab.click();
+    await waitForAnimation(page);
+    await expect(secondTab).toHaveAttribute('aria-selected', 'true');
   });
 
   test('should show overview tab content', async ({ page }) => {
-    const overviewTab = page.locator('[role="tab"]:has-text("Overview"), [role="tab"]:first-child').first();
+    const overviewTab = page.locator('[role="tab"]').first();
+    await overviewTab.click();
+    await waitForAnimation(page);
 
-    if (await overviewTab.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await overviewTab.click();
-      await waitForAnimation(page);
-
-      // Overview content should be visible
-      const content = page.locator('[role="tabpanel"]').first();
-      await expect(content).toBeVisible({ timeout: 3000 });
-    }
+    // Overview content should be visible
+    const content = page.locator('[role="tabpanel"]').first();
+    await expect(content).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('[role="progressbar"]').first()).toBeVisible({ timeout: 3000 });
   });
 });
 
 test.describe('Textbook Library', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/speedpass');
-    await page.waitForLoadState('domcontentloaded');
+    await page.goto('/speedpass', { waitUntil: 'domcontentloaded', timeout: 60000 });
   });
 
   test('should display textbook list or empty state', async ({ page }) => {
@@ -94,106 +80,89 @@ test.describe('Textbook Library', () => {
     const hasBooks = await textbookList.isVisible({ timeout: 5000 }).catch(() => false);
     const isEmpty = await emptyState.isVisible({ timeout: 3000 }).catch(() => false);
 
-    expect(hasBooks || isEmpty || true).toBe(true);
+    expect(hasBooks || isEmpty).toBe(true);
   });
 
   test('should add new textbook', async ({ page }) => {
-    const addBtn = page.locator('button:has-text("Add"), [data-testid="add-textbook"]').first();
+    const addBtn = page.locator('[data-testid="add-textbook-button"], button:has-text("Add Textbook"), button:has-text("添加教材")').first();
+    await expect(addBtn).toBeVisible({ timeout: 5000 });
+    await addBtn.click();
+    await waitForAnimation(page);
 
-    if (await addBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await addBtn.click();
-      await waitForAnimation(page);
-
-      // Dialog or form should appear
-      const dialog = page.locator('[role="dialog"], form').first();
-      const hasDialog = await dialog.isVisible({ timeout: 3000 }).catch(() => false);
-      expect(hasDialog || true).toBe(true);
-    }
+    // Dialog or form should appear
+    const dialog = page.locator('[role="dialog"], form').first();
+    await expect(dialog).toBeVisible({ timeout: 3000 });
   });
 });
 
 test.describe('Learning Modes', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/speedpass');
-    await page.waitForLoadState('domcontentloaded');
+    await page.goto('/speedpass', { waitUntil: 'domcontentloaded', timeout: 60000 });
   });
 
   test('should display learning mode options', async ({ page }) => {
-    // Speed learning modes: 极速/速成/全面
-    const modeCards = page.locator('[data-testid="mode-card"], .learning-mode-card');
-    const count = await modeCards.count();
-
-    expect(count).toBeGreaterThanOrEqual(0);
+    await expect(page.locator('text=/Rapid Mode|极速模式|Intensive Mode|速成模式|Comprehensive Mode|全面模式/').first()).toBeVisible({
+      timeout: 5000,
+    });
   });
 
   test('should start learning session', async ({ page }) => {
     const startBtn = page.locator('button:has-text("Start"), button:has(svg.lucide-play)').first();
-
-    if (await startBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(startBtn).toBeEnabled();
-    }
+    await expect(startBtn).toBeVisible({ timeout: 5000 });
+    await expect(startBtn).toBeEnabled();
   });
 });
 
 test.describe('Quiz System', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/speedpass');
-    await page.waitForLoadState('domcontentloaded');
+    await page.goto('/speedpass', { waitUntil: 'domcontentloaded', timeout: 60000 });
   });
 
   test('should access quiz section', async ({ page }) => {
-    const quizTab = page.locator('[role="tab"]:has-text("Quiz"), text=Practice').first();
+    const quizTab = page.locator('[role="tab"]').nth(3);
+    await quizTab.click();
+    await waitForAnimation(page);
 
-    if (await quizTab.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await quizTab.click();
-      await waitForAnimation(page);
-
-      const quizContent = page.locator('[role="tabpanel"]').first();
-      await expect(quizContent).toBeVisible({ timeout: 3000 });
-    }
+    const quizContent = page.locator('[role="tabpanel"]').first();
+    await expect(quizContent).toBeVisible({ timeout: 3000 });
+    await expect(quizTab).toHaveAttribute('aria-selected', 'true');
   });
 
   test('should display wrong question book', async ({ page }) => {
-    const wrongQuestionsTab = page.locator('text=Wrong, text=Mistakes').first();
-
-    if (await wrongQuestionsTab.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await wrongQuestionsTab.click();
-      await waitForAnimation(page);
-
-      await expect(page.locator('body')).toBeVisible();
-    }
+    const wrongQuestionsTab = page.locator('[role="tab"]').nth(4);
+    await wrongQuestionsTab.click();
+    await waitForAnimation(page);
+    await expect(wrongQuestionsTab).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('[role="tabpanel"]').first()).toBeVisible();
   });
 });
 
 test.describe('Study Analytics', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/speedpass');
-    await page.waitForLoadState('domcontentloaded');
+    await page.goto('/speedpass', { waitUntil: 'domcontentloaded', timeout: 60000 });
   });
 
   test('should display progress indicators', async ({ page }) => {
     const progressBars = page.locator('[role="progressbar"], .progress-bar');
     const count = await progressBars.count();
 
-    expect(count).toBeGreaterThanOrEqual(0);
+    expect(count).toBeGreaterThan(0);
   });
 
   test('should show analytics tab', async ({ page }) => {
-    const analyticsTab = page.locator('[role="tab"]:has-text("Analytics"), text=Reports').first();
+    const analyticsTab = page.locator('[role="tab"]').nth(5);
+    await analyticsTab.click();
+    await waitForAnimation(page);
 
-    if (await analyticsTab.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await analyticsTab.click();
-      await waitForAnimation(page);
-
-      const analyticsContent = page.locator('[role="tabpanel"]').first();
-      await expect(analyticsContent).toBeVisible({ timeout: 3000 });
-    }
+    const analyticsContent = page.locator('[role="tabpanel"]').first();
+    await expect(analyticsContent).toBeVisible({ timeout: 3000 });
+    await expect(analyticsTab).toHaveAttribute('aria-selected', 'true');
   });
 
   test('should display study statistics', async ({ page }) => {
     const stats = page.locator('[data-testid="study-stats"], .stats-card');
     const count = await stats.count();
 
-    expect(count).toBeGreaterThanOrEqual(0);
+    expect(count).toBeGreaterThan(0);
   });
 });

@@ -37,6 +37,35 @@ export type TransformersDevice = 'wasm' | 'webgpu';
 export type TransformersDtype = 'fp32' | 'fp16' | 'q8' | 'q4';
 
 /**
+ * Manager/worker error codes for normalized error handling.
+ */
+export type TransformersErrorCode =
+  | 'worker_unavailable'
+  | 'manager_disposed'
+  | 'request_timeout'
+  | 'worker_runtime_error'
+  | 'invalid_request'
+  | 'runtime_unavailable';
+
+/**
+ * Worker runtime cache policy propagated from UI/store settings.
+ */
+export interface TransformersCachePolicy {
+  enabled: boolean;
+  maxCachedModels: number;
+}
+
+/**
+ * Unified execution options used by manager methods.
+ */
+export interface TransformersExecutionOptions {
+  device?: TransformersDevice;
+  dtype?: TransformersDtype;
+  timeoutMs?: number;
+  cachePolicy?: Partial<TransformersCachePolicy>;
+}
+
+/**
  * Configuration for a single model
  */
 export interface TransformersModelConfig {
@@ -62,6 +91,7 @@ export interface TransformersSettings {
  * Model download progress event
  */
 export interface ModelDownloadProgress {
+  task: TransformersTask;
   modelId: string;
   status: 'initiating' | 'downloading' | 'loading' | 'ready' | 'error';
   progress: number;
@@ -75,12 +105,37 @@ export interface ModelDownloadProgress {
  * Model state in store
  */
 export interface TransformersModelState {
+  cacheKey: string;
   modelId: string;
   task: TransformersTask;
   status: 'idle' | 'downloading' | 'loading' | 'ready' | 'error';
   progress: number;
   error?: string;
   loadedAt?: number;
+  lastUsedAt?: number;
+  hitCount?: number;
+}
+
+/**
+ * Loaded model metadata returned by worker status endpoint.
+ */
+export interface TransformersLoadedModelInfo {
+  cacheKey: string;
+  task: TransformersTask;
+  modelId: string;
+  loadedAt: number;
+  lastUsedAt: number;
+  hitCount: number;
+}
+
+export interface TransformersWorkerStatusData {
+  loadedModels: TransformersLoadedModelInfo[];
+  count: number;
+  cache: {
+    enabled: boolean;
+    maxCachedModels: number;
+    currentCachedModels: number;
+  };
 }
 
 /**
@@ -88,38 +143,101 @@ export interface TransformersModelState {
  */
 export type TransformersWorkerMessageType = 'load' | 'infer' | 'dispose' | 'status';
 
-/**
- * Worker request message
- */
-export interface TransformersWorkerRequest {
+export interface TransformersWorkerLoadRequest {
   id: string;
-  type: TransformersWorkerMessageType;
+  type: 'load';
   payload: {
-    task?: TransformersTask;
-    modelId?: string;
-    input?: unknown;
+    task: TransformersTask;
+    modelId: string;
+    device?: TransformersDevice;
+    dtype?: TransformersDtype;
+    cachePolicy?: Partial<TransformersCachePolicy>;
+  };
+}
+
+export interface TransformersWorkerInferRequest {
+  id: string;
+  type: 'infer';
+  payload: {
+    task: TransformersTask;
+    modelId: string;
+    input: unknown;
     options?: TransformersInferenceOptions;
     device?: TransformersDevice;
     dtype?: TransformersDtype;
+    cachePolicy?: Partial<TransformersCachePolicy>;
   };
 }
+
+export interface TransformersWorkerDisposeRequest {
+  id: string;
+  type: 'dispose';
+  payload: {
+    task?: TransformersTask;
+    modelId?: string;
+  };
+}
+
+export interface TransformersWorkerStatusRequest {
+  id: string;
+  type: 'status';
+  payload: Record<string, never>;
+}
+
+/**
+ * Worker request message
+ */
+export type TransformersWorkerRequest =
+  | TransformersWorkerLoadRequest
+  | TransformersWorkerInferRequest
+  | TransformersWorkerDisposeRequest
+  | TransformersWorkerStatusRequest;
 
 /**
  * Worker response types
  */
 export type TransformersWorkerResponseType = 'progress' | 'result' | 'error' | 'status' | 'loaded';
 
+interface TransformersWorkerBaseResponse {
+  id: string;
+  duration?: number;
+}
+
+export interface TransformersWorkerProgressResponse extends TransformersWorkerBaseResponse {
+  type: 'progress';
+  progress: ModelDownloadProgress;
+}
+
+export interface TransformersWorkerLoadedResponse extends TransformersWorkerBaseResponse {
+  type: 'loaded';
+  data: { task: TransformersTask; modelId: string };
+}
+
+export interface TransformersWorkerResultResponse extends TransformersWorkerBaseResponse {
+  type: 'result';
+  data: unknown;
+}
+
+export interface TransformersWorkerStatusResponse extends TransformersWorkerBaseResponse {
+  type: 'status';
+  data: TransformersWorkerStatusData;
+}
+
+export interface TransformersWorkerErrorResponse extends TransformersWorkerBaseResponse {
+  type: 'error';
+  error: string;
+  errorCode?: TransformersErrorCode;
+}
+
 /**
  * Worker response message
  */
-export interface TransformersWorkerResponse {
-  id: string;
-  type: TransformersWorkerResponseType;
-  data?: unknown;
-  error?: string;
-  progress?: ModelDownloadProgress;
-  duration?: number;
-}
+export type TransformersWorkerResponse =
+  | TransformersWorkerProgressResponse
+  | TransformersWorkerLoadedResponse
+  | TransformersWorkerResultResponse
+  | TransformersWorkerStatusResponse
+  | TransformersWorkerErrorResponse;
 
 /**
  * Inference options
@@ -178,4 +296,8 @@ export interface PipelineTensorOutput {
   data?: Float32Array | number[];
   dims?: number[];
   tolist?: () => unknown;
+}
+
+export function buildTransformersModelCacheKey(task: TransformersTask, modelId: string): string {
+  return `${task}::${modelId}`;
 }

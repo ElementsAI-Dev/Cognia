@@ -9,7 +9,7 @@ import type { FlowChatNodeData } from '@/types/chat/flow-chat';
 import type { UIMessage } from '@/types';
 
 // Import after mocks
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const { FlowChatNode } = require('./flow-chat-node');
 
 // Mock A2UI components

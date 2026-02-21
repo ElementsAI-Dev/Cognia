@@ -97,11 +97,6 @@ impl ToolbarWindow {
         log::debug!("[ToolbarWindow] Auto-hide timeout set to {}ms", ms);
     }
 
-    /// Get auto-hide timeout
-    pub(crate) fn get_auto_hide_timeout(&self) -> u64 {
-        *self.auto_hide_ms.read()
-    }
-
     /// Set hover state (called from frontend)
     pub fn set_hovered(&self, hovered: bool) {
         log::trace!("[ToolbarWindow] set_hovered: {}", hovered);
@@ -357,42 +352,6 @@ impl ToolbarWindow {
         Ok(())
     }
 
-    /// Update toolbar position without changing text
-    pub(crate) fn update_position(&self, x: i32, y: i32) -> Result<(), String> {
-        if !self.is_visible() {
-            log::trace!("[ToolbarWindow] update_position: toolbar not visible, skipping");
-            return Ok(());
-        }
-
-        log::trace!("[ToolbarWindow] update_position to ({}, {})", x, y);
-
-        let window = self
-            .app_handle
-            .get_webview_window(TOOLBAR_WINDOW_LABEL)
-            .ok_or("Toolbar window not found")?;
-
-        let scale_factor = window.scale_factor().unwrap_or(1.0);
-        let (adjusted_x, adjusted_y) = self.calculate_position(x, y, scale_factor);
-        *self.position.write() = (adjusted_x, adjusted_y);
-
-        window
-            .set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-                x: adjusted_x,
-                y: adjusted_y,
-            }))
-            .map_err(|e| {
-                log::error!("[ToolbarWindow] Failed to update position: {}", e);
-                format!("Failed to set position: {}", e)
-            })?;
-
-        log::trace!(
-            "[ToolbarWindow] Position updated to ({}, {})",
-            adjusted_x,
-            adjusted_y
-        );
-        Ok(())
-    }
-
     /// Internal hide implementation
     fn hide_internal(&self, reason: &str) -> Result<(), String> {
         if !self.is_visible.load(Ordering::SeqCst) {
@@ -437,11 +396,6 @@ impl ToolbarWindow {
     /// Hide the toolbar
     pub fn hide(&self) -> Result<(), String> {
         self.hide_internal("manual")
-    }
-
-    /// Hide the toolbar with a specific reason
-    pub(crate) fn hide_with_reason(&self, reason: &str) -> Result<(), String> {
-        self.hide_internal(reason)
     }
 
     /// Calculate the best position for the toolbar
@@ -594,21 +548,6 @@ impl ToolbarWindow {
     /// Check if toolbar is visible
     pub fn is_visible(&self) -> bool {
         self.is_visible.load(Ordering::SeqCst)
-    }
-
-    /// Get time since toolbar was shown (in milliseconds)
-    pub(crate) fn get_visible_duration_ms(&self) -> Option<u64> {
-        if !self.is_visible() {
-            return None;
-        }
-        self.last_shown
-            .read()
-            .map(|t| t.elapsed().as_millis() as u64)
-    }
-
-    /// Check if mouse is hovering over toolbar
-    pub(crate) fn is_hovered(&self) -> bool {
-        self.is_hovered.load(Ordering::SeqCst)
     }
 
     /// Get current selected text

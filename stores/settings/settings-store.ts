@@ -38,6 +38,7 @@ import {
   DEFAULT_UI_CUSTOMIZATION,
   DEFAULT_BACKGROUND_SETTINGS,
   normalizeBackgroundSettings,
+  migrateAndSanitizeBackgroundSettings,
 } from '@/lib/themes';
 import {
   deleteBackgroundImageAsset,
@@ -102,6 +103,7 @@ import type {
 } from '@/types/settings/welcome';
 import { DEFAULT_WELCOME_SETTINGS } from '@/types/settings/welcome';
 import type { ChatMode } from '@/types/core';
+import type { LspProvider } from '@/types/designer/lsp';
 
 // Safety Mode types
 export type SafetyMode = 'off' | 'warn' | 'block';
@@ -184,6 +186,95 @@ const syncCustomKeyToStronghold = (providerId: string, apiKey: string | undefine
   if (!apiKey || !isStrongholdAvailable()) return;
   void secureStoreCustomProviderApiKey(providerId, apiKey);
 };
+
+const pendingBackgroundAssetDeletes = new Set<string>();
+
+function scheduleBackgroundAssetDelete(assetId: string): void {
+  if (!assetId || pendingBackgroundAssetDeletes.has(assetId)) return;
+  pendingBackgroundAssetDeletes.add(assetId);
+  void deleteBackgroundImageAsset(assetId)
+    .catch(() => {
+      // Ignore cleanup failures; stale assets are non-fatal.
+    })
+    .finally(() => {
+      pendingBackgroundAssetDeletes.delete(assetId);
+    });
+}
+
+function collectLocalAssetIds(settings: Pick<BackgroundSettings, 'localAssetId' | 'layers' | 'slideshow'>): Set<string> {
+  const assetIds = new Set<string>();
+
+  if (settings.localAssetId) {
+    assetIds.add(settings.localAssetId);
+  }
+
+  for (const layer of settings.layers) {
+    if (layer.localAssetId) assetIds.add(layer.localAssetId);
+  }
+
+  for (const slide of settings.slideshow.slides) {
+    if (slide.localAssetId) assetIds.add(slide.localAssetId);
+  }
+
+  return assetIds;
+}
+
+function cleanupRemovedBackgroundAssets(previous: BackgroundSettings, next: BackgroundSettings): void {
+  const previousIds = collectLocalAssetIds(previous);
+  const nextIds = collectLocalAssetIds(next);
+
+  for (const assetId of previousIds) {
+    if (!nextIds.has(assetId)) {
+      scheduleBackgroundAssetDelete(assetId);
+    }
+  }
+}
+
+function resolveThemeMode(theme: 'light' | 'dark' | 'system'): 'light' | 'dark' {
+  if (theme !== 'system') {
+    return theme;
+  }
+
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  return 'light';
+}
+
+function logBackgroundWarnings(warnings: string[]): void {
+  if (warnings.length === 0) return;
+  warnings.forEach((warning) => {
+    console.warn(`[settings-store] ${warning}`);
+  });
+}
+
+function mergeBackgroundSettings(
+  current: BackgroundSettings,
+  updates: Partial<BackgroundSettings>,
+  options: {
+    downgradeUnresolvedLocalToNone?: boolean;
+    allowIncompleteUrlSource?: boolean;
+  } = {}
+): { success: boolean; settings: BackgroundSettings; warnings: string[]; error?: string } {
+  const normalized = normalizeBackgroundSettings({
+    ...current,
+    ...updates,
+    layers: updates.layers ?? current.layers,
+    slideshow: updates.slideshow
+      ? {
+          ...current.slideshow,
+          ...updates.slideshow,
+          slides: updates.slideshow.slides ?? current.slideshow.slides,
+        }
+      : current.slideshow,
+  });
+
+  return migrateAndSanitizeBackgroundSettings(normalized, {
+    downgradeUnresolvedLocalToNone: options.downgradeUnresolvedLocalToNone ?? false,
+    allowIncompleteUrlSource: options.allowIncompleteUrlSource ?? true,
+  });
+}
 
 // Observability settings
 export interface ObservabilitySettings {
@@ -275,6 +366,85 @@ export const DEFAULT_AGENT_OPTIMIZATION_SETTINGS: AgentOptimizationSettings = {
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'zh-CN';
+
+export type EditorDiagnosticsSeverity = 'hint' | 'info' | 'warning' | 'error';
+
+export interface EditorAppearanceSettings {
+  fontSize: number;
+  tabSize: number;
+  wordWrap: boolean;
+  minimap: boolean;
+  cursorStyle: 'line' | 'block' | 'underline';
+  renderWhitespace: 'none' | 'boundary' | 'selection' | 'trailing' | 'all';
+  formatOnPaste: boolean;
+  formatOnType: boolean;
+  bracketPairColorization: boolean;
+  stickyScroll: boolean;
+  autoSave: boolean;
+}
+
+export interface EditorLspSettings {
+  enabled: boolean;
+  protocolV2Enabled: boolean;
+  autoInstall: boolean;
+  providerOrder: LspProvider[];
+  timeoutMs: number;
+}
+
+export interface EditorPaletteSettings {
+  showContextCommands: boolean;
+  groupByContext: boolean;
+}
+
+export interface EditorDiagnosticsSettings {
+  debounceMs: number;
+  minimumSeverity: EditorDiagnosticsSeverity;
+}
+
+export interface EditorSettings {
+  appearance: EditorAppearanceSettings;
+  lsp: EditorLspSettings;
+  palette: EditorPaletteSettings;
+  diagnostics: EditorDiagnosticsSettings;
+}
+
+export interface EditorSettingsPatch {
+  appearance?: Partial<EditorAppearanceSettings>;
+  lsp?: Partial<EditorLspSettings>;
+  palette?: Partial<EditorPaletteSettings>;
+  diagnostics?: Partial<EditorDiagnosticsSettings>;
+}
+
+export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
+  appearance: {
+    fontSize: 14,
+    tabSize: 2,
+    wordWrap: false,
+    minimap: true,
+    cursorStyle: 'line',
+    renderWhitespace: 'selection',
+    formatOnPaste: false,
+    formatOnType: false,
+    bracketPairColorization: true,
+    stickyScroll: true,
+    autoSave: true,
+  },
+  lsp: {
+    enabled: true,
+    protocolV2Enabled: true,
+    autoInstall: true,
+    providerOrder: ['open_vsx', 'vs_marketplace'],
+    timeoutMs: 10_000,
+  },
+  palette: {
+    showContextCommands: true,
+    groupByContext: true,
+  },
+  diagnostics: {
+    debounceMs: 300,
+    minimumSeverity: 'hint',
+  },
+};
 
 export interface ThemeScheduleSettings {
   enabled: boolean;
@@ -720,6 +890,11 @@ interface SettingsState {
   showTokenCount: boolean;
   setShowTokenCount: (show: boolean) => void;
 
+  // Editor workbench settings
+  editorSettings: EditorSettings;
+  setEditorSettings: (settings: EditorSettingsPatch) => void;
+  resetEditorSettings: () => void;
+
   // Appearance enhancements
   uiFontSize: number;
   setUIFontSize: (size: number) => void;
@@ -799,6 +974,12 @@ interface SettingsState {
   setCompressionRecursiveChunkSize: (size: number) => void;
   setCompressionRetainedThreshold: (threshold: number) => void;
   setCompressionPrefixStability: (enabled: boolean) => void;
+  chatPromptCacheAlignmentEnabled: boolean;
+  inputCompletionV3Enabled: boolean;
+  completionNormalizerEnabled: boolean;
+  setChatPromptCacheAlignmentEnabled: (enabled: boolean) => void;
+  setInputCompletionV3Enabled: (enabled: boolean) => void;
+  setCompletionNormalizerEnabled: (enabled: boolean) => void;
 
   // Auto Router settings
   autoRouterSettings: AutoRouterSettings;
@@ -1142,6 +1323,134 @@ const defaultProviderSettings: Record<string, UserProviderSettings> = {
   },
 };
 
+function parseLegacyEditorSettingsFromLocalStorage(): EditorSettingsPatch {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+
+  let appearanceOverrides: Partial<EditorAppearanceSettings> = {};
+
+  try {
+    const rawPrefs = window.localStorage.getItem('cognia-editor-prefs');
+    if (rawPrefs) {
+      const parsed = JSON.parse(rawPrefs) as Partial<{
+        wordWrap: boolean;
+        minimap: boolean;
+        fontSize: number;
+        tabSize: number;
+        formatOnPaste: boolean;
+        formatOnType: boolean;
+        bracketPairColorization: boolean;
+        stickyScroll: boolean;
+        autoSave: boolean;
+        renderWhitespace: EditorAppearanceSettings['renderWhitespace'];
+      }>;
+
+      appearanceOverrides = {
+        wordWrap: typeof parsed.wordWrap === 'boolean' ? parsed.wordWrap : undefined,
+        minimap: typeof parsed.minimap === 'boolean' ? parsed.minimap : undefined,
+        fontSize: typeof parsed.fontSize === 'number' ? parsed.fontSize : undefined,
+        tabSize: typeof parsed.tabSize === 'number' ? parsed.tabSize : undefined,
+        formatOnPaste: typeof parsed.formatOnPaste === 'boolean' ? parsed.formatOnPaste : undefined,
+        formatOnType: typeof parsed.formatOnType === 'boolean' ? parsed.formatOnType : undefined,
+        bracketPairColorization:
+          typeof parsed.bracketPairColorization === 'boolean'
+            ? parsed.bracketPairColorization
+            : undefined,
+        stickyScroll: typeof parsed.stickyScroll === 'boolean' ? parsed.stickyScroll : undefined,
+        autoSave: typeof parsed.autoSave === 'boolean' ? parsed.autoSave : undefined,
+        renderWhitespace:
+          typeof parsed.renderWhitespace === 'string' ? parsed.renderWhitespace : undefined,
+      };
+    }
+  } catch {
+    appearanceOverrides = {};
+  }
+
+  const lspEnabledRaw = window.localStorage.getItem('cognia-designer-lsp-enabled');
+  const lspProtocolRaw = window.localStorage.getItem('cognia-designer-lsp-protocol-v2');
+  const lspAutoInstallRaw = window.localStorage.getItem('cognia-designer-lsp-auto-install');
+  const lspProviderOrderRaw = window.localStorage.getItem('cognia-designer-lsp-provider-order');
+
+  const providerOrder =
+    typeof lspProviderOrderRaw === 'string' && lspProviderOrderRaw.trim().length > 0
+      ? lspProviderOrderRaw
+          .split(',')
+          .map((item) => item.trim())
+          .filter((item): item is LspProvider => item === 'open_vsx' || item === 'vs_marketplace')
+      : undefined;
+
+  const lspOverrides: Partial<EditorLspSettings> = {
+    enabled: lspEnabledRaw ? lspEnabledRaw !== 'false' : undefined,
+    protocolV2Enabled: lspProtocolRaw ? lspProtocolRaw !== 'false' : undefined,
+    autoInstall: lspAutoInstallRaw ? lspAutoInstallRaw !== 'false' : undefined,
+    providerOrder: providerOrder && providerOrder.length > 0 ? providerOrder : undefined,
+  };
+
+  const hasDefinedValues = <T extends object>(value: T): boolean =>
+    Object.values(value).some((entry) => entry !== undefined);
+
+  const hasAppearance = hasDefinedValues(appearanceOverrides);
+  const hasLspOverrides = hasDefinedValues(lspOverrides);
+
+  if (!hasAppearance && !hasLspOverrides) {
+    return {};
+  }
+
+  return {
+    appearance: hasAppearance
+      ? {
+          ...DEFAULT_EDITOR_SETTINGS.appearance,
+          ...appearanceOverrides,
+        }
+      : undefined,
+    lsp: hasLspOverrides
+      ? {
+          ...DEFAULT_EDITOR_SETTINGS.lsp,
+          ...lspOverrides,
+        }
+      : undefined,
+  };
+}
+
+function clearLegacyEditorSettingsKeys(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.localStorage.removeItem('cognia-editor-prefs');
+  window.localStorage.removeItem('cognia-designer-lsp-enabled');
+  window.localStorage.removeItem('cognia-designer-lsp-protocol-v2');
+  window.localStorage.removeItem('cognia-designer-lsp-auto-install');
+  window.localStorage.removeItem('cognia-designer-lsp-provider-order');
+}
+
+function mergeEditorSettings(base: EditorSettings, overrides?: EditorSettingsPatch): EditorSettings {
+  if (!overrides) {
+    return base;
+  }
+
+  return {
+    ...base,
+    ...overrides,
+    appearance: {
+      ...base.appearance,
+      ...(overrides.appearance ?? {}),
+    },
+    lsp: {
+      ...base.lsp,
+      ...(overrides.lsp ?? {}),
+    },
+    palette: {
+      ...base.palette,
+      ...(overrides.palette ?? {}),
+    },
+    diagnostics: {
+      ...base.diagnostics,
+      ...(overrides.diagnostics ?? {}),
+    },
+  };
+}
+
 const initialState = {
   // Theme
   theme: 'system' as Theme,
@@ -1231,6 +1540,7 @@ const initialState = {
   compactMode: false,
   showTimestamps: false,
   showTokenCount: true,
+  editorSettings: { ...DEFAULT_EDITOR_SETTINGS },
 
   // Appearance enhancements
   uiFontSize: 14,
@@ -1256,6 +1566,9 @@ const initialState = {
 
   // Compression settings
   compressionSettings: { ...DEFAULT_COMPRESSION_SETTINGS },
+  chatPromptCacheAlignmentEnabled: true,
+  inputCompletionV3Enabled: true,
+  completionNormalizerEnabled: true,
 
   // Auto Router settings
   autoRouterSettings: { ...DEFAULT_AUTO_ROUTER_SETTINGS },
@@ -1302,8 +1615,7 @@ export const useSettingsStore = create<SettingsState>()(
       // Theme actions
       setTheme: (theme) =>
         set(() => {
-          // Resolve theme to 'light' or 'dark' for the plugin hook's second parameter
-          const resolvedTheme = theme === 'system' ? 'light' : theme;
+          const resolvedTheme = resolveThemeMode(theme);
           getPluginEventHooks().dispatchThemeModeChange(theme, resolvedTheme);
           return { theme };
         }),
@@ -1907,134 +2219,127 @@ export const useSettingsStore = create<SettingsState>()(
       setShowTimestamps: (showTimestamps) => set({ showTimestamps }),
       setShowTokenCount: (showTokenCount) => set({ showTokenCount }),
 
+      // Editor workbench actions
+      setEditorSettings: (editorSettings) =>
+        set((state) => ({
+          editorSettings: {
+            ...state.editorSettings,
+            ...editorSettings,
+            appearance: {
+              ...state.editorSettings.appearance,
+              ...(editorSettings.appearance ?? {}),
+            },
+            lsp: {
+              ...state.editorSettings.lsp,
+              ...(editorSettings.lsp ?? {}),
+            },
+            palette: {
+              ...state.editorSettings.palette,
+              ...(editorSettings.palette ?? {}),
+            },
+            diagnostics: {
+              ...state.editorSettings.diagnostics,
+              ...(editorSettings.diagnostics ?? {}),
+            },
+          },
+        })),
+      resetEditorSettings: () => set({ editorSettings: { ...DEFAULT_EDITOR_SETTINGS } }),
+
       // Appearance enhancement actions
       setUIFontSize: (uiFontSize) => set({ uiFontSize: Math.min(20, Math.max(12, uiFontSize)) }),
       setMessageBubbleStyle: (messageBubbleStyle) => set({ messageBubbleStyle }),
 
       // Background settings actions
-      setBackgroundSettings: (settings) =>
-        set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, ...settings },
-        })),
-      setBackgroundEnabled: (enabled) =>
-        set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, enabled },
-        })),
-      setBackgroundSource: (source) =>
-        set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, source },
-        })),
-      setBackgroundImageUrl: (imageUrl) =>
-        set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, imageUrl },
-        })),
-      setBackgroundLocalFile: async (file) => {
-        const previousAssetId = get().backgroundSettings.localAssetId;
-        const { assetId } = await saveBackgroundImageAsset(file);
-        set((state) => ({
-          backgroundSettings: {
-            ...state.backgroundSettings,
-            enabled: true,
-            source: 'local',
-            presetId: null,
-            imageUrl: '',
-            localAssetId: assetId,
-          },
-        }));
-
-        if (previousAssetId && previousAssetId !== assetId) {
-          await deleteBackgroundImageAsset(previousAssetId);
+      setBackgroundSettings: (settings) => {
+        const previous = get().backgroundSettings;
+        const result = mergeBackgroundSettings(previous, settings, {
+          allowIncompleteUrlSource: true,
+        });
+        if (!result.success) {
+          console.warn(`[settings-store] blocked unsafe background update: ${result.error ?? 'unknown error'}`);
+          return;
         }
+        logBackgroundWarnings(result.warnings);
+        const next = result.settings;
+        set({ backgroundSettings: next });
+        cleanupRemovedBackgroundAssets(previous, next);
+      },
+      setBackgroundEnabled: (enabled) =>
+        get().setBackgroundSettings({ enabled }),
+      setBackgroundSource: (source) => {
+        const updates: Partial<BackgroundSettings> = { source };
+        if (source !== 'local') updates.localAssetId = null;
+        if (source !== 'preset') updates.presetId = null;
+        if (source !== 'url' && source !== 'local') updates.imageUrl = '';
+        get().setBackgroundSettings(updates);
+      },
+      setBackgroundImageUrl: (imageUrl) =>
+        get().setBackgroundSettings({ imageUrl }),
+      setBackgroundLocalFile: async (file) => {
+        const previous = get().backgroundSettings;
+        const { assetId } = await saveBackgroundImageAsset(file);
+        const result = mergeBackgroundSettings(previous, {
+          enabled: true,
+          source: 'local',
+          presetId: null,
+          imageUrl: '',
+          localAssetId: assetId,
+        });
+        if (!result.success) {
+          console.warn(`[settings-store] blocked unsafe local background update: ${result.error ?? 'unknown error'}`);
+          scheduleBackgroundAssetDelete(assetId);
+          return;
+        }
+        logBackgroundWarnings(result.warnings);
+        const next = result.settings;
+        set({ backgroundSettings: next });
+        cleanupRemovedBackgroundAssets(previous, next);
       },
       setBackgroundPreset: (presetId) =>
-        set((state) => ({
-          backgroundSettings: {
-            ...state.backgroundSettings,
-            presetId,
-            source: presetId ? 'preset' : 'none',
-          },
-        })),
+        get().setBackgroundSettings({
+          presetId,
+          source: presetId ? 'preset' : 'none',
+          imageUrl: '',
+          localAssetId: null,
+        }),
       setBackgroundFit: (fit) =>
-        set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, fit },
-        })),
+        get().setBackgroundSettings({ fit }),
       setBackgroundPosition: (position) =>
-        set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, position },
-        })),
+        get().setBackgroundSettings({ position }),
       setBackgroundOpacity: (opacity) =>
-        set((state) => ({
-          backgroundSettings: {
-            ...state.backgroundSettings,
-            opacity: Math.min(100, Math.max(0, opacity)),
-          },
-        })),
+        get().setBackgroundSettings({ opacity: Math.min(100, Math.max(0, opacity)) }),
       setBackgroundBlur: (blur) =>
-        set((state) => ({
-          backgroundSettings: {
-            ...state.backgroundSettings,
-            blur: Math.min(20, Math.max(0, blur)),
-          },
-        })),
+        get().setBackgroundSettings({ blur: Math.min(20, Math.max(0, blur)) }),
       setBackgroundOverlay: (overlayColor, overlayOpacity) =>
-        set((state) => ({
-          backgroundSettings: {
-            ...state.backgroundSettings,
-            overlayColor,
-            overlayOpacity: Math.min(100, Math.max(0, overlayOpacity)),
-          },
-        })),
+        get().setBackgroundSettings({
+          overlayColor,
+          overlayOpacity: Math.min(100, Math.max(0, overlayOpacity)),
+        }),
       setBackgroundBrightness: (brightness) =>
-        set((state) => ({
-          backgroundSettings: {
-            ...state.backgroundSettings,
-            brightness: Math.min(150, Math.max(50, brightness)),
-          },
-        })),
+        get().setBackgroundSettings({ brightness: Math.min(150, Math.max(50, brightness)) }),
       setBackgroundSaturation: (saturation) =>
-        set((state) => ({
-          backgroundSettings: {
-            ...state.backgroundSettings,
-            saturation: Math.min(200, Math.max(0, saturation)),
-          },
-        })),
+        get().setBackgroundSettings({ saturation: Math.min(200, Math.max(0, saturation)) }),
       setBackgroundAttachment: (attachment) =>
-        set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, attachment },
-        })),
+        get().setBackgroundSettings({ attachment }),
       setBackgroundAnimation: (animation) =>
-        set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, animation },
-        })),
+        get().setBackgroundSettings({ animation }),
       setBackgroundAnimationSpeed: (animationSpeed) =>
-        set((state) => ({
-          backgroundSettings: {
-            ...state.backgroundSettings,
-            animationSpeed: Math.min(10, Math.max(1, animationSpeed)),
-          },
-        })),
+        get().setBackgroundSettings({ animationSpeed: Math.min(10, Math.max(1, animationSpeed)) }),
       setBackgroundContrast: (contrast) =>
-        set((state) => ({
-          backgroundSettings: {
-            ...state.backgroundSettings,
-            contrast: Math.min(150, Math.max(50, contrast)),
-          },
-        })),
+        get().setBackgroundSettings({ contrast: Math.min(150, Math.max(50, contrast)) }),
       setBackgroundGrayscale: (grayscale) =>
-        set((state) => ({
-          backgroundSettings: {
-            ...state.backgroundSettings,
-            grayscale: Math.min(100, Math.max(0, grayscale)),
-          },
-        })),
-      resetBackgroundSettings: () =>
-        set({ backgroundSettings: { ...DEFAULT_BACKGROUND_SETTINGS } }),
+        get().setBackgroundSettings({ grayscale: Math.min(100, Math.max(0, grayscale)) }),
+      resetBackgroundSettings: () => {
+        const previous = get().backgroundSettings;
+        const next = normalizeBackgroundSettings(DEFAULT_BACKGROUND_SETTINGS);
+        set({ backgroundSettings: next });
+        cleanupRemovedBackgroundAssets(previous, next);
+      },
       clearBackground: async () => {
-        const previousAssetId = get().backgroundSettings.localAssetId;
-        if (previousAssetId) {
-          await deleteBackgroundImageAsset(previousAssetId);
-        }
-        set({ backgroundSettings: { ...DEFAULT_BACKGROUND_SETTINGS } });
+        const previous = get().backgroundSettings;
+        const next = normalizeBackgroundSettings(DEFAULT_BACKGROUND_SETTINGS);
+        set({ backgroundSettings: next });
+        cleanupRemovedBackgroundAssets(previous, next);
       },
 
       // Advanced chat parameter actions
@@ -2203,6 +2508,12 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           compressionSettings: { ...state.compressionSettings, prefixStabilityMode },
         })),
+      setChatPromptCacheAlignmentEnabled: (chatPromptCacheAlignmentEnabled) =>
+        set({ chatPromptCacheAlignmentEnabled }),
+      setInputCompletionV3Enabled: (inputCompletionV3Enabled) =>
+        set({ inputCompletionV3Enabled }),
+      setCompletionNormalizerEnabled: (completionNormalizerEnabled) =>
+        set({ completionNormalizerEnabled }),
 
       // Auto Router settings actions
       setAutoRouterSettings: (settings) =>
@@ -2879,7 +3190,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'cognia-settings',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => createEncryptedStorage({
         sensitiveFields: [
           'providerSettings.*.apiKey',
@@ -2891,7 +3202,7 @@ export const useSettingsStore = create<SettingsState>()(
       })),
       migrate: (persistedState: unknown, version: number) => {
         const state = persistedState as Record<string, unknown>;
-        if (version === 0) {
+        if (version <= 1) {
           // v0 -> v1: Baseline migration - ensure all new fields have defaults
           // This handles users upgrading from unversioned stores
           if (!state.agentTraceSettings) {
@@ -2942,18 +3253,56 @@ export const useSettingsStore = create<SettingsState>()(
           if (!state.themeSchedule) {
             state.themeSchedule = initialState.themeSchedule;
           }
+          if (!state.editorSettings) {
+            state.editorSettings = initialState.editorSettings;
+          } else {
+            state.editorSettings = mergeEditorSettings(
+              initialState.editorSettings,
+              state.editorSettings as EditorSettingsPatch
+            );
+          }
         }
         return state as unknown as SettingsState;
       },
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<SettingsState> | undefined;
+        const legacyEditorSettings = parseLegacyEditorSettingsFromLocalStorage();
+        const mergedEditorSettings = mergeEditorSettings(
+          mergeEditorSettings(currentState.editorSettings, persisted?.editorSettings),
+          legacyEditorSettings
+        );
+
+        if (Object.keys(legacyEditorSettings).length > 0) {
+          clearLegacyEditorSettingsKeys();
+        }
+
+        const migratedBackground = migrateAndSanitizeBackgroundSettings(
+          persisted?.backgroundSettings ?? currentState.backgroundSettings,
+          {
+            downgradeUnresolvedLocalToNone: true,
+            allowIncompleteUrlSource: false,
+          }
+        );
+
+        if (!migratedBackground.success) {
+          console.warn(
+            `[settings-store] failed to hydrate background settings, falling back to defaults: ${migratedBackground.error ?? 'unknown error'}`
+          );
+        } else {
+          logBackgroundWarnings(migratedBackground.warnings);
+        }
 
         return {
           ...currentState,
           ...persisted,
-          backgroundSettings: normalizeBackgroundSettings(
-            persisted?.backgroundSettings ?? currentState.backgroundSettings
-          ),
+          speechSettings: {
+            ...currentState.speechSettings,
+            ...(persisted?.speechSettings ?? {}),
+          },
+          editorSettings: mergedEditorSettings,
+          backgroundSettings: migratedBackground.success
+            ? migratedBackground.settings
+            : normalizeBackgroundSettings(currentState.backgroundSettings),
         };
       },
       partialize: (state) => {
@@ -3056,6 +3405,7 @@ export const useSettingsStore = create<SettingsState>()(
           compactMode: state.compactMode,
           showTimestamps: state.showTimestamps,
           showTokenCount: state.showTokenCount,
+          editorSettings: state.editorSettings,
           // Appearance enhancements
           uiFontSize: state.uiFontSize,
           messageBubbleStyle: state.messageBubbleStyle,
@@ -3072,6 +3422,9 @@ export const useSettingsStore = create<SettingsState>()(
           speechSettings: state.speechSettings,
           // Compression settings
           compressionSettings: state.compressionSettings,
+          chatPromptCacheAlignmentEnabled: state.chatPromptCacheAlignmentEnabled,
+          inputCompletionV3Enabled: state.inputCompletionV3Enabled,
+          completionNormalizerEnabled: state.completionNormalizerEnabled,
           // Auto Router settings
           autoRouterSettings: state.autoRouterSettings,
           // Load Balancer settings
@@ -3106,6 +3459,7 @@ export const useSettingsStore = create<SettingsState>()(
 export const selectTheme = (state: SettingsState) => state.theme;
 export const selectColorTheme = (state: SettingsState) => state.colorTheme;
 export const selectLanguage = (state: SettingsState) => state.language;
+export const selectEditorSettings = (state: SettingsState) => state.editorSettings;
 export const selectDefaultProvider = (state: SettingsState) => state.defaultProvider;
 export const selectSidebarCollapsed = (state: SettingsState) => state.sidebarCollapsed;
 export const selectSearchEnabled = (state: SettingsState) => state.searchEnabled;

@@ -9,13 +9,21 @@ import { useState, useCallback, useEffect } from 'react';
 import * as nativeSkill from '@/lib/native/skill';
 import type {
   SkillRepo,
+  AddSkillRepoInput,
   DiscoverableSkill,
   InstalledSkill,
   NativeSkill,
   LocalSkill,
 } from '@/lib/native/skill';
 
-export type { SkillRepo, DiscoverableSkill, InstalledSkill, NativeSkill, LocalSkill };
+export type {
+  SkillRepo,
+  AddSkillRepoInput,
+  DiscoverableSkill,
+  InstalledSkill,
+  NativeSkill,
+  LocalSkill,
+};
 
 interface UseNativeSkillsState {
   repos: SkillRepo[];
@@ -31,7 +39,7 @@ interface UseNativeSkillsState {
 interface UseNativeSkillsActions {
   // Repository management
   refreshRepos: () => Promise<void>;
-  addRepo: (owner: string, name: string, branch?: string) => Promise<void>;
+  addRepo: (input: AddSkillRepoInput) => Promise<void>;
   removeRepo: (owner: string, name: string) => Promise<void>;
   toggleRepo: (owner: string, name: string, enabled: boolean) => Promise<void>;
 
@@ -113,11 +121,11 @@ export function useNativeSkills(): UseNativeSkillsReturn {
   }, [isAvailable]);
 
   const addRepo = useCallback(
-    async (owner: string, name: string, branch?: string) => {
+    async (input: AddSkillRepoInput) => {
       if (!isAvailable) return;
       try {
         setState((s) => ({ ...s, isLoading: true, error: null }));
-        await nativeSkill.addSkillRepo(owner, name, branch);
+        await nativeSkill.addSkillRepo(input);
         await refreshRepos();
       } catch (error) {
         setState((s) => ({ ...s, error: String(error) }));

@@ -185,11 +185,11 @@ describe('createRAGSearchTool', () => {
 
   it('executes search when config provided', async () => {
     const ragConfig = {
-      chromaConfig: {
-        mode: 'embedded' as const,
-        serverUrl: '',
+      vectorStore: {
+        provider: 'chroma' as const,
         embeddingConfig: { provider: 'openai' as const, model: 'text-embedding-3-small' },
-        apiKey: 'test-key',
+        embeddingApiKey: 'test-key',
+        native: {},
       },
       topK: 5,
       similarityThreshold: 0.5,
@@ -203,11 +203,11 @@ describe('createRAGSearchTool', () => {
 
   it('includes available collections in description when provided', () => {
     const ragConfig = {
-      chromaConfig: {
-        mode: 'embedded' as const,
-        serverUrl: '',
+      vectorStore: {
+        provider: 'chroma' as const,
         embeddingConfig: { provider: 'openai' as const, model: 'text-embedding-3-small' },
-        apiKey: 'test-key',
+        embeddingApiKey: 'test-key',
+        native: {},
       },
       topK: 5,
       similarityThreshold: 0.5,
@@ -226,14 +226,14 @@ describe('createRAGSearchTool', () => {
   });
 
   it('uses default collection name when not specified in input', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     const { executeRAGSearch } = require('../tools');
     const ragConfig = {
-      chromaConfig: {
-        mode: 'embedded' as const,
-        serverUrl: '',
+      vectorStore: {
+        provider: 'chroma' as const,
         embeddingConfig: { provider: 'openai' as const, model: 'text-embedding-3-small' },
-        apiKey: 'test-key',
+        embeddingApiKey: 'test-key',
+        native: {},
       },
       topK: 5,
       similarityThreshold: 0.5,
@@ -248,9 +248,8 @@ describe('createRAGSearchTool', () => {
     expect(executeRAGSearch).toHaveBeenCalledWith(
       expect.objectContaining({ collectionName: 'my-default' }),
       expect.objectContaining({
-        embeddingProvider: 'openai',
-        embeddingModel: 'text-embedding-3-small',
-        embeddingApiKey: 'test-key',
+        runtimeConfig: ragConfig,
+        defaultCollectionName: 'my-default',
       })
     );
   });

@@ -31,6 +31,35 @@ export function SyncInitializer() {
     initialize();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const ensureProviderReady = async () => {
+      if (!activeProvider) {
+        return;
+      }
+
+      try {
+        const { getSyncManager } = await import('@/lib/sync');
+        const manager = getSyncManager();
+        const initialized = await manager.ensureProviderInitialized(activeProvider);
+        if (!initialized.success && !cancelled) {
+          console.warn('[SyncInitializer] Provider initialization skipped:', initialized.error);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('[SyncInitializer] Failed to ensure provider initialization:', error);
+        }
+      }
+    };
+
+    void ensureProviderReady();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeProvider]);
+
   // Handle sync on exit
   useEffect(() => {
     if (!activeProvider) return;

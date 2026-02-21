@@ -10,9 +10,14 @@ pub mod types;
 #[cfg(test)]
 mod tests;
 
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine;
+use lopdf::{Document, Object, ObjectId};
 use providers::{
-    arxiv::ArxivProvider, core::CoreProvider, dblp::DblpProvider, openalex::OpenAlexProvider,
-    semantic_scholar::SemanticScholarProvider, unpaywall::UnpaywallProvider, AcademicProvider,
+    arxiv::ArxivProvider, core::CoreProvider, dblp::DblpProvider,
+    huggingface_papers::HuggingFacePapersProvider, openalex::OpenAlexProvider,
+    openreview::OpenReviewProvider, semantic_scholar::SemanticScholarProvider,
+    unpaywall::UnpaywallProvider, AcademicProvider,
 };
 use std::sync::Arc;
 use storage::PaperStorage;
@@ -38,6 +43,8 @@ impl AcademicState {
             Box::new(OpenAlexProvider::new(None)),
             Box::new(DblpProvider::new()),
             Box::new(UnpaywallProvider::new(None)),
+            Box::new(OpenReviewProvider::new(None)),
+            Box::new(HuggingFacePapersProvider::new(None)),
         ];
 
         Ok(Self {
@@ -77,12 +84,14 @@ pub async fn academic_search(
     let start_time = std::time::Instant::now();
     let mut all_papers = Vec::new();
     let mut provider_results = std::collections::HashMap::new();
+    let mut degraded_providers = std::collections::HashMap::new();
 
     for provider in target_providers {
+        let provider_id = provider.provider_id().to_string();
         match provider.search(&query, &options).await {
             Ok(result) => {
                 provider_results.insert(
-                    provider.provider_id().to_string(),
+                    provider_id,
                     ProviderSearchResult {
                         count: result.papers.len(),
                         success: true,
@@ -93,8 +102,16 @@ pub async fn academic_search(
             }
             Err(e) => {
                 log::warn!("Provider {} search failed: {}", provider.provider_id(), e);
+                let retriable = is_retriable_provider_error(&e);
+                degraded_providers.insert(
+                    provider_id.clone(),
+                    ProviderDegradedInfo {
+                        reason: e.clone(),
+                        retriable,
+                    },
+                );
                 provider_results.insert(
-                    provider.provider_id().to_string(),
+                    provider_id,
                     ProviderSearchResult {
                         count: 0,
                         success: false,
@@ -115,8 +132,19 @@ pub async fn academic_search(
         papers,
         total_results: provider_results.values().map(|r| r.count).sum(),
         provider_results,
+        degraded_providers,
         search_time_ms: start_time.elapsed().as_millis() as u64,
     })
+}
+
+fn is_retriable_provider_error(error: &str) -> bool {
+    let error_lower = error.to_lowercase();
+    error_lower.contains("429")
+        || error_lower.contains("rate limit")
+        || error_lower.contains("timeout")
+        || error_lower.contains("temporar")
+        || error_lower.contains("connection")
+        || error_lower.contains("network")
 }
 
 #[tauri::command]
@@ -932,10 +960,9 @@ fn generate_mind_map_from_traces(traces: &[KnowledgeMapTrace], title: &str) -> M
     }
 }
 
-fn extract_pdf_text(_pdf_bytes: &[u8]) -> Result<String, String> {
-    // PDF text extraction placeholder
-    // TODO: Implement with lopdf or pdf-extract when available
-    Ok(String::from("[PDF content extraction not yet implemented]"))
+fn extract_pdf_text(pdf_bytes: &[u8]) -> Result<String, String> {
+    pdf_extract::extract_text_from_mem(pdf_bytes)
+        .map_err(|e| format!("Failed to extract PDF text: {}", e))
 }
 
 fn convert_text_to_markdown(text: &str) -> String {
@@ -962,9 +989,130 @@ fn convert_text_to_markdown(text: &str) -> String {
     markdown
 }
 
-fn extract_pdf_images(_pdf_bytes: &[u8]) -> Result<Vec<ExtractedImage>, String> {
-    // Placeholder - actual implementation would extract images from PDF
-    Ok(Vec::new())
+fn extract_pdf_images(pdf_bytes: &[u8]) -> Result<Vec<ExtractedImage>, String> {
+    let document =
+        Document::load_mem(pdf_bytes).map_err(|e| format!("Failed to parse PDF bytes: {}", e))?;
+    let image_page_map = build_pdf_image_page_map(&document);
+
+    let mut images = Vec::new();
+    for (object_id, object) in &document.objects {
+        let Object::Stream(stream) = object else {
+            continue;
+        };
+
+        let subtype = stream
+            .dict
+            .get(b"Subtype")
+            .ok()
+            .and_then(object_to_name)
+            .unwrap_or_default();
+        if subtype != "Image" {
+            continue;
+        }
+
+        let image_bytes = match stream.decompressed_content() {
+            Ok(bytes) => bytes,
+            Err(_) => stream.content.clone(),
+        };
+        if image_bytes.is_empty() {
+            continue;
+        }
+
+        let filter_name = stream
+            .dict
+            .get(b"Filter")
+            .ok()
+            .and_then(extract_filter_name);
+        let (mime_type, image_type) = map_filter_to_image_metadata(filter_name.as_deref());
+        let data_url = format!(
+            "data:{};base64,{}",
+            mime_type,
+            BASE64_STANDARD.encode(&image_bytes)
+        );
+        let page_number = image_page_map.get(object_id).copied().unwrap_or(1);
+
+        images.push(ExtractedImage {
+            id: uuid::Uuid::new_v4().to_string(),
+            page_number: page_number as i32,
+            image_type: image_type.to_string(),
+            caption: None,
+            data_url: Some(data_url),
+            file_path: None,
+        });
+    }
+
+    Ok(images)
+}
+
+fn build_pdf_image_page_map(document: &Document) -> std::collections::HashMap<ObjectId, u32> {
+    let mut object_page_map = std::collections::HashMap::new();
+    for (page_number, page_id) in document.get_pages() {
+        let Some(page_dict) = document
+            .get_object(page_id)
+            .ok()
+            .and_then(resolve_object_dictionary(document))
+        else {
+            continue;
+        };
+
+        let Some(resources_dict) = page_dict
+            .get(b"Resources")
+            .ok()
+            .and_then(resolve_object_dictionary(document))
+        else {
+            continue;
+        };
+
+        let Some(xobjects_dict) = resources_dict
+            .get(b"XObject")
+            .ok()
+            .and_then(resolve_object_dictionary(document))
+        else {
+            continue;
+        };
+
+        for (_, object) in xobjects_dict.iter() {
+            if let Object::Reference(object_id) = object {
+                object_page_map.entry(*object_id).or_insert(page_number);
+            }
+        }
+    }
+    object_page_map
+}
+
+fn resolve_object_dictionary<'a>(
+    document: &'a Document,
+) -> impl Fn(&'a Object) -> Option<&'a lopdf::Dictionary> {
+    move |object| match object {
+        Object::Dictionary(dict) => Some(dict),
+        Object::Reference(object_id) => document.get_object(*object_id).ok()?.as_dict().ok(),
+        _ => None,
+    }
+}
+
+fn object_to_name(object: &Object) -> Option<String> {
+    match object {
+        Object::Name(name) => Some(String::from_utf8_lossy(name).to_string()),
+        _ => None,
+    }
+}
+
+fn extract_filter_name(filter_object: &Object) -> Option<String> {
+    match filter_object {
+        Object::Name(name) => Some(String::from_utf8_lossy(name).to_string()),
+        Object::Array(filters) => filters.iter().find_map(object_to_name),
+        _ => None,
+    }
+}
+
+fn map_filter_to_image_metadata(filter_name: Option<&str>) -> (&'static str, &'static str) {
+    match filter_name.unwrap_or_default() {
+        "DCTDecode" => ("image/jpeg", "jpeg"),
+        "JPXDecode" => ("image/jp2", "jpeg2000"),
+        "FlateDecode" => ("image/png", "png"),
+        "CCITTFaxDecode" => ("image/tiff", "tiff"),
+        _ => ("application/octet-stream", "binary"),
+    }
 }
 
 fn extract_pdf_tables(text: &str) -> Result<Vec<ExtractedTable>, String> {

@@ -64,6 +64,10 @@ jest.mock('@/lib/ai/embedding/chunking', () => ({
   })),
 }));
 
+jest.mock('@/lib/vector/embedding', () => ({
+  resolveEmbeddingApiKey: jest.fn(() => 'test-key'),
+}));
+
 describe('useRAGPipeline', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -199,20 +203,23 @@ describe('useRAGPipeline', () => {
   });
 
   describe('collection management', () => {
-    it('should get collection stats', () => {
+    it('should get collection stats', async () => {
       const { result } = renderHook(() => useRAGPipeline());
 
-      const stats = result.current.getCollectionStats();
+      let stats: Awaited<ReturnType<typeof result.current.getCollectionStats>>;
+      await act(async () => {
+        stats = await result.current.getCollectionStats();
+      });
 
-      expect(stats).toBeDefined();
-      expect(stats.exists).toBeDefined();
+      expect(stats!).toBeDefined();
+      expect(stats!.exists).toBeDefined();
     });
 
-    it('should clear collection', () => {
+    it('should clear collection', async () => {
       const { result } = renderHook(() => useRAGPipeline());
 
-      act(() => {
-        result.current.clearCollection();
+      await act(async () => {
+        await result.current.clearCollection();
       });
 
       // Should not throw

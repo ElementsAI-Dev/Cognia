@@ -73,6 +73,7 @@ impl ClipboardEntry {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn new_html(text: String, html: String) -> Self {
         let preview = if text.len() > 100 {
             format!("{}...", &text[..100])
@@ -113,6 +114,7 @@ impl ClipboardEntry {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn new_files(files: Vec<String>) -> Self {
         let preview = if files.len() == 1 {
             files[0].clone()
@@ -136,6 +138,7 @@ impl ClipboardEntry {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn with_source(mut self, app: Option<String>, window: Option<String>) -> Self {
         self.source_app = app;
         self.source_window = window;
@@ -150,6 +153,7 @@ impl ClipboardEntry {
         self.is_pinned = false;
     }
 
+    #[cfg(test)]
     pub(crate) fn set_label(&mut self, label: String) {
         self.label = Some(label);
     }
@@ -246,6 +250,7 @@ impl ClipboardHistory {
     }
 
     /// Get all entries
+    #[cfg(test)]
     pub(crate) fn get_all(&self) -> Vec<ClipboardEntry> {
         self.entries.read().iter().cloned().collect()
     }
@@ -345,11 +350,13 @@ impl ClipboardHistory {
     }
 
     /// Get history size
+    #[cfg(test)]
     pub(crate) fn len(&self) -> usize {
         self.entries.read().len()
     }
 
     /// Check if history is empty
+    #[cfg(test)]
     pub(crate) fn is_empty(&self) -> bool {
         self.entries.read().is_empty()
     }

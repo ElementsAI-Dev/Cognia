@@ -12,14 +12,25 @@ import {
   searchCommands,
   parseSlashCommand,
   executeCommand,
+  registerExternalAgentCommands,
+  unregisterExternalAgentCommands,
+  hasExternalAgentCommands,
 } from './slash-command-registry';
 import type { SlashCommandDefinition } from '@/types/chat/slash-commands';
 
 // Mock plugin lifecycle hooks
 const mockDispatchOnCommand = jest.fn().mockResolvedValue(false);
-jest.mock('@/lib/plugin', () => ({
+const mockHandleActivationEvent = jest.fn().mockResolvedValue(undefined);
+
+jest.mock('@/lib/plugin/messaging/hooks-system', () => ({
   getPluginLifecycleHooks: () => ({
     dispatchOnCommand: mockDispatchOnCommand,
+  }),
+}));
+
+jest.mock('@/lib/plugin/core/manager', () => ({
+  getPluginManager: () => ({
+    handleActivationEvent: mockHandleActivationEvent,
   }),
 }));
 
@@ -248,6 +259,122 @@ describe('slashCommandRegistry', () => {
       expect(result.success).toBe(true);
       // Should have the built-in clear action, not plugin message
       expect(result.message).not.toContain('handled by plugin');
+    });
+
+    it('should route plugin commands through their adapter handler', async () => {
+      const pluginHandler = jest.fn().mockResolvedValue({
+        success: true,
+        message: 'plugin handled',
+      });
+      registerCommand({
+        id: 'plugin.test',
+        source: 'plugin',
+        pluginMeta: {
+          source: 'plugin',
+          pluginId: 'plugin-a',
+          commandId: 'test',
+        },
+        command: 'plugin-test',
+        description: 'Plugin command',
+        category: 'custom',
+        handler: pluginHandler,
+      });
+
+      const result = await executeCommand('plugin-test', {}, {
+        input: '',
+        messageCount: 0,
+        mode: 'chat',
+      });
+
+      expect(result.success).toBe(true);
+      expect(pluginHandler).toHaveBeenCalled();
+      expect(mockDispatchOnCommand).not.toHaveBeenCalledWith('plugin-test', []);
+    });
+  });
+
+  describe('external agent commands', () => {
+    it('registers and executes external commands', async () => {
+      const onExecute = jest.fn();
+      registerExternalAgentCommands(
+        'agent-a',
+        'Agent A',
+        [
+          {
+            name: 'review',
+            description: 'Review code',
+            inputHint: '--files src',
+          },
+        ],
+        onExecute
+      );
+
+      expect(hasExternalAgentCommands('agent-a')).toBe(true);
+      expect(getCommand('review')).toBeDefined();
+
+      const result = await executeCommand(
+        'review',
+        { rawArgs: '--files src', arg0: '--files', arg1: 'src' },
+        { input: '', messageCount: 0, mode: 'agent' }
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.submit).toBe(true);
+      expect(result.newInput).toBe('/review --files src');
+      expect(onExecute).toHaveBeenCalledWith('review', '--files src');
+    });
+
+    it('unregisters only commands from the targeted external agent', () => {
+      const onExecute = jest.fn();
+      registerExternalAgentCommands(
+        'agent-a',
+        'Agent A',
+        [{ name: 'status', description: 'Status' }],
+        onExecute
+      );
+      registerExternalAgentCommands(
+        'agent-b',
+        'Agent B',
+        [{ name: 'sync', description: 'Sync' }],
+        onExecute
+      );
+
+      expect(hasExternalAgentCommands('agent-a')).toBe(true);
+      expect(hasExternalAgentCommands('agent-b')).toBe(true);
+
+      unregisterExternalAgentCommands('agent-a');
+
+      expect(hasExternalAgentCommands('agent-a')).toBe(false);
+      expect(getCommand('status')).toBeUndefined();
+      expect(hasExternalAgentCommands('agent-b')).toBe(true);
+      expect(getCommand('sync')).toBeDefined();
+    });
+
+    it('keeps built-in command when external command name conflicts', async () => {
+      const onExecute = jest.fn();
+      const builtinHelp = getCommand('help');
+      expect(builtinHelp).toBeDefined();
+
+      registerExternalAgentCommands(
+        'agent-a',
+        'Agent A',
+        [{ name: 'help', description: 'Agent help' }],
+        onExecute
+      );
+
+      const helpCommand = getCommand('help');
+      expect(helpCommand?.id).toBe(builtinHelp?.id);
+
+      const namespaced = getCommand('agent-a-help');
+      expect(namespaced?.source).toBe('external-agent');
+
+      const result = await executeCommand(
+        'agent-a-help',
+        { rawArgs: '--topic auth', arg0: '--topic', arg1: 'auth' },
+        { input: '', messageCount: 0, mode: 'agent' }
+      );
+
+      expect(result.success).toBe(true);
+      expect(onExecute).toHaveBeenCalledWith('help', '--topic auth');
     });
   });
 });

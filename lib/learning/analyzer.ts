@@ -6,6 +6,7 @@
  */
 
 import type { LearningPhase, LearningSession, LearningSubQuestion } from '@/types/learning';
+import type { ProviderName } from '@/types/provider';
 
 /**
  * Response analysis result
@@ -16,6 +17,23 @@ export interface ResponseAnalysis {
   suggestedAction: 'continue' | 'hint' | 'rephrase' | 'advance' | 'celebrate';
   detectedConcepts: string[];
   potentialMisconceptions: string[];
+}
+
+interface MisconceptionDetectionInput {
+  response: string;
+  expectedConcepts?: string[];
+  topic?: string;
+}
+
+function normalizeMisconceptions(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
 }
 
 /**
@@ -103,6 +121,98 @@ export function analyzeLearnerResponse(
     suggestedAction,
     detectedConcepts,
     potentialMisconceptions: [], // Would need AI to detect these
+  };
+}
+
+/**
+ * Optional AI-enhanced misconception detector.
+ * Returns an empty array when no model is configured or generation fails.
+ */
+export async function detectMisconceptionsWithAI(
+  input: MisconceptionDetectionInput
+): Promise<string[]> {
+  const { response, expectedConcepts = [], topic } = input;
+  if (!response.trim()) {
+    return [];
+  }
+
+  try {
+    const [{ useSettingsStore }, { getProxyProviderModel }, { parseAIJSON }, { generateText }] =
+      await Promise.all([
+        import('@/stores'),
+        import('@/lib/ai/core/proxy-client'),
+        import('@/lib/ai/utils/parse-ai-json'),
+        import('ai'),
+      ]);
+
+    const settings = useSettingsStore.getState();
+    const provider = settings.defaultProvider as ProviderName;
+    const providerSettings = settings.providerSettings[provider];
+    const apiKey = providerSettings?.apiKey || '';
+    const model = providerSettings?.defaultModel || 'gpt-4o-mini';
+
+    if (!apiKey && provider !== 'ollama') {
+      return [];
+    }
+
+    const modelInstance = getProxyProviderModel(
+      provider,
+      model,
+      apiKey,
+      providerSettings?.baseURL,
+      true
+    );
+
+    const { text } = await generateText({
+      model: modelInstance,
+      temperature: 0.2,
+      system:
+        'You are an expert learning diagnostician. Return strict JSON only.',
+      prompt: `Analyze learner response and identify likely misconceptions.
+
+Topic: ${topic || 'Unknown'}
+Expected concepts: ${expectedConcepts.join(', ') || 'None'}
+Learner response:
+"""
+${response}
+"""
+
+Return JSON:
+{
+  "misconceptions": ["..."],
+  "confidence": 0.0
+}`,
+    });
+
+    const parsed = parseAIJSON(text) as { misconceptions?: unknown };
+    return normalizeMisconceptions(parsed?.misconceptions);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Combined heuristic + AI analysis.
+ */
+export async function analyzeLearnerResponseWithAI(
+  response: string,
+  expectedConcepts: string[] = [],
+  session?: LearningSession
+): Promise<ResponseAnalysis> {
+  const base = analyzeLearnerResponse(response, expectedConcepts, session);
+  const misconceptions = await detectMisconceptionsWithAI({
+    response,
+    expectedConcepts,
+    topic: session?.topic,
+  });
+
+  if (misconceptions.length === 0) {
+    return base;
+  }
+
+  return {
+    ...base,
+    potentialMisconceptions: misconceptions,
   };
 }
 

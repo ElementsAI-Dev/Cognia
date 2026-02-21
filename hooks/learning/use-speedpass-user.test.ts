@@ -28,6 +28,7 @@ const createMockStore = (overrides = {}) => ({
     averageAccuracy: 80,
     currentStreak: 3,
     longestStreak: 7,
+    lastActiveDate: new Date().toISOString(),
   },
   studySessions: {
     'session-1': {
@@ -49,7 +50,7 @@ const createMockStore = (overrides = {}) => ({
     'tb-1': { id: 'tb-1', name: 'Test Textbook' },
   },
   tutorials: {
-    'tutorial-1': { id: 'tutorial-1', title: 'Test Tutorial', completedAt: new Date() },
+    'tutorial-1': { id: 'tutorial-1', title: 'Test Tutorial', mode: 'speed', completedAt: new Date() },
   },
   quizzes: {},
   userProfile: null,
@@ -160,7 +161,7 @@ describe('useSpeedPassUser', () => {
       const firstSession = result.current.progress.achievements.find(
         (a) => a.id === 'first_session'
       );
-      expect(firstSession?.unlockedAt).toBeDefined();
+      expect(firstSession?.unlocked).toBe(true);
     });
 
     it('should track quiz_master achievement progress', () => {
@@ -173,7 +174,27 @@ describe('useSpeedPassUser', () => {
       );
       expect(quizMaster?.target).toBe(10);
       expect(quizMaster?.progress).toBe(10);
-      expect(quizMaster?.unlockedAt).toBeDefined();
+      expect(quizMaster?.unlocked).toBe(true);
+    });
+
+    it('should unlock extreme_survivor after three extreme tutorials completed', () => {
+      mockUseSpeedPassStore.mockReturnValue(
+        createMockStore({
+          tutorials: {
+            'extreme-1': { id: 'extreme-1', mode: 'extreme', completedAt: new Date() },
+            'extreme-2': { id: 'extreme-2', mode: 'extreme', completedAt: new Date() },
+            'extreme-3': { id: 'extreme-3', mode: 'extreme', completedAt: new Date() },
+          },
+        })
+      );
+
+      const { result } = renderHook(() => useSpeedPassUser());
+      const extremeSurvivor = result.current.progress.achievements.find(
+        (achievement) => achievement.id === 'extreme_survivor'
+      );
+      expect(extremeSurvivor?.target).toBe(3);
+      expect(extremeSurvivor?.progress).toBe(3);
+      expect(extremeSurvivor?.unlocked).toBe(true);
     });
 
     it('should collect badges for unlocked achievements', () => {

@@ -16,13 +16,26 @@ import type {
   VideoEffectDefinition,
   VideoTransitionDefinition,
   VideoExportOptions,
-  ExportProgress,
 } from '@/lib/plugin/api/media-api';
 
-import type { VideoClip, VideoTrack, VideoEditorState } from '@/types/video-studio/types';
+import type {
+  AudioMixTrack,
+  SubtitleTrackBinding,
+  TimelineLayer,
+  TimelineMarker,
+  VideoClip,
+  VideoEditorState,
+  VideoTrack,
+} from '@/types/video-studio/types';
 import { useTrackManagement } from './use-track-management';
 import { usePlayback } from './use-playback';
 import { useClipEffects } from './use-clip-effects';
+import {
+  createVideoRenderService,
+  type VideoRenderContext,
+  type VideoRenderExportOptions,
+  type VideoRenderProgress,
+} from '@/lib/media/video-render-service';
 
 // Re-export for backward compatibility
 export type { VideoClip, VideoTrack, VideoEditorState } from '@/types/video-studio/types';
@@ -68,6 +81,8 @@ export interface UseVideoEditorReturn {
   addEffect: (clipId: string, effectId: string, params?: Record<string, unknown>) => void;
   removeEffect: (clipId: string, effectId: string) => void;
   updateEffectParams: (clipId: string, effectId: string, params: Record<string, unknown>) => void;
+  setEffectEnabled: (clipId: string, effectId: string, enabled: boolean) => void;
+  reorderEffects: (clipId: string, fromIndex: number, toIndex: number) => void;
   addTransition: (fromClipId: string, toClipId: string, type: string, duration: number) => void;
   removeTransition: (clipId: string) => void;
   getAvailableEffects: () => VideoEffectDefinition[];
@@ -84,6 +99,16 @@ export interface UseVideoEditorReturn {
   zoomIn: () => void;
   zoomOut: () => void;
   fitToView: () => void;
+  timeline: {
+    markers: TimelineMarker[];
+    layers: TimelineLayer[];
+    subtitleBindings: SubtitleTrackBinding[];
+    audioMix: AudioMixTrack[];
+  };
+  setTimelineMarkers: (markers: TimelineMarker[]) => void;
+  setTimelineLayers: (layers: TimelineLayer[]) => void;
+  setSubtitleBindings: (bindings: SubtitleTrackBinding[]) => void;
+  setAudioMixTracks: (tracks: AudioMixTrack[]) => void;
 
   // Export
   exportVideo: (options: VideoExportOptions) => Promise<Blob | null>;
@@ -216,6 +241,18 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
   // ── Refs ──────────────────────────────────────────────────────────────
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
+  const renderServiceRef = useRef(createVideoRenderService());
+  const [timelineData, setTimelineData] = useState<{
+    markers: TimelineMarker[];
+    layers: TimelineLayer[];
+    subtitleBindings: SubtitleTrackBinding[];
+    audioMix: AudioMixTrack[];
+  }>({
+    markers: [],
+    layers: [],
+    subtitleBindings: [],
+    audioMix: [],
+  });
 
   // ── Timeline zoom ─────────────────────────────────────────────────────
 
@@ -238,6 +275,22 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
     setPlaybackState((prev) => ({ ...prev, zoom: Math.max(0.1, Math.min(10, zoom)) }));
   }, [trackState.duration]);
 
+  const setTimelineMarkers = useCallback((markers: TimelineMarker[]) => {
+    setTimelineData((prev) => ({ ...prev, markers }));
+  }, []);
+
+  const setTimelineLayers = useCallback((layers: TimelineLayer[]) => {
+    setTimelineData((prev) => ({ ...prev, layers }));
+  }, []);
+
+  const setSubtitleBindings = useCallback((subtitleBindings: SubtitleTrackBinding[]) => {
+    setTimelineData((prev) => ({ ...prev, subtitleBindings }));
+  }, []);
+
+  const setAudioMixTracks = useCallback((audioMix: AudioMixTrack[]) => {
+    setTimelineData((prev) => ({ ...prev, audioMix }));
+  }, []);
+
   // ── Export ─────────────────────────────────────────────────────────────
 
   const setError = useCallback(
@@ -251,71 +304,48 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
   const exportVideo = useCallback(
     async (exportOpts: VideoExportOptions): Promise<Blob | null> => {
       setTrackState((prev) => ({ ...prev, isProcessing: true }));
-      const startTime = Date.now();
 
       try {
-        const totalFrames = Math.ceil(trackState.duration * exportOpts.fps);
-        const report = (progress: ExportProgress) => {
-          exportOpts.onProgress?.(progress);
-        };
-
-        // Phase 1: Preparing
-        report({ phase: 'preparing', percent: 0, totalFrames, message: 'Preparing export...' });
-
-        // Collect all clips across tracks
         const allClips = trackState.tracks.flatMap((t) => t.clips);
         if (allClips.length === 0) {
-          report({ phase: 'error', percent: 0, message: 'No clips to export' });
+          exportOpts.onProgress?.({ phase: 'error', percent: 0, message: 'No clips to export' });
           setTrackState((prev) => ({ ...prev, isProcessing: false }));
           return null;
         }
 
-        // Phase 2: Rendering frames (simulated — real impl would use canvas/WebCodecs)
-        report({ phase: 'rendering', percent: 10, currentFrame: 0, totalFrames, message: 'Rendering frames...' });
+        const context: VideoRenderContext = {
+          duration: trackState.duration,
+          tracks: trackState.tracks,
+          markers: timelineData.markers,
+          layers: timelineData.layers,
+          subtitleBindings: timelineData.subtitleBindings,
+          audioMix: timelineData.audioMix,
+        };
 
-        const renderSteps = 5;
-        for (let step = 0; step < renderSteps; step++) {
-          await new Promise((r) => setTimeout(r, 100));
-          const currentFrame = Math.floor(((step + 1) / renderSteps) * totalFrames);
-          const elapsed = Date.now() - startTime;
-          const progressPct = 10 + ((step + 1) / renderSteps) * 50;
-          report({
-            phase: 'rendering',
-            percent: Math.round(progressPct),
-            currentFrame,
-            totalFrames,
-            elapsedMs: elapsed,
-            estimatedRemainingMs: Math.round((elapsed / progressPct) * (100 - progressPct)),
-            message: `Rendering frame ${currentFrame}/${totalFrames}...`,
-          });
-        }
+        const renderOptions: VideoRenderExportOptions = {
+          format: exportOpts.format,
+          resolution: exportOpts.resolution,
+          fps: exportOpts.fps,
+          quality: exportOpts.quality,
+          codec: exportOpts.codec,
+          audioBitrate: exportOpts.audioBitrate,
+          videoBitrate: exportOpts.videoBitrate,
+          includeSubtitles: exportOpts.includeSubtitles,
+          subtitleMode: exportOpts.subtitleMode,
+          subtitleTracks: exportOpts.subtitleTracks,
+          destinationPath: exportOpts.destinationPath,
+          overwrite: exportOpts.overwrite,
+          onProgress: (progress: VideoRenderProgress) => {
+            exportOpts.onProgress?.(progress);
+          },
+        };
 
-        // Phase 3: Encoding
-        report({ phase: 'encoding', percent: 65, elapsedMs: Date.now() - startTime, message: 'Encoding video...' });
-        await new Promise((r) => setTimeout(r, 200));
-        report({ phase: 'encoding', percent: 80, elapsedMs: Date.now() - startTime, message: 'Encoding audio...' });
-        await new Promise((r) => setTimeout(r, 100));
-
-        // Phase 4: Finalizing
-        report({ phase: 'finalizing', percent: 90, elapsedMs: Date.now() - startTime, message: 'Finalizing...' });
-
-        let blob: Blob | null = null;
-        const firstClip = allClips[0];
-        if (firstClip?.sourceUrl) {
-          try {
-            const response = await fetch(firstClip.sourceUrl);
-            blob = await response.blob();
-          } catch {
-            blob = new Blob([], { type: `video/${exportOpts.format}` });
-          }
-        } else {
-          blob = new Blob([], { type: `video/${exportOpts.format}` });
-        }
-
-        const elapsed = Date.now() - startTime;
-        report({ phase: 'complete', percent: 100, elapsedMs: elapsed, message: 'Export complete!' });
-
-        loggers.media.info('Video exported', { format: exportOpts.format, resolution: exportOpts.resolution, elapsed });
+        const blob = await renderServiceRef.current.exportTimeline(context, renderOptions);
+        loggers.media.info('Video exported', {
+          format: exportOpts.format,
+          resolution: exportOpts.resolution,
+          duration: trackState.duration,
+        });
         setTrackState((prev) => ({ ...prev, isProcessing: false }));
         return blob;
       } catch (error) {
@@ -326,12 +356,31 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
         return null;
       }
     },
-    [trackState.duration, trackState.tracks, setError, setTrackState]
+    [setError, setTrackState, timelineData, trackState.duration, trackState.tracks]
   );
 
   const generatePreview = useCallback(async (): Promise<string | null> => {
-    return playbackState.previewUrl;
-  }, [playbackState.previewUrl]);
+    try {
+      const context: VideoRenderContext = {
+        duration: trackState.duration,
+        tracks: trackState.tracks,
+        markers: timelineData.markers,
+        layers: timelineData.layers,
+        subtitleBindings: timelineData.subtitleBindings,
+        audioMix: timelineData.audioMix,
+      };
+      const preview = await renderServiceRef.current.generatePreviewFrame(
+        context,
+        playbackState.currentTime
+      );
+      if (preview) {
+        setPlaybackState((prev) => ({ ...prev, previewUrl: preview }));
+      }
+      return preview;
+    } catch {
+      return playbackState.previewUrl;
+    }
+  }, [playbackState.currentTime, playbackState.previewUrl, timelineData, trackState.duration, trackState.tracks]);
 
   // ── Reset ─────────────────────────────────────────────────────────────
 
@@ -351,6 +400,12 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
       currentTime: 0,
       zoom: 1,
       previewUrl: null,
+    });
+    setTimelineData({
+      markers: [],
+      layers: [],
+      subtitleBindings: [],
+      audioMix: [],
     });
   }, [pausePlayback, setTrackState]);
 
@@ -388,6 +443,8 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
     addEffect: effectsHook.addEffect,
     removeEffect: effectsHook.removeEffect,
     updateEffectParams: effectsHook.updateEffectParams,
+    setEffectEnabled: effectsHook.setEffectEnabled,
+    reorderEffects: effectsHook.reorderEffects,
     addTransition: effectsHook.addTransition,
     removeTransition: effectsHook.removeTransition,
     getAvailableEffects: effectsHook.getAvailableEffects,
@@ -404,6 +461,11 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
     zoomIn,
     zoomOut,
     fitToView,
+    timeline: timelineData,
+    setTimelineMarkers,
+    setTimelineLayers,
+    setSubtitleBindings,
+    setAudioMixTracks,
 
     // Export
     exportVideo,

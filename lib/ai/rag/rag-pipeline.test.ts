@@ -272,7 +272,7 @@ describe('rag-pipeline', () => {
         documentId: 'doc-1',
       });
 
-      pipeline.clearCollection('to-clear');
+      await pipeline.clearCollection('to-clear');
 
       const result = await pipeline.retrieve('test', 'to-clear');
       expect(result.documents).toHaveLength(0);
@@ -286,14 +286,14 @@ describe('rag-pipeline', () => {
         documentId: 'doc-1',
       });
 
-      const stats = pipeline.getCollectionStats('stats-test');
+      const stats = await pipeline.getCollectionStats('stats-test');
 
       expect(stats).toBeDefined();
       expect(stats?.documentCount).toBeGreaterThan(0);
     });
 
-    it('should return undefined for non-existent collection', () => {
-      const stats = pipeline.getCollectionStats('non-existent');
+    it('should return undefined for non-existent collection', async () => {
+      const stats = await pipeline.getCollectionStats('non-existent');
 
       expect(stats?.exists).toBe(false);
     });

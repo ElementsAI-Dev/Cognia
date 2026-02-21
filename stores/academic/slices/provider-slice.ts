@@ -3,7 +3,7 @@
  * Provider management, import/export, settings, and statistics
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { academicRuntimeInvoke } from '@/lib/native/academic-runtime';
 import type {
   AcademicProviderType,
   AcademicProviderConfig,
@@ -44,7 +44,7 @@ export interface ProviderActions {
 export const createProviderSlice: AcademicSliceCreator<ProviderActions> = (set, get) => ({
     getProviders: async () => {
       try {
-        const providers = await invoke<AcademicProviderConfig[]>('academic_get_providers');
+        const providers = await academicRuntimeInvoke<AcademicProviderConfig[]>('academic_get_providers');
         return providers;
       } catch {
         return [];
@@ -53,7 +53,7 @@ export const createProviderSlice: AcademicSliceCreator<ProviderActions> = (set, 
 
     setProviderApiKey: async (providerId, apiKey) => {
       try {
-        await invoke('academic_set_provider_api_key', { providerId, apiKey });
+        await academicRuntimeInvoke('academic_set_provider_api_key', { providerId, apiKey });
       } catch (error) {
         set({ error: error instanceof Error ? error.message : String(error) });
         throw error;
@@ -62,7 +62,7 @@ export const createProviderSlice: AcademicSliceCreator<ProviderActions> = (set, 
 
     setProviderEnabled: async (providerId, enabled) => {
       try {
-        await invoke('academic_set_provider_enabled', { providerId, enabled });
+        await academicRuntimeInvoke('academic_set_provider_enabled', { providerId, enabled });
       } catch (error) {
         set({ error: error instanceof Error ? error.message : String(error) });
         throw error;
@@ -71,7 +71,7 @@ export const createProviderSlice: AcademicSliceCreator<ProviderActions> = (set, 
 
     testProvider: async (providerId) => {
       try {
-        const result = await invoke<boolean>('academic_test_provider', { providerId });
+        const result = await academicRuntimeInvoke<boolean>('academic_test_provider', { providerId });
         return result;
       } catch {
         return false;
@@ -81,14 +81,14 @@ export const createProviderSlice: AcademicSliceCreator<ProviderActions> = (set, 
     importPapers: async (data, format, options) => {
       set({ isLoading: true, error: null });
       try {
-        const result = await invoke<ImportResult>('academic_import_papers', {
+        const result = await academicRuntimeInvoke<ImportResult>('academic_import_papers', {
           data,
           format,
           options: {
-            merge_strategy: options?.mergeStrategy || 'skip',
-            import_annotations: true,
-            import_notes: true,
-            target_collection: options?.targetCollection,
+            mergeStrategy: options?.mergeStrategy || 'skip',
+            importAnnotations: true,
+            importNotes: true,
+            targetCollection: options?.targetCollection,
           },
         });
         await get().refreshLibrary();
@@ -103,14 +103,14 @@ export const createProviderSlice: AcademicSliceCreator<ProviderActions> = (set, 
     exportPapers: async (paperIds, collectionId, format = 'bibtex') => {
       set({ isLoading: true, error: null });
       try {
-        const result = await invoke<AcademicExportResult>('academic_export_papers', {
+        const result = await academicRuntimeInvoke<AcademicExportResult>('academic_export_papers', {
           paperIds,
           collectionId,
           format,
           options: {
-            include_annotations: true,
-            include_notes: true,
-            include_ai_analysis: true,
+            includeAnnotations: true,
+            includeNotes: true,
+            includeAiAnalysis: true,
           },
         });
         set({ isLoading: false });
@@ -123,7 +123,7 @@ export const createProviderSlice: AcademicSliceCreator<ProviderActions> = (set, 
 
     refreshStatistics: async () => {
       try {
-        const statistics = await invoke<AcademicStatistics>('academic_get_statistics');
+        const statistics = await academicRuntimeInvoke<AcademicStatistics>('academic_get_statistics');
         set({ statistics });
       } catch (error) {
         set({ error: error instanceof Error ? error.message : String(error) });

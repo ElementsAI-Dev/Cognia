@@ -8,9 +8,10 @@ import {
   resetPluginUpdater,
 } from './updater';
 
-// Mock dependencies
-jest.mock('@tauri-apps/api/core', () => ({
-  invoke: jest.fn(),
+jest.mock('@/stores/plugin', () => ({
+  usePluginStore: {
+    getState: jest.fn(),
+  },
 }));
 
 jest.mock('../package/marketplace', () => ({
@@ -20,11 +21,27 @@ jest.mock('../package/marketplace', () => ({
       latestVersion: '2.0.0',
       updatedAt: new Date(),
     }),
+    getVersions: jest.fn().mockResolvedValue([
+      {
+        version: '2.0.0',
+        publishedAt: new Date(),
+        downloadUrl: 'https://example.com/plugin-a-2.0.0.zip',
+      },
+    ]),
+    installPlugin: jest.fn().mockResolvedValue({
+      success: true,
+    }),
   }),
 }));
 
-import { invoke } from '@tauri-apps/api/core';
-const mockInvoke = invoke as jest.MockedFunction<typeof invoke>;
+jest.mock('./backup', () => ({
+  getPluginBackupManager: () => ({
+    createBackup: jest.fn().mockResolvedValue({ success: true }),
+  }),
+}));
+
+import { usePluginStore } from '@/stores/plugin';
+const mockGetStoreState = usePluginStore.getState as jest.MockedFunction<typeof usePluginStore.getState>;
 
 describe('PluginUpdater', () => {
   let updater: PluginUpdater;
@@ -32,25 +49,25 @@ describe('PluginUpdater', () => {
   beforeEach(() => {
     resetPluginUpdater();
     updater = new PluginUpdater();
-    mockInvoke.mockReset();
+    jest.clearAllMocks();
+    mockGetStoreState.mockReturnValue({
+      plugins: {
+        'plugin-a': {
+          manifest: { id: 'plugin-a', version: '1.0.0' },
+          status: 'installed',
+        },
+      },
+    } as never);
   });
 
   describe('Update Checking', () => {
     it('should check for updates for specific plugins', async () => {
-      mockInvoke.mockResolvedValueOnce([
-        { id: 'plugin-a', version: '1.0.0' },
-      ]);
-
       const updates = await updater.checkForUpdates(['plugin-a']);
 
       expect(Array.isArray(updates)).toBe(true);
     });
 
     it('should check update for a single plugin', async () => {
-      mockInvoke.mockResolvedValueOnce([
-        { id: 'plugin-a', version: '1.0.0' },
-      ]);
-
       const update = await updater.checkPluginUpdate('plugin-a');
 
       // May return null or UpdateInfo depending on marketplace response
@@ -70,8 +87,6 @@ describe('PluginUpdater', () => {
 
   describe('Update Installation', () => {
     it('should attempt to update a plugin', async () => {
-      mockInvoke.mockResolvedValue({});
-
       const result = await updater.update('plugin-a', { force: true, version: '2.0.0' });
 
       expect(result.pluginId).toBe('plugin-a');
@@ -86,8 +101,6 @@ describe('PluginUpdater', () => {
     });
 
     it('should update all pending plugins', async () => {
-      mockInvoke.mockResolvedValue({});
-
       const results = await updater.updateAll();
 
       expect(Array.isArray(results)).toBe(true);

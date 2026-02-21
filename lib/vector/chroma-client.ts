@@ -96,8 +96,10 @@ export async function listCollections(
   const collections = await client.listCollections();
   const infos: CollectionInfo[] = [];
 
-  // listCollections returns string[] of collection names
-  for (const collectionName of collections as unknown as string[]) {
+  for (const collectionItem of collections as unknown as Array<{ name?: string } | string>) {
+    const collectionName =
+      typeof collectionItem === 'string' ? collectionItem : (collectionItem?.name ?? '');
+    if (!collectionName) continue;
     try {
       const collection = await client.getCollection({ name: collectionName });
       const count = await collection.count();

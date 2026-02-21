@@ -10,6 +10,8 @@ import type {
   InputCompletionResult,
   TriggerCompletionV2Request,
   TriggerCompletionV2Result,
+  TriggerCompletionV3Request,
+  TriggerCompletionV3Result,
   CompletionStatus,
   CompletionSuggestion,
   CompletionStats,
@@ -106,6 +108,13 @@ export async function triggerCompletion(text: string): Promise<InputCompletionRe
  */
 export async function triggerCompletionV2(request: TriggerCompletionV2Request): Promise<TriggerCompletionV2Result> {
   return invoke('input_completion_trigger_v2', { request });
+}
+
+/**
+ * Trigger completion with v3 alignment payload
+ */
+export async function triggerCompletionV3(request: TriggerCompletionV3Request): Promise<TriggerCompletionV3Result> {
+  return invoke('input_completion_trigger_v3', { request });
 }
 
 /**

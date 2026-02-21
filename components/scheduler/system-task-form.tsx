@@ -6,6 +6,7 @@
 
 import { useCallback, useMemo, useReducer } from 'react';
 import { useTranslations } from 'next-intl';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { TimezoneSelect } from '@/components/scheduler/timezone-select';
 import { Input } from '@/components/ui/input';
@@ -128,6 +129,12 @@ export function SystemTaskForm({
 }: SystemTaskFormProps) {
   const t = useTranslations('scheduler');
   const [f, updateForm] = useReducer(systemFormReducer, initialValues, createSystemInitialState);
+  const workflowManagedScript = useMemo(
+    () =>
+      initialValues?.action?.type === 'execute_script' &&
+      (initialValues.action as ExecuteScriptAction).language === 'workflow',
+    [initialValues]
+  );
 
   const triggerTypeOptions = useMemo(
     () => [
@@ -176,6 +183,12 @@ export function SystemTaskForm({
   const buildAction = useCallback((): SystemTaskAction | null => {
     switch (f.actionType) {
       case 'execute_script':
+        if (workflowManagedScript) {
+          return {
+            ...f.scriptAction,
+            language: 'workflow',
+          };
+        }
         if (!f.scriptAction.code.trim()) return null;
         return f.scriptAction;
       case 'run_command':
@@ -187,7 +200,7 @@ export function SystemTaskForm({
       default:
         return null;
     }
-  }, [f]);
+  }, [f, workflowManagedScript]);
 
   const handleSubmit = useCallback(async () => {
     const trigger = buildTrigger();
@@ -371,7 +384,7 @@ export function SystemTaskForm({
       <div className="space-y-2">
         <Label>{t('systemActionType') || 'Action Type'}</Label>
         <Select value={f.actionType} onValueChange={(value) => updateForm({ actionType: value as SystemActionType })}>
-          <SelectTrigger>
+          <SelectTrigger disabled={workflowManagedScript}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -385,7 +398,22 @@ export function SystemTaskForm({
       </div>
 
       {f.actionType === 'execute_script' && (
-        <ScriptTaskEditor value={f.scriptAction} onChange={(v) => updateForm({ scriptAction: v })} disabled={isSubmitting} />
+        <div className="space-y-3">
+          {workflowManagedScript && (
+            <Alert>
+              <AlertTitle>{t('workflowScriptReadOnlyTitle') || 'Workflow-managed task'}</AlertTitle>
+              <AlertDescription>
+                {t('workflowScriptReadOnlyDescription') ||
+                  'Script content is managed by workflow trigger sync and is read-only in this form.'}
+              </AlertDescription>
+            </Alert>
+          )}
+          <ScriptTaskEditor
+            value={f.scriptAction}
+            onChange={(v) => updateForm({ scriptAction: v })}
+            disabled={isSubmitting || workflowManagedScript}
+          />
+        </div>
       )}
 
       {f.actionType === 'run_command' && (

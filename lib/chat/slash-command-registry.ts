@@ -17,7 +17,7 @@ import type {
 } from '@/types/chat/slash-commands';
 import type { SlashCommandCategory } from '@/types/chat/input-completion';
 import { SLASH_COMMAND_CATEGORY_INFO } from '@/types/chat/slash-commands';
-import { getPluginLifecycleHooks } from '@/lib/plugin';
+import { getPluginLifecycleHooks } from '@/lib/plugin/messaging/hooks-system';
 
 /** Singleton registry instance */
 class SlashCommandRegistry {
@@ -165,7 +165,18 @@ class SlashCommandRegistry {
     args: Record<string, string>,
     context: SlashCommandContext
   ): Promise<SlashCommandResult> {
-    const command = this.get(commandName);
+    let command = this.get(commandName);
+    if (!command) {
+      // Allow lazy activation for plugin commands that are not yet registered.
+      try {
+        const { getPluginManager } = await import('@/lib/plugin/core/manager');
+        await getPluginManager().handleActivationEvent(`onCommand:${commandName}`);
+      } catch {
+        // Plugin manager may not be initialized.
+      }
+      command = this.get(commandName);
+    }
+
     if (!command) {
       return {
         success: false,
@@ -174,13 +185,20 @@ class SlashCommandRegistry {
     }
 
     try {
-      // Dispatch to plugin command hooks first
+      // Plugin commands use the adapter handler as the only dispatch entrypoint.
+      if (command.source === 'plugin') {
+        return await command.handler(args, context);
+      }
+
+      // Built-in/external commands still allow plugin hook interception.
       try {
         const handled = await getPluginLifecycleHooks().dispatchOnCommand(commandName, Object.values(args));
         if (handled) {
           return { success: true, message: `Command handled by plugin: /${commandName}` };
         }
-      } catch { /* plugin system may not be initialized */ }
+      } catch {
+        // plugin system may not be initialized
+      }
 
       return await command.handler(args, context);
     } catch (error) {
@@ -210,6 +228,7 @@ export const slashCommandRegistry = new SlashCommandRegistry();
 const BUILT_IN_COMMANDS: SlashCommandDefinition[] = [
   {
     id: 'clear',
+    source: 'builtin',
     command: 'clear',
     description: 'Clear the current conversation',
     category: 'chat',
@@ -224,6 +243,7 @@ const BUILT_IN_COMMANDS: SlashCommandDefinition[] = [
   },
   {
     id: 'new',
+    source: 'builtin',
     command: 'new',
     description: 'Start a new conversation',
     category: 'chat',
@@ -238,6 +258,7 @@ const BUILT_IN_COMMANDS: SlashCommandDefinition[] = [
   },
   {
     id: 'image',
+    source: 'builtin',
     command: 'image',
     description: 'Generate an image from a prompt',
     category: 'media',
@@ -258,6 +279,7 @@ const BUILT_IN_COMMANDS: SlashCommandDefinition[] = [
   },
   {
     id: 'summarize',
+    source: 'builtin',
     command: 'summarize',
     description: 'Summarize the current conversation',
     category: 'chat',
@@ -271,6 +293,7 @@ const BUILT_IN_COMMANDS: SlashCommandDefinition[] = [
   },
   {
     id: 'mode',
+    source: 'builtin',
     command: 'mode',
     description: 'Switch chat mode',
     category: 'system',
@@ -292,6 +315,7 @@ const BUILT_IN_COMMANDS: SlashCommandDefinition[] = [
   },
   {
     id: 'model',
+    source: 'builtin',
     command: 'model',
     description: 'Switch AI model',
     category: 'system',
@@ -313,6 +337,7 @@ const BUILT_IN_COMMANDS: SlashCommandDefinition[] = [
   },
   {
     id: 'help',
+    source: 'builtin',
     command: 'help',
     description: 'Show available commands',
     category: 'system',
@@ -342,6 +367,7 @@ const BUILT_IN_COMMANDS: SlashCommandDefinition[] = [
   },
   {
     id: 'code',
+    source: 'builtin',
     command: 'code',
     description: 'Insert a code block template',
     category: 'chat',
@@ -362,6 +388,7 @@ const BUILT_IN_COMMANDS: SlashCommandDefinition[] = [
   },
   {
     id: 'web',
+    source: 'builtin',
     command: 'web',
     description: 'Search the web for information',
     category: 'agent',
@@ -384,6 +411,7 @@ const BUILT_IN_COMMANDS: SlashCommandDefinition[] = [
   },
   {
     id: 'translate',
+    source: 'builtin',
     command: 'translate',
     description: 'Translate text to another language',
     category: 'chat',
@@ -411,6 +439,7 @@ const BUILT_IN_COMMANDS: SlashCommandDefinition[] = [
   },
   {
     id: 'explain',
+    source: 'builtin',
     command: 'explain',
     description: 'Explain a concept or code',
     category: 'chat',
@@ -433,6 +462,7 @@ const BUILT_IN_COMMANDS: SlashCommandDefinition[] = [
   },
   {
     id: 'settings',
+    source: 'builtin',
     command: 'settings',
     description: 'Open settings panel',
     category: 'navigation',
@@ -492,10 +522,16 @@ export function registerExternalAgentCommands(
 ): void {
   for (const cmd of commands) {
     const commandId = `external-${agentId}-${cmd.name}`;
-    const commandName = cmd.name.toLowerCase();
+    const rawCommandName = cmd.name.toLowerCase();
+    const existingCommand = slashCommandRegistry.get(rawCommandName);
+    const commandName =
+      existingCommand && !existingCommand.id.startsWith(`external-${agentId}-`)
+        ? `${agentId}-${rawCommandName}`
+        : rawCommandName;
 
     slashCommandRegistry.register({
       id: commandId,
+      source: 'external-agent',
       command: commandName,
       description: cmd.description || `${agentName} command: ${cmd.name}`,
       longDescription: cmd.inputHint,

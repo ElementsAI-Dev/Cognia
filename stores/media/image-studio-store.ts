@@ -11,11 +11,7 @@ import type {
   ImageAdjustments,
   CropRegion,
   ImageTransform,
-  BlendMode,
-  LayerType,
   Layer,
-  TextLayerConfig,
-  DrawingShapeConfig,
 } from '@/types/media/image-studio';
 import { DEFAULT_IMAGE_ADJUSTMENTS } from '@/types/media/image-studio';
 

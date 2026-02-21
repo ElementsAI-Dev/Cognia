@@ -8,13 +8,30 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type {
   LspCapabilities,
   LspCodeAction,
+  LspInstallProgressEvent,
+  LspInstallRequest,
+  LspInstallResult,
+  LspInstalledServerRecord,
+  LspProvider,
   LspCodeActionOrCommand,
   LspCompletionItem,
+  LspDocumentHighlight,
   LspDocumentSymbol,
+  LspInlayHint,
   LspLocation,
   LspPublishDiagnosticsEvent,
+  LspReference,
+  LspRegistryEntry,
+  LspRegistryRecommendedResponse,
+  LspRegistrySearchRequest,
+  LspRenameRequest,
   LspRequestMeta,
   LspRange,
+  LspResolvedLaunch,
+  LspSemanticTokens,
+  LspServerStatus,
+  LspServerStatusChangedEvent,
+  LspSignatureHelp,
   LspSymbolInformation,
   LspTextDocumentContentChangeEvent,
   LspTextDocumentSyncKind,
@@ -22,6 +39,7 @@ import type {
   LspStartSessionRequest,
   LspStartSessionResponse,
   LspTextEdit,
+  LspWorkspaceEdit,
 } from '@/types/designer/lsp';
 
 export interface LspTextDocumentIdentifier {
@@ -51,6 +69,8 @@ type RawLspCompletionResult = LspCompletionItem[] | { isIncomplete?: boolean; it
 type RawLspStartSessionResponse = {
   sessionId: string;
   capabilities?: unknown;
+  resolvedCommand?: string;
+  resolvedArgs?: string[];
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -87,6 +107,22 @@ function normalizeCapabilities(rawCapabilities: unknown): LspCapabilities {
       : undefined,
     hoverProvider: normalizeCapability(serverCapabilities.hoverProvider),
     definitionProvider: normalizeCapability(serverCapabilities.definitionProvider),
+    referencesProvider: normalizeCapability(serverCapabilities.referencesProvider),
+    renameProvider: normalizeCapability(serverCapabilities.renameProvider),
+    implementationProvider: normalizeCapability(serverCapabilities.implementationProvider),
+    typeDefinitionProvider: normalizeCapability(serverCapabilities.typeDefinitionProvider),
+    signatureHelpProvider:
+      normalizeCapability(serverCapabilities.signatureHelpProvider) ??
+      (isRecord(serverCapabilities.signatureHelpProvider)
+        ? serverCapabilities.signatureHelpProvider
+        : undefined),
+    documentHighlightProvider: normalizeCapability(serverCapabilities.documentHighlightProvider),
+    semanticTokensProvider:
+      normalizeCapability(serverCapabilities.semanticTokensProvider) ??
+      (isRecord(serverCapabilities.semanticTokensProvider)
+        ? serverCapabilities.semanticTokensProvider
+        : undefined),
+    inlayHintProvider: normalizeCapability(serverCapabilities.inlayHintProvider),
     documentSymbolProvider: normalizeCapability(serverCapabilities.documentSymbolProvider),
     codeActionProvider: normalizeCapability(serverCapabilities.codeActionProvider),
     documentFormattingProvider: normalizeCapability(serverCapabilities.documentFormattingProvider),
@@ -144,7 +180,51 @@ export async function lspStartSession(request: LspStartSessionRequest): Promise<
   return {
     sessionId: raw.sessionId,
     capabilities: normalizeCapabilities(raw.capabilities),
+    resolvedCommand: raw.resolvedCommand,
+    resolvedArgs: raw.resolvedArgs,
   };
+}
+
+export async function lspRegistrySearch(
+  request: LspRegistrySearchRequest
+): Promise<LspRegistryEntry[]> {
+  return invoke<LspRegistryEntry[]>('lsp_registry_search', { request });
+}
+
+export async function lspRegistryGetRecommended(
+  languageId: string,
+  providers?: LspProvider[]
+): Promise<LspRegistryRecommendedResponse> {
+  return invoke<LspRegistryRecommendedResponse>('lsp_registry_get_recommended', {
+    languageId,
+    providers,
+  });
+}
+
+export async function lspInstallServer(request: LspInstallRequest): Promise<LspInstallResult> {
+  return invoke<LspInstallResult>('lsp_install_server', { request });
+}
+
+export async function lspUninstallServer(extensionId: string): Promise<boolean> {
+  return invoke<boolean>('lsp_uninstall_server', {
+    request: { extensionId },
+  });
+}
+
+export async function lspListInstalledServers(): Promise<LspInstalledServerRecord[]> {
+  return invoke<LspInstalledServerRecord[]>('lsp_list_installed_servers');
+}
+
+export async function lspGetServerStatus(languageId: string): Promise<LspServerStatus> {
+  return invoke<LspServerStatus>('lsp_get_server_status', {
+    request: { languageId },
+  });
+}
+
+export async function lspResolveLaunch(languageId: string): Promise<LspResolvedLaunch> {
+  return invoke<LspResolvedLaunch>('lsp_resolve_launch', {
+    request: { languageId },
+  });
 }
 
 export async function lspOpenDocument(sessionId: string, document: LspTextDocumentItem): Promise<void> {
@@ -251,6 +331,166 @@ export async function lspDefinition(
       uri: document.uri,
       line,
       character,
+      clientRequestId: meta?.clientRequestId,
+      timeoutMs: meta?.timeoutMs,
+    },
+  });
+}
+
+export async function lspReferences(
+  sessionId: string,
+  document: LspTextDocumentIdentifier,
+  line: number,
+  character: number,
+  includeDeclaration = true,
+  meta?: LspRequestMeta
+): Promise<LspReference[]> {
+  const raw = await invoke<LspReference[] | null>('lsp_references', {
+    request: {
+      sessionId,
+      uri: document.uri,
+      line,
+      character,
+      includeDeclaration,
+      clientRequestId: meta?.clientRequestId,
+      timeoutMs: meta?.timeoutMs,
+    },
+  });
+
+  return raw ?? [];
+}
+
+export async function lspRename(
+  sessionId: string,
+  document: LspTextDocumentIdentifier,
+  line: number,
+  character: number,
+  rename: LspRenameRequest,
+  meta?: LspRequestMeta
+): Promise<LspWorkspaceEdit | null> {
+  return invoke<LspWorkspaceEdit | null>('lsp_rename', {
+    request: {
+      sessionId,
+      uri: document.uri,
+      line,
+      character,
+      newName: rename.newName,
+      clientRequestId: meta?.clientRequestId,
+      timeoutMs: meta?.timeoutMs,
+    },
+  });
+}
+
+export async function lspImplementation(
+  sessionId: string,
+  document: LspTextDocumentIdentifier,
+  line: number,
+  character: number,
+  meta?: LspRequestMeta
+): Promise<LspLocation[]> {
+  const raw = await invoke<LspLocation[] | null>('lsp_implementation', {
+    request: {
+      sessionId,
+      uri: document.uri,
+      line,
+      character,
+      clientRequestId: meta?.clientRequestId,
+      timeoutMs: meta?.timeoutMs,
+    },
+  });
+
+  return raw ?? [];
+}
+
+export async function lspTypeDefinition(
+  sessionId: string,
+  document: LspTextDocumentIdentifier,
+  line: number,
+  character: number,
+  meta?: LspRequestMeta
+): Promise<LspLocation[]> {
+  const raw = await invoke<LspLocation[] | null>('lsp_type_definition', {
+    request: {
+      sessionId,
+      uri: document.uri,
+      line,
+      character,
+      clientRequestId: meta?.clientRequestId,
+      timeoutMs: meta?.timeoutMs,
+    },
+  });
+
+  return raw ?? [];
+}
+
+export async function lspSignatureHelp(
+  sessionId: string,
+  document: LspTextDocumentIdentifier,
+  line: number,
+  character: number,
+  meta?: LspRequestMeta
+): Promise<LspSignatureHelp | null> {
+  return invoke<LspSignatureHelp | null>('lsp_signature_help', {
+    request: {
+      sessionId,
+      uri: document.uri,
+      line,
+      character,
+      clientRequestId: meta?.clientRequestId,
+      timeoutMs: meta?.timeoutMs,
+    },
+  });
+}
+
+export async function lspDocumentHighlights(
+  sessionId: string,
+  document: LspTextDocumentIdentifier,
+  line: number,
+  character: number,
+  meta?: LspRequestMeta
+): Promise<LspDocumentHighlight[]> {
+  const raw = await invoke<LspDocumentHighlight[] | null>('lsp_document_highlights', {
+    request: {
+      sessionId,
+      uri: document.uri,
+      line,
+      character,
+      clientRequestId: meta?.clientRequestId,
+      timeoutMs: meta?.timeoutMs,
+    },
+  });
+
+  return raw ?? [];
+}
+
+export async function lspInlayHints(
+  sessionId: string,
+  document: LspTextDocumentIdentifier,
+  range: LspRange,
+  meta?: LspRequestMeta
+): Promise<LspInlayHint[]> {
+  const raw = await invoke<LspInlayHint[] | null>('lsp_inlay_hints', {
+    request: {
+      sessionId,
+      uri: document.uri,
+      range,
+      clientRequestId: meta?.clientRequestId,
+      timeoutMs: meta?.timeoutMs,
+    },
+  });
+
+  return raw ?? [];
+}
+
+export async function lspSemanticTokensFull(
+  sessionId: string,
+  document: LspTextDocumentIdentifier,
+  meta?: LspRequestMeta
+): Promise<LspSemanticTokens | null> {
+  return invoke<LspSemanticTokens | null>('lsp_semantic_tokens_full', {
+    request: {
+      sessionId,
+      uri: document.uri,
       clientRequestId: meta?.clientRequestId,
       timeoutMs: meta?.timeoutMs,
     },
@@ -373,6 +613,26 @@ export async function lspListenDiagnostics(
   callback: (event: LspPublishDiagnosticsEvent) => void
 ): Promise<UnlistenFn> {
   return listen<LspPublishDiagnosticsEvent>('lsp://diagnostics', (event) => {
+    if (event.payload) {
+      callback(event.payload);
+    }
+  });
+}
+
+export async function lspListenInstallProgress(
+  callback: (event: LspInstallProgressEvent) => void
+): Promise<UnlistenFn> {
+  return listen<LspInstallProgressEvent>('lsp-install-progress', (event) => {
+    if (event.payload) {
+      callback(event.payload);
+    }
+  });
+}
+
+export async function lspListenServerStatusChanged(
+  callback: (event: LspServerStatusChangedEvent) => void
+): Promise<UnlistenFn> {
+  return listen<LspServerStatusChangedEvent>('lsp-server-status-changed', (event) => {
     if (event.payload) {
       callback(event.payload);
     }

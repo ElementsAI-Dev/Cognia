@@ -194,6 +194,12 @@
   "operationEnable": "启用任务",
   "operationRunNow": "立即运行任务",
   "operationDefault": "任务操作",
+  "createdAt": "创建时间",
+  "expiresAt": "过期时间",
+  "metadataDegraded": "任务元数据不完整，编辑能力受限",
+  "metadataDegradedEditHint": "任务元数据不完整，无法安全编辑",
+  "workflowScriptReadOnlyTitle": "工作流托管任务",
+  "workflowScriptReadOnlyDescription": "脚本内容由工作流触发同步托管，当前表单内为只读。",
   "errorTitle": "出了点问题",
   "errorDescription": "调度器遇到意外错误。这可能是数据库问题或数据损坏导致的。",
   "retry": "重试",
@@ -216,11 +222,13 @@
       "all": "全部（含插件）"
     },
     "destination": "备份位置",
+    "destinationHint": "选择该定时备份的上传目标。",
     "destinations": {
       "local": "本地存储",
       "webdav": "WebDAV 服务器",
       "github": "GitHub 仓库",
-      "all": "所有已配置位置"
+      "googledrive": "Google Drive",
+      "all": "所有已配置目标"
     },
     "includeOptions": "包含内容",
     "options": {

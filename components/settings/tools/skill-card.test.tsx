@@ -116,7 +116,7 @@ const mockT = ((key: string) => {
     'categories.productivity': 'Productivity',
   };
   return translations[key] || key;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 }) as any;
 
 // Sample skill data

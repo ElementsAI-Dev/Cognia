@@ -146,16 +146,16 @@ describe('LearningToolPart', () => {
 
   describe('LEARNING_TOOL_NAMES', () => {
     it('contains all expected tool names', () => {
-      expect(LEARNING_TOOL_NAMES).toContain('displayFlashcard');
-      expect(LEARNING_TOOL_NAMES).toContain('displayFlashcardDeck');
-      expect(LEARNING_TOOL_NAMES).toContain('displayQuiz');
-      expect(LEARNING_TOOL_NAMES).toContain('displayQuizQuestion');
-      expect(LEARNING_TOOL_NAMES).toContain('displayReviewSession');
-      expect(LEARNING_TOOL_NAMES).toContain('displayProgressSummary');
-      expect(LEARNING_TOOL_NAMES).toContain('displayConceptExplanation');
-      expect(LEARNING_TOOL_NAMES).toContain('displayStepGuide');
-      expect(LEARNING_TOOL_NAMES).toContain('displayConceptMap');
-      expect(LEARNING_TOOL_NAMES).toContain('displayAnimation');
+      expect(LEARNING_TOOL_NAMES).toContain('display_flashcard');
+      expect(LEARNING_TOOL_NAMES).toContain('display_flashcard_deck');
+      expect(LEARNING_TOOL_NAMES).toContain('display_quiz');
+      expect(LEARNING_TOOL_NAMES).toContain('display_quiz_question');
+      expect(LEARNING_TOOL_NAMES).toContain('display_review_session');
+      expect(LEARNING_TOOL_NAMES).toContain('display_progress_summary');
+      expect(LEARNING_TOOL_NAMES).toContain('display_concept_explanation');
+      expect(LEARNING_TOOL_NAMES).toContain('display_step_guide');
+      expect(LEARNING_TOOL_NAMES).toContain('display_concept_map');
+      expect(LEARNING_TOOL_NAMES).toContain('display_animation');
       expect(LEARNING_TOOL_NAMES).toHaveLength(10);
     });
   });

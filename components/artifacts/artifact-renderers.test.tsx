@@ -98,7 +98,7 @@ jest.mock('./chart-renderer', () => {
 });
 
 // Use require after mocks to ensure mocks are applied before module load
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const artifactRenderers = require('./artifact-renderers');
 const { MermaidRenderer, ChartRenderer, MathRenderer, MarkdownRenderer, CodeRenderer, ArtifactRenderer } = artifactRenderers;
 

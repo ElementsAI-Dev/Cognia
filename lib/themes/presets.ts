@@ -3,6 +3,8 @@
  * Uses OKLch color space for perceptually uniform colors
  */
 
+import { BACKGROUND_LIMITS } from './appearance-constants';
+
 export type ColorThemePreset = 'default' | 'ocean' | 'forest' | 'sunset' | 'lavender' | 'rose' | 'slate' | 'amber';
 
 export interface ThemeColors {
@@ -604,6 +606,95 @@ export const DEFAULT_BACKGROUND_SETTINGS: BackgroundSettings = {
   grayscale: 0,
 };
 
+function clampValue(value: unknown, min: number, max: number, fallback: number): number {
+  if (typeof value !== 'number' || Number.isNaN(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalizeLayer(
+  layer: Partial<BackgroundLayerSettings> | null | undefined,
+  index: number,
+  idPrefix: 'layer' | 'slide'
+): BackgroundLayerSettings {
+  return {
+    ...DEFAULT_BACKGROUND_LAYER_SETTINGS,
+    id:
+      typeof layer?.id === 'string' && layer.id.trim()
+        ? layer.id
+        : `${idPrefix}-${index + 1}`,
+    enabled:
+      typeof layer?.enabled === 'boolean'
+        ? layer.enabled
+        : DEFAULT_BACKGROUND_LAYER_SETTINGS.enabled,
+    source: (layer?.source ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.source) as BackgroundImageSource,
+    imageUrl:
+      typeof layer?.imageUrl === 'string'
+        ? layer.imageUrl
+        : DEFAULT_BACKGROUND_LAYER_SETTINGS.imageUrl,
+    localAssetId: typeof layer?.localAssetId === 'string' ? layer.localAssetId : null,
+    presetId: typeof layer?.presetId === 'string' ? layer.presetId : null,
+    fit: (layer?.fit ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.fit) as BackgroundImageFit,
+    position:
+      (layer?.position ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.position) as BackgroundImagePosition,
+    opacity: clampValue(
+      layer?.opacity,
+      BACKGROUND_LIMITS.opacity.min,
+      BACKGROUND_LIMITS.opacity.max,
+      DEFAULT_BACKGROUND_LAYER_SETTINGS.opacity
+    ),
+    blur: clampValue(
+      layer?.blur,
+      BACKGROUND_LIMITS.blur.min,
+      BACKGROUND_LIMITS.blur.max,
+      DEFAULT_BACKGROUND_LAYER_SETTINGS.blur
+    ),
+    overlayColor:
+      typeof layer?.overlayColor === 'string'
+        ? layer.overlayColor
+        : DEFAULT_BACKGROUND_LAYER_SETTINGS.overlayColor,
+    overlayOpacity: clampValue(
+      layer?.overlayOpacity,
+      BACKGROUND_LIMITS.overlayOpacity.min,
+      BACKGROUND_LIMITS.overlayOpacity.max,
+      DEFAULT_BACKGROUND_LAYER_SETTINGS.overlayOpacity
+    ),
+    brightness: clampValue(
+      layer?.brightness,
+      BACKGROUND_LIMITS.brightness.min,
+      BACKGROUND_LIMITS.brightness.max,
+      DEFAULT_BACKGROUND_LAYER_SETTINGS.brightness
+    ),
+    saturation: clampValue(
+      layer?.saturation,
+      BACKGROUND_LIMITS.saturation.min,
+      BACKGROUND_LIMITS.saturation.max,
+      DEFAULT_BACKGROUND_LAYER_SETTINGS.saturation
+    ),
+    attachment:
+      (layer?.attachment ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.attachment) as BackgroundAttachment,
+    animation:
+      (layer?.animation ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.animation) as BackgroundAnimation,
+    animationSpeed: clampValue(
+      layer?.animationSpeed,
+      BACKGROUND_LIMITS.animationSpeed.min,
+      BACKGROUND_LIMITS.animationSpeed.max,
+      DEFAULT_BACKGROUND_LAYER_SETTINGS.animationSpeed
+    ),
+    contrast: clampValue(
+      layer?.contrast,
+      BACKGROUND_LIMITS.contrast.min,
+      BACKGROUND_LIMITS.contrast.max,
+      DEFAULT_BACKGROUND_LAYER_SETTINGS.contrast
+    ),
+    grayscale: clampValue(
+      layer?.grayscale,
+      BACKGROUND_LIMITS.grayscale.min,
+      BACKGROUND_LIMITS.grayscale.max,
+      DEFAULT_BACKGROUND_LAYER_SETTINGS.grayscale
+    ),
+  };
+}
+
 export function normalizeBackgroundSettings(
   settings: Partial<BackgroundSettings> | null | undefined
 ): BackgroundSettings {
@@ -612,65 +703,99 @@ export function normalizeBackgroundSettings(
       ? settings.mode
       : 'single';
 
-  const layers = Array.isArray(settings?.layers) && settings?.layers.length > 0
-    ? settings.layers.map((layer, index) => ({
-        ...DEFAULT_BACKGROUND_LAYER_SETTINGS,
-        id: typeof layer?.id === 'string' && layer.id ? layer.id : `layer-${index + 1}`,
-        enabled: typeof layer?.enabled === 'boolean' ? layer.enabled : DEFAULT_BACKGROUND_LAYER_SETTINGS.enabled,
-        source: (layer?.source ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.source) as BackgroundImageSource,
-        imageUrl: typeof layer?.imageUrl === 'string' ? layer.imageUrl : DEFAULT_BACKGROUND_LAYER_SETTINGS.imageUrl,
-        localAssetId: typeof layer?.localAssetId === 'string' ? layer.localAssetId : null,
-        presetId: typeof layer?.presetId === 'string' ? layer.presetId : null,
-        fit: (layer?.fit ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.fit) as BackgroundImageFit,
-        position: (layer?.position ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.position) as BackgroundImagePosition,
-        opacity: typeof layer?.opacity === 'number' ? layer.opacity : DEFAULT_BACKGROUND_LAYER_SETTINGS.opacity,
-        blur: typeof layer?.blur === 'number' ? layer.blur : DEFAULT_BACKGROUND_LAYER_SETTINGS.blur,
-        overlayColor: typeof layer?.overlayColor === 'string' ? layer.overlayColor : DEFAULT_BACKGROUND_LAYER_SETTINGS.overlayColor,
-        overlayOpacity: typeof layer?.overlayOpacity === 'number' ? layer.overlayOpacity : DEFAULT_BACKGROUND_LAYER_SETTINGS.overlayOpacity,
-        brightness: typeof layer?.brightness === 'number' ? layer.brightness : DEFAULT_BACKGROUND_LAYER_SETTINGS.brightness,
-        saturation: typeof layer?.saturation === 'number' ? layer.saturation : DEFAULT_BACKGROUND_LAYER_SETTINGS.saturation,
-        attachment: (layer?.attachment ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.attachment) as BackgroundAttachment,
-        animation: (layer?.animation ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.animation) as BackgroundAnimation,
-        animationSpeed: typeof layer?.animationSpeed === 'number' ? layer.animationSpeed : DEFAULT_BACKGROUND_LAYER_SETTINGS.animationSpeed,
-        contrast: typeof layer?.contrast === 'number' ? layer.contrast : DEFAULT_BACKGROUND_LAYER_SETTINGS.contrast,
-        grayscale: typeof layer?.grayscale === 'number' ? layer.grayscale : DEFAULT_BACKGROUND_LAYER_SETTINGS.grayscale,
-      }))
-    : [{ ...DEFAULT_BACKGROUND_LAYER_SETTINGS }];
+  const normalizedLayers = Array.isArray(settings?.layers)
+    ? settings.layers.map((layer, index) => normalizeLayer(layer, index, 'layer'))
+    : [];
+
+  const layers =
+    safeMode === 'layers' || normalizedLayers.length > 0
+      ? normalizedLayers.length > 0
+        ? normalizedLayers
+        : [{ ...DEFAULT_BACKGROUND_LAYER_SETTINGS }]
+      : [{ ...DEFAULT_BACKGROUND_LAYER_SETTINGS }];
 
   const rawSlideshow = settings?.slideshow;
   const slideshow: BackgroundSlideshowSettings = {
     slides: Array.isArray(rawSlideshow?.slides)
-      ? rawSlideshow.slides.map((slide, index) => ({
-          ...DEFAULT_BACKGROUND_LAYER_SETTINGS,
-          id: typeof slide?.id === 'string' && slide.id ? slide.id : `slide-${index + 1}`,
-          enabled: typeof slide?.enabled === 'boolean' ? slide.enabled : DEFAULT_BACKGROUND_LAYER_SETTINGS.enabled,
-          source: (slide?.source ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.source) as BackgroundImageSource,
-          imageUrl: typeof slide?.imageUrl === 'string' ? slide.imageUrl : DEFAULT_BACKGROUND_LAYER_SETTINGS.imageUrl,
-          localAssetId: typeof slide?.localAssetId === 'string' ? slide.localAssetId : null,
-          presetId: typeof slide?.presetId === 'string' ? slide.presetId : null,
-          fit: (slide?.fit ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.fit) as BackgroundImageFit,
-          position: (slide?.position ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.position) as BackgroundImagePosition,
-          opacity: typeof slide?.opacity === 'number' ? slide.opacity : DEFAULT_BACKGROUND_LAYER_SETTINGS.opacity,
-          blur: typeof slide?.blur === 'number' ? slide.blur : DEFAULT_BACKGROUND_LAYER_SETTINGS.blur,
-          overlayColor: typeof slide?.overlayColor === 'string' ? slide.overlayColor : DEFAULT_BACKGROUND_LAYER_SETTINGS.overlayColor,
-          overlayOpacity: typeof slide?.overlayOpacity === 'number' ? slide.overlayOpacity : DEFAULT_BACKGROUND_LAYER_SETTINGS.overlayOpacity,
-          brightness: typeof slide?.brightness === 'number' ? slide.brightness : DEFAULT_BACKGROUND_LAYER_SETTINGS.brightness,
-          saturation: typeof slide?.saturation === 'number' ? slide.saturation : DEFAULT_BACKGROUND_LAYER_SETTINGS.saturation,
-          attachment: (slide?.attachment ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.attachment) as BackgroundAttachment,
-          animation: (slide?.animation ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.animation) as BackgroundAnimation,
-          animationSpeed: typeof slide?.animationSpeed === 'number' ? slide.animationSpeed : DEFAULT_BACKGROUND_LAYER_SETTINGS.animationSpeed,
-          contrast: typeof slide?.contrast === 'number' ? slide.contrast : DEFAULT_BACKGROUND_LAYER_SETTINGS.contrast,
-          grayscale: typeof slide?.grayscale === 'number' ? slide.grayscale : DEFAULT_BACKGROUND_LAYER_SETTINGS.grayscale,
-        }))
+      ? rawSlideshow.slides.map((slide, index) => normalizeLayer(slide, index, 'slide'))
       : [],
-    intervalMs: typeof rawSlideshow?.intervalMs === 'number' ? rawSlideshow.intervalMs : DEFAULT_BACKGROUND_SETTINGS.slideshow.intervalMs,
-    transitionMs: typeof rawSlideshow?.transitionMs === 'number' ? rawSlideshow.transitionMs : DEFAULT_BACKGROUND_SETTINGS.slideshow.transitionMs,
-    shuffle: typeof rawSlideshow?.shuffle === 'boolean' ? rawSlideshow.shuffle : DEFAULT_BACKGROUND_SETTINGS.slideshow.shuffle,
+    intervalMs: clampValue(
+      rawSlideshow?.intervalMs,
+      BACKGROUND_LIMITS.slideshowInterval.min * 1000,
+      BACKGROUND_LIMITS.slideshowInterval.max * 1000,
+      DEFAULT_BACKGROUND_SETTINGS.slideshow.intervalMs
+    ),
+    transitionMs: clampValue(
+      rawSlideshow?.transitionMs,
+      BACKGROUND_LIMITS.slideshowTransition.min,
+      BACKGROUND_LIMITS.slideshowTransition.max,
+      DEFAULT_BACKGROUND_SETTINGS.slideshow.transitionMs
+    ),
+    shuffle:
+      typeof rawSlideshow?.shuffle === 'boolean'
+        ? rawSlideshow.shuffle
+        : DEFAULT_BACKGROUND_SETTINGS.slideshow.shuffle,
   };
+
+  if (safeMode === 'slideshow' && slideshow.slides.length === 0) {
+    slideshow.slides = [{ ...DEFAULT_BACKGROUND_LAYER_SETTINGS, id: 'slide-1' }];
+  }
+
+  const maxTransitionForInterval = Math.max(0, slideshow.intervalMs - 100);
+  slideshow.transitionMs = Math.min(slideshow.transitionMs, maxTransitionForInterval);
 
   return {
     ...DEFAULT_BACKGROUND_SETTINGS,
     ...settings,
+    enabled: typeof settings?.enabled === 'boolean' ? settings.enabled : DEFAULT_BACKGROUND_SETTINGS.enabled,
+    opacity: clampValue(
+      settings?.opacity,
+      BACKGROUND_LIMITS.opacity.min,
+      BACKGROUND_LIMITS.opacity.max,
+      DEFAULT_BACKGROUND_SETTINGS.opacity
+    ),
+    blur: clampValue(
+      settings?.blur,
+      BACKGROUND_LIMITS.blur.min,
+      BACKGROUND_LIMITS.blur.max,
+      DEFAULT_BACKGROUND_SETTINGS.blur
+    ),
+    overlayOpacity: clampValue(
+      settings?.overlayOpacity,
+      BACKGROUND_LIMITS.overlayOpacity.min,
+      BACKGROUND_LIMITS.overlayOpacity.max,
+      DEFAULT_BACKGROUND_SETTINGS.overlayOpacity
+    ),
+    brightness: clampValue(
+      settings?.brightness,
+      BACKGROUND_LIMITS.brightness.min,
+      BACKGROUND_LIMITS.brightness.max,
+      DEFAULT_BACKGROUND_SETTINGS.brightness
+    ),
+    saturation: clampValue(
+      settings?.saturation,
+      BACKGROUND_LIMITS.saturation.min,
+      BACKGROUND_LIMITS.saturation.max,
+      DEFAULT_BACKGROUND_SETTINGS.saturation
+    ),
+    animationSpeed: clampValue(
+      settings?.animationSpeed,
+      BACKGROUND_LIMITS.animationSpeed.min,
+      BACKGROUND_LIMITS.animationSpeed.max,
+      DEFAULT_BACKGROUND_SETTINGS.animationSpeed
+    ),
+    contrast: clampValue(
+      settings?.contrast,
+      BACKGROUND_LIMITS.contrast.min,
+      BACKGROUND_LIMITS.contrast.max,
+      DEFAULT_BACKGROUND_SETTINGS.contrast
+    ),
+    grayscale: clampValue(
+      settings?.grayscale,
+      BACKGROUND_LIMITS.grayscale.min,
+      BACKGROUND_LIMITS.grayscale.max,
+      DEFAULT_BACKGROUND_SETTINGS.grayscale
+    ),
     mode: safeMode,
     layers,
     slideshow,

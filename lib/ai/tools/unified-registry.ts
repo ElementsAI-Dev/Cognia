@@ -22,7 +22,7 @@
 import type { AgentTool } from '../agent/agent-executor';
 import type { Skill } from '@/types/system/skill';
 import type { McpServerState, ToolCallResult } from '@/types/mcp';
-import type { RAGConfig } from '../rag';
+import type { RAGRuntimeConfig } from '../rag';
 import { getGlobalToolRegistry } from './registry';
 
 /**
@@ -582,5 +582,5 @@ export type {
   Skill,
   McpServerState,
   ToolCallResult,
-  RAGConfig,
+  RAGRuntimeConfig,
 };

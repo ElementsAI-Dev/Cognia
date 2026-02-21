@@ -14,6 +14,10 @@ const mockSetApiKey = jest.fn();
 const mockSetViewMode = jest.fn();
 const mockClearError = jest.fn();
 const mockSetCurrentPage = jest.fn();
+const mockNativeAddRepo = jest.fn();
+const mockNativeRemoveRepo = jest.fn();
+const mockNativeToggleRepo = jest.fn();
+const mockNativeDiscover = jest.fn();
 
 jest.mock('@/hooks/skills/use-skill-marketplace', () => ({
   useSkillMarketplace: () => ({
@@ -44,6 +48,25 @@ jest.mock('@/hooks/skills/use-skill-marketplace', () => ({
     install: jest.fn(),
     getInstallStatus: jest.fn(() => 'not_installed'),
     fetchItemDetail: jest.fn(),
+  }),
+}));
+
+jest.mock('@/hooks/skills', () => ({
+  useNativeSkillAvailable: () => true,
+  useNativeSkills: () => ({
+    repos: [
+      {
+        owner: 'anthropics',
+        name: 'skills',
+        branch: 'main',
+        sourcePath: 'skills',
+        enabled: true,
+      },
+    ],
+    addRepo: mockNativeAddRepo,
+    removeRepo: mockNativeRemoveRepo,
+    toggleRepo: mockNativeToggleRepo,
+    discover: mockNativeDiscover,
   }),
 }));
 
@@ -137,6 +160,10 @@ jest.mock('./skill-marketplace-detail', () => ({
   SkillMarketplaceDetail: () => <div data-testid="skill-detail" />,
 }));
 
+jest.mock('./skill-repo-manager-dialog', () => ({
+  SkillRepoManagerDialog: () => <div data-testid="skill-repo-manager-dialog" />,
+}));
+
 describe('SkillMarketplace Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -147,6 +174,7 @@ describe('SkillMarketplace Component', () => {
       render(<SkillMarketplace />);
 
       expect(screen.getByPlaceholderText('marketplace.searchPlaceholder')).toBeInTheDocument();
+      expect(screen.getByTestId('skill-repo-manager-dialog')).toBeInTheDocument();
     });
 
     it('should render search input', () => {

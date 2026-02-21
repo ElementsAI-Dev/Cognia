@@ -124,6 +124,9 @@ export type BuiltInToolName =
   | 'display_review_session'
   | 'display_progress_summary'
   | 'display_concept_explanation'
+  | 'display_step_guide'
+  | 'display_concept_map'
+  | 'display_animation'
   // Canvas tools
   | 'canvas_create'
   | 'canvas_update'

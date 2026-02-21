@@ -122,16 +122,20 @@ export function SettingsProfiles() {
     // Apply profile settings to the store
     setTheme(profile.theme);
     setColorTheme(profile.colorTheme);
-    
+
     // Sync custom themes: delete all current, then add from profile
     customThemes.forEach((t) => deleteCustomTheme(t.id));
+    const themeIdMap = new Map<string, string>();
     profile.customThemes.forEach((t) => {
-      createCustomTheme({ name: t.name, colors: t.colors, isDark: t.isDark });
+      const newThemeId = createCustomTheme({ name: t.name, colors: t.colors, isDark: t.isDark });
+      themeIdMap.set(t.id, newThemeId);
     });
-    
-    if (profile.activeCustomThemeId) {
-      setActiveCustomTheme(profile.activeCustomThemeId);
-    }
+
+    const mappedActiveCustomThemeId = profile.activeCustomThemeId
+      ? themeIdMap.get(profile.activeCustomThemeId) ?? null
+      : null;
+    setActiveCustomTheme(mappedActiveCustomThemeId);
+
     setBackgroundSettings(profile.backgroundSettings);
     setUICustomization(profile.uiCustomization);
     setMessageBubbleStyle(profile.messageBubbleStyle);

@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle, Trash2, RotateCcw } from 'lucide-react';
 import { useInputCompletion } from '@/hooks/input-completion';
 import { useCompletionSettingsStore } from '@/stores/settings/completion-settings-store';
+import { useSettingsStore } from '@/stores/settings/settings-store';
 import { syncCompletionSettings } from '@/lib/native/input-completion';
 import { isTauri } from '@/lib/utils';
 import type { CompletionSettings as UnifiedCompletionSettings } from '@/types/chat/input-completion';
@@ -37,6 +38,10 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
   const t = useTranslations('inputCompletion');
   const tProviders = useTranslations('providers');
   const unifiedSettings = useCompletionSettingsStore();
+  const inputCompletionV3Enabled = useSettingsStore((state) => state.inputCompletionV3Enabled);
+  const completionNormalizerEnabled = useSettingsStore((state) => state.completionNormalizerEnabled);
+  const setInputCompletionV3Enabled = useSettingsStore((state) => state.setInputCompletionV3Enabled);
+  const setCompletionNormalizerEnabled = useSettingsStore((state) => state.setCompletionNormalizerEnabled);
   const {
     config,
     updateConfig,
@@ -337,6 +342,28 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
           {/* Unified Completion Settings */}
           <UnifiedCompletionSection onDirty={() => setHasChanges(true)} />
 
+          <div className="space-y-3 rounded-md border p-3">
+            <h4 className="font-medium">Alignment Feature Flags</h4>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Input Completion V3</Label>
+                <p className="text-xs text-muted-foreground">
+                  Uses before/after cursor aligned request payload.
+                </p>
+              </div>
+              <Switch checked={inputCompletionV3Enabled} onCheckedChange={setInputCompletionV3Enabled} />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Completion Normalizer</Label>
+                <p className="text-xs text-muted-foreground">
+                  Enables normalized cache-key alignment for higher hit rates.
+                </p>
+              </div>
+              <Switch checked={completionNormalizerEnabled} onCheckedChange={setCompletionNormalizerEnabled} />
+            </div>
+          </div>
+
           {/* Statistics */}
           <div className="space-y-4">
             <h4 className="font-medium">{t('statistics')}</h4>
@@ -366,6 +393,22 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
                   <span className="ml-2 font-medium">
                     {(stats.cache_hit_rate * 100).toFixed(1)}%
                   </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Exact Hits</span>
+                  <span className="ml-2 font-medium">{stats.cache_hits_exact ?? 0}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Prefix Hits</span>
+                  <span className="ml-2 font-medium">{stats.cache_hits_prefix ?? 0}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Normalized Hits</span>
+                  <span className="ml-2 font-medium">{stats.cache_hits_normalized ?? 0}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Stale Rejects</span>
+                  <span className="ml-2 font-medium">{stats.cache_stale_rejects ?? 0}</span>
                 </div>
               </div>
             ) : (

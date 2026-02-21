@@ -10,6 +10,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { loggers } from '../core/logger';
+import { openUrl } from '@/lib/native/opener';
 
 // =============================================================================
 // Types
@@ -143,7 +144,7 @@ export class PluginDevServer {
       loggers.devServer.info(`Started at ${this.status.url}`);
 
       if (this.config.openBrowser) {
-        await invoke('shell_open', { url: this.status.url });
+        await openUrl(this.status.url);
       }
     } catch (error) {
       loggers.devServer.error('Failed to start:', error);
@@ -545,60 +546,4 @@ export function resetPluginDevServer(): void {
     devServerInstance.stop();
     devServerInstance = null;
   }
-}
-
-// =============================================================================
-// React Hook
-// =============================================================================
-
-import { useEffect, useState, useCallback, useMemo } from 'react';
-
-export function usePluginDevServer() {
-  const devServer = useMemo(() => getPluginDevServer(), []);
-  const [status, setStatus] = useState<DevServerStatus>(() => devServer.getStatus());
-  const [consoleLogs, setConsoleLogs] = useState<DevConsoleMessage[]>([]);
-
-  useEffect(() => {
-    const unsubscribeConsole = devServer.onConsoleLog((log) => {
-      setConsoleLogs((prev) => [...prev.slice(-99), log]);
-    });
-
-    const unsubscribeMessage = devServer.onMessage(() => {
-      setStatus(devServer.getStatus());
-    });
-
-    return () => {
-      unsubscribeConsole();
-      unsubscribeMessage();
-    };
-  }, [devServer]);
-
-  const start = useCallback(async () => {
-    await devServer.start();
-    setStatus(devServer.getStatus());
-  }, [devServer]);
-
-  const stop = useCallback(async () => {
-    await devServer.stop();
-    setStatus(devServer.getStatus());
-  }, [devServer]);
-
-  const build = useCallback(async (pluginId: string) => {
-    return devServer.buildPlugin(pluginId);
-  }, [devServer]);
-
-  const clearLogs = useCallback((pluginId?: string) => {
-    devServer.clearConsoleLogs(pluginId);
-    setConsoleLogs(devServer.getConsoleLogs());
-  }, [devServer]);
-
-  return {
-    status,
-    consoleLogs,
-    start,
-    stop,
-    build,
-    clearLogs,
-    devServer,
-  };
 }

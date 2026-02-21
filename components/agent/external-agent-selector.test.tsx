@@ -24,7 +24,9 @@ jest.mock('next-intl', () => ({
 
 // Mock cn utility
 jest.mock('@/lib/utils', () => ({
+  ...jest.requireActual('@/lib/utils'),
   cn: (...args: (string | boolean | undefined | null)[]) => args.filter(Boolean).join(' '),
+  isTauri: jest.fn(() => true),
 }));
 
 // Mock external agent store
@@ -149,8 +151,8 @@ describe('ExternalAgentSelector', () => {
   };
 
   const mockAgents = [
-    { id: 'agent-1', name: 'Claude Code', protocol: 'acp', transport: 'stdio' },
-    { id: 'agent-2', name: 'Custom Agent', protocol: 'http', transport: 'http' },
+    { id: 'agent-1', name: 'Claude Code', protocol: 'acp', transport: 'stdio', enabled: true },
+    { id: 'agent-2', name: 'Custom Agent', protocol: 'http', transport: 'http', enabled: true },
   ];
 
   beforeEach(() => {

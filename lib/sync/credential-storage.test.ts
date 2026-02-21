@@ -14,6 +14,15 @@ jest.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 
+const mockStoreSecret = jest.fn();
+const mockGetSecret = jest.fn();
+const mockRemoveSecret = jest.fn();
+jest.mock('@/lib/native/stronghold', () => ({
+  storeSecret: (...args: unknown[]) => mockStoreSecret(...args),
+  getSecret: (...args: unknown[]) => mockGetSecret(...args),
+  removeSecret: (...args: unknown[]) => mockRemoveSecret(...args),
+}));
+
 // Mock storage-encryption (passthrough in test env)
 jest.mock('@/lib/storage/storage-encryption', () => ({
   encryptValue: jest.fn(async (v: string) => `enc:mock.${Buffer.from(v).toString('base64')}`),
@@ -74,6 +83,9 @@ describe('Credential Storage', () => {
     jest.clearAllMocks();
     localStorageMock.clear();
     mockIsTauri = false;
+    mockStoreSecret.mockResolvedValue(true);
+    mockGetSecret.mockResolvedValue(null);
+    mockRemoveSecret.mockResolvedValue(true);
   });
 
   describe('WebDAV Password (localStorage fallback)', () => {
@@ -177,19 +189,16 @@ describe('Credential Storage', () => {
 
     describe('storeWebDAVPassword', () => {
       it('should use Stronghold when in Tauri', async () => {
-        mockInvoke.mockResolvedValueOnce(undefined);
+        mockStoreSecret.mockResolvedValueOnce(true);
 
         const result = await storeWebDAVPassword('secure-password');
 
         expect(result).toBe(true);
-        expect(mockInvoke).toHaveBeenCalledWith('stronghold_store_sync_credential', {
-          key: 'sync:webdav:password',
-          value: 'secure-password',
-        });
+        expect(mockStoreSecret).toHaveBeenCalledWith('sync:webdav:password', 'secure-password');
       });
 
       it('should fallback to localStorage when Stronghold fails', async () => {
-        mockInvoke.mockRejectedValueOnce(new Error('Stronghold error'));
+        mockStoreSecret.mockResolvedValueOnce(false);
 
         const result = await storeWebDAVPassword('secure-password');
 
@@ -200,18 +209,16 @@ describe('Credential Storage', () => {
 
     describe('getWebDAVPassword', () => {
       it('should use Stronghold when in Tauri', async () => {
-        mockInvoke.mockResolvedValueOnce('stronghold-password');
+        mockGetSecret.mockResolvedValueOnce('stronghold-password');
 
         const result = await getWebDAVPassword();
 
         expect(result).toBe('stronghold-password');
-        expect(mockInvoke).toHaveBeenCalledWith('stronghold_get_sync_credential', {
-          key: 'sync:webdav:password',
-        });
+        expect(mockGetSecret).toHaveBeenCalledWith('sync:webdav:password');
       });
 
       it('should fallback to localStorage when Stronghold fails', async () => {
-        mockInvoke.mockRejectedValueOnce(new Error('Stronghold error'));
+        mockGetSecret.mockRejectedValueOnce(new Error('Stronghold error'));
         localStorageMock.setItem('sync:webdav:password', btoa('fallback-password'));
 
         const result = await getWebDAVPassword();
@@ -222,28 +229,23 @@ describe('Credential Storage', () => {
 
     describe('storeGitHubToken', () => {
       it('should use Stronghold when in Tauri', async () => {
-        mockInvoke.mockResolvedValueOnce(undefined);
+        mockStoreSecret.mockResolvedValueOnce(true);
 
         const result = await storeGitHubToken('ghp_secure_token');
 
         expect(result).toBe(true);
-        expect(mockInvoke).toHaveBeenCalledWith('stronghold_store_sync_credential', {
-          key: 'sync:github:token',
-          value: 'ghp_secure_token',
-        });
+        expect(mockStoreSecret).toHaveBeenCalledWith('sync:github:token', 'ghp_secure_token');
       });
     });
 
     describe('getGitHubToken', () => {
       it('should use Stronghold when in Tauri', async () => {
-        mockInvoke.mockResolvedValueOnce('ghp_stronghold_token');
+        mockGetSecret.mockResolvedValueOnce('ghp_stronghold_token');
 
         const result = await getGitHubToken();
 
         expect(result).toBe('ghp_stronghold_token');
-        expect(mockInvoke).toHaveBeenCalledWith('stronghold_get_sync_credential', {
-          key: 'sync:github:token',
-        });
+        expect(mockGetSecret).toHaveBeenCalledWith('sync:github:token');
       });
     });
   });

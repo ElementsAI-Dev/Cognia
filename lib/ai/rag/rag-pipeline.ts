@@ -26,9 +26,20 @@ import { scoreLateInteraction } from '@/lib/ai/embedding/late-interaction';
 import {
   HybridSearchEngine,
   type HybridSearchConfig,
-  type SearchDocument,
 } from './hybrid-search';
 import { loggers } from '@/lib/logger';
+import {
+  createVectorStore,
+  type IVectorStore,
+  type VectorStoreConfig,
+  type VectorSearchResult,
+  type VectorDocument,
+} from '@/lib/vector';
+import {
+  createPersistentStorage,
+  isIndexedDBAvailable,
+  type PersistentRAGStorage,
+} from './persistent-storage';
 
 const log = loggers.ai;
 import {
@@ -233,6 +244,9 @@ export interface RAGPipelineConfig {
     enabled?: boolean;
     mode?: 'skip' | 'upsert';
   };
+
+  // Unified vector store backend configuration
+  vectorStoreConfig?: Partial<VectorStoreConfig>;
 }
 
 export interface RAGPipelineContext {
@@ -274,11 +288,14 @@ interface IndexedDocument {
  */
 export class RAGPipeline {
   private config: Omit<Required<RAGPipelineConfig>, 'model'> & { model?: LanguageModel };
-  private hybridEngine: HybridSearchEngine;
   private contextCache: ContextCache;
-  private collections: Map<string, IndexedDocument[]> = new Map();
+  private mirrorCollections: Map<string, IndexedDocument[]> = new Map();
   private embeddingCache: Map<string, number[]> = new Map();
   private sparseEmbeddingCache: Map<string, SparseVector> = new Map();
+  private vectorStore: IVectorStore;
+  private persistentStorage: PersistentRAGStorage | null = null;
+  private persistentStorageReady = false;
+  private persistentStorageInitPromise: Promise<void>;
   
   // New optimization components
   private queryCache: RAGQueryCache;
@@ -359,17 +376,32 @@ export class RAGPipeline {
         enabled: config.deduplication?.enabled ?? false,
         mode: config.deduplication?.mode ?? 'skip',
       },
+      vectorStoreConfig: config.vectorStoreConfig ?? {},
     };
 
-    // Initialize hybrid search engine
-    const hybridConfig: HybridSearchConfig = {
-      vectorWeight: this.config.hybridSearch.vectorWeight,
-      keywordWeight: this.config.hybridSearch.keywordWeight,
-      sparseWeight: this.config.hybridSearch.sparseWeight,
-      lateInteractionWeight: this.config.hybridSearch.lateInteractionWeight,
-      deduplicateResults: true,
+    const vectorStoreConfig: VectorStoreConfig = {
+      provider: config.vectorStoreConfig?.provider ?? 'chroma',
+      embeddingConfig: this.config.embeddingConfig,
+      embeddingApiKey: this.config.embeddingApiKey,
+      chromaMode: config.vectorStoreConfig?.chromaMode ?? 'embedded',
+      chromaServerUrl: config.vectorStoreConfig?.chromaServerUrl,
+      pineconeApiKey: config.vectorStoreConfig?.pineconeApiKey,
+      pineconeIndexName: config.vectorStoreConfig?.pineconeIndexName,
+      pineconeNamespace: config.vectorStoreConfig?.pineconeNamespace,
+      weaviateUrl: config.vectorStoreConfig?.weaviateUrl,
+      weaviateApiKey: config.vectorStoreConfig?.weaviateApiKey,
+      qdrantUrl: config.vectorStoreConfig?.qdrantUrl,
+      qdrantApiKey: config.vectorStoreConfig?.qdrantApiKey,
+      qdrantCollectionName: config.vectorStoreConfig?.qdrantCollectionName,
+      milvusAddress: config.vectorStoreConfig?.milvusAddress,
+      milvusToken: config.vectorStoreConfig?.milvusToken,
+      milvusUsername: config.vectorStoreConfig?.milvusUsername,
+      milvusPassword: config.vectorStoreConfig?.milvusPassword,
+      milvusSsl: config.vectorStoreConfig?.milvusSsl,
+      milvusCollectionName: config.vectorStoreConfig?.milvusCollectionName,
+      native: {},
     };
-    this.hybridEngine = new HybridSearchEngine(hybridConfig);
+    this.vectorStore = createVectorStore(vectorStoreConfig);
 
     // Initialize context cache
     this.contextCache = createContextCache(10000);
@@ -393,6 +425,74 @@ export class RAGPipeline {
       enabled: config.adaptiveReranking?.enabled ?? false,
       feedbackWeight: config.adaptiveReranking?.feedbackWeight ?? 0.3,
     });
+
+    this.persistentStorageInitPromise = this.initializePersistentStorage();
+  }
+
+  private async initializePersistentStorage(): Promise<void> {
+    if (!isIndexedDBAvailable()) {
+      return;
+    }
+
+    try {
+      this.persistentStorage = createPersistentStorage();
+      await this.persistentStorage.initialize();
+      this.persistentStorageReady = true;
+    } catch (error) {
+      this.persistentStorage = null;
+      this.persistentStorageReady = false;
+      log.warn('RAG persistent storage unavailable, using in-memory mirror only', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private async ensurePersistentStorageReady(): Promise<void> {
+    await this.persistentStorageInitPromise;
+  }
+
+  private async loadMirrorCollection(collectionName: string): Promise<IndexedDocument[]> {
+    if (this.mirrorCollections.has(collectionName)) {
+      return this.mirrorCollections.get(collectionName) || [];
+    }
+
+    await this.ensurePersistentStorageReady();
+    if (!this.persistentStorageReady || !this.persistentStorage) {
+      this.mirrorCollections.set(collectionName, []);
+      return [];
+    }
+
+    try {
+      const stored = await this.persistentStorage.loadDocuments(collectionName);
+      const mapped: IndexedDocument[] = stored.map((doc) => ({
+        id: doc.id,
+        content: doc.content,
+        embedding: doc.embedding,
+        metadata: doc.metadata,
+      }));
+      this.mirrorCollections.set(collectionName, mapped);
+      for (const doc of mapped) {
+        this.embeddingCache.set(doc.id, doc.embedding);
+      }
+      return mapped;
+    } catch (error) {
+      log.warn('Failed to load mirror collection from persistent storage', {
+        collectionName,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      this.mirrorCollections.set(collectionName, []);
+      return [];
+    }
+  }
+
+  private updateMirrorCollection(
+    collectionName: string,
+    updater: (current: IndexedDocument[]) => IndexedDocument[]
+  ): IndexedDocument[] {
+    const current = this.mirrorCollections.get(collectionName) || [];
+    const next = updater(current);
+    this.mirrorCollections.set(collectionName, next);
+    return next;
   }
 
   /**
@@ -405,11 +505,12 @@ export class RAGPipeline {
     const { collectionName, documentId, documentTitle, metadata, useContextualRetrieval, onProgress } = options;
 
     try {
+      const mirrorCollection = await this.loadMirrorCollection(collectionName);
+
       // Document deduplication check
       if (this.config.deduplication.enabled) {
         const fingerprint = computeContentFingerprint(content);
-        const existing = this.collections.get(collectionName) || [];
-        const duplicate = existing.find(
+        const duplicate = mirrorCollection.find(
           (doc) => doc.metadata?.contentFingerprint === fingerprint
         );
         if (duplicate) {
@@ -418,11 +519,11 @@ export class RAGPipeline {
             return { chunksCreated: 0, success: true };
           }
           // upsert mode: remove old documents with same fingerprint, then re-index
-          const docsToRemove = existing
+          const docsToRemove = mirrorCollection
             .filter((d) => d.metadata?.contentFingerprint === fingerprint)
             .map((d) => d.id);
           if (docsToRemove.length > 0) {
-            this.deleteDocuments(collectionName, docsToRemove);
+            await this.deleteDocuments(collectionName, docsToRemove);
             log.debug(`Dedup: upsert mode — removed ${docsToRemove.length} old chunks before re-indexing`);
           }
         }
@@ -503,9 +604,12 @@ export class RAGPipeline {
         }
       }
 
-      // Store in collection
+      // Build chunk-level ids scoped by collection to avoid cross-collection collisions
+      const toStoredId = (rawId: string) => `${collectionName}::${rawId}`;
+
+      // Store in vector backend and mirror
       const documents: IndexedDocument[] = processedChunks.map((chunk, i) => ({
-        id: chunk.id,
+        id: toStoredId(chunk.id),
         content: 'contextualContent' in chunk ? (chunk as ContextualChunk).contextualContent : chunk.content,
         embedding: embeddingResult.embeddings[i],
         sparseEmbedding: this.config.hybridSearch.enableSparseSearch
@@ -527,19 +631,34 @@ export class RAGPipeline {
         },
       }));
 
-      // Get or create collection
-      const existing = this.collections.get(collectionName) || [];
-      this.collections.set(collectionName, [...existing, ...documents]);
-
-      // Add to hybrid search engine
-      const searchDocs: SearchDocument[] = documents.map(doc => ({
+      const vectorDocuments: VectorDocument[] = documents.map((doc) => ({
         id: doc.id,
         content: doc.content,
-        metadata: doc.metadata as Record<string, unknown>,
+        metadata: doc.metadata,
+        embedding: doc.embedding,
       }));
-      this.hybridEngine.addDocuments(searchDocs);
+      try {
+        await this.vectorStore.addDocuments(collectionName, vectorDocuments);
+      } catch (error) {
+        log.warn('Vector store indexing failed, keeping mirror index only', {
+          collectionName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
 
-      // Cache embeddings
+      this.updateMirrorCollection(collectionName, (existing) => [...existing, ...documents]);
+
+      await this.ensurePersistentStorageReady();
+      if (this.persistentStorageReady && this.persistentStorage) {
+        await this.persistentStorage.saveDocuments(collectionName, documents.map((doc) => ({
+          id: doc.id,
+          content: doc.content,
+          embedding: doc.embedding,
+          metadata: doc.metadata,
+        })));
+      }
+
+      // Warm embedding caches
       for (const doc of documents) {
         this.embeddingCache.set(doc.id, doc.embedding);
         if (doc.sparseEmbedding) {
@@ -602,10 +721,7 @@ export class RAGPipeline {
         }
       }
 
-      const collection = this.collections.get(collectionName);
-      if (!collection || collection.length === 0) {
-        return this.emptyContext(query, searchMetadata);
-      }
+      await this.loadMirrorCollection(collectionName);
 
       // Query expansion
       let expandedQuery: ExpandedQuery | undefined;
@@ -625,9 +741,10 @@ export class RAGPipeline {
       const allResults: RerankResult[][] = [];
 
       for (const searchQuery of queriesToSearch) {
-        const results = await this.searchSingle(collectionName, searchQuery, collection);
+        const results = await this.searchSingle(collectionName, searchQuery);
         allResults.push(results);
       }
+      searchMetadata.hybridSearchUsed = this.config.hybridSearch.enabled ?? false;
 
       // Merge results from all query variants
       const flatResults = allResults.flat();
@@ -836,19 +953,16 @@ export class RAGPipeline {
    * Perform a single search operation
    */
   private async searchSingle(
-    _collectionName: string,
-    query: string,
-    collection: IndexedDocument[]
+    collectionName: string,
+    query: string
   ): Promise<RerankResult[]> {
-    // Generate query embedding
-    const queryEmbedding = await generateEmbedding(
-      query,
-      this.config.embeddingConfig,
-      this.config.embeddingApiKey
-    );
+    const collection = await this.loadMirrorCollection(collectionName);
 
-    // Perform vector search
-    const vectorResults = this.vectorSearch(collection, queryEmbedding.embedding);
+    // Perform vector search from unified vector backend
+    const vectorResults = await this.vectorSearch(collectionName, query);
+    if (vectorResults.length === 0 && collection.length === 0) {
+      return [];
+    }
 
     const sparseResults = this.config.hybridSearch.enableSparseSearch
       ? this.sparseSearch(collection, query)
@@ -860,7 +974,21 @@ export class RAGPipeline {
 
     // If hybrid search enabled, combine with keyword search
     if (this.config.hybridSearch.enabled) {
-      const hybridResults = this.hybridEngine.hybridSearch(
+      const hybridConfig: HybridSearchConfig = {
+        vectorWeight: this.config.hybridSearch.vectorWeight,
+        keywordWeight: this.config.hybridSearch.keywordWeight,
+        sparseWeight: this.config.hybridSearch.sparseWeight,
+        lateInteractionWeight: this.config.hybridSearch.lateInteractionWeight,
+        deduplicateResults: true,
+      };
+      const hybridEngine = new HybridSearchEngine(hybridConfig);
+      hybridEngine.addDocuments(collection.map((doc) => ({
+        id: doc.id,
+        content: doc.content,
+        metadata: doc.metadata as Record<string, unknown>,
+      })));
+
+      const hybridResults = hybridEngine.hybridSearch(
         vectorResults.map(r => ({ id: r.id, score: r.score })),
         query,
         this.config.topK * 2,
@@ -890,22 +1018,43 @@ export class RAGPipeline {
    * Vector similarity search
    */
   private vectorSearch(
-    collection: IndexedDocument[],
-    queryEmbedding: number[]
-  ): { id: string; content: string; metadata?: Record<string, unknown>; score: number }[] {
-    const results = collection.map(doc => {
-      const score = cosineSimilarity(queryEmbedding, doc.embedding);
-      return {
-        id: doc.id,
-        content: doc.content,
-        metadata: doc.metadata,
-        score,
-      };
-    });
-
-    return results
-      .sort((a, b) => b.score - a.score)
-      .slice(0, this.config.topK * 2);
+    collectionName: string,
+    query: string
+  ): Promise<{ id: string; content: string; metadata?: Record<string, unknown>; score: number }[]> {
+    return this.vectorStore
+      .searchDocuments(collectionName, query, {
+        topK: this.config.topK * 4,
+      })
+      .then((results: VectorSearchResult[]) =>
+        results.map((result) => ({
+          id: result.id,
+          content: result.content,
+          metadata: result.metadata,
+          score: result.score,
+        }))
+      )
+      .catch(async (error) => {
+        log.warn('Vector store query failed, falling back to mirror vector search', {
+          collectionName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        const collection = await this.loadMirrorCollection(collectionName);
+        if (collection.length === 0) return [];
+        const queryEmbedding = await generateEmbedding(
+          query,
+          this.config.embeddingConfig,
+          this.config.embeddingApiKey
+        );
+        return collection
+          .map((doc) => ({
+            id: doc.id,
+            content: doc.content,
+            metadata: doc.metadata,
+            score: cosineSimilarity(queryEmbedding.embedding, doc.embedding),
+          }))
+          .sort((a, b) => b.score - a.score)
+          .slice(0, this.config.topK * 4);
+      });
   }
 
   private sparseSearch(
@@ -998,66 +1147,125 @@ export class RAGPipeline {
   /**
    * Delete documents from a collection
    */
-  deleteDocuments(collectionName: string, documentIds: string[]): number {
-    const collection = this.collections.get(collectionName);
-    if (!collection) return 0;
+  async deleteDocuments(collectionName: string, documentIds: string[]): Promise<number> {
+    const collection = await this.loadMirrorCollection(collectionName);
+    if (collection.length === 0 || documentIds.length === 0) return 0;
 
     const idsToDelete = new Set(documentIds);
     const initialLength = collection.length;
-    
-    const filtered = collection.filter(doc => !idsToDelete.has(doc.id));
-    this.collections.set(collectionName, filtered);
 
-    // Remove from hybrid engine
-    this.hybridEngine.removeDocuments(documentIds);
+    const filtered = collection.filter((doc) => !idsToDelete.has(doc.id));
+    this.mirrorCollections.set(collectionName, filtered);
 
-    // Remove from embedding cache
+    try {
+      await this.vectorStore.deleteDocuments(collectionName, documentIds);
+    } catch (error) {
+      log.warn('Failed to delete documents from vector store', {
+        collectionName,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    await this.ensurePersistentStorageReady();
+    if (this.persistentStorageReady && this.persistentStorage) {
+      try {
+        await this.persistentStorage.deleteDocuments(collectionName, documentIds);
+      } catch (error) {
+        log.warn('Failed to delete documents from persistent mirror', {
+          collectionName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
     for (const id of documentIds) {
       this.embeddingCache.delete(id);
       this.sparseEmbeddingCache.delete(id);
     }
 
-    // Invalidate query cache for this collection
     this.queryCache.invalidateCollection(collectionName);
-
     return initialLength - filtered.length;
+  }
+
+  /**
+   * Delete all chunks indexed for a source document.
+   */
+  async deleteByDocumentId(collectionName: string, documentId: string): Promise<number> {
+    const collection = await this.loadMirrorCollection(collectionName);
+    const ids = collection
+      .filter((doc) => doc.metadata?.documentId === documentId)
+      .map((doc) => doc.id);
+    if (ids.length === 0) return 0;
+    return this.deleteDocuments(collectionName, ids);
   }
 
   /**
    * Clear a collection
    */
-  clearCollection(collectionName: string): void {
-    const collection = this.collections.get(collectionName);
-    if (collection) {
-      const ids = collection.map(doc => doc.id);
-      this.hybridEngine.removeDocuments(ids);
+  async clearCollection(collectionName: string): Promise<void> {
+    const collection = await this.loadMirrorCollection(collectionName);
+    const ids = collection.map((doc) => doc.id);
+
+    if (ids.length > 0) {
       for (const id of ids) {
         this.embeddingCache.delete(id);
         this.sparseEmbeddingCache.delete(id);
       }
     }
-    this.collections.delete(collectionName);
-    
-    // Invalidate query cache for this collection
+    this.mirrorCollections.delete(collectionName);
+
+    try {
+      if (this.vectorStore.deleteAllDocuments) {
+        await this.vectorStore.deleteAllDocuments(collectionName);
+      } else if (ids.length > 0) {
+        await this.vectorStore.deleteDocuments(collectionName, ids);
+      }
+    } catch (error) {
+      log.warn('Failed to clear collection in vector store', {
+        collectionName,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    await this.ensurePersistentStorageReady();
+    if (this.persistentStorageReady && this.persistentStorage) {
+      try {
+        await this.persistentStorage.clearCollection(collectionName);
+      } catch (error) {
+        log.warn('Failed to clear collection in persistent mirror', {
+          collectionName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
     this.queryCache.invalidateCollection(collectionName);
   }
 
   /**
    * Get collection statistics
    */
-  getCollectionStats(collectionName: string): { documentCount: number; exists: boolean } {
-    const collection = this.collections.get(collectionName);
+  async getCollectionStats(collectionName: string): Promise<{ documentCount: number; exists: boolean }> {
+    const collection = await this.loadMirrorCollection(collectionName);
     return {
-      documentCount: collection?.length ?? 0,
-      exists: this.collections.has(collectionName),
+      documentCount: collection.length,
+      exists: collection.length > 0,
     };
   }
 
   /**
    * List all collections
    */
-  listCollections(): string[] {
-    return Array.from(this.collections.keys());
+  async listCollections(): Promise<string[]> {
+    try {
+      const collections = await this.vectorStore.listCollections();
+      return collections.map((collection) => collection.name);
+    } catch (error) {
+      log.warn('Failed to list collections from vector store, using mirror map', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return Array.from(this.mirrorCollections.keys());
+    }
   }
 
   /**
@@ -1066,12 +1274,6 @@ export class RAGPipeline {
   updateConfig(config: Partial<RAGPipelineConfig>): void {
     if (config.hybridSearch) {
       Object.assign(this.config.hybridSearch, config.hybridSearch);
-      this.hybridEngine.updateConfig({
-        vectorWeight: this.config.hybridSearch.vectorWeight,
-        keywordWeight: this.config.hybridSearch.keywordWeight,
-        sparseWeight: this.config.hybridSearch.sparseWeight,
-        lateInteractionWeight: this.config.hybridSearch.lateInteractionWeight,
-      });
     }
     if (config.contextualRetrieval) {
       Object.assign(this.config.contextualRetrieval, config.contextualRetrieval);

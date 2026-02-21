@@ -5,6 +5,7 @@
 #![cfg(target_os = "macos")]
 
 use async_trait::async_trait;
+use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -15,7 +16,7 @@ use super::error::{Result, SchedulerError};
 use super::service::{generate_task_name, is_cognia_task, now_iso, SystemScheduler, TASK_PREFIX};
 use super::types::{
     CreateSystemTaskInput, RunLevel, SchedulerCapabilities, SystemTask, SystemTaskAction,
-    SystemTaskId, SystemTaskStatus, SystemTaskTrigger, TaskRunResult,
+    SystemTaskId, SystemTaskStatus, SystemTaskTrigger, TaskMetadataState, TaskRunResult,
 };
 
 /// macOS launchd scheduler implementation
@@ -344,6 +345,170 @@ impl MacOSScheduler {
         }
     }
 
+    fn decode_xml_entities(s: &str) -> String {
+        s.replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+            .trim()
+            .to_string()
+    }
+
+    fn extract_key_block(content: &str, key: &str, value_tag: &str) -> Option<String> {
+        let pattern = format!(
+            r"(?s)<key>{}</key>\s*<{}>(.*?)</{}>",
+            key, value_tag, value_tag
+        );
+        let regex = Regex::new(&pattern).ok()?;
+        regex
+            .captures(content)
+            .and_then(|cap| cap.get(1).map(|v| Self::decode_xml_entities(v.as_str())))
+    }
+
+    fn extract_key_int(content: &str, key: &str) -> Option<u64> {
+        Self::extract_key_block(content, key, "integer").and_then(|v| v.parse::<u64>().ok())
+    }
+
+    fn extract_program_arguments(content: &str) -> Vec<String> {
+        let array = Self::extract_key_block(content, "ProgramArguments", "array");
+        let Some(array) = array else {
+            return Vec::new();
+        };
+        let mut values = Vec::new();
+        if let Ok(regex) = Regex::new(r"(?s)<string>(.*?)</string>") {
+            for cap in regex.captures_iter(&array) {
+                if let Some(raw) = cap.get(1) {
+                    values.push(Self::decode_xml_entities(raw.as_str()));
+                }
+            }
+        }
+        values
+    }
+
+    fn parse_env_vars(content: &str) -> HashMap<String, String> {
+        let mut env = HashMap::new();
+        let Some(dict) = Self::extract_key_block(content, "EnvironmentVariables", "dict") else {
+            return env;
+        };
+
+        let Ok(regex) = Regex::new(r"(?s)<key>(.*?)</key>\s*<string>(.*?)</string>") else {
+            return env;
+        };
+
+        for cap in regex.captures_iter(&dict) {
+            let key = cap
+                .get(1)
+                .map(|m| Self::decode_xml_entities(m.as_str()))
+                .unwrap_or_default();
+            let value = cap
+                .get(2)
+                .map(|m| Self::decode_xml_entities(m.as_str()))
+                .unwrap_or_default();
+            if !key.is_empty() {
+                env.insert(key, value);
+            }
+        }
+        env
+    }
+
+    fn arg_value(args: &[String], key: &str) -> Option<String> {
+        args.iter()
+            .position(|arg| arg == key)
+            .and_then(|index| args.get(index + 1).cloned())
+    }
+
+    fn parse_action_from_plist(content: &str) -> Option<SystemTaskAction> {
+        let args = Self::extract_program_arguments(content);
+        if args.is_empty() {
+            return None;
+        }
+
+        let working_dir = Self::extract_key_block(content, "WorkingDirectory", "string");
+        let env = Self::parse_env_vars(content);
+        let command = args.first()?.clone();
+        let command_args = args.get(1..).unwrap_or(&[]).to_vec();
+
+        if command_args.iter().any(|arg| arg == "execute-script") {
+            let language = Self::arg_value(&command_args, "--language")
+                .unwrap_or_else(|| "unknown".to_string());
+            let timeout_secs = Self::arg_value(&command_args, "--timeout")
+                .and_then(|v| v.parse::<u64>().ok())
+                .unwrap_or(300);
+            let memory_mb = Self::arg_value(&command_args, "--memory")
+                .and_then(|v| v.parse::<u64>().ok())
+                .unwrap_or(512);
+            let use_sandbox = command_args.iter().any(|arg| arg == "--sandbox");
+            let code_b64 = Self::arg_value(&command_args, "--code-b64").unwrap_or_default();
+            let code = if code_b64.is_empty() {
+                String::new()
+            } else {
+                base64::Engine::decode(
+                    &base64::engine::general_purpose::STANDARD,
+                    code_b64.as_bytes(),
+                )
+                .ok()
+                .and_then(|bytes| String::from_utf8(bytes).ok())
+                .unwrap_or_default()
+            };
+
+            return Some(SystemTaskAction::ExecuteScript {
+                language,
+                code,
+                working_dir,
+                args: vec![],
+                env,
+                timeout_secs,
+                memory_mb,
+                use_sandbox,
+            });
+        }
+
+        Some(SystemTaskAction::RunCommand {
+            command,
+            args: command_args,
+            working_dir,
+            env,
+        })
+    }
+
+    fn parse_trigger_from_plist(content: &str) -> Option<SystemTaskTrigger> {
+        if let Some(interval) = Self::extract_key_int(content, "StartInterval") {
+            return Some(SystemTaskTrigger::Interval { seconds: interval });
+        }
+
+        if let Some(delay) = Self::extract_key_int(content, "ThrottleInterval") {
+            return Some(SystemTaskTrigger::OnBoot {
+                delay_seconds: delay,
+            });
+        }
+
+        if content.contains("<key>RunAtLoad</key>") {
+            return Some(SystemTaskTrigger::OnLogon { user: None });
+        }
+
+        let calendar = Self::extract_key_block(content, "StartCalendarInterval", "dict")?;
+        let minute = Self::extract_key_int(&calendar, "Minute");
+        let hour = Self::extract_key_int(&calendar, "Hour");
+        let day = Self::extract_key_int(&calendar, "Day");
+        let month = Self::extract_key_int(&calendar, "Month");
+
+        if let (Some(minute), Some(hour), Some(day), Some(month)) = (minute, hour, day, month) {
+            let year = chrono::Utc::now().year();
+            let run_at = format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:00Z");
+            return Some(SystemTaskTrigger::Once { run_at });
+        }
+
+        if let (Some(minute), Some(hour)) = (minute, hour) {
+            return Some(SystemTaskTrigger::Cron {
+                expression: format!("{minute} {hour} * * *"),
+                timezone: Some("UTC".to_string()),
+            });
+        }
+
+        None
+    }
+
     /// Load a task from its plist file
     fn load_task_from_plist(&self, path: &PathBuf) -> Option<SystemTask> {
         let content = fs::read_to_string(path).ok()?;
@@ -368,17 +533,25 @@ impl MacOSScheduler {
             })
             .unwrap_or(SystemTaskStatus::Unknown);
 
+        let parsed_trigger = Self::parse_trigger_from_plist(&content);
+        let parsed_action = Self::parse_action_from_plist(&content);
+        let metadata_state = if parsed_trigger.is_some() && parsed_action.is_some() {
+            TaskMetadataState::Full
+        } else {
+            TaskMetadataState::Degraded
+        };
+
         Some(SystemTask {
             id: label.to_string(),
             name,
             description: None,
-            trigger: SystemTaskTrigger::Interval { seconds: 0 },
-            action: SystemTaskAction::RunCommand {
+            trigger: parsed_trigger.unwrap_or(SystemTaskTrigger::Interval { seconds: 0 }),
+            action: parsed_action.unwrap_or(SystemTaskAction::RunCommand {
                 command: String::new(),
                 args: vec![],
                 working_dir: None,
                 env: HashMap::new(),
-            },
+            }),
             run_level: RunLevel::User,
             status,
             requires_admin: false,
@@ -388,6 +561,7 @@ impl MacOSScheduler {
             last_run_at: None,
             next_run_at: None,
             last_result: None,
+            metadata_state,
         })
     }
 }
@@ -456,6 +630,7 @@ impl SystemScheduler for MacOSScheduler {
             last_run_at: None,
             next_run_at: None,
             last_result: None,
+            metadata_state: TaskMetadataState::Full,
         };
 
         task.requires_admin = task.check_requires_admin();
@@ -598,3 +773,34 @@ impl SystemScheduler for MacOSScheduler {
 }
 
 use chrono::{Datelike, Timelike};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_plist_trigger_and_action() {
+        let plist = r#"
+<plist version="1.0">
+<dict>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/echo</string>
+    <string>hello</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>300</integer>
+</dict>
+</plist>
+"#;
+
+        let trigger = MacOSScheduler::parse_trigger_from_plist(plist).expect("trigger");
+        let action = MacOSScheduler::parse_action_from_plist(plist).expect("action");
+
+        assert!(matches!(
+            trigger,
+            SystemTaskTrigger::Interval { seconds: 300 }
+        ));
+        assert!(matches!(action, SystemTaskAction::RunCommand { .. }));
+    }
+}

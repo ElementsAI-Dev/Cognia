@@ -32,7 +32,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { InlineLoading } from '@/components/ui/loading-states';
 
 type ViewMode = 'grid' | 'list';
 

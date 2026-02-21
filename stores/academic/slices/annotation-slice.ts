@@ -3,7 +3,7 @@
  * Paper annotations and citation/reference lookups
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { academicRuntimeInvoke } from '@/lib/native/academic-runtime';
 import type {
   Paper,
   PaperAnnotation,
@@ -34,12 +34,12 @@ export interface AnnotationActions {
 export const createAnnotationSlice: AcademicSliceCreator<AnnotationActions> = (set, _get) => ({
     addAnnotation: async (paperId, annotation) => {
       try {
-        const result = await invoke<PaperAnnotation>('academic_add_annotation', {
+        const result = await academicRuntimeInvoke<PaperAnnotation>('academic_add_annotation', {
           paperId,
           annotation: {
             type: annotation.type,
             content: annotation.content,
-            page_number: annotation.pageNumber,
+            pageNumber: annotation.pageNumber,
             position: annotation.position,
             color: annotation.color,
           },
@@ -53,7 +53,7 @@ export const createAnnotationSlice: AcademicSliceCreator<AnnotationActions> = (s
 
     updateAnnotation: async (annotationId, updates) => {
       try {
-        await invoke('academic_update_annotation', {
+        await academicRuntimeInvoke('academic_update_annotation', {
           annotationId,
           updates: {
             content: updates.content,
@@ -68,7 +68,7 @@ export const createAnnotationSlice: AcademicSliceCreator<AnnotationActions> = (s
 
     deleteAnnotation: async (annotationId) => {
       try {
-        await invoke('academic_delete_annotation', { annotationId });
+        await academicRuntimeInvoke('academic_delete_annotation', { annotationId });
       } catch (error) {
         set({ error: error instanceof Error ? error.message : String(error) });
         throw error;
@@ -77,7 +77,7 @@ export const createAnnotationSlice: AcademicSliceCreator<AnnotationActions> = (s
 
     getAnnotations: async (paperId) => {
       try {
-        const annotations = await invoke<PaperAnnotation[]>('academic_get_annotations', {
+        const annotations = await academicRuntimeInvoke<PaperAnnotation[]>('academic_get_annotations', {
           paperId,
         });
         return annotations;
@@ -88,7 +88,7 @@ export const createAnnotationSlice: AcademicSliceCreator<AnnotationActions> = (s
 
     getCitations: async (paperId, provider) => {
       try {
-        const citations = await invoke<Paper[]>('academic_get_citations', {
+        const citations = await academicRuntimeInvoke<Paper[]>('academic_get_citations', {
           providerId: provider,
           paperId,
           limit: 50,
@@ -102,7 +102,7 @@ export const createAnnotationSlice: AcademicSliceCreator<AnnotationActions> = (s
 
     getReferences: async (paperId, provider) => {
       try {
-        const references = await invoke<Paper[]>('academic_get_references', {
+        const references = await academicRuntimeInvoke<Paper[]>('academic_get_references', {
           providerId: provider,
           paperId,
           limit: 50,

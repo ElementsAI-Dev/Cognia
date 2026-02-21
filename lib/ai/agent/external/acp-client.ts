@@ -140,6 +140,12 @@ interface AcpNewSessionParams {
     claudeCode?: {
       options?: Record<string, unknown>;
     };
+    /** Codex ACP specific options */
+    codex?: {
+      options?: Record<string, unknown>;
+    };
+    /** Cognia-specific session metadata */
+    cognia?: Record<string, unknown>;
   };
 }
 
@@ -604,13 +610,33 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
       throw new Error('Not connected to agent');
     }
 
+    const customContext = options?.context || {};
+    const instructionEnvelope = options?.instructionEnvelope;
+    const codexOptions = {
+      developer_instructions: instructionEnvelope?.developerInstructions,
+      project_doc_fallback_filenames: ['AGENTS.md', 'CLAUDE.md', 'README.md'],
+      project_doc_max_bytes: 32768,
+      skills: instructionEnvelope?.skillsSummary,
+      instruction_hash: instructionEnvelope?.hash,
+      working_directory: options?.cwd,
+    };
+
     // Build session params according to ACP spec
     const params: AcpNewSessionParams = {
       cwd: options?.cwd || this._config?.process?.cwd || (typeof process !== 'undefined' && process.cwd?.()) || '/',
       mcpServers: options?.mcpServers,
       _meta: {
-        systemPrompt: options?.systemPrompt,
-        claudeCode: options?.context ? { options: options.context } : undefined,
+        systemPrompt: options?.systemPrompt ? { append: options.systemPrompt } : undefined,
+        claudeCode: Object.keys(customContext).length > 0 ? { options: customContext } : undefined,
+        codex: {
+          options: Object.fromEntries(
+            Object.entries(codexOptions).filter(([, value]) => value !== undefined && value !== '')
+          ),
+        },
+        cognia: {
+          traceContext: options?.metadata,
+          instructionEnvelope,
+        },
       },
     };
 

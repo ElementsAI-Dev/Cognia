@@ -11,6 +11,7 @@ import {
   createAgentFromPreset,
   type ExternalAgentPresetId,
 } from '@/lib/ai/agent/external/presets';
+import { normalizeExternalAgentConfigInput } from '@/lib/ai/agent/external/config-normalizer';
 import { isTauri } from '@/lib/utils';
 import {
   ExternalAgentSpawnConfig,
@@ -58,30 +59,16 @@ export const createExternalAgentActionsSlice = (
 
       addAgent: (input: CreateExternalAgentInput): string => {
         const id = nanoid();
-        const now = new Date().toISOString();
-
-        const config: StoredExternalAgentConfig = {
+        const normalizedAt = new Date();
+        const normalized = normalizeExternalAgentConfigInput(input, {
           id,
-          name: input.name,
-          description: input.description,
-          protocol: input.protocol,
-          transport: input.transport,
-          enabled: true,
-          process: input.process,
-          network: input.network,
-          defaultPermissionMode: input.defaultPermissionMode || get().defaultPermissionMode,
-          autoApprovePatterns: input.autoApprovePatterns,
-          requireApprovalFor: input.requireApprovalFor,
-          timeout: input.timeout || 300000,
-          retryConfig: {
-            maxRetries: input.retryConfig?.maxRetries ?? 3,
-            retryDelay: input.retryConfig?.retryDelay ?? 1000,
-            exponentialBackoff: input.retryConfig?.exponentialBackoff ?? true,
-          },
-          tags: input.tags,
-          metadata: input.metadata,
-          createdAt: now,
-          updatedAt: now,
+          now: normalizedAt,
+          defaultPermissionMode: get().defaultPermissionMode,
+        });
+        const config: StoredExternalAgentConfig = {
+          ...normalized,
+          createdAt: normalized.createdAt?.toISOString() ?? normalizedAt.toISOString(),
+          updatedAt: normalized.updatedAt?.toISOString() ?? normalizedAt.toISOString(),
         };
 
         set((state) => ({
@@ -272,6 +259,10 @@ export const createExternalAgentActionsSlice = (
 
       setShowConnectionNotifications: (enabled: boolean): void => {
         set({ showConnectionNotifications: enabled });
+      },
+
+      setChatFailurePolicy: (policy: ExternalAgentState['chatFailurePolicy']): void => {
+        set({ chatFailurePolicy: policy });
       },
 
       // ========================================

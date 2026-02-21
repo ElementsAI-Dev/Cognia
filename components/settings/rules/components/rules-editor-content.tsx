@@ -1,14 +1,21 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { Type, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Editor, EditorProps } from '@monaco-editor/react';
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useSettingsStore } from '@/stores';
 import type { EditorTheme } from '@/types/settings/rules';
 import { RulesEditorPreview } from './rules-editor-preview';
 import { createEditorOptions } from '@/lib/monaco';
+import {
+  bindMonacoEditorContext,
+  type MonacoContextBinding,
+} from '@/lib/editor-workbench/monaco-context-binding';
+import { isEditorFeatureFlagEnabled } from '@/lib/editor-workbench/feature-flags';
 
 interface RulesEditorContentProps {
   // Content
@@ -35,6 +42,15 @@ export function RulesEditorContent({
   isOptimizing,
 }: RulesEditorContentProps) {
   const t = useTranslations('rules');
+  const globalEditorSettings = useSettingsStore((state) => state.editorSettings);
+  const workbenchBindingRef = useRef<MonacoContextBinding | null>(null);
+
+  useEffect(() => {
+    return () => {
+      workbenchBindingRef.current?.dispose();
+      workbenchBindingRef.current = null;
+    };
+  }, []);
 
   return (
     <div className="h-full relative">
@@ -47,11 +63,26 @@ export function RulesEditorContent({
               theme={theme}
               value={activeContent}
               onChange={onContentChange}
+              onMount={(editor) => {
+                if (!isEditorFeatureFlagEnabled('editor.workbench.v2')) {
+                  return;
+                }
+                workbenchBindingRef.current?.dispose();
+                workbenchBindingRef.current = bindMonacoEditorContext({
+                  contextId: 'rules',
+                  label: 'Rules Editor',
+                  languageId: 'markdown',
+                  editor,
+                  fallbackReason: 'Using Monaco built-in providers',
+                });
+              }}
               options={createEditorOptions('markdown', {
                 fontSize: 13,
                 wordWrap: wordWrap ? 'on' : 'off',
                 lineDecorationsWidth: 0,
                 lineNumbersMinChars: 3,
+              }, {
+                editorSettings: globalEditorSettings,
               })}
             />
             <div className="absolute bottom-4 right-6 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">

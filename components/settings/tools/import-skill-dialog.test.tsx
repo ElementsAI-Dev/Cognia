@@ -90,7 +90,7 @@ const mockT = ((key: string) => {
     import: 'Import',
   };
   return translations[key] || key;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 }) as any;
 
 describe('ImportSkillDialog', () => {

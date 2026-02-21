@@ -135,7 +135,7 @@ describe('IndexedDBTransport', () => {
 
     it('should return noop when BroadcastChannel is unavailable', () => {
       const originalBC = globalThis.BroadcastChannel;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       (globalThis as any).BroadcastChannel = undefined;
 
       const callback = jest.fn();

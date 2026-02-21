@@ -4,11 +4,11 @@
 
 import { CompletionOverlay, CompletionSettings } from './index';
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const indexModule = require('./index');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const completionOverlayModule = require('./completion-overlay');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const completionSettingsModule = require('./completion-settings');
 
 // Mock the dependencies for the components
@@ -112,20 +112,20 @@ describe('components/input-completion/index', () => {
   describe('Import Patterns', () => {
     it('should support named import', () => {
       expect(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
+         
         require('./index');
       }).not.toThrow();
     });
 
     it('should support destructuring import', () => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const { CompletionOverlay: Overlay, CompletionSettings: Settings } = require('./index');
       expect(Overlay).toBeDefined();
       expect(Settings).toBeDefined();
     });
 
     it('should allow importing both components together', () => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const { CompletionOverlay: Overlay, CompletionSettings: Settings } = require('./index');
       expect(Overlay).toBe(CompletionOverlay);
       expect(Settings).toBe(CompletionSettings);
@@ -167,7 +167,7 @@ describe('components/input-completion/index', () => {
   describe('Module Loading', () => {
     it('should not throw errors when importing the index', () => {
       expect(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
+         
         require('./index');
       }).not.toThrow();
     });

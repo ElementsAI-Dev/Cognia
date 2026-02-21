@@ -27,7 +27,7 @@ import type {
   QuickLearningSession,
 } from '@/types/learning';
 import { DEFAULT_LEARNING_CONFIG, DEFAULT_LEARNING_STATISTICS } from '@/types/learning';
-import { detectLearningType } from '@/lib/learning/learning-type-detector';
+import { detectLearningType, getSuggestedMilestones } from '@/lib/learning/learning-type-detector';
 import {
   createLearningPath,
   updateMilestoneProgress,
@@ -179,6 +179,62 @@ const PHASE_ORDER: LearningPhase[] = [
   'summary',
 ];
 
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+function getDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function calculateDayDifference(fromDateKey: string, toDateKey: string): number {
+  const fromDate = new Date(`${fromDateKey}T00:00:00.000Z`);
+  const toDate = new Date(`${toDateKey}T00:00:00.000Z`);
+  return Math.floor((toDate.getTime() - fromDate.getTime()) / ONE_DAY_MS);
+}
+
+function buildFallbackTakeaways(session: LearningSession): string[] {
+  const takeaways = new Set<string>();
+
+  session.learningGoals.forEach((goal) => {
+    if (goal.description?.trim()) {
+      takeaways.add(goal.description.trim());
+    }
+  });
+
+  session.subQuestions.forEach((subQuestion) => {
+    if (subQuestion.keyInsights?.length) {
+      subQuestion.keyInsights.forEach((insight) => {
+        if (insight?.trim()) {
+          takeaways.add(insight.trim());
+        }
+      });
+    } else if (subQuestion.status === 'resolved' && subQuestion.question.trim()) {
+      takeaways.add(subQuestion.question.trim());
+    }
+  });
+
+  session.concepts
+    .filter((concept) => concept.masteryStatus === 'mastered')
+    .forEach((concept) => {
+      if (concept.name?.trim()) {
+        takeaways.add(concept.name.trim());
+      }
+    });
+
+  return Array.from(takeaways).slice(0, 5);
+}
+
+function buildFallbackSummary(session: LearningSession, keyTakeaways: string[]): string {
+  const durationMinutes = Math.max(
+    1,
+    Math.round((Date.now() - new Date(session.startedAt).getTime()) / (1000 * 60))
+  );
+  const takeawaysText =
+    keyTakeaways.length > 0
+      ? ` Key takeaways: ${keyTakeaways.join('；')}.`
+      : '';
+  return `Completed learning session on "${session.topic}" in about ${durationMinutes} minutes.${takeawaysText}`;
+}
+
 const initialState = {
   sessions: {} as Record<string, LearningSession>,
   activeSessionId: null as string | null,
@@ -221,22 +277,26 @@ export const useLearningStore = create<LearningState>()(
         // Detect learning type if auto-detection is enabled or not specified
         let durationType = input.durationType;
         let category = input.category;
+        let detectionResult: ReturnType<typeof detectLearningType> | undefined;
 
         if (input.autoDetectType !== false && (!durationType || !category)) {
-          const detection = detectLearningType(input.topic, {
+          detectionResult = detectLearningType(input.topic, {
             backgroundKnowledge: input.backgroundKnowledge,
             goals: input.learningGoals,
           });
-          durationType = durationType || detection.detectedType;
-          category = category || detection.category;
+          durationType = durationType || detectionResult.detectedType;
+          category = category || detectionResult.category;
         }
+
+        const resolvedDurationType = durationType || 'quick';
+        const resolvedCategory = category || 'other';
 
         const session: LearningSession = {
           id: learningSessionId,
           sessionId,
           // Learning type
-          durationType: durationType || 'quick',
-          category: category || 'other',
+          durationType: resolvedDurationType,
+          category: resolvedCategory,
           // Topic and goals
           topic: input.topic,
           backgroundKnowledge: input.backgroundKnowledge,
@@ -262,19 +322,94 @@ export const useLearningStore = create<LearningState>()(
           consecutiveIncorrect: 0,
         };
 
+        let journeyPath: LearningPath | undefined;
+        if (resolvedDurationType === 'journey') {
+          const suggestedMilestones = getSuggestedMilestones(resolvedCategory, input.topic);
+          journeyPath = createLearningPath(sessionId, {
+            title: input.topic,
+            description: input.backgroundKnowledge,
+            category: resolvedCategory,
+            estimatedDuration: input.estimatedDuration || detectionResult?.suggestedDuration || 'weeks',
+            milestones: suggestedMilestones.map((title) => ({ title })),
+          });
+          session.learningPathId = journeyPath.id;
+        }
+
         set((state) => ({
           sessions: { ...state.sessions, [learningSessionId]: session },
           activeSessionId: learningSessionId,
+          learningPaths: journeyPath
+            ? { ...state.learningPaths, [journeyPath.id]: journeyPath }
+            : state.learningPaths,
+          activeLearningPathId: journeyPath ? journeyPath.id : state.activeLearningPathId,
         }));
 
         return session;
       },
 
       endLearningSession: (learningSessionId: string, summary?: string, takeaways?: string[]) => {
+        let completed = false;
+
         set((state) => {
           const session = state.sessions[learningSessionId];
           if (!session) return state;
+          if (session.completedAt) return state;
 
+          const completedAt = new Date();
+          const startedAt = new Date(session.startedAt);
+          const durationMs = Math.max(0, completedAt.getTime() - startedAt.getTime());
+          const keyTakeaways =
+            takeaways && takeaways.length > 0
+              ? takeaways.filter((item) => item.trim().length > 0).slice(0, 5)
+              : buildFallbackTakeaways(session);
+          const finalSummary = summary?.trim() || buildFallbackSummary(session, keyTakeaways);
+          const masteredConcepts = session.concepts.filter(
+            (concept) => concept.masteryStatus === 'mastered'
+          ).length;
+
+          const todayKey = getDateKey(completedAt);
+          const previousDateKey = state.globalStats.lastActiveDate;
+          let nextStreak = state.globalStats.currentStreak;
+          if (!previousDateKey) {
+            nextStreak = 1;
+          } else {
+            const dayDifference = calculateDayDifference(previousDateKey, todayKey);
+            if (dayDifference > 1) {
+              nextStreak = 1;
+            } else if (dayDifference === 1) {
+              nextStreak += 1;
+            }
+          }
+
+          const shouldCreateQuickArchive = session.durationType === 'quick';
+          const quickSessionId = nanoid();
+          const quickSessions = shouldCreateQuickArchive
+            ? {
+                ...state.quickSessions,
+                [quickSessionId]: {
+                  id: quickSessionId,
+                  sessionId: session.sessionId,
+                  question: session.topic,
+                  answer: finalSummary,
+                  createdAt: session.startedAt,
+                  resolvedAt: completedAt,
+                  relatedTopics: session.concepts.map((concept) => concept.name).slice(0, 5),
+                  savedToPath: session.learningPathId,
+                },
+              }
+            : state.quickSessions;
+
+          const linkedPathId = session.learningPathId;
+          const path = linkedPathId ? state.learningPaths[linkedPathId] : undefined;
+          const learningPaths =
+            path && linkedPathId
+              ? {
+                  ...state.learningPaths,
+                  [linkedPathId]: recordStudySession(path, durationMs),
+                }
+              : state.learningPaths;
+
+          completed = true;
           return {
             sessions: {
               ...state.sessions,
@@ -282,14 +417,33 @@ export const useLearningStore = create<LearningState>()(
                 ...session,
                 currentPhase: 'summary',
                 progress: 100,
-                completedAt: new Date(),
-                lastActivityAt: new Date(),
-                finalSummary: summary,
-                keyTakeaways: takeaways,
+                completedAt,
+                lastActivityAt: completedAt,
+                finalSummary,
+                keyTakeaways,
               },
+            },
+            learningPaths,
+            quickSessions,
+            globalStats: {
+              ...state.globalStats,
+              totalSessions: state.globalStats.totalSessions + 1,
+              totalTimeSpentMs: state.globalStats.totalTimeSpentMs + durationMs,
+              conceptsMastered: state.globalStats.conceptsMastered + masteredConcepts,
+              currentStreak: nextStreak,
+              longestStreak: Math.max(state.globalStats.longestStreak, nextStreak),
+              lastActiveDate: todayKey,
+              quickSessionsCount:
+                state.globalStats.quickSessionsCount + (shouldCreateQuickArchive ? 1 : 0),
+              journeySessionsCount:
+                state.globalStats.journeySessionsCount + (session.durationType === 'journey' ? 1 : 0),
             },
           };
         });
+
+        if (completed) {
+          get().checkAndAwardAchievements();
+        }
       },
 
       getLearningSession: (learningSessionId: string) => {
@@ -1152,10 +1306,6 @@ export const useLearningStore = create<LearningState>()(
         set((state) => ({
           learningPaths: { ...state.learningPaths, [path.id]: path },
           activeLearningPathId: path.id,
-          globalStats: {
-            ...state.globalStats,
-            journeySessionsCount: state.globalStats.journeySessionsCount + 1,
-          },
         }));
 
         return path;
@@ -1311,7 +1461,32 @@ export const useLearningStore = create<LearningState>()(
     }),
     {
       name: 'cognia-learning-storage',
+      version: 2,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState, version) => {
+        const state = (persistedState || {}) as Record<string, unknown>;
+        const globalStats =
+          (state.globalStats as Record<string, unknown> | undefined) || {};
+
+        if (version < 2) {
+          state.globalStats = {
+            totalSessions: Number(globalStats.totalSessions ?? 0),
+            totalTimeSpentMs: Number(globalStats.totalTimeSpentMs ?? 0),
+            conceptsMastered: Number(globalStats.conceptsMastered ?? 0),
+            currentStreak: Number(globalStats.currentStreak ?? 0),
+            longestStreak: Number(globalStats.longestStreak ?? 0),
+            lastActiveDate:
+              typeof globalStats.lastActiveDate === 'string'
+                ? globalStats.lastActiveDate
+                : undefined,
+            quickSessionsCount: Number(globalStats.quickSessionsCount ?? 0),
+            journeySessionsCount: Number(globalStats.journeySessionsCount ?? 0),
+            pathsCompleted: Number(globalStats.pathsCompleted ?? 0),
+          };
+        }
+
+        return state;
+      },
       partialize: (state) => {
         // Limit quick sessions to last 50 to prevent storage bloat
         const quickSessionsArray = Object.entries(state.quickSessions);
@@ -1356,6 +1531,51 @@ export const useLearningStore = create<LearningState>()(
               ...g,
               achievedAt: g.achievedAt ? new Date(g.achievedAt) : undefined,
             }));
+            session.notes = (session.notes || []).map((note) => ({
+              ...note,
+              createdAt: new Date(note.createdAt),
+            }));
+            session.concepts = (session.concepts || []).map((concept) => ({
+              ...concept,
+              lastPracticedAt: concept.lastPracticedAt ? new Date(concept.lastPracticedAt) : undefined,
+              nextReviewAt: concept.nextReviewAt ? new Date(concept.nextReviewAt) : undefined,
+            }));
+            session.reviewItems = (session.reviewItems || []).map((reviewItem) => ({
+              ...reviewItem,
+              nextReviewAt: new Date(reviewItem.nextReviewAt),
+              lastReviewedAt: reviewItem.lastReviewedAt ? new Date(reviewItem.lastReviewedAt) : undefined,
+            }));
+          }
+        }
+        if (state?.achievements) {
+          state.achievements = state.achievements.map((achievement) => ({
+            ...achievement,
+            earnedAt: new Date(achievement.earnedAt),
+          }));
+        }
+        if (state?.learningPaths) {
+          for (const pathId in state.learningPaths) {
+            const path = state.learningPaths[pathId];
+            path.startedAt = new Date(path.startedAt);
+            path.lastActivityAt = new Date(path.lastActivityAt);
+            path.completedAt = path.completedAt ? new Date(path.completedAt) : undefined;
+            path.targetCompletionDate = path.targetCompletionDate
+              ? new Date(path.targetCompletionDate)
+              : undefined;
+            path.milestones = (path.milestones || []).map((milestone) => ({
+              ...milestone,
+              targetDate: milestone.targetDate ? new Date(milestone.targetDate) : undefined,
+              completedAt: milestone.completedAt ? new Date(milestone.completedAt) : undefined,
+            }));
+          }
+        }
+        if (state?.quickSessions) {
+          for (const quickSessionId in state.quickSessions) {
+            const quickSession = state.quickSessions[quickSessionId];
+            quickSession.createdAt = new Date(quickSession.createdAt);
+            quickSession.resolvedAt = quickSession.resolvedAt
+              ? new Date(quickSession.resolvedAt)
+              : undefined;
           }
         }
       },

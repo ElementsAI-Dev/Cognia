@@ -11,7 +11,9 @@ import { useMemo, useCallback } from 'react';
 import { useLearningStore } from '@/stores/learning';
 import { useSessionStore } from '@/stores/chat';
 import {
+  learningToolsByCanonicalName,
   learningTools,
+  toLearningToolAliasName,
   executeDisplayFlashcard,
   executeDisplayFlashcardDeck,
   executeDisplayQuiz,
@@ -103,127 +105,94 @@ export function useLearningTools(options: UseLearningToolsOptions = {}): UseLear
   // Build agent tools from learning tools
   const tools = useMemo(() => {
     const agentTools: Record<string, AgentTool> = {};
+    const addTool = (
+      canonicalName: keyof typeof learningToolsByCanonicalName,
+      execute: AgentTool['execute']
+    ) => {
+      const aliasName = toLearningToolAliasName(canonicalName);
+      const aliasDefinition =
+        aliasName && aliasName in learningTools
+          ? learningTools[aliasName as keyof typeof learningTools]
+          : undefined;
+      const definition =
+        learningToolsByCanonicalName[canonicalName] || aliasDefinition;
+      if (!definition) {
+        return;
+      }
+      const normalizedTool: AgentTool = {
+        name: definition.name,
+        description: definition.description,
+        parameters: definition.parameters,
+        execute,
+        requiresApproval: false,
+      };
+
+      agentTools[canonicalName] = normalizedTool;
+      if (aliasName) {
+        agentTools[aliasName] = normalizedTool;
+      }
+    };
 
     if (enableFlashcards) {
-      agentTools.displayFlashcard = {
-        name: learningTools.displayFlashcard.name,
-        description: learningTools.displayFlashcard.description,
-        parameters: learningTools.displayFlashcard.parameters,
-        execute: async (args) => {
+      addTool('display_flashcard', async (args) => {
           const input = args as DisplayFlashcardInput;
           return executeDisplayFlashcard(input);
-        },
-        requiresApproval: false,
-      };
+      });
 
-      agentTools.displayFlashcardDeck = {
-        name: learningTools.displayFlashcardDeck.name,
-        description: learningTools.displayFlashcardDeck.description,
-        parameters: learningTools.displayFlashcardDeck.parameters,
-        execute: async (args) => {
+      addTool('display_flashcard_deck', async (args) => {
           const input = args as DisplayFlashcardDeckInput;
           return executeDisplayFlashcardDeck(input);
-        },
-        requiresApproval: false,
-      };
+      });
     }
 
     if (enableQuizzes) {
-      agentTools.displayQuiz = {
-        name: learningTools.displayQuiz.name,
-        description: learningTools.displayQuiz.description,
-        parameters: learningTools.displayQuiz.parameters,
-        execute: async (args) => {
+      addTool('display_quiz', async (args) => {
           const input = args as DisplayQuizInput;
           return executeDisplayQuiz(input);
-        },
-        requiresApproval: false,
-      };
+      });
 
-      agentTools.displayQuizQuestion = {
-        name: learningTools.displayQuizQuestion.name,
-        description: learningTools.displayQuizQuestion.description,
-        parameters: learningTools.displayQuizQuestion.parameters,
-        execute: async (args) => {
+      addTool('display_quiz_question', async (args) => {
           const input = args as DisplayQuizQuestionInput;
           return executeDisplayQuizQuestion(input);
-        },
-        requiresApproval: false,
-      };
+      });
     }
 
     if (enableReviewSessions) {
-      agentTools.displayReviewSession = {
-        name: learningTools.displayReviewSession.name,
-        description: learningTools.displayReviewSession.description,
-        parameters: learningTools.displayReviewSession.parameters,
-        execute: async (args) => {
+      addTool('display_review_session', async (args) => {
           const input = args as DisplayReviewSessionInput;
           return executeDisplayReviewSession(input);
-        },
-        requiresApproval: false,
-      };
+      });
     }
 
     if (enableProgressSummary) {
-      agentTools.displayProgressSummary = {
-        name: learningTools.displayProgressSummary.name,
-        description: learningTools.displayProgressSummary.description,
-        parameters: learningTools.displayProgressSummary.parameters,
-        execute: async (args) => {
+      addTool('display_progress_summary', async (args) => {
           const input = args as DisplayProgressSummaryInput;
           return executeDisplayProgressSummary(input);
-        },
-        requiresApproval: false,
-      };
+      });
     }
 
     if (enableConceptExplanation) {
-      agentTools.displayConceptExplanation = {
-        name: learningTools.displayConceptExplanation.name,
-        description: learningTools.displayConceptExplanation.description,
-        parameters: learningTools.displayConceptExplanation.parameters,
-        execute: async (args) => {
+      addTool('display_concept_explanation', async (args) => {
           const input = args as DisplayConceptExplanationInput;
           return executeDisplayConceptExplanation(input);
-        },
-        requiresApproval: false,
-      };
+      });
     }
 
     if (enableVisualization) {
-      agentTools.displayStepGuide = {
-        name: learningTools.displayStepGuide.name,
-        description: learningTools.displayStepGuide.description,
-        parameters: learningTools.displayStepGuide.parameters,
-        execute: async (args) => {
+      addTool('display_step_guide', async (args) => {
           const input = args as DisplayStepGuideInput;
           return executeDisplayStepGuide(input);
-        },
-        requiresApproval: false,
-      };
+      });
 
-      agentTools.displayConceptMap = {
-        name: learningTools.displayConceptMap.name,
-        description: learningTools.displayConceptMap.description,
-        parameters: learningTools.displayConceptMap.parameters,
-        execute: async (args) => {
+      addTool('display_concept_map', async (args) => {
           const input = args as DisplayConceptMapInput;
           return executeDisplayConceptMap(input);
-        },
-        requiresApproval: false,
-      };
+      });
 
-      agentTools.displayAnimation = {
-        name: learningTools.displayAnimation.name,
-        description: learningTools.displayAnimation.description,
-        parameters: learningTools.displayAnimation.parameters,
-        execute: async (args) => {
+      addTool('display_animation', async (args) => {
           const input = args as DisplayAnimationInput;
           return executeDisplayAnimation(input);
-        },
-        requiresApproval: false,
-      };
+      });
     }
 
     return agentTools;

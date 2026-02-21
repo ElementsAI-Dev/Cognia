@@ -208,6 +208,7 @@ fn test_aggregated_search_result() {
         papers: vec![],
         total_results: 5,
         provider_results,
+        degraded_providers: HashMap::new(),
         search_time_ms: 150,
     };
 
@@ -220,4 +221,21 @@ fn test_aggregated_search_result() {
             .unwrap()
             .success
     );
+}
+
+#[test]
+fn test_search_result_serializes_camel_case() {
+    let result = SearchResult {
+        papers: vec![],
+        total_results: 0,
+        has_more: false,
+        offset: 0,
+        provider: "arxiv".to_string(),
+        search_time_ms: 12,
+    };
+
+    let json = serde_json::to_value(result).unwrap();
+    assert!(json.get("totalResults").is_some());
+    assert!(json.get("searchTimeMs").is_some());
+    assert!(json.get("total_results").is_none());
 }

@@ -62,6 +62,10 @@ export const LearningPathDashboard = memo(function LearningPathDashboard({
     : activeLearningPathId
       ? learningPaths[activeLearningPathId]
       : undefined;
+  const nextMilestone = selectedPath
+    ? selectedPath.milestones.find((milestone) => milestone.id === selectedPath.currentMilestoneId) ??
+      selectedPath.milestones.find((milestone) => milestone.progress < 100)
+    : undefined;
 
   const completedPaths = useMemo(() => allPaths.filter((p) => p.completedAt), [allPaths]);
 
@@ -157,6 +161,18 @@ export const LearningPathDashboard = memo(function LearningPathDashboard({
               </div>
               <Progress value={selectedPath.overallProgress} className="h-2" />
             </div>
+
+            {nextMilestone && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                <div className="text-xs text-muted-foreground mb-1">
+                  {t('dashboard.nextMilestone') || '下一里程碑'}
+                </div>
+                <div className="text-sm font-medium">{nextMilestone.title}</div>
+                {nextMilestone.description && (
+                  <div className="text-xs text-muted-foreground mt-1">{nextMilestone.description}</div>
+                )}
+              </div>
+            )}
 
             {/* Milestones */}
             <div className="space-y-2">

@@ -293,7 +293,7 @@ describe('useSummary', () => {
 
   describe('exportSummary', () => {
     it('should export summary in markdown format', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const { downloadFile } = require('@/lib/export');
       const { result } = renderHook(() => useSummary());
 
@@ -356,7 +356,7 @@ describe('useSummary', () => {
 
   describe('with AI enabled', () => {
     it('should use AI summarization when enabled', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const { generateChatSummaryWithAI } = require('@/lib/ai/generation/summarizer');
 
       const { result } = renderHook(() =>
@@ -381,7 +381,7 @@ describe('useSummary', () => {
 
   describe('error handling', () => {
     it('should handle errors gracefully', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const { generateChatSummary } = require('@/lib/ai/generation/summarizer');
       generateChatSummary.mockImplementationOnce(() => {
         throw new Error('Test error');

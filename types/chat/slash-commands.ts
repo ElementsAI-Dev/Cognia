@@ -60,11 +60,19 @@ export type SlashCommandHandler = (
   context: SlashCommandContext
 ) => SlashCommandResult | Promise<SlashCommandResult>;
 
+export interface PluginSlashCommandAdapterMeta {
+  source: 'plugin';
+  pluginId: string;
+  commandId: string;
+}
+
 /** Extended slash command definition with handler */
 export interface SlashCommandDefinition {
   id: string;
   command: string;
   description: string;
+  source?: 'builtin' | 'plugin' | 'external-agent';
+  pluginMeta?: PluginSlashCommandAdapterMeta;
   longDescription?: string;
   icon?: ReactNode;
   category: SlashCommandCategory;

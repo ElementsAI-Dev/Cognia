@@ -143,6 +143,8 @@ export {
   deleteWeaviateDocuments,
   getWeaviateDocuments,
   queryWeaviate,
+  countWeaviateDocuments,
+  scrollWeaviateDocuments,
 } from './weaviate-client';
 
 // Unified vector store interface

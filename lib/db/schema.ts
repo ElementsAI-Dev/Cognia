@@ -11,11 +11,15 @@ export interface DBSession {
   provider: string;
   model: string;
   mode: string;
+  customIcon?: string;
+  folderId?: string;
+  projectId?: string;
   systemPrompt?: string;
   temperature?: number;
   maxTokens?: number;
   enableTools?: boolean;
   enableResearch?: boolean;
+  metadata?: string; // JSON serialized session fields not indexed in Dexie
   messageCount: number;
   lastMessagePreview?: string;
   createdAt: Date;
@@ -45,6 +49,7 @@ export interface DBMessage {
   bookmarkedAt?: Date;
   // Reaction support
   reaction?: string; // 'like' | 'dislike'
+  reactions?: string; // JSON serialized EmojiReaction[]
 }
 
 export interface DBDocument {
@@ -73,7 +78,11 @@ export interface DBProject {
   defaultProvider?: string;
   defaultModel?: string;
   defaultMode?: string;
+  tags?: string; // JSON serialized string[]
+  isArchived?: boolean;
+  archivedAt?: Date;
   sessionIds?: string; // JSON serialized string[]
+  metadata?: string; // JSON serialized project fields not indexed in Dexie
   sessionCount: number;
   messageCount: number;
   createdAt: Date;
@@ -402,6 +411,25 @@ class CogniaDB extends Dexie {
       documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
       mcpServers: 'id, name, url, connected',
       projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
+      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
+      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
+      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
+      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
+      agentTraces: 'id, sessionId, timestamp, vcsRevision, *filePaths, [sessionId+timestamp], [vcsRevision+timestamp]',
+      checkpoints: 'id, sessionId, traceId, filePath, timestamp, [sessionId+filePath], [sessionId+timestamp]',
+      assets: 'id, kind, createdAt',
+      folders: 'id, name, order, createdAt',
+      videoProjects: 'id, name, createdAt, updatedAt',
+      contextFiles: 'id, path, category, source, createdAt, lastAccessedAt, [category+createdAt], [category+source]',
+    });
+
+    // Version 13: Extend chat/project schema for persistence v3 metadata and archive state
+    this.version(13).stores({
+      sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
+      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
+      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
+      mcpServers: 'id, name, url, connected',
+      projects: 'id, name, isArchived, createdAt, updatedAt, lastAccessedAt',
       knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
       workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
       workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',

@@ -31,6 +31,7 @@ import {
   pluginAnalyticsStore,
   getPluginInsights,
   getPluginHealth,
+  getPluginManager,
   type LearningInsight,
   type PluginHealthStatus,
 } from '@/lib/plugin';
@@ -226,8 +227,6 @@ export function PluginAnalytics({ pluginId, className }: PluginAnalyticsProps) {
     ? ((aggregateStats.successfulCalls / aggregateStats.totalCalls) * 100).toFixed(1)
     : '100';
 
-  const { enablePlugin, disablePlugin } = usePluginStore();
-
   const handleInsightAction = useCallback(async (insight: LearningInsight) => {
     if (!insight.action) return;
     
@@ -240,7 +239,7 @@ export function PluginAnalytics({ pluginId, className }: PluginAnalyticsProps) {
       case 'disable_plugin':
         if (insight.pluginId) {
           try {
-            await disablePlugin(insight.pluginId);
+            await getPluginManager().disablePlugin(insight.pluginId);
             toast.success(`Plugin disabled: ${insight.pluginId}`);
           } catch (error) {
             toast.error(`Failed to disable plugin: ${error instanceof Error ? error.message : String(error)}`);
@@ -250,7 +249,7 @@ export function PluginAnalytics({ pluginId, className }: PluginAnalyticsProps) {
       case 'enable_plugin':
         if (insight.pluginId) {
           try {
-            await enablePlugin(insight.pluginId);
+            await getPluginManager().enablePlugin(insight.pluginId);
             toast.success(`Plugin enabled: ${insight.pluginId}`);
           } catch (error) {
             toast.error(`Failed to enable plugin: ${error instanceof Error ? error.message : String(error)}`);
@@ -258,7 +257,7 @@ export function PluginAnalytics({ pluginId, className }: PluginAnalyticsProps) {
         }
         break;
     }
-  }, [enablePlugin, disablePlugin]);
+  }, []);
 
   return (
     <div className={cn('flex flex-col gap-4 sm:gap-6 h-full', className)}>

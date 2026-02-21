@@ -57,6 +57,7 @@ impl SelectionHistoryEntry {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn with_app_info(
         mut self,
         app_name: Option<String>,
@@ -69,6 +70,7 @@ impl SelectionHistoryEntry {
         self
     }
 
+    #[cfg(test)]
     pub(crate) fn with_context(mut self, before: Option<String>, after: Option<String>) -> Self {
         self.context_before = before;
         self.context_after = after;
@@ -81,6 +83,7 @@ impl SelectionHistoryEntry {
         self
     }
 
+    #[cfg(test)]
     pub(crate) fn add_tag(&mut self, tag: String) {
         if !self.tags.contains(&tag) {
             self.tags.push(tag);
@@ -124,6 +127,7 @@ impl SelectionHistory {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn with_max_size(max_size: usize) -> Self {
         log::debug!(
             "[SelectionHistory] Creating new instance with custom max_size={}",
@@ -273,11 +277,13 @@ impl SelectionHistory {
     }
 
     /// Get entry by index
+    #[cfg(test)]
     pub(crate) fn get(&self, index: usize) -> Option<SelectionHistoryEntry> {
         self.entries.read().get(index).cloned()
     }
 
     /// Get the most recent entry
+    #[cfg(test)]
     pub(crate) fn get_latest(&self) -> Option<SelectionHistoryEntry> {
         self.entries.read().front().cloned()
     }
@@ -290,11 +296,13 @@ impl SelectionHistory {
     }
 
     /// Get history size
+    #[cfg(test)]
     pub(crate) fn len(&self) -> usize {
         self.entries.read().len()
     }
 
     /// Check if history is empty
+    #[cfg(test)]
     pub(crate) fn is_empty(&self) -> bool {
         self.entries.read().is_empty()
     }

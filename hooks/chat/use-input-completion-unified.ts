@@ -19,6 +19,7 @@ import { createLogger } from '@/lib/logger';
 import * as nativeCompletion from '@/lib/native/input-completion';
 import { triggerWebCompletion, cancelWebCompletion, type ConversationMessage } from '@/lib/ai/completion/web-completion-provider';
 import { useCompletionSettingsStore } from '@/stores/settings/completion-settings-store';
+import { useSettingsStore } from '@/stores/settings/settings-store';
 import type {
   CompletionProviderType,
   CompletionProviderConfig,
@@ -176,6 +177,8 @@ export function useInputCompletionUnified(
   const [currentText, setCurrentText] = useState('');
   // Web mode is always active; desktop mode requires native init
   const [aiCompletionActive, setAiCompletionActive] = useState(!isDesktop);
+  const inputCompletionV3Enabled = useSettingsStore((state) => state.inputCompletionV3Enabled);
+  const completionNormalizerEnabled = useSettingsStore((state) => state.completionNormalizerEnabled);
   const cursorPositionRef = useRef(0);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const aiDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -281,7 +284,7 @@ export function useInputCompletionUnified(
 
   // Trigger AI ghost text completion (works on both desktop and web)
   const triggerAiGhostText = useCallback(
-    async (text: string) => {
+    async (text: string, cursorPosition?: number) => {
       if (!aiCompletionActive || !aiProvider) return;
 
       const minLength = (aiProvider as { minContextLength?: number }).minContextLength ?? 5;
@@ -301,6 +304,16 @@ export function useInputCompletionUnified(
       lastAiTriggerRef.current = text;
       const requestSeq = ++aiRequestSequenceRef.current;
       const requestId = `completion-${Date.now()}-${requestSeq}`;
+      const resolvedCursor = cursorPosition ?? text.length;
+      const safeCursor = Math.max(0, Math.min(resolvedCursor, text.length));
+      const textBeforeCursor = text.slice(0, safeCursor);
+      const textAfterCursor = text.slice(safeCursor);
+      const conversationDigest = completionNormalizerEnabled
+        ? conversationContext
+          ?.slice(-3)
+          .map((msg) => `${msg.role}:${msg.content}`)
+          .join('\n')
+        : undefined;
 
       try {
         let suggestionText: string | null = null;
@@ -308,12 +321,32 @@ export function useInputCompletionUnified(
 
         if (isDesktop) {
           // Native Tauri completion
-          const result = await nativeCompletion.triggerCompletionV2({
-            request_id: requestId,
-            text,
-            mode,
-            surface,
-          });
+          let result;
+          try {
+            if (!inputCompletionV3Enabled) {
+              throw new Error('V3 completion disabled by settings');
+            }
+            result = await nativeCompletion.triggerCompletionV3({
+              request_id: requestId,
+              text_before_cursor: textBeforeCursor,
+              text_after_cursor: completionNormalizerEnabled ? textAfterCursor || undefined : undefined,
+              cursor_offset: safeCursor,
+              mode,
+              surface,
+              conversation_digest: conversationDigest,
+            });
+          } catch (v3Error) {
+            logger.debug('V3 completion unavailable, falling back to V2', {
+              v3Error,
+              inputCompletionV3Enabled,
+            });
+            result = await nativeCompletion.triggerCompletionV2({
+              request_id: requestId,
+              text,
+              mode,
+              surface,
+            });
+          }
           if (requestSeq !== aiRequestSequenceRef.current) {
             return;
           }
@@ -329,6 +362,11 @@ export function useInputCompletionUnified(
             endpoint: settingsStore.aiCompletionEndpoint || undefined,
             apiKey: settingsStore.aiCompletionApiKey || undefined,
             conversationContext,
+            textAfterCursor: completionNormalizerEnabled ? textAfterCursor : undefined,
+            cursorOffset: safeCursor,
+            mode,
+            surface,
+            conversationDigest,
           });
           if (requestSeq !== aiRequestSequenceRef.current) {
             return;
@@ -356,7 +394,7 @@ export function useInputCompletionUnified(
         }
       }
     },
-    [isDesktop, aiCompletionActive, aiProvider, state.isOpen, state.ghostText, settingsStore.aiCompletionProvider, settingsStore.aiCompletionMaxTokens, settingsStore.aiCompletionEndpoint, settingsStore.aiCompletionApiKey, conversationContext, mode, surface]
+    [isDesktop, aiCompletionActive, aiProvider, state.isOpen, state.ghostText, settingsStore.aiCompletionProvider, settingsStore.aiCompletionMaxTokens, settingsStore.aiCompletionEndpoint, settingsStore.aiCompletionApiKey, conversationContext, mode, surface, inputCompletionV3Enabled, completionNormalizerEnabled]
   );
 
   // Detect trigger and update state
@@ -534,7 +572,7 @@ export function useInputCompletionUnified(
           }
           const debounceMs = aiProvider.debounceMs ?? 400;
           aiDebounceTimerRef.current = setTimeout(() => {
-            triggerAiGhostText(text);
+            triggerAiGhostText(text, cursorPosition);
           }, debounceMs);
         }
       }
@@ -737,7 +775,7 @@ export function useInputCompletionUnified(
   // Manually trigger AI completion (for Ctrl+Space)
   const triggerAiCompletionManual = useCallback(() => {
     lastAiTriggerRef.current = '';
-    triggerAiGhostText(currentText);
+    triggerAiGhostText(currentText, cursorPositionRef.current);
   }, [currentText, triggerAiGhostText]);
 
   // Handle keyboard events
@@ -748,7 +786,7 @@ export function useInputCompletionUnified(
         e.preventDefault();
         // Force trigger AI completion regardless of debounce
         lastAiTriggerRef.current = '';
-        triggerAiGhostText(currentText);
+        triggerAiGhostText(currentText, cursorPositionRef.current);
         return true;
       }
 

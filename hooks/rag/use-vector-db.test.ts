@@ -45,6 +45,14 @@ jest.mock('@/lib/vector', () => ({
   })),
 }));
 
+jest.mock('@/lib/vector/embedding', () => ({
+  generateEmbedding: jest.fn(async () => ({ embedding: [0.1, 0.2, 0.3] })),
+  generateEmbeddings: jest.fn(async (texts: string[]) => ({
+    embeddings: texts.map(() => [0.1, 0.2, 0.3]),
+  })),
+  resolveEmbeddingApiKey: jest.fn(() => 'test-key'),
+}));
+
 const mockMarkAsIndexed = jest.fn();
 const mockMarkAsNotIndexed = jest.fn();
 

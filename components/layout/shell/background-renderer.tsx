@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSettingsStore } from '@/stores';
-import { BACKGROUND_PRESETS } from '@/lib/themes';
+import { BACKGROUND_PRESETS, getRenderableLayers } from '@/lib/themes';
 import type { BackgroundLayerSettings } from '@/lib/themes';
 import { isTauri } from '@/lib/native/utils';
 
@@ -36,6 +36,13 @@ async function resolveLocalAssetUrl(assetId: string, signal: AbortSignal): Promi
   return URL.createObjectURL(blob);
 }
 
+interface RenderLayerEntry {
+  key: string;
+  layer: BackgroundLayerSettings;
+  opacityMultiplier: number;
+  transitionMs: number;
+}
+
 export function BackgroundRenderer() {
   const backgroundSettings = useSettingsStore((s) => s.backgroundSettings);
 
@@ -43,33 +50,117 @@ export function BackgroundRenderer() {
 
   const [localUrlMap, setLocalUrlMap] = useState<Record<string, string>>({});
   const localUrlMapRef = useRef<Record<string, string>>({});
+  const transitionTimeoutRef = useRef<number | null>(null);
+  const transitionFrameRef = useRef<number | null>(null);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
     localUrlMapRef.current = localUrlMap;
   }, [localUrlMap]);
 
   const rendererMode = backgroundSettings.mode;
+  const renderableLayers = useMemo(
+    () => getRenderableLayers(backgroundSettings),
+    [backgroundSettings]
+  );
 
   const [slideshowIndex, setSlideshowIndex] = useState(0);
+  const [previousSlideshowIndex, setPreviousSlideshowIndex] = useState<number | null>(null);
+  const [slideshowTransitionReady, setSlideshowTransitionReady] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handleChange = () => {
+      setReduceMotion(mediaQuery.matches);
+    };
+
+    handleChange();
+    mediaQuery.addEventListener('change', handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (transitionTimeoutRef.current !== null) {
+        window.clearTimeout(transitionTimeoutRef.current);
+      }
+      if (transitionFrameRef.current !== null) {
+        window.cancelAnimationFrame(transitionFrameRef.current);
+      }
+    };
+  }, []);
 
   // Slideshow timer with Visibility API optimization
   // Pauses when page is hidden to save CPU resources
   useEffect(() => {
     if (rendererMode !== 'slideshow') return;
-    if (!backgroundSettings.enabled) return;
-
-    const slides = backgroundSettings.slideshow.slides;
+    const slides = renderableLayers;
     if (!slides || slides.length <= 1) return;
 
     const intervalMs = Math.max(1000, backgroundSettings.slideshow.intervalMs);
+    const transitionMs = reduceMotion
+      ? 0
+      : Math.max(0, Math.min(backgroundSettings.slideshow.transitionMs, intervalMs - 100));
     let timer: number | null = null;
 
     const advanceSlide = () => {
       setSlideshowIndex((prev) => {
+        let nextIndex = prev;
         if (backgroundSettings.slideshow.shuffle) {
-          return Math.floor(Math.random() * slides.length);
+          if (slides.length <= 1) return prev;
+          let attempts = 0;
+          while (nextIndex === prev && attempts < 10) {
+            nextIndex = Math.floor(Math.random() * slides.length);
+            attempts += 1;
+          }
+          if (nextIndex === prev) {
+            nextIndex = (prev + 1) % slides.length;
+          }
+        } else {
+          nextIndex = (prev + 1) % slides.length;
         }
-        return (prev + 1) % slides.length;
+
+        if (nextIndex === prev) return prev;
+
+        if (transitionMs <= 0) {
+          if (transitionTimeoutRef.current !== null) {
+            window.clearTimeout(transitionTimeoutRef.current);
+            transitionTimeoutRef.current = null;
+          }
+          if (transitionFrameRef.current !== null) {
+            window.cancelAnimationFrame(transitionFrameRef.current);
+            transitionFrameRef.current = null;
+          }
+          setPreviousSlideshowIndex(null);
+          setSlideshowTransitionReady(false);
+          return nextIndex;
+        }
+
+        setPreviousSlideshowIndex(prev);
+        setSlideshowTransitionReady(false);
+
+        if (transitionFrameRef.current !== null) {
+          window.cancelAnimationFrame(transitionFrameRef.current);
+        }
+        transitionFrameRef.current = window.requestAnimationFrame(() => {
+          setSlideshowTransitionReady(true);
+          transitionFrameRef.current = null;
+        });
+
+        if (transitionTimeoutRef.current !== null) {
+          window.clearTimeout(transitionTimeoutRef.current);
+        }
+        transitionTimeoutRef.current = window.setTimeout(() => {
+          setPreviousSlideshowIndex(null);
+          setSlideshowTransitionReady(false);
+          transitionTimeoutRef.current = null;
+        }, transitionMs);
+
+        return nextIndex;
       });
     };
 
@@ -102,45 +193,88 @@ export function BackgroundRenderer() {
 
     return () => {
       stopTimer();
+      if (transitionTimeoutRef.current !== null) {
+        window.clearTimeout(transitionTimeoutRef.current);
+        transitionTimeoutRef.current = null;
+      }
+      if (transitionFrameRef.current !== null) {
+        window.cancelAnimationFrame(transitionFrameRef.current);
+        transitionFrameRef.current = null;
+      }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [
-    backgroundSettings.enabled,
     backgroundSettings.slideshow.intervalMs,
+    backgroundSettings.slideshow.transitionMs,
     backgroundSettings.slideshow.shuffle,
-    backgroundSettings.slideshow.slides,
+    renderableLayers,
+    reduceMotion,
     rendererMode,
   ]);
 
-  const layersToRender = useMemo(() => {
-    if (!backgroundSettings.enabled) return [];
+  const layersToRender = useMemo<RenderLayerEntry[]>(() => {
+    if (renderableLayers.length === 0) return [];
 
     if (rendererMode === 'slideshow') {
-      const slides = backgroundSettings.slideshow.slides;
+      const slides = renderableLayers;
       if (!slides || slides.length === 0) return [];
-      const current = slides[Math.min(slideshowIndex, slides.length - 1)];
-      return current ? [current] : [];
+      const clampedCurrentIndex = Math.min(slideshowIndex, slides.length - 1);
+      const current = slides[clampedCurrentIndex];
+      if (!current) return [];
+
+      const transitionMs = reduceMotion
+        ? 0
+        : Math.max(0, Math.min(backgroundSettings.slideshow.transitionMs, backgroundSettings.slideshow.intervalMs - 100));
+      const entries: RenderLayerEntry[] = [];
+
+      if (previousSlideshowIndex !== null) {
+        const clampedPreviousIndex = Math.min(previousSlideshowIndex, slides.length - 1);
+        const previous = slides[clampedPreviousIndex];
+        if (previous) {
+          entries.push({
+            key: `slide-prev-${clampedPreviousIndex}-${slideshowIndex}`,
+            layer: previous,
+            opacityMultiplier: slideshowTransitionReady ? 0 : 1,
+            transitionMs,
+          });
+        }
+      }
+
+      entries.push({
+        key: `slide-current-${clampedCurrentIndex}`,
+        layer: current,
+        opacityMultiplier: previousSlideshowIndex !== null ? (slideshowTransitionReady ? 1 : 0) : 1,
+        transitionMs,
+      });
+
+      return entries;
     }
 
     if (rendererMode === 'layers') {
-      return backgroundSettings.layers;
+      return renderableLayers.map((layer) => ({
+        key: layer.id,
+        layer,
+        opacityMultiplier: 1,
+        transitionMs: 0,
+      }));
     }
 
     return [];
   }, [
-    backgroundSettings.enabled,
-    backgroundSettings.layers,
-    backgroundSettings.slideshow.slides,
+    backgroundSettings.slideshow.intervalMs,
+    backgroundSettings.slideshow.transitionMs,
+    previousSlideshowIndex,
+    renderableLayers,
+    reduceMotion,
     rendererMode,
+    slideshowTransitionReady,
     slideshowIndex,
   ]);
 
   // Preload next slideshow image to prevent white flash during transitions
   useEffect(() => {
     if (rendererMode !== 'slideshow') return;
-    if (!backgroundSettings.enabled) return;
-
-    const slides = backgroundSettings.slideshow.slides;
+    const slides = renderableLayers;
     if (!slides || slides.length <= 1) return;
 
     const nextIndex = (slideshowIndex + 1) % slides.length;
@@ -202,8 +336,7 @@ export function BackgroundRenderer() {
       }
     }
   }, [
-    backgroundSettings.enabled,
-    backgroundSettings.slideshow.slides,
+    renderableLayers,
     rendererMode,
     slideshowIndex,
   ]);
@@ -215,7 +348,7 @@ export function BackgroundRenderer() {
     const controller = new AbortController();
 
     const requiredAssetIds = new Set<string>();
-    layersToRender.forEach((layer) => {
+    layersToRender.forEach(({ layer }) => {
       if (layer.source === 'local' && layer.localAssetId) {
         requiredAssetIds.add(layer.localAssetId);
       }
@@ -278,7 +411,7 @@ export function BackgroundRenderer() {
   }, []);
 
   const containerEnabled =
-    backgroundSettings.enabled && (rendererMode === 'layers' || rendererMode === 'slideshow');
+    (rendererMode === 'layers' || rendererMode === 'slideshow') && renderableLayers.length > 0;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -295,12 +428,10 @@ export function BackgroundRenderer() {
 
   if (!containerEnabled) return null;
 
-  const transitionMs =
-    rendererMode === 'slideshow' ? Math.max(0, backgroundSettings.slideshow.transitionMs) : 0;
-
   return (
     <div aria-hidden style={{ position: 'fixed', inset: 0, zIndex: -2, pointerEvents: 'none' }}>
-      {layersToRender.map((layer) => {
+      {layersToRender.map((entry) => {
+        const { layer } = entry;
         const effectiveLayer: BackgroundLayerSettings =
           !isTauriEnv &&
           layer.source === 'local' &&
@@ -346,12 +477,12 @@ export function BackgroundRenderer() {
               : 'none';
 
         const animation =
-          animationName === 'none'
+          reduceMotion || animationName === 'none'
             ? undefined
             : `${animationName} ${durationSec}s ease-in-out infinite`;
 
         const transform =
-          layer.animation === 'parallax' ? 'translateZ(-1px) scale(1.5)' : undefined;
+          reduceMotion ? undefined : layer.animation === 'parallax' ? 'translateZ(-1px) scale(1.5)' : undefined;
 
         const isGradient =
           backgroundValue.startsWith('linear-gradient') ||
@@ -362,8 +493,9 @@ export function BackgroundRenderer() {
         const backgroundPosition = positionMap[layer.position] ?? 'center center';
 
         return (
-          <div key={layer.id} style={{ position: 'absolute', inset: 0 }}>
+          <div key={entry.key} style={{ position: 'absolute', inset: 0 }}>
             <div
+              data-bg-render-layer="true"
               style={{
                 position: 'absolute',
                 inset: 0,
@@ -374,12 +506,20 @@ export function BackgroundRenderer() {
                 backgroundPosition,
                 backgroundRepeat,
                 backgroundAttachment: attachmentMap[layer.attachment] ?? 'fixed',
-                opacity: Math.min(1, Math.max(0, layer.opacity / 100)),
+                opacity: Math.min(1, Math.max(0, layer.opacity / 100)) * entry.opacityMultiplier,
                 filter: `blur(${layer.blur}px) brightness(${layer.brightness}%) saturate(${layer.saturation}%) contrast(${layer.contrast}%) grayscale(${layer.grayscale}%)`,
-                transition: transitionMs > 0 ? `opacity ${transitionMs}ms ease-in-out` : undefined,
+                transition:
+                  entry.transitionMs > 0 && !reduceMotion
+                    ? `opacity ${entry.transitionMs}ms ease-in-out`
+                    : undefined,
                 animation,
                 transform,
-                willChange: layer.animation !== 'none' ? 'transform, opacity' : undefined,
+                willChange:
+                  !reduceMotion && layer.animation !== 'none'
+                    ? 'transform, opacity'
+                    : entry.transitionMs > 0
+                      ? 'opacity'
+                      : undefined,
               }}
             />
             {layer.overlayOpacity > 0 && (
@@ -388,7 +528,12 @@ export function BackgroundRenderer() {
                   position: 'absolute',
                   inset: 0,
                   backgroundColor: layer.overlayColor,
-                  opacity: Math.min(1, Math.max(0, layer.overlayOpacity / 100)),
+                  opacity:
+                    Math.min(1, Math.max(0, layer.overlayOpacity / 100)) * entry.opacityMultiplier,
+                  transition:
+                    entry.transitionMs > 0 && !reduceMotion
+                      ? `opacity ${entry.transitionMs}ms ease-in-out`
+                      : undefined,
                 }}
               />
             )}

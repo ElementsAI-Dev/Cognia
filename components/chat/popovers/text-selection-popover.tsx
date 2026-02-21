@@ -145,7 +145,7 @@ export function TextSelectionPopover({
   const [isProcessing, setIsProcessing] = useState(false);
   const [showLanguages, setShowLanguages] = useState(false);
   const [highlighted, setHighlighted] = useState(false);
-  const { speak: ttsSpeak, stop: ttsStop, isPlaying: isSpeaking } = useTTS();
+  const { speak: ttsSpeak, stop: ttsStop, isPlaying: isSpeaking } = useTTS({ source: 'selection' });
   const popoverRef = useRef<HTMLDivElement>(null);
   const isSelectingRef = useRef(false);
   const selectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);

@@ -351,7 +351,7 @@ describe('middleware', () => {
         params: {},
       } as unknown as Parameters<NonNullable<typeof middleware.wrapGenerate>>[0]);
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((result.content[0] as any).text).toBe('The [REDACTED] is hidden');
     });
 
@@ -372,7 +372,7 @@ describe('middleware', () => {
         params: {},
       } as unknown as Parameters<NonNullable<typeof middleware.wrapGenerate>>[0]);
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((result.content[0] as any).text).toBe('Card: [CARD]');
     });
 
@@ -392,7 +392,7 @@ describe('middleware', () => {
         params: {},
       } as unknown as Parameters<NonNullable<typeof middleware.wrapGenerate>>[0]);
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((result.content[0] as any).text).toBe('HELLO WORLD');
     });
 
@@ -412,7 +412,7 @@ describe('middleware', () => {
         params: {},
       } as unknown as Parameters<NonNullable<typeof middleware.wrapGenerate>>[0]);
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((result.content[0] as any).text).toBe('');
     });
 
@@ -435,7 +435,7 @@ describe('middleware', () => {
         params: {},
       } as unknown as Parameters<NonNullable<typeof middleware.wrapGenerate>>[0]);
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((result.content[0] as any).text).toBe('[FILTERED] message');
       expect(result.content[1]).toEqual({ type: 'tool-call', toolCallId: 'abc', toolName: 'test', args: {} });
     });

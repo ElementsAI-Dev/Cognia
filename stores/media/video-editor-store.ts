@@ -9,7 +9,11 @@ import { nanoid } from 'nanoid';
 import { persist } from 'zustand/middleware';
 import { loggers } from '@/lib/logger';
 import { videoProjectRepository } from '@/lib/db/repositories/video-project-repository';
-import type { VideoTrack } from '@/types/video-studio/types';
+import type {
+  MediaProjectTimelineV2,
+  VideoTrack,
+} from '@/types/video-studio/types';
+import { normalizeClipEffects } from '@/types/video-studio/types';
 import {
   DEFAULT_VIDEO_PROCESSING_SETTINGS,
   type VideoProcessingSettings,
@@ -26,6 +30,7 @@ export interface VideoProject {
   aspectRatio: string;
   tracks: VideoTrack[];
   duration: number;
+  timeline: MediaProjectTimelineV2;
 }
 
 // Recent project reference
@@ -135,6 +140,65 @@ const DEFAULT_FRAME_RATE = 30;
 const MAX_RECENT_PROJECTS = 10;
 const MAX_HISTORY_SIZE = 50;
 
+function normalizeTracks(tracks: VideoTrack[]): VideoTrack[] {
+  return tracks.map((track) => ({
+    ...track,
+    clips: track.clips.map((clip) => ({
+      ...clip,
+      effects: normalizeClipEffects(clip.effects),
+    })),
+  }));
+}
+
+function buildTimelineV2(tracks: VideoTrack[], duration: number): MediaProjectTimelineV2 {
+  const normalizedTracks = normalizeTracks(tracks);
+  const transitions = normalizedTracks.flatMap((track) => {
+    const orderedClips = [...track.clips].sort((left, right) => left.startTime - right.startTime);
+    return orderedClips.flatMap((clip, index) => {
+      if (!clip.transition) {
+        return [];
+      }
+
+      const transitionParams = clip.transition.params;
+      const explicitToClipId =
+        typeof transitionParams?.toClipId === 'string' ? String(transitionParams.toClipId) : null;
+      const inferredToClipId = orderedClips[index + 1]?.id ?? clip.id;
+      const toClipId = explicitToClipId ?? inferredToClipId;
+
+      return [
+        {
+          id: `transition-${clip.id}-${toClipId}`,
+          type: clip.transition.type ?? 'fade',
+          duration: clip.transition.duration ?? 0.5,
+          params: {
+            ...(transitionParams ?? {}),
+            toClipId,
+          },
+          fromClipId: clip.id,
+          toClipId,
+        },
+      ];
+    });
+  });
+
+  return {
+    version: 2,
+    duration,
+    tracks: normalizedTracks,
+    transitions,
+    markers: [],
+    layers: [],
+    subtitleBindings: [],
+    audioMix: [],
+    exportDefaults: {
+      format: 'mp4',
+      resolution: '1080p',
+      fps: 30,
+      quality: 'high',
+    },
+  };
+}
+
 function generateId(): string {
   return nanoid();
 }
@@ -166,6 +230,7 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
           aspectRatio: `${resolution.width}:${resolution.height}`,
           tracks: [],
           duration: 0,
+          timeline: buildTimelineV2([], 0),
         };
 
         set({ currentProject: project, history: [], historyIndex: -1 });
@@ -186,6 +251,7 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
         try {
           const data = await videoProjectRepository.getById(projectId);
           if (data) {
+            const normalizedTracks = normalizeTracks(data.tracks);
             set({
               currentProject: {
                 id: data.id,
@@ -195,8 +261,9 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
                 resolution: data.resolution,
                 frameRate: data.frameRate,
                 aspectRatio: data.aspectRatio,
-                tracks: data.tracks,
+                tracks: normalizedTracks,
                 duration: data.duration,
+                timeline: buildTimelineV2(normalizedTracks, data.duration),
               },
               isLoading: false,
               history: [],
@@ -296,7 +363,12 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
         if (!currentProject) return;
 
         set({
-          currentProject: { ...currentProject, tracks, updatedAt: Date.now() },
+          currentProject: {
+            ...currentProject,
+            tracks,
+            timeline: buildTimelineV2(tracks, currentProject.duration),
+            updatedAt: Date.now(),
+          },
         });
       },
 
@@ -305,7 +377,12 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
         if (!currentProject) return;
 
         set({
-          currentProject: { ...currentProject, duration, updatedAt: Date.now() },
+          currentProject: {
+            ...currentProject,
+            duration,
+            timeline: buildTimelineV2(currentProject.tracks, duration),
+            updatedAt: Date.now(),
+          },
         });
       },
 

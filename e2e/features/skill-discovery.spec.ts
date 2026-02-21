@@ -20,10 +20,10 @@ test.describe('Skill Discovery', () => {
   });
 
   test.describe('Tab Navigation', () => {
-    test('should display My Skills and Discover tabs', async ({ page }) => {
+    test('should display My Skills, Discover, and Marketplace tabs', async ({ page }) => {
       // Check that tabs are visible - using role=tab selector
       const tabs = page.locator('[role="tablist"] [role="tab"]');
-      await expect(tabs).toHaveCount(2);
+      await expect(tabs).toHaveCount(3);
     });
 
     test('should switch to Discover tab', async ({ page }) => {
@@ -40,6 +40,37 @@ test.describe('Skill Discovery', () => {
       // First tab should be selected by default
       const firstTab = page.locator('[role="tablist"] [role="tab"]').first();
       await expect(firstTab).toHaveAttribute('data-state', 'active');
+    });
+  });
+
+  test.describe('Marketplace Tab', () => {
+    test.beforeEach(async ({ page }) => {
+      // Click marketplace tab (third tab)
+      const marketplaceTab = page.locator('[role="tablist"] [role="tab"]').nth(2);
+      await marketplaceTab.click();
+      await page.waitForTimeout(500);
+    });
+
+    test('should switch to Marketplace tab', async ({ page }) => {
+      const marketplaceTab = page.locator('[role="tablist"] [role="tab"]').nth(2);
+      await expect(marketplaceTab).toHaveAttribute('data-state', 'active');
+    });
+
+    test('should expose repo manager in marketplace when native is available', async ({ page }) => {
+      const manageReposButton = page.getByRole('button', { name: /manage repos/i });
+      const isVisible = await manageReposButton.isVisible().catch(() => false);
+
+      if (!isVisible) {
+        // In web mode/native unavailable, repo manager is hidden by design.
+        const pageContent = await page.locator('body').textContent();
+        expect(pageContent).toBeTruthy();
+        return;
+      }
+
+      await manageReposButton.click();
+      await expect(page.getByText(/skill repositories/i)).toBeVisible();
+      await expect(page.getByPlaceholder(/github url or owner\/repo/i)).toBeVisible();
+      await expect(page.getByPlaceholder(/path inside repo/i)).toBeVisible();
     });
   });
 
@@ -132,8 +163,8 @@ test.describe('Skill Discovery', () => {
       
       // Should have add repo form
       await expect(page.getByText(/add repository/i)).toBeVisible();
-      await expect(page.getByPlaceholder(/owner/i)).toBeVisible();
-      await expect(page.getByPlaceholder(/repository name/i)).toBeVisible();
+      await expect(page.getByPlaceholder(/github url or owner\/repo/i)).toBeVisible();
+      await expect(page.getByPlaceholder(/path inside repo/i)).toBeVisible();
     });
 
     test('should close dialog with escape key', async ({ page }) => {

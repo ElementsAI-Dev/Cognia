@@ -172,7 +172,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
     resume: resumeTTS,
     isPlaying: isSpeaking,
     isPaused: isTTSPaused,
-  } = useTTS();
+  } = useTTS({ source: 'selection' });
 
   // Handle TTS speak
   const handleSpeak = useCallback((text: string) => {

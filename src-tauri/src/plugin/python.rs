@@ -652,10 +652,9 @@ mod tests {
     #[test]
     fn test_python_runtime_is_available() {
         let runtime = PythonRuntime::new(None).unwrap();
-        // Should work on most systems
         let is_available = runtime.is_available();
-        // Just verify the method works, result depends on system
-        assert!(is_available || !is_available);
+        // Availability is environment-dependent, but should be stable across consecutive calls.
+        assert_eq!(is_available, runtime.is_available());
     }
 
     #[test]

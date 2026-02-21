@@ -10,9 +10,9 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { SpeedLearningMode, Textbook } from '@/types/learning/speedpass';
-import { detectSpeedLearningMode, getModeDisplayInfo, getModeRecommendation } from '@/lib/learning/speedpass';
+import { detectSpeedLearningMode, getModeRecommendation } from '@/lib/learning/speedpass';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import {
   GraduationCap,
@@ -49,6 +50,12 @@ export interface ModeSelectorDialogProps {
   textbook: Textbook | null;
   availableTime?: number; // minutes
   examDate?: Date;
+  initialMode?: SpeedLearningMode;
+  contextHint?: {
+    availableTimeMinutes?: number;
+    examDate?: Date;
+    targetScore?: number;
+  };
   onSelect: (mode: SpeedLearningMode) => void;
 }
 
@@ -71,47 +78,32 @@ interface ModeOption {
 // Mode Configuration
 // ============================================================================
 
-const MODE_OPTIONS: ModeOption[] = [
+const MODE_OPTION_CONFIG: Array<Omit<ModeOption, 'title' | 'description' | 'duration' | 'features' | 'targetScore'>> = [
   {
     mode: 'extreme',
     icon: Zap,
-    title: '极速模式',
-    description: '临考突击，快速过关',
-    duration: '1-2小时',
     durationMinutes: { min: 60, max: 120 },
     color: 'text-red-500',
     bgColor: 'bg-red-500/10',
     borderColor: 'border-red-500',
-    features: ['核心公式速记', '高频考点精讲', '必考题型训练'],
-    targetScore: '60-70分',
     coveragePercent: 30,
   },
   {
     mode: 'speed',
     icon: BookOpen,
-    title: '速成模式',
-    description: '重点突破，中等目标',
-    duration: '2-4小时',
     durationMinutes: { min: 120, max: 240 },
     color: 'text-orange-500',
     bgColor: 'bg-orange-500/10',
     borderColor: 'border-orange-500',
-    features: ['重点知识梳理', '典型例题详解', '中高频考点覆盖'],
-    targetScore: '70-85分',
     coveragePercent: 60,
   },
   {
     mode: 'comprehensive',
     icon: Brain,
-    title: '全面模式',
-    description: '系统学习，追求高分',
-    duration: '6-12小时',
     durationMinutes: { min: 360, max: 720 },
     color: 'text-blue-500',
     bgColor: 'bg-blue-500/10',
     borderColor: 'border-blue-500',
-    features: ['全部知识点覆盖', '深度理解讲解', '拓展延伸训练'],
-    targetScore: '85-100分',
     coveragePercent: 100,
   },
 ];
@@ -126,90 +118,116 @@ export function ModeSelectorDialog({
   textbook,
   availableTime,
   examDate,
+  initialMode,
+  contextHint,
   onSelect,
 }: ModeSelectorDialogProps) {
-  const _t = useTranslations('learningMode.speedpass');
-  const [selectedMode, setSelectedMode] = useState<SpeedLearningMode | null>(null);
-  const [inputTime, setInputTime] = useState<string>(availableTime?.toString() || '');
+  const locale = useLocale();
+  const tMode = useTranslations('learningMode.speedpass.modeSelector');
+  const modeOptions = useMemo<ModeOption[]>(
+    () =>
+      MODE_OPTION_CONFIG.map((option) => ({
+        ...option,
+        title: tMode(`modes.${option.mode}.title`),
+        description: tMode(`modes.${option.mode}.description`),
+        duration: tMode(`modes.${option.mode}.duration`),
+        features: ['primary', 'secondary', 'practice'].map((key) =>
+          tMode(`modes.${option.mode}.features.${key}`)
+        ),
+        targetScore: tMode(`modes.${option.mode}.targetScore`),
+      })),
+    [tMode]
+  );
+  const initialInputTime = (availableTime ?? contextHint?.availableTimeMinutes)?.toString() || '';
+  const [selectedModeOverride, setSelectedModeOverride] = useState<SpeedLearningMode | null>(null);
+  const [inputTimeOverride, setInputTimeOverride] = useState<string | null>(null);
   const [freeTextInput, setFreeTextInput] = useState('');
+  const inputTime = inputTimeOverride ?? initialInputTime;
+  const resolvedExamDate = examDate ?? contextHint?.examDate;
+  const resolvedTime = availableTime ?? contextHint?.availableTimeMinutes;
 
   // Calculate recommended mode using mode-router's intelligent detection
   const modeDetection = useMemo(() => {
     // If free text input provided, use NLP-based detection
     if (freeTextInput.trim()) {
       return detectSpeedLearningMode(freeTextInput, {
-        availableTimeMinutes: inputTime ? parseInt(inputTime, 10) : availableTime,
-        examDate,
+        availableTimeMinutes: inputTime ? parseInt(inputTime, 10) : resolvedTime,
+        examDate: resolvedExamDate,
       });
     }
 
     // Otherwise use simple time-based detection
-    const time = inputTime ? parseInt(inputTime, 10) : availableTime;
+    const time = inputTime ? parseInt(inputTime, 10) : resolvedTime;
     if (!time) return null;
 
-    return detectSpeedLearningMode(`我有${time}分钟`, {
+    return detectSpeedLearningMode(`I have ${time} minutes`, {
       availableTimeMinutes: time,
-      examDate,
+      examDate: resolvedExamDate,
     });
-  }, [inputTime, availableTime, freeTextInput, examDate]);
+  }, [inputTime, resolvedTime, freeTextInput, resolvedExamDate]);
 
   const recommendedMode = modeDetection?.detected ? modeDetection.recommendedMode : null;
 
-  // Get display info for each mode from mode-router
-  const modeDisplayInfoMap = useMemo(() => ({
-    extreme: getModeDisplayInfo('extreme'),
-    speed: getModeDisplayInfo('speed'),
-    comprehensive: getModeDisplayInfo('comprehensive'),
-  }), []);
-
   // Score-based mode recommendation (passing = 60 target)
   const scoreBasedRecommendation = useMemo(() => {
-    const time = inputTime ? parseInt(inputTime, 10) : availableTime;
+    const time = inputTime ? parseInt(inputTime, 10) : resolvedTime;
     if (!time || time <= 0) return null;
-    return getModeRecommendation(time, 60);
-  }, [inputTime, availableTime]);
+    return getModeRecommendation(time, contextHint?.targetScore || 60);
+  }, [inputTime, resolvedTime, contextHint?.targetScore]);
+
+  const selectedMode =
+    selectedModeOverride || initialMode || recommendedMode || scoreBasedRecommendation || null;
 
   // Calculate urgency based on exam date
   const urgencyLevel = useMemo(() => {
-    if (!examDate) return null;
+    if (!resolvedExamDate) return null;
     const now = new Date();
-    const diffDays = Math.ceil((examDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil((resolvedExamDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
     if (diffDays <= 0) return 'today';
     if (diffDays === 1) return 'tomorrow';
     if (diffDays <= 3) return 'soon';
     if (diffDays <= 7) return 'week';
     return 'plenty';
-  }, [examDate]);
+  }, [resolvedExamDate]);
+
+  const handleDialogOpenChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      setSelectedModeOverride(null);
+      setInputTimeOverride(null);
+      setFreeTextInput('');
+    }
+    onOpenChange(nextOpen);
+  }, [onOpenChange]);
 
   // Handle mode selection
   const handleSelect = useCallback(() => {
     if (selectedMode) {
       onSelect(selectedMode);
-      onOpenChange(false);
+      handleDialogOpenChange(false);
     }
-  }, [selectedMode, onSelect, onOpenChange]);
+  }, [selectedMode, onSelect, handleDialogOpenChange]);
 
   // Get knowledge point count estimate
   const getKnowledgePointEstimate = (mode: SpeedLearningMode) => {
     if (!textbook) return null;
     const totalKPs = textbook.totalKnowledgePoints || 0;
-    const coverage = MODE_OPTIONS.find((m) => m.mode === mode)?.coveragePercent || 100;
+    const coverage = modeOptions.find((m) => m.mode === mode)?.coveragePercent || 100;
     return Math.round((totalKPs * coverage) / 100);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GraduationCap className="h-5 w-5" />
-            选择学习模式
+            {tMode('title')}
           </DialogTitle>
           <DialogDescription>
             {textbook
-              ? `为《${textbook.name}》选择合适的学习模式`
-              : '根据你的可用时间和目标选择学习模式'}
+              ? tMode('descriptionWithTextbook', { textbookName: textbook.name })
+              : tMode('description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -219,24 +237,24 @@ export function ModeSelectorDialog({
             <div className="space-y-2">
               <Label htmlFor="available-time" className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                可用时间（分钟）
+                {tMode('availableTimeLabel')}
               </Label>
               <Input
                 id="available-time"
                 type="number"
-                placeholder="例如: 120"
+                placeholder={tMode('availableTimePlaceholder')}
                 value={inputTime}
-                onChange={(e) => setInputTime(e.target.value)}
+                onChange={(e) => setInputTimeOverride(e.target.value)}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="free-text" className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4" />
-                或描述情况
+                {tMode('freeTextLabel')}
               </Label>
               <Input
                 id="free-text"
-                placeholder="例如: 明天考试，只有2小时"
+                placeholder={tMode('freeTextPlaceholder')}
                 value={freeTextInput}
                 onChange={(e) => setFreeTextInput(e.target.value)}
               />
@@ -245,16 +263,17 @@ export function ModeSelectorDialog({
           {recommendedMode && modeDetection && (
             <p className="flex items-center gap-1 text-sm text-muted-foreground">
               <Sparkles className="h-4 w-4 text-amber-500" />
-              智能推荐:{' '}
+              {tMode('smartRecommendation')}:{' '}
               <span className="font-medium">
-                {modeDisplayInfoMap[recommendedMode].nameZh}
+                {modeOptions.find((modeOption) => modeOption.mode === recommendedMode)?.title}
               </span>
               <span className="text-xs">
-                ({modeDetection.reasonZh})
+                ({locale.startsWith('zh') ? modeDetection.reasonZh : modeDetection.reason})
               </span>
               {scoreBasedRecommendation && scoreBasedRecommendation !== recommendedMode && (
                 <span className="ml-2 text-xs text-muted-foreground">
-                  · 及格目标推荐: {modeDisplayInfoMap[scoreBasedRecommendation].nameZh}
+                  · {tMode('scoreRecommendation')}:{' '}
+                  {modeOptions.find((modeOption) => modeOption.mode === scoreBasedRecommendation)?.title}
                 </span>
               )}
             </p>
@@ -263,22 +282,24 @@ export function ModeSelectorDialog({
 
         {/* Urgency Warning */}
         {urgencyLevel && (urgencyLevel === 'today' || urgencyLevel === 'tomorrow') && (
-          <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950">
+          <Alert className="border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
             <AlertTriangle className="h-5 w-5 text-red-500" />
-            <p className="text-sm text-red-700 dark:text-red-400">
-              {urgencyLevel === 'today' ? '考试就在今天！' : '明天就要考试了！'}
-              建议选择极速模式快速复习核心内容。
-            </p>
-          </div>
+            <AlertTitle>
+              {urgencyLevel === 'today' ? tMode('urgency.todayTitle') : tMode('urgency.tomorrowTitle')}
+            </AlertTitle>
+            <AlertDescription className="text-red-700 dark:text-red-400">
+              {tMode('urgency.description')}
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Mode Options */}
         <RadioGroup
           value={selectedMode || ''}
-          onValueChange={(value) => setSelectedMode(value as SpeedLearningMode)}
+          onValueChange={(value) => setSelectedModeOverride(value as SpeedLearningMode)}
           className="grid gap-3"
         >
-          {MODE_OPTIONS.map((option) => {
+          {modeOptions.map((option) => {
             const isRecommended = option.mode === recommendedMode;
             const kpEstimate = getKnowledgePointEstimate(option.mode);
 
@@ -290,7 +311,7 @@ export function ModeSelectorDialog({
                     variant="default"
                   >
                     <Sparkles className="mr-1 h-3 w-3" />
-                    推荐
+                    {tMode('recommendedBadge')}
                   </Badge>
                 )}
                 <label
@@ -330,7 +351,10 @@ export function ModeSelectorDialog({
                     {kpEstimate !== null && kpEstimate > 0 && (
                       <p className="flex items-center gap-1 pt-1 text-xs text-muted-foreground">
                         <Target className="h-3 w-3" />
-                        预计覆盖 {kpEstimate} 个知识点 ({option.coveragePercent}%)
+                        {tMode('knowledgeCoverage', {
+                          count: kpEstimate,
+                          coveragePercent: option.coveragePercent,
+                        })}
                       </p>
                     )}
                   </div>
@@ -341,11 +365,13 @@ export function ModeSelectorDialog({
         </RadioGroup>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
+          <Button variant="outline" onClick={() => handleDialogOpenChange(false)}>
+            {tMode('cancel')}
           </Button>
           <Button onClick={handleSelect} disabled={!selectedMode}>
-            {selectedMode ? `开始${MODE_OPTIONS.find((m) => m.mode === selectedMode)?.title}` : '请选择模式'}
+            {selectedMode
+              ? tMode('startMode', { modeName: modeOptions.find((m) => m.mode === selectedMode)?.title || '' })
+              : tMode('selectMode')}
           </Button>
         </DialogFooter>
       </DialogContent>

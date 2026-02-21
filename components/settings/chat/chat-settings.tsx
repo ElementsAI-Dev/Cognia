@@ -69,6 +69,10 @@ export function ChatSettings() {
   const setCompressionRatio = useSettingsStore((state) => state.setCompressionRatio);
   const setCompressionNotification = useSettingsStore((state) => state.setCompressionNotification);
   const setCompressionUndo = useSettingsStore((state) => state.setCompressionUndo);
+  const setCompressionRetainedThreshold = useSettingsStore((state) => state.setCompressionRetainedThreshold);
+  const setCompressionPrefixStability = useSettingsStore((state) => state.setCompressionPrefixStability);
+  const chatPromptCacheAlignmentEnabled = useSettingsStore((state) => state.chatPromptCacheAlignmentEnabled);
+  const setChatPromptCacheAlignmentEnabled = useSettingsStore((state) => state.setChatPromptCacheAlignmentEnabled);
 
   // Streaming and input settings
   const streamResponses = useSettingsStore((state) => state.streamResponses);
@@ -525,8 +529,48 @@ export function ChatSettings() {
                         />
                       </div>
 
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm">Retained Threshold</Label>
+                          <span className="text-sm font-mono">{compressionSettings.retainedThreshold}%</span>
+                        </div>
+                        <Slider
+                          value={[compressionSettings.retainedThreshold]}
+                          onValueChange={([v]) => setCompressionRetainedThreshold(v)}
+                          min={10}
+                          max={90}
+                          step={5}
+                        />
+                      </div>
+
                       {/* Advanced Compression Options */}
                       <div className="grid grid-cols-2 gap-2 pt-2">
+                        <div className="flex items-center justify-between rounded-md border px-2 py-1.5 col-span-2">
+                          <div className="flex items-center gap-1.5">
+                            <Label htmlFor="prefix-stability" className="text-[10px]">
+                              Prefix Stability
+                            </Label>
+                          </div>
+                          <Switch
+                            id="prefix-stability"
+                            checked={compressionSettings.prefixStabilityMode}
+                            onCheckedChange={setCompressionPrefixStability}
+                            className="scale-75"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between rounded-md border px-2 py-1.5 col-span-2">
+                          <div className="flex items-center gap-1.5">
+                            <Label htmlFor="prompt-cache-alignment" className="text-[10px]">
+                              Prompt Cache Alignment
+                            </Label>
+                          </div>
+                          <Switch
+                            id="prompt-cache-alignment"
+                            checked={chatPromptCacheAlignmentEnabled}
+                            onCheckedChange={setChatPromptCacheAlignmentEnabled}
+                            className="scale-75"
+                          />
+                        </div>
                         <div className="flex items-center justify-between rounded-md border px-2 py-1.5">
                           <div className="flex items-center gap-1.5">
                             <Shield className="h-3 w-3 text-muted-foreground" />

@@ -4,6 +4,7 @@ import { useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Activity,
+  AlertTriangle,
   Pause,
   Play,
   Settings,
@@ -168,6 +169,12 @@ export function SystemSchedulerView({
                     {task.status}
                   </Badge>
                 </div>
+                {task.metadata_state === 'degraded' && (
+                  <div className="ml-4 flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-600">
+                    <AlertTriangle className="h-3 w-3" />
+                    {t('metadataDegraded') || 'Limited metadata; editing may be restricted'}
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-1.5 pl-4">
                   <TooltipProvider>
                     <Tooltip>
@@ -188,11 +195,21 @@ export function SystemSchedulerView({
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onEdit(task.id)}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => onEdit(task.id)}
+                          disabled={task.metadata_state === 'degraded'}
+                        >
                           <Settings className="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>{t('edit') || 'Edit'}</TooltipContent>
+                      <TooltipContent>
+                        {task.metadata_state === 'degraded'
+                          ? (t('metadataDegradedEditHint') || 'Task metadata is incomplete')
+                          : (t('edit') || 'Edit')}
+                      </TooltipContent>
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>

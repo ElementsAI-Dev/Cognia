@@ -35,6 +35,7 @@ export type SettingsSection =
   | 'agent-teams'
   | 'logs'
   | 'logging-config'
+  | 'editor'
   | 'input-completion'
   | 'transformersjs';
 

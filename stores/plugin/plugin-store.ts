@@ -31,11 +31,11 @@ interface PluginState extends PluginStoreState {
   // Actions - Plugin Lifecycle
   discoverPlugin: (manifest: PluginManifest, source: PluginSource, path: string) => void;
   installPlugin: (pluginId: string) => Promise<void>;
-  loadPlugin: (pluginId: string) => Promise<void>;
-  enablePlugin: (pluginId: string) => Promise<void>;
-  disablePlugin: (pluginId: string) => Promise<void>;
-  unloadPlugin: (pluginId: string) => Promise<void>;
-  uninstallPlugin: (pluginId: string, options?: { skipFileRemoval?: boolean }) => Promise<void>;
+  loadPlugin: (pluginId: string, options?: PluginLifecycleActionOptions) => Promise<void>;
+  enablePlugin: (pluginId: string, options?: PluginLifecycleActionOptions) => Promise<void>;
+  disablePlugin: (pluginId: string, options?: PluginLifecycleActionOptions) => Promise<void>;
+  unloadPlugin: (pluginId: string, options?: PluginLifecycleActionOptions) => Promise<void>;
+  uninstallPlugin: (pluginId: string, options?: PluginUninstallOptions) => Promise<void>;
 
   // Actions - Plugin State
   setPluginStatus: (pluginId: string, status: PluginStatus) => void;
@@ -73,6 +73,14 @@ interface PluginState extends PluginStoreState {
 
   // Reset
   reset: () => void;
+}
+
+interface PluginLifecycleActionOptions {
+  viaManager?: boolean;
+}
+
+interface PluginUninstallOptions extends PluginLifecycleActionOptions {
+  skipFileRemoval?: boolean;
 }
 
 // =============================================================================
@@ -136,7 +144,17 @@ export const usePluginStore = create<PluginState>()(
         get().emitEvent({ type: 'plugin:installed', pluginId });
       },
 
-      loadPlugin: async (pluginId) => {
+      loadPlugin: async (pluginId, options) => {
+        if (options?.viaManager !== false) {
+          try {
+            const { getPluginManager } = await import('@/lib/plugin/core/manager');
+            await getPluginManager().loadPlugin(pluginId);
+            return;
+          } catch {
+            // Fallback to local state projection when manager is unavailable.
+          }
+        }
+
         const plugin = get().plugins[pluginId];
         if (!plugin) {
           throw new Error(`Plugin not found: ${pluginId}`);
@@ -191,7 +209,17 @@ export const usePluginStore = create<PluginState>()(
         }
       },
 
-      enablePlugin: async (pluginId) => {
+      enablePlugin: async (pluginId, options) => {
+        if (options?.viaManager !== false) {
+          try {
+            const { getPluginManager } = await import('@/lib/plugin/core/manager');
+            await getPluginManager().enablePlugin(pluginId, 'store');
+            return;
+          } catch {
+            // Fallback to local state projection when manager is unavailable.
+          }
+        }
+
         const plugin = get().plugins[pluginId];
         if (!plugin) {
           throw new Error(`Plugin not found: ${pluginId}`);
@@ -209,11 +237,6 @@ export const usePluginStore = create<PluginState>()(
         }));
 
         try {
-          // Call onEnable hook if available
-          if (plugin.hooks?.onEnable) {
-            await plugin.hooks.onEnable();
-          }
-
           set((state) => ({
             plugins: {
               ...state.plugins,
@@ -242,7 +265,17 @@ export const usePluginStore = create<PluginState>()(
         }
       },
 
-      disablePlugin: async (pluginId) => {
+      disablePlugin: async (pluginId, options) => {
+        if (options?.viaManager !== false) {
+          try {
+            const { getPluginManager } = await import('@/lib/plugin/core/manager');
+            await getPluginManager().disablePlugin(pluginId, 'store');
+            return;
+          } catch {
+            // Fallback to local state projection when manager is unavailable.
+          }
+        }
+
         const plugin = get().plugins[pluginId];
         if (!plugin) {
           throw new Error(`Plugin not found: ${pluginId}`);
@@ -260,11 +293,6 @@ export const usePluginStore = create<PluginState>()(
         }));
 
         try {
-          // Call onDisable hook if available
-          if (plugin.hooks?.onDisable) {
-            await plugin.hooks.onDisable();
-          }
-
           set((state) => ({
             plugins: {
               ...state.plugins,
@@ -288,7 +316,17 @@ export const usePluginStore = create<PluginState>()(
         }
       },
 
-      unloadPlugin: async (pluginId) => {
+      unloadPlugin: async (pluginId, options) => {
+        if (options?.viaManager !== false) {
+          try {
+            const { getPluginManager } = await import('@/lib/plugin/core/manager');
+            await getPluginManager().unloadPlugin(pluginId);
+            return;
+          } catch {
+            // Fallback to local state projection when manager is unavailable.
+          }
+        }
+
         const plugin = get().plugins[pluginId];
         if (!plugin) {
           throw new Error(`Plugin not found: ${pluginId}`);
@@ -296,7 +334,7 @@ export const usePluginStore = create<PluginState>()(
 
         // Must disable first if enabled
         if (plugin.status === 'enabled') {
-          await get().disablePlugin(pluginId);
+          await get().disablePlugin(pluginId, { viaManager: false });
         }
 
         set((state) => ({
@@ -307,11 +345,6 @@ export const usePluginStore = create<PluginState>()(
         }));
 
         try {
-          // Call onUnload hook if available
-          if (plugin.hooks?.onUnload) {
-            await plugin.hooks.onUnload();
-          }
-
           set((state) => ({
             plugins: {
               ...state.plugins,
@@ -345,6 +378,16 @@ export const usePluginStore = create<PluginState>()(
       },
 
       uninstallPlugin: async (pluginId, options) => {
+        if (options?.viaManager !== false) {
+          try {
+            const { getPluginManager } = await import('@/lib/plugin/core/manager');
+            await getPluginManager().uninstallPlugin(pluginId);
+            return;
+          } catch {
+            // Fallback to local state projection when manager is unavailable.
+          }
+        }
+
         const plugin = get().plugins[pluginId];
         if (!plugin) {
           throw new Error(`Plugin not found: ${pluginId}`);
@@ -352,7 +395,7 @@ export const usePluginStore = create<PluginState>()(
 
         // Unload first if loaded
         if (['loaded', 'enabled', 'disabled'].includes(plugin.status)) {
-          await get().unloadPlugin(pluginId);
+          await get().unloadPlugin(pluginId, { viaManager: false });
         }
 
         if (!options?.skipFileRemoval) {

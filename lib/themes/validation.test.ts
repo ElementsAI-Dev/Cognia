@@ -169,6 +169,7 @@ describe('Theme Validation', () => {
       settings: {
         enabled: true,
         source: 'url',
+        imageUrl: 'https://example.com/background.jpg',
       },
     };
 
@@ -231,9 +232,13 @@ describe('Theme Validation', () => {
       const validSources = ['none', 'url', 'local', 'preset'];
       
       for (const source of validSources) {
+        const sourceSettings =
+          source === 'url' || source === 'local'
+            ? { imageUrl: 'https://example.com/background.jpg' }
+            : {};
         const data = {
           version: '1.0',
-          settings: { enabled: true, source },
+          settings: { enabled: true, source, ...sourceSettings },
         };
         const result = validateBackgroundData(data);
         expect(result.valid).toBe(true);
@@ -256,7 +261,12 @@ describe('Theme Validation', () => {
       for (const mode of validModes) {
         const data = {
           version: '1.0',
-          settings: { enabled: true, source: 'url', mode },
+          settings: {
+            enabled: true,
+            source: 'url',
+            mode,
+            imageUrl: 'https://example.com/background.jpg',
+          },
         };
         const result = validateBackgroundData(data);
         expect(result.valid).toBe(true);
@@ -266,7 +276,7 @@ describe('Theme Validation', () => {
     it('should return invalid for invalid layers format', () => {
       const data = {
         version: '1.0',
-        settings: { enabled: true, source: 'url', layers: 'not-array' },
+        settings: { enabled: true, source: 'none', layers: 'not-array' },
       };
       const result = validateBackgroundData(data);
       expect(result.valid).toBe(false);
@@ -276,7 +286,7 @@ describe('Theme Validation', () => {
     it('should accept valid layers array', () => {
       const data = {
         version: '1.0',
-        settings: { enabled: true, source: 'url', layers: [] },
+        settings: { enabled: true, source: 'none', layers: [] },
       };
       const result = validateBackgroundData(data);
       expect(result.valid).toBe(true);
@@ -285,7 +295,7 @@ describe('Theme Validation', () => {
     it('should return invalid for invalid slideshow format', () => {
       const data = {
         version: '1.0',
-        settings: { enabled: true, source: 'url', slideshow: 'not-object' },
+        settings: { enabled: true, source: 'none', slideshow: 'not-object' },
       };
       const result = validateBackgroundData(data);
       expect(result.valid).toBe(false);
@@ -295,7 +305,7 @@ describe('Theme Validation', () => {
     it('should return invalid for invalid slideshow slides', () => {
       const data = {
         version: '1.0',
-        settings: { enabled: true, source: 'url', slideshow: { slides: 'not-array' } },
+        settings: { enabled: true, source: 'none', slideshow: { slides: 'not-array' } },
       };
       const result = validateBackgroundData(data);
       expect(result.valid).toBe(false);
@@ -305,7 +315,7 @@ describe('Theme Validation', () => {
     it('should return invalid for invalid slideshow intervalMs', () => {
       const data = {
         version: '1.0',
-        settings: { enabled: true, source: 'url', slideshow: { intervalMs: 'not-number' } },
+        settings: { enabled: true, source: 'none', slideshow: { intervalMs: 'not-number' } },
       };
       const result = validateBackgroundData(data);
       expect(result.valid).toBe(false);
@@ -315,7 +325,7 @@ describe('Theme Validation', () => {
     it('should return invalid for invalid slideshow transitionMs', () => {
       const data = {
         version: '1.0',
-        settings: { enabled: true, source: 'url', slideshow: { transitionMs: 'not-number' } },
+        settings: { enabled: true, source: 'none', slideshow: { transitionMs: 'not-number' } },
       };
       const result = validateBackgroundData(data);
       expect(result.valid).toBe(false);
@@ -325,7 +335,7 @@ describe('Theme Validation', () => {
     it('should return invalid for invalid slideshow shuffle', () => {
       const data = {
         version: '1.0',
-        settings: { enabled: true, source: 'url', slideshow: { shuffle: 'not-boolean' } },
+        settings: { enabled: true, source: 'none', slideshow: { shuffle: 'not-boolean' } },
       };
       const result = validateBackgroundData(data);
       expect(result.valid).toBe(false);
@@ -338,6 +348,7 @@ describe('Theme Validation', () => {
         settings: {
           enabled: true,
           source: 'url',
+          imageUrl: 'https://example.com/background.jpg',
           slideshow: {
             slides: [],
             intervalMs: 5000,
@@ -348,6 +359,48 @@ describe('Theme Validation', () => {
       };
       const result = validateBackgroundData(data);
       expect(result.valid).toBe(true);
+    });
+
+    it('should reject unsafe URL protocols', () => {
+      const data = {
+        version: '1.0',
+        settings: {
+          enabled: true,
+          source: 'url',
+          imageUrl: 'http://example.com/image.jpg',
+        },
+      };
+      const result = validateBackgroundData(data);
+      expect(result.valid).toBe(false);
+      expect(result.error).toMatch(/not allowed/i);
+    });
+
+    it('should reject out-of-range global values', () => {
+      const data = {
+        version: '1.0',
+        settings: {
+          enabled: true,
+          source: 'none',
+          opacity: 1000,
+        },
+      };
+      const result = validateBackgroundData(data);
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe('Opacity out of range');
+    });
+
+    it('should reject out-of-range layer values', () => {
+      const data = {
+        version: '1.0',
+        settings: {
+          enabled: true,
+          source: 'none',
+          layers: [{ source: 'none', blur: 500 }],
+        },
+      };
+      const result = validateBackgroundData(data);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('Layer 1');
     });
   });
 });

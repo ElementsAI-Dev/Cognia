@@ -25,6 +25,8 @@ const mockTestConnection = jest.fn().mockResolvedValue({
 });
 const mockSyncCompletionSettings = jest.fn().mockResolvedValue(undefined);
 const mockIsTauri = jest.fn(() => false);
+const mockSetInputCompletionV3Enabled = jest.fn();
+const mockSetCompletionNormalizerEnabled = jest.fn();
 
 const mockConfig = { ...DEFAULT_COMPLETION_CONFIG };
 
@@ -51,6 +53,16 @@ jest.mock('@/lib/native/input-completion', () => ({
 
 jest.mock('@/lib/utils', () => ({
   isTauri: () => mockIsTauri(),
+}));
+
+jest.mock('@/stores/settings/settings-store', () => ({
+  useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({
+      inputCompletionV3Enabled: true,
+      completionNormalizerEnabled: true,
+      setInputCompletionV3Enabled: mockSetInputCompletionV3Enabled,
+      setCompletionNormalizerEnabled: mockSetCompletionNormalizerEnabled,
+    }),
 }));
 
 // Mock UI components

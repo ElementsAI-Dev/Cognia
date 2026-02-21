@@ -11,6 +11,8 @@ import {
   deleteWeaviateDocuments,
   getWeaviateDocuments,
   queryWeaviate,
+  countWeaviateDocuments,
+  scrollWeaviateDocuments,
   type WeaviateConfig,
   type WeaviateDocument,
 } from './weaviate-client';
@@ -246,6 +248,70 @@ describe('weaviate-client', () => {
           content: 'content 1',
           metadata: { tag: 'a' },
           score: 0.9,
+        },
+      ]);
+    });
+
+    it('falls back to distance score when certainty is missing', async () => {
+      fetchMock.mockResolvedValueOnce(
+        createResponse({
+          data: {
+            Get: {
+              TestClass: [
+                {
+                  _additional: { id: 'doc-2', distance: 0.2 },
+                  content: 'content 2',
+                  metadata: '{"tag":"b"}',
+                },
+              ],
+            },
+          },
+        })
+      );
+
+      const results = await queryWeaviate(mockConfig, 'hello', { topK: 3 });
+      expect(results[0].score).toBeCloseTo(0.8);
+    });
+  });
+
+  describe('countWeaviateDocuments', () => {
+    it('returns aggregate count', async () => {
+      fetchMock.mockResolvedValueOnce(
+        createResponse({
+          data: {
+            Aggregate: {
+              TestClass: [{ meta: { count: 7 } }],
+            },
+          },
+        })
+      );
+
+      const count = await countWeaviateDocuments(mockConfig);
+      expect(count).toBe(7);
+    });
+  });
+
+  describe('scrollWeaviateDocuments', () => {
+    it('returns paged documents', async () => {
+      fetchMock.mockResolvedValueOnce(
+        createResponse({
+          objects: [
+            {
+              id: 'doc-1',
+              properties: { content: 'content 1', metadata: '{"source":"test"}' },
+              vector: [0.1, 0.2],
+            },
+          ],
+        })
+      );
+
+      const docs = await scrollWeaviateDocuments(mockConfig, { offset: 0, limit: 1 });
+      expect(docs).toEqual([
+        {
+          id: 'doc-1',
+          content: 'content 1',
+          metadata: { source: 'test' },
+          embedding: [0.1, 0.2],
         },
       ]);
     });

@@ -3,7 +3,7 @@
  * Library CRUD, tags, batch operations, and paper selection
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { academicRuntimeInvoke } from '@/lib/native/academic-runtime';
 import type {
   Paper,
   LibraryPaper,
@@ -71,7 +71,7 @@ export const createLibrarySlice: AcademicSliceCreator<LibraryActions> = (set, ge
     addToLibrary: async (paper, collectionId) => {
       set({ isLoading: true, error: null });
       try {
-        const libraryPaper = await invoke<LibraryPaper>('academic_add_to_library', {
+        const libraryPaper = await academicRuntimeInvoke<LibraryPaper>('academic_add_to_library', {
           paper,
           collectionId,
         });
@@ -94,7 +94,7 @@ export const createLibrarySlice: AcademicSliceCreator<LibraryActions> = (set, ge
     removeFromLibrary: async (paperId) => {
       set({ isLoading: true, error: null });
       try {
-        await invoke('academic_remove_from_library', { paperId });
+        await academicRuntimeInvoke('academic_remove_from_library', { paperId });
 
         set((state) => {
           const papers = { ...state.library.papers };
@@ -113,18 +113,18 @@ export const createLibrarySlice: AcademicSliceCreator<LibraryActions> = (set, ge
     updatePaper: async (paperId, updates) => {
       set({ isLoading: true, error: null });
       try {
-        const updated = await invoke<LibraryPaper>('academic_update_paper', {
+        const updated = await academicRuntimeInvoke<LibraryPaper>('academic_update_paper', {
           paperId,
           updates: {
-            reading_status: updates.readingStatus,
+            readingStatus: updates.readingStatus,
             priority: updates.priority,
-            reading_progress: updates.readingProgress,
-            user_rating: updates.userRating,
-            user_notes: updates.userNotes,
+            readingProgress: updates.readingProgress,
+            userRating: updates.userRating,
+            userNotes: updates.userNotes,
             tags: updates.tags,
-            ai_summary: updates.aiSummary,
-            ai_key_insights: updates.aiKeyInsights,
-            ai_related_topics: updates.aiRelatedTopics,
+            aiSummary: updates.aiSummary,
+            aiKeyInsights: updates.aiKeyInsights,
+            aiRelatedTopics: updates.aiRelatedTopics,
           },
         });
 
@@ -143,7 +143,9 @@ export const createLibrarySlice: AcademicSliceCreator<LibraryActions> = (set, ge
 
     getPaper: async (paperId) => {
       try {
-        const paper = await invoke<LibraryPaper | null>('academic_get_paper_by_id', { paperId });
+        const paper = await academicRuntimeInvoke<LibraryPaper | null>('academic_get_paper_by_id', {
+          paperId,
+        });
         return paper;
       } catch {
         return null;
@@ -153,7 +155,7 @@ export const createLibrarySlice: AcademicSliceCreator<LibraryActions> = (set, ge
     refreshLibrary: async () => {
       set({ isLoading: true, error: null });
       try {
-        const papers = await invoke<LibraryPaper[]>('academic_get_library_papers', {
+        const papers = await academicRuntimeInvoke<LibraryPaper[]>('academic_get_library_papers', {
           filter: null,
         });
 

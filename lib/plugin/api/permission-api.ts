@@ -53,6 +53,11 @@ const permissionMapping: Record<string, PluginAPIPermission[]> = {
   'export:project': ['export:project'],
   'theme:read': ['theme:read'],
   'theme:write': ['theme:write'],
+  'media:image:read': ['media:image:read'],
+  'media:image:write': ['media:image:write'],
+  'media:video:read': ['media:video:read'],
+  'media:video:write': ['media:video:write'],
+  'media:video:export': ['media:video:export'],
   'extension:ui': ['extension:ui'],
   'notification:show': ['notification:show'],
 };

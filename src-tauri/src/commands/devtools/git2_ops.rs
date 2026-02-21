@@ -14,7 +14,9 @@ pub use desktop::*;
 mod mobile {
     use serde::{Deserialize, Serialize};
 
-    use crate::commands::devtools::git::{GitBranchInfo, GitCommitInfo, GitFileStatus, GitRepoInfo};
+    use crate::commands::devtools::git::{
+        GitBranchInfo, GitCommitInfo, GitFileStatus, GitRepoInfo,
+    };
 
     fn unsupported_error() -> String {
         "unsupported on mobile".to_string()

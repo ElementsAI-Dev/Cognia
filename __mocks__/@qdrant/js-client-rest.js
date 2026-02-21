@@ -5,8 +5,10 @@ const QdrantClient = jest.fn().mockImplementation((config) => ({
   createCollection: jest.fn().mockResolvedValue({ result: true }),
   deleteCollection: jest.fn().mockResolvedValue({ result: true }),
   upsert: jest.fn().mockResolvedValue({ result: { operation_id: 1, status: 'completed' } }),
+  query: jest.fn().mockResolvedValue({ points: [] }),
   search: jest.fn().mockResolvedValue([]),
   scroll: jest.fn().mockResolvedValue({ points: [], next_page_offset: null }),
+  count: jest.fn().mockResolvedValue({ count: 0 }),
   delete: jest.fn().mockResolvedValue({ result: { operation_id: 1, status: 'completed' } }),
   getCollection: jest.fn().mockResolvedValue({
     indexed_vectors_count: 0,

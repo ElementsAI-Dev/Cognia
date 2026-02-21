@@ -369,7 +369,7 @@ describe('RecordingHistoryPanel', () => {
 describe('RecordingHistoryPanel - Web Environment', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     jest.spyOn(require('@/lib/native/utils'), 'isTauri').mockReturnValue(false);
   });
 
@@ -413,7 +413,7 @@ describe('RecordingHistoryPanel - Storage Stats', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Reset isTauri to return true for this test suite
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     jest.spyOn(require('@/lib/native/utils'), 'isTauri').mockReturnValue(true);
     (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue(mockStore);
   });
@@ -495,7 +495,7 @@ describe('RecordingHistoryPanel - Pinned Recordings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Reset isTauri to return true for this test suite
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     jest.spyOn(require('@/lib/native/utils'), 'isTauri').mockReturnValue(true);
     (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue(mockStore);
   });
@@ -546,7 +546,7 @@ describe('RecordingHistoryPanel - Pin/Unpin Operations', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     jest.spyOn(require('@/lib/native/utils'), 'isTauri').mockReturnValue(true);
     (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue(mockStore);
   });
@@ -601,7 +601,7 @@ describe('RecordingHistoryPanel - Tag Operations', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     jest.spyOn(require('@/lib/native/utils'), 'isTauri').mockReturnValue(true);
     (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue(mockStore);
   });
@@ -648,7 +648,7 @@ describe('RecordingHistoryPanel - Open Folder', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     jest.spyOn(require('@/lib/native/utils'), 'isTauri').mockReturnValue(true);
     (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue(mockStore);
   });
@@ -686,7 +686,7 @@ describe('RecordingHistoryPanel - className prop', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Reset isTauri to return true for this test suite
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     jest.spyOn(require('@/lib/native/utils'), 'isTauri').mockReturnValue(true);
     (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue(mockStore);
   });

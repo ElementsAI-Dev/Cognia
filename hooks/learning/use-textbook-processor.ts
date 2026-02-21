@@ -45,7 +45,15 @@ import {
 // ============================================================================
 
 export interface ProcessingProgress {
-  stage: 'idle' | 'parsing' | 'extracting' | 'generating' | 'complete' | 'error';
+  stage:
+    | 'idle'
+    | 'uploading'
+    | 'parsing'
+    | 'extracting_chapters'
+    | 'extracting_knowledge_points'
+    | 'extracting_questions'
+    | 'complete'
+    | 'error';
   current: number;
   total: number;
   message: string;
@@ -75,6 +83,32 @@ export function useTextbookProcessor() {
 
   const store = useSpeedPassStore();
 
+  const syncParseState = useCallback(
+    (
+      textbookId: string,
+      payload: {
+        status: 'uploading' | 'parsing' | 'extracting_chapters' | 'extracting_knowledge_points' | 'extracting_questions' | 'completed' | 'failed';
+        progress: number;
+        message?: string;
+        parseError?: string;
+      }
+    ) => {
+      store.setParseProgress({
+        textbookId,
+        status: payload.status,
+        progress: payload.progress,
+        message: payload.message,
+      });
+      store.updateTextbook(textbookId, {
+        parseStatus: payload.status,
+        parseProgress: payload.progress,
+        parseError: payload.parseError,
+        ...(payload.status === 'completed' ? { parsedAt: new Date() } : {}),
+      });
+    },
+    [store]
+  );
+
   const processTextbook = useCallback(
     async (
       textbookId: string,
@@ -98,14 +132,24 @@ export function useTextbookProcessor() {
           total: 100,
           message: '正在解析教材内容...',
         });
+        syncParseState(textbookId, {
+          status: 'parsing',
+          progress: 0,
+          message: '正在解析教材内容...',
+        });
 
         const parseResult = parseTextbookContent(rawContent, (p: { progress: number; message?: string }) => {
           if (abortRef.current) throw new Error('Aborted');
+          syncParseState(textbookId, {
+            status: 'extracting_chapters',
+            progress: p.progress,
+            message: p.message || '正在提取章节结构...',
+          });
           setProgress({
-            stage: 'parsing',
+            stage: 'extracting_chapters',
             current: p.progress,
             total: 100,
-            message: p.message || '正在解析...',
+            message: p.message || '正在提取章节结构...',
           });
         });
 
@@ -118,9 +162,14 @@ export function useTextbookProcessor() {
 
         // Stage 2: Extract knowledge points
         setProgress({
-          stage: 'extracting',
+          stage: 'extracting_knowledge_points',
           current: 0,
           total: 100,
+          message: '正在提取知识点...',
+        });
+        syncParseState(textbookId, {
+          status: 'extracting_knowledge_points',
+          progress: 0,
           message: '正在提取知识点...',
         });
 
@@ -139,8 +188,14 @@ export function useTextbookProcessor() {
           },
           (p: { current: number; total: number; message: string }) => {
             if (abortRef.current) throw new Error('Aborted');
+            const progressValue = p.total > 0 ? Math.round((p.current / p.total) * 100) : 0;
+            syncParseState(textbookId, {
+              status: 'extracting_knowledge_points',
+              progress: progressValue,
+              message: p.message,
+            });
             setProgress({
-              stage: 'extracting',
+              stage: 'extracting_knowledge_points',
               current: p.current,
               total: p.total,
               message: p.message,
@@ -155,9 +210,14 @@ export function useTextbookProcessor() {
 
         // Stage 3: Extract questions
         setProgress({
-          stage: 'generating',
+          stage: 'extracting_questions',
           current: 0,
           total: 100,
+          message: '正在提取例题和习题...',
+        });
+        syncParseState(textbookId, {
+          status: 'extracting_questions',
+          progress: 0,
           message: '正在提取例题和习题...',
         });
 
@@ -172,8 +232,7 @@ export function useTextbookProcessor() {
         store.setTextbookQuestions(textbookId, questions);
 
         // Update parse progress
-        store.setParseProgress({
-          textbookId,
+        syncParseState(textbookId, {
           status: 'completed',
           progress: 100,
           message: '处理完成',
@@ -197,6 +256,15 @@ export function useTextbookProcessor() {
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
         if (error.message !== 'Aborted') {
+          const textbook = store.textbooks[textbookId];
+          if (textbook) {
+            syncParseState(textbookId, {
+              status: 'failed',
+              progress: 0,
+              message: error.message,
+              parseError: error.message,
+            });
+          }
           setError(error);
           setProgress({
             stage: 'error',
@@ -209,7 +277,7 @@ export function useTextbookProcessor() {
         return null;
       }
     },
-    [store]
+    [store, syncParseState]
   );
 
   const abort = useCallback(() => {
@@ -357,8 +425,8 @@ export function useTutorialGenerator() {
           textbookId,
           mode,
           teacherKeyPointIds,
-          userId: userId || 'default',
-          courseId: courseId || 'default',
+          ...(userId ? { userId } : {}),
+          ...(courseId ? { courseId } : {}),
         });
 
         setIsGenerating(false);
@@ -464,10 +532,49 @@ export function useQuizManager() {
       const result = calculateQuizResult(quiz, timeSpentMs);
 
       setQuizResult(result);
+      setCurrentQuiz(store.quizzes[currentQuiz.id] || null);
       return result;
     },
     [store, currentQuiz]
   );
+
+  const useHint = useCallback(
+    (questionIndex: number): string | undefined => {
+      if (!currentQuiz) return undefined;
+      const hint = store.useHint(currentQuiz.id, questionIndex);
+      setCurrentQuiz(store.quizzes[currentQuiz.id] || null);
+      return hint;
+    },
+    [store, currentQuiz]
+  );
+
+  const goToQuestion = useCallback(
+    (targetIndex: number) => {
+      if (!currentQuiz) return;
+      const quiz = store.quizzes[currentQuiz.id];
+      if (!quiz) return;
+      if (targetIndex < 0 || targetIndex >= quiz.questions.length) return;
+
+      const delta = targetIndex - quiz.currentQuestionIndex;
+      if (delta > 0) {
+        for (let index = 0; index < delta; index++) {
+          store.nextQuestion(currentQuiz.id);
+        }
+      } else if (delta < 0) {
+        for (let index = 0; index < Math.abs(delta); index++) {
+          store.previousQuestion(currentQuiz.id);
+        }
+      }
+
+      setCurrentQuiz(store.quizzes[currentQuiz.id] || null);
+    },
+    [store, currentQuiz]
+  );
+
+  const getLiveQuiz = useCallback(() => {
+    if (!currentQuiz) return null;
+    return store.quizzes[currentQuiz.id] || null;
+  }, [store.quizzes, currentQuiz]);
 
   return {
     currentQuiz,
@@ -475,6 +582,9 @@ export function useQuizManager() {
     createQuiz,
     submitAnswer,
     finishQuiz,
+    useHint,
+    goToQuestion,
+    getLiveQuiz,
   };
 }
 

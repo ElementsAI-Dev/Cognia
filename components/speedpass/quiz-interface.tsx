@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   CheckCircle2,
   XCircle,
@@ -53,10 +54,15 @@ export function QuizInterface({
   onCancel,
 }: QuizInterfaceProps) {
   const t = useTranslations('learningMode.speedpass.quiz');
-  const { currentQuiz, quizResult, createQuiz, submitAnswer, finishQuiz } = useQuizManager();
+  const quizManager = useQuizManager();
+  const { currentQuiz, quizResult, createQuiz, submitAnswer, finishQuiz } = quizManager;
+  const hintAction = quizManager.useHint;
+  const navigateToQuestion = quizManager.goToQuestion;
+  const getLiveQuiz = quizManager.getLiveQuiz;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
   const [showHint, setShowHint] = useState(false);
+  const [hintText, setHintText] = useState<string>('');
   const [startTime] = useState(() => Date.now());
   const [flaggedQuestions, setFlaggedQuestions] = useState<Set<number>>(new Set());
 
@@ -71,6 +77,7 @@ export function QuizInterface({
     (answer: string) => {
       setUserAnswers((prev) => ({ ...prev, [currentIndex]: answer }));
       setShowHint(false);
+      setHintText('');
     },
     [currentIndex]
   );
@@ -85,17 +92,23 @@ export function QuizInterface({
   const handleNext = useCallback(() => {
     if (currentQuiz && currentIndex < currentQuiz.questions.length - 1) {
       handleSubmitAnswer();
-      setCurrentIndex((prev) => prev + 1);
+      const targetIndex = currentIndex + 1;
+      navigateToQuestion?.(targetIndex);
+      setCurrentIndex(targetIndex);
       setShowHint(false);
+      setHintText('');
     }
-  }, [currentQuiz, currentIndex, handleSubmitAnswer]);
+  }, [currentQuiz, currentIndex, handleSubmitAnswer, navigateToQuestion]);
 
   const handlePrev = useCallback(() => {
     if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1);
+      const targetIndex = currentIndex - 1;
+      navigateToQuestion?.(targetIndex);
+      setCurrentIndex(targetIndex);
       setShowHint(false);
+      setHintText('');
     }
-  }, [currentIndex]);
+  }, [currentIndex, navigateToQuestion]);
 
   const handleFinish = useCallback(() => {
     handleSubmitAnswer();
@@ -122,13 +135,30 @@ export function QuizInterface({
     setCurrentIndex(0);
     setUserAnswers({});
     setShowHint(false);
+    setHintText('');
     setFlaggedQuestions(new Set());
     createQuiz(textbookId, knowledgePointIds, questionCount);
   }, [createQuiz, textbookId, knowledgePointIds, questionCount]);
 
+  const handleUseHint = useCallback(() => {
+    const generatedHint = hintAction?.(currentIndex);
+    setHintText(generatedHint || t('hint.content'));
+    setShowHint(true);
+  }, [hintAction, currentIndex, t]);
+
   // Show results if quiz is complete
   if (quizResult) {
-    return <QuizResults result={quizResult} onRetry={handleRetry} onClose={onCancel} />;
+    const liveQuiz = getLiveQuiz?.() || currentQuiz;
+    const wrongCount = liveQuiz?.wrongQuestionIds?.length || quizResult.incorrectAnswers;
+    return (
+      <QuizResults
+        result={quizResult}
+        wrongQuestionsCount={wrongCount}
+        suggestedReviewCount={wrongCount}
+        onRetry={handleRetry}
+        onClose={onCancel}
+      />
+    );
   }
 
   // Show loading if quiz not ready
@@ -172,6 +202,7 @@ export function QuizInterface({
                       variant="ghost"
                       size="sm"
                       onClick={handleToggleFlag}
+                      aria-label={t('flagQuestion')}
                       className={cn(flaggedQuestions.has(currentIndex) && 'text-yellow-500')}
                     >
                       <Flag className="h-4 w-4" />
@@ -218,13 +249,14 @@ export function QuizInterface({
 
           {/* Hint */}
           {showHint && question.hintsAvailable > 0 && (
-            <div className="rounded-lg bg-yellow-500/10 p-4 text-sm">
-              <div className="flex items-center gap-2 font-medium text-yellow-600 dark:text-yellow-400">
-                <Lightbulb className="h-4 w-4" />
-                {t('hint.title')}
-              </div>
-              <p className="mt-2 text-muted-foreground">{t('hint.content')}</p>
-            </div>
+            <Alert
+              aria-live="polite"
+              className="border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
+            >
+              <Lightbulb className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+              <AlertTitle>{t('hint.title')}</AlertTitle>
+              <AlertDescription>{hintText || t('hint.content')}</AlertDescription>
+            </Alert>
           )}
         </CardContent>
       </Card>
@@ -240,7 +272,7 @@ export function QuizInterface({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" onClick={() => setShowHint(true)}>
+                  <Button variant="ghost" onClick={handleUseHint}>
                     <Lightbulb className="mr-2 h-4 w-4" />
                     {t('hint.button')}
                   </Button>
@@ -282,7 +314,12 @@ export function QuizInterface({
                     userAnswers[idx] && idx !== currentIndex && 'bg-green-500/20 border-green-500',
                     flaggedQuestions.has(idx) && 'border-yellow-500'
                   )}
-                  onClick={() => setCurrentIndex(idx)}
+                  onClick={() => {
+                    navigateToQuestion?.(idx);
+                    setCurrentIndex(idx);
+                    setShowHint(false);
+                    setHintText('');
+                  }}
                 >
                   {idx + 1}
                 </Button>
@@ -348,11 +385,19 @@ function QuestionInput({ question, value, onChange }: QuestionInputProps) {
 
 interface QuizResultsProps {
   result: QuizResult;
+  wrongQuestionsCount?: number;
+  suggestedReviewCount?: number;
   onRetry: () => void;
   onClose?: () => void;
 }
 
-function QuizResults({ result, onRetry, onClose }: QuizResultsProps) {
+function QuizResults({
+  result,
+  wrongQuestionsCount = 0,
+  suggestedReviewCount = 0,
+  onRetry,
+  onClose,
+}: QuizResultsProps) {
   const t = useTranslations('learningMode.speedpass.quiz.results');
   const { correctAnswers, incorrectAnswers, accuracy, timeSpentMs } = result;
   const minutes = Math.floor(timeSpentMs / 60000);
@@ -409,6 +454,13 @@ function QuizResults({ result, onRetry, onClose }: QuizResultsProps) {
           </div>
         </div>
 
+        <div className="rounded-lg border bg-muted/40 p-4 text-sm">
+          <p className="font-medium">错题与复习建议</p>
+          <p className="mt-1 text-muted-foreground">
+            本次已记录 {wrongQuestionsCount} 道错题，建议优先复习 {suggestedReviewCount} 道。
+          </p>
+        </div>
+
         {/* Actions */}
         <div className="flex gap-4">
           <Button variant="outline" className="flex-1" onClick={onRetry}>
@@ -443,11 +495,7 @@ function ElapsedTime({ startTime }: { startTime: number }) {
   const minutes = Math.floor(elapsed / 60000);
   const seconds = Math.floor((elapsed % 60000) / 1000);
 
-  return (
-    <span>
-      {minutes}:{seconds.toString().padStart(2, '0')}
-    </span>
-  );
+  return <span aria-live="polite">{minutes}:{seconds.toString().padStart(2, '0')}</span>;
 }
 
 function DifficultyBadge({ difficulty }: { difficulty: number }) {

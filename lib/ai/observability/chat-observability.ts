@@ -66,21 +66,30 @@ export class ChatObservabilityManager {
   /**
    * Track a message generation
    */
-  async trackGeneration(
+  async trackGeneration<
+    T extends {
+      text: string;
+      usage?: {
+        promptTokens: number;
+        completionTokens: number;
+        totalTokens: number;
+        cachedPromptTokens?: number;
+        cacheReadTokens?: number;
+        cacheWriteTokens?: number;
+      };
+    },
+  >(
     model: string,
     provider: string,
     messages: CoreMessage[],
-    fn: () => Promise<{
-      text: string;
-      usage?: { promptTokens: number; completionTokens: number; totalTokens: number };
-    }>,
+    fn: () => Promise<T>,
     options?: {
       temperature?: number;
       maxTokens?: number;
       topP?: number;
     }
   ) {
-    const result = await OpenTelemetryUtils.trackAIGeneration(
+    const result = await OpenTelemetryUtils.trackAIGeneration<T>(
       model,
       provider,
       fn,

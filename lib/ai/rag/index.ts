@@ -77,6 +77,17 @@ export {
   createRAGPipeline,
 } from './rag-pipeline';
 
+// Unified RAG runtime
+export {
+  type RAGRuntimeConfig,
+  type VectorSettingsLike,
+  RAGRuntime,
+  createRAGRuntime,
+  createRAGRuntimeConfigFromVectorSettings,
+  getSharedRAGRuntime,
+  resetSharedRAGRuntimes,
+} from './rag-runtime';
+
 // Find Relevant Content API
 export {
   type DocumentWithEmbedding,
@@ -98,9 +109,6 @@ export {
   createKnowledgeBaseManagementTools,
   combineTools,
 } from './rag-tools';
-
-// Core RAG Service
-export * from './rag';
 
 // Query Cache
 export {

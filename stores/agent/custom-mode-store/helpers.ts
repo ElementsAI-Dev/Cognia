@@ -1,8 +1,6 @@
 import type { A2UIComponent } from '@/types/artifact/a2ui';
 import { nanoid } from 'nanoid';
 import {
-  TOOL_CATEGORIES,
-  MODE_TEMPLATES,
   type CustomModeConfig,
   type CustomModeCategory,
   type CustomModeA2UITemplate,

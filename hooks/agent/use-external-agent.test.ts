@@ -9,6 +9,10 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useExternalAgent } from './use-external-agent';
 
+jest.mock('@/lib/utils', () => ({
+  isTauri: jest.fn(() => true),
+}));
+
 // Mock the external agent manager with dynamic import mock
 const mockConnect = jest.fn().mockResolvedValue(undefined);
 const mockDisconnect = jest.fn().mockResolvedValue(undefined);
@@ -33,8 +37,14 @@ const mockAuthenticate = jest.fn().mockResolvedValue(undefined);
 const mockListSessions = jest.fn().mockResolvedValue([]);
 const mockForkSession = jest.fn();
 const mockResumeSession = jest.fn();
+const mockManagerAddAgent = jest.fn();
+const mockManagerRemoveAgent = jest.fn().mockResolvedValue(undefined);
+const mockManagerGetAgent = jest.fn();
+const mockManagerCheckHealth = jest.fn().mockResolvedValue(true);
 
 const mockManager = {
+  addAgent: mockManagerAddAgent,
+  removeAgent: mockManagerRemoveAgent,
   connect: mockConnect,
   disconnect: mockDisconnect,
   createSession: mockCreateSession,
@@ -47,6 +57,7 @@ const mockManager = {
   isConnected: mockIsConnected,
   respondToPermission: mockRespondToPermission,
   getAllAgents: mockManagerGetAllAgents,
+  getAgent: mockManagerGetAgent,
   addEventListener: mockAddEventListener,
   getSession: mockGetSession,
   setSessionMode: mockSetSessionMode,
@@ -58,6 +69,7 @@ const mockManager = {
   listSessions: mockListSessions,
   forkSession: mockForkSession,
   resumeSession: mockResumeSession,
+  checkAgentHealth: mockManagerCheckHealth,
 };
 
 jest.mock('@/lib/ai/agent/external/manager', () => ({
@@ -71,25 +83,124 @@ const mockGetAllAgents = jest.fn();
 const mockGetAgent = jest.fn();
 const mockSetConnectionStatus = jest.fn();
 const mockGetConnectionStatus = jest.fn();
+const mockSetActiveAgent = jest.fn();
+const storeHookListeners = new Set<() => void>();
+type MockStoreState = {
+  addAgent: typeof mockAddAgent;
+  removeAgent: typeof mockRemoveAgent;
+  getAllAgents: typeof mockGetAllAgents;
+  getAgent: typeof mockGetAgent;
+  setConnectionStatus: typeof mockSetConnectionStatus;
+  getConnectionStatus: typeof mockGetConnectionStatus;
+  setActiveAgent: typeof mockSetActiveAgent;
+  agents: Record<string, unknown>;
+  connectionStatus: Record<string, string>;
+  activeAgentId: string | null;
+  defaultPermissionMode: string;
+  enabled: boolean;
+};
+const storeSubscribers = new Set<(state: MockStoreState, previousState: MockStoreState) => void>();
+const mockSubscribe = jest.fn(
+  (listener: (state: MockStoreState, previousState: MockStoreState) => void) => {
+    storeSubscribers.add(listener);
+    return () => {
+      storeSubscribers.delete(listener);
+    };
+  }
+);
+const mockStoreSetState = jest.fn();
+
+const mockStoreState: MockStoreState = {
+  addAgent: mockAddAgent,
+  removeAgent: mockRemoveAgent,
+  getAllAgents: mockGetAllAgents,
+  getAgent: mockGetAgent,
+  setConnectionStatus: mockSetConnectionStatus,
+  getConnectionStatus: mockGetConnectionStatus,
+  setActiveAgent: mockSetActiveAgent,
+  agents: {} as Record<string, unknown>,
+  connectionStatus: {} as Record<string, string>,
+  activeAgentId: null as string | null,
+  defaultPermissionMode: 'default',
+  enabled: true,
+};
+const notifyStoreListeners = (previousState: MockStoreState) => {
+  for (const subscriber of storeSubscribers) {
+    subscriber(mockStoreState, previousState);
+  }
+  for (const listener of storeHookListeners) {
+    listener();
+  }
+};
+
+mockSetActiveAgent.mockImplementation((agentId: string | null) => {
+  const previousState = { ...mockStoreState };
+  mockStoreState.activeAgentId = agentId;
+  notifyStoreListeners(previousState);
+});
+mockStoreSetState.mockImplementation(
+  (
+    partial:
+      | Partial<MockStoreState>
+      | ((state: MockStoreState) => Partial<MockStoreState>)
+  ) => {
+    const previousState = { ...mockStoreState };
+    const patch = typeof partial === 'function' ? partial(mockStoreState) : partial;
+    Object.assign(mockStoreState, patch);
+    notifyStoreListeners(previousState);
+  }
+);
+
+function useMockExternalAgentStore(selector?: (state: typeof mockStoreState) => unknown) {
+  const React = require('react') as typeof import('react');
+  return React.useSyncExternalStore(
+    (listener) => {
+      storeHookListeners.add(listener);
+      return () => {
+        storeHookListeners.delete(listener);
+      };
+    },
+    () => (selector ? selector(mockStoreState) : mockStoreState),
+    () => (selector ? selector(mockStoreState) : mockStoreState)
+  );
+}
+
+Object.assign(useMockExternalAgentStore, {
+  getState: () => mockStoreState,
+  subscribe: mockSubscribe,
+  setState: mockStoreSetState,
+});
 
 jest.mock('@/stores/agent/external-agent-store', () => ({
-  useExternalAgentStore: () => ({
-    addAgent: mockAddAgent,
-    removeAgent: mockRemoveAgent,
-    getAllAgents: mockGetAllAgents,
-    getAgent: mockGetAgent,
-    setConnectionStatus: mockSetConnectionStatus,
-    getConnectionStatus: mockGetConnectionStatus,
-    enabled: true,
-  }),
+  useExternalAgentStore: useMockExternalAgentStore,
 }));
 
 describe('useExternalAgent', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    storeHookListeners.clear();
+    storeSubscribers.clear();
+    mockStoreState.activeAgentId = null;
+    mockStoreState.defaultPermissionMode = 'default';
     mockGetAllAgents.mockReturnValue([]);
+    mockAddAgent.mockImplementation(() => 'agent-created');
+    mockGetAgent.mockImplementation((agentId: string) => {
+      if (agentId === 'agent-created' || agentId === 'agent-1') {
+        return {
+          id: agentId,
+          name: 'Created Agent',
+          protocol: 'acp',
+          transport: 'stdio',
+          enabled: true,
+          metadata: {},
+        };
+      }
+      return undefined;
+    });
     mockGetConnectionStatus.mockReturnValue('disconnected');
     mockIsConnected.mockReturnValue(false);
+    mockManagerGetAllAgents.mockReturnValue([]);
+    mockManagerGetAgent.mockReturnValue(undefined);
   });
 
   describe('plan/commands updates', () => {
@@ -602,6 +713,81 @@ describe('useExternalAgent', () => {
 
       await expect(executePromise).resolves.toEqual({ success: true, response: 'ok' });
     });
+
+    it('should reuse provided sessionId for execution', async () => {
+      const externalResult = {
+        success: true,
+        sessionId: 'session-reuse-1',
+        finalResponse: 'done',
+        messages: [],
+        steps: [],
+        toolCalls: [],
+        duration: 5,
+      };
+      mockExecute.mockResolvedValueOnce(externalResult);
+      mockGetSession.mockReturnValueOnce({
+        id: 'session-reuse-1',
+        agentId: 'agent-1',
+        status: 'active',
+        createdAt: new Date(),
+      });
+
+      const { result } = renderHook(() => useExternalAgent());
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      await act(async () => {
+        await result.current.execute('hello', { sessionId: 'session-reuse-1' });
+      });
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        'agent-1',
+        'hello',
+        expect.objectContaining({ sessionId: 'session-reuse-1' })
+      );
+      expect(result.current.activeSession?.id).toBe('session-reuse-1');
+    });
+
+    it('should cancel the currently executing external session', async () => {
+      let resolveExecution: ((value: unknown) => void) | undefined;
+      mockExecute.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveExecution = resolve;
+          })
+      );
+      const { result } = renderHook(() => useExternalAgent());
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      act(() => {
+        void result.current.execute('hello', { sessionId: 'session-cancel-1' });
+      });
+
+      await waitFor(() => {
+        expect(result.current.isExecuting).toBe(true);
+      });
+
+      await act(async () => {
+        await result.current.cancel();
+      });
+
+      expect(mockCancel).toHaveBeenCalledWith('agent-1', 'session-cancel-1');
+
+      await act(async () => {
+        resolveExecution?.({
+          success: true,
+          sessionId: 'session-cancel-1',
+          finalResponse: '',
+          messages: [],
+          steps: [],
+          toolCalls: [],
+          duration: 1,
+        });
+      });
+    });
   });
 
   describe('respondToPermission', () => {
@@ -665,7 +851,7 @@ describe('useExternalAgent', () => {
 
   describe('checkHealth', () => {
     it('should return false for unhealthy agent', async () => {
-      mockIsConnected.mockReturnValue(false);
+      mockManagerCheckHealth.mockResolvedValueOnce(false);
 
       const { result } = renderHook(() => useExternalAgent());
 

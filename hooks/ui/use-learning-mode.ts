@@ -13,6 +13,7 @@ import {
   buildLearningSystemPrompt,
   buildAdaptiveLearningPrompt,
   analyzeLearnerResponse,
+  analyzeLearnerResponseWithAI,
   detectPhaseTransition,
   extractSubQuestions,
   shouldProvideHint,
@@ -77,6 +78,10 @@ export interface UseLearningModeReturn {
     response: string,
     expectedConcepts?: string[]
   ) => ReturnType<typeof analyzeLearnerResponse>;
+  analyzeResponseWithAI: (
+    response: string,
+    expectedConcepts?: string[]
+  ) => ReturnType<typeof analyzeLearnerResponseWithAI>;
   checkPhaseTransition: () => ReturnType<typeof detectPhaseTransition>;
   extractQuestionsFromResponse: (response: string) => string[];
   checkShouldHint: (subQuestionId: string) => {
@@ -279,6 +284,13 @@ export function useLearningMode(): UseLearningModeReturn {
     [learningSession]
   );
 
+  const analyzeResponseWithAI = useCallback(
+    async (response: string, expectedConcepts?: string[]) => {
+      return analyzeLearnerResponseWithAI(response, expectedConcepts, learningSession);
+    },
+    [learningSession]
+  );
+
   const checkPhaseTransition = useCallback(() => {
     if (!learningSession) {
       return { shouldTransition: false };
@@ -415,6 +427,7 @@ export function useLearningMode(): UseLearningModeReturn {
 
     // Analysis
     analyzeResponse,
+    analyzeResponseWithAI,
     checkPhaseTransition,
     extractQuestionsFromResponse,
     checkShouldHint,

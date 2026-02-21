@@ -1,5 +1,6 @@
-import { messageRepository, agentTraceRepository, db } from '@/lib/db';
+import { agentTraceRepository } from '@/lib/db';
 import { loggers } from '@/lib/logger';
+import { unifiedPersistenceService } from '@/lib/storage/persistence/unified-persistence-service';
 import type { SliceCreator, BulkSliceState, BulkSliceActions } from '../types';
 
 export const bulkSliceInitialState: BulkSliceState = {
@@ -31,11 +32,14 @@ export const createBulkSlice: SliceCreator<BulkSliceActions> = (set, get) => ({
 
   bulkDeleteSessions: (ids) => {
     for (const id of ids) {
-      messageRepository.deleteBySessionId(id).catch((err) =>
+      unifiedPersistenceService.messages.removeBySession(id).catch((err) =>
         loggers.chat.error('Failed to delete messages for session', err as Error)
       );
-      db.summaries.where('sessionId').equals(id).delete().catch((err) =>
+      unifiedPersistenceService.summaries.removeBySession(id).catch((err) =>
         loggers.chat.error('Failed to delete summaries for session', err as Error)
+      );
+      unifiedPersistenceService.sessions.remove(id).catch((err) =>
+        loggers.chat.error('Failed to delete session for bulk operation', err as Error)
       );
       agentTraceRepository.deleteBySessionId(id).catch((err) =>
         loggers.chat.error('Failed to delete agent traces for session', err as Error)

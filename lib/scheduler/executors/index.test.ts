@@ -1,6 +1,6 @@
 import type { ScheduledTask, TaskExecution } from '@/types/scheduler';
 import { loggers } from '@/lib/logger';
-import { executeWorkflowTask } from './index';
+import { executeBackupTask, executeWorkflowTask } from './index';
 
 const mockRegisterTaskExecutor = jest.fn();
 const mockExecutePluginTask = jest.fn();
@@ -9,6 +9,10 @@ const mockRun = jest.fn();
 const mockPersistExecution = jest.fn();
 const mockGetById = jest.fn();
 const mockDefinitionToVisual = jest.fn();
+const mockCreateFullBackup = jest.fn();
+const mockExportToJSON = jest.fn();
+const mockRunBackupUploadForProvider = jest.fn();
+const mockHasStoredCredentials = jest.fn();
 
 jest.mock('../task-scheduler', () => ({
   registerTaskExecutor: (...args: unknown[]) => mockRegisterTaskExecutor(...args),
@@ -47,6 +51,43 @@ jest.mock('@/lib/logger', () => ({
       error: jest.fn(),
       debug: jest.fn(),
     },
+  },
+}));
+
+const mockSyncStoreState = {
+  webdavConfig: { enabled: true },
+  githubConfig: { enabled: true },
+  googleDriveConfig: { enabled: true },
+};
+
+jest.mock('@/lib/storage/data-export', () => ({
+  createFullBackup: (...args: unknown[]) => mockCreateFullBackup(...args),
+  exportToJSON: (...args: unknown[]) => mockExportToJSON(...args),
+}));
+
+jest.mock('@/lib/utils', () => ({
+  isTauri: jest.fn(() => false),
+}));
+
+jest.mock('@/lib/storage/persistence/feature-flags', () => ({
+  storageFeatureFlags: {
+    encryptedBackupV3Enabled: false,
+  },
+}));
+
+jest.mock('@/lib/sync', () => ({
+  getSyncManager: () => ({
+    runBackupUploadForProvider: (...args: unknown[]) => mockRunBackupUploadForProvider(...args),
+  }),
+}));
+
+jest.mock('@/lib/sync/credential-storage', () => ({
+  hasStoredCredentials: (...args: unknown[]) => mockHasStoredCredentials(...args),
+}));
+
+jest.mock('@/stores/sync', () => ({
+  useSyncStore: {
+    getState: () => mockSyncStoreState,
   },
 }));
 
@@ -268,6 +309,76 @@ describe('executeWorkflowTask', () => {
         completedSteps: 0,
         totalSteps: 1,
         status: 'failed',
+      })
+    );
+  });
+});
+
+describe('executeBackupTask', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCreateFullBackup.mockResolvedValue({
+      version: '3.0',
+      manifest: {
+        exportedAt: '2026-01-01T00:00:00.000Z',
+      },
+      payload: {
+        sessions: [],
+        messages: [],
+        projects: [],
+        summaries: [],
+      },
+    });
+    mockExportToJSON.mockResolvedValue('{"version":"3.0"}');
+    mockRunBackupUploadForProvider.mockResolvedValue({ success: true });
+    mockHasStoredCredentials.mockResolvedValue(true);
+    mockSyncStoreState.webdavConfig.enabled = true;
+    mockSyncStoreState.githubConfig.enabled = true;
+    mockSyncStoreState.googleDriveConfig.enabled = true;
+  });
+
+  it('executes googledrive destination backup', async () => {
+    const backupTask = {
+      ...createTask({
+        backupType: 'full',
+        destination: 'googledrive',
+        options: {},
+      }),
+      type: 'backup' as const,
+    };
+
+    const result = await executeBackupTask(backupTask, createExecution());
+
+    expect(result.success).toBe(true);
+    expect(mockRunBackupUploadForProvider).toHaveBeenCalledWith('googledrive');
+  });
+
+  it('fails when any configured provider fails for all destination', async () => {
+    mockHasStoredCredentials.mockImplementation(async (provider: string) => provider !== 'github');
+    mockRunBackupUploadForProvider.mockImplementation(async (provider: string) =>
+      provider === 'googledrive'
+        ? { success: false, error: 'upload failed' }
+        : { success: true }
+    );
+
+    const backupTask = {
+      ...createTask({
+        backupType: 'full',
+        destination: 'all',
+      }),
+      type: 'backup' as const,
+    };
+
+    const result = await executeBackupTask(backupTask, createExecution());
+
+    expect(result.success).toBe(false);
+    expect(result.output).toEqual(
+      expect.objectContaining({
+        syncResult: expect.objectContaining({
+          successfulProviders: ['webdav'],
+          skippedProviders: ['github'],
+          failedProviders: [{ provider: 'googledrive', error: 'upload failed' }],
+        }),
       })
     );
   });

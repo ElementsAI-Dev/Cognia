@@ -1,7 +1,6 @@
 import { nanoid } from 'nanoid';
-import { db } from '@/lib/db/schema';
 import type { StoreApi } from 'zustand';
-import { storedToDbSummary } from '../adapters';
+import { unifiedPersistenceService } from '@/lib/storage/persistence/unified-persistence-service';
 import type { StoredSummary, SummaryStore, SummaryStoreActions } from '../types';
 
 type SummaryStoreSet = StoreApi<SummaryStore>['setState'];
@@ -23,8 +22,7 @@ export const createCrudSlice = (set: SummaryStoreSet, get: SummaryStoreGet): Cru
         updatedAt: now,
       };
 
-      const dbSummary = storedToDbSummary(summary);
-      await db.summaries.add(dbSummary);
+      await unifiedPersistenceService.summaries.upsert(summary);
 
       set((state) => ({
         summaries: [summary, ...state.summaries],
@@ -55,8 +53,7 @@ export const createCrudSlice = (set: SummaryStoreSet, get: SummaryStoreGet): Cru
         updatedAt: new Date(),
       };
 
-      const dbSummary = storedToDbSummary(updatedSummary);
-      await db.summaries.put(dbSummary);
+      await unifiedPersistenceService.summaries.upsert(updatedSummary);
 
       set((state) => ({
         summaries: state.summaries.map((s) => (s.id === id ? updatedSummary : s)),
@@ -74,7 +71,7 @@ export const createCrudSlice = (set: SummaryStoreSet, get: SummaryStoreGet): Cru
   deleteSummary: async (id) => {
     set({ isLoading: true, error: null });
     try {
-      await db.summaries.delete(id);
+      await unifiedPersistenceService.summaries.remove(id);
       set((state) => ({
         summaries: state.summaries.filter((s) => s.id !== id),
         isLoading: false,
@@ -91,7 +88,7 @@ export const createCrudSlice = (set: SummaryStoreSet, get: SummaryStoreGet): Cru
   deleteAllSummariesForSession: async (sessionId) => {
     set({ isLoading: true, error: null });
     try {
-      await db.summaries.where('sessionId').equals(sessionId).delete();
+      await unifiedPersistenceService.summaries.removeBySession(sessionId);
       set((state) => ({
         summaries: state.summaries.filter((s) => s.sessionId !== sessionId),
         isLoading: false,

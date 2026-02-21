@@ -255,4 +255,10 @@ describe('BackupScheduleDialog', () => {
       );
     });
   });
+
+  it('should render destination hint for cloud targets', () => {
+    render(<BackupScheduleDialog />);
+    fireEvent.click(screen.getByText('backup.schedule'));
+    expect(screen.getByText('backup.destinationHint')).toBeInTheDocument();
+  });
 });

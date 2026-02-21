@@ -26,6 +26,9 @@ import {
   enableSystemTask,
   disableSystemTask,
   runSystemTaskNow,
+  confirmSystemTask,
+  cancelTaskConfirmation,
+  getPendingConfirmations,
   validateSystemTask,
   createCronTrigger,
   createIntervalTrigger,
@@ -274,6 +277,41 @@ describe('System Scheduler Native API', () => {
         taskId: 'task-1',
       });
       expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe('confirm/cancel pending confirmations', () => {
+    it('confirms by confirmation id', async () => {
+      const confirmedTask = { id: 'task-confirmed', name: 'Confirmed Task' };
+      (invoke as jest.Mock).mockResolvedValue(confirmedTask);
+
+      const result = await confirmSystemTask('confirm-1');
+
+      expect(invoke).toHaveBeenCalledWith('scheduler_confirm_task', {
+        confirmationId: 'confirm-1',
+      });
+      expect(result).toEqual(confirmedTask);
+    });
+
+    it('cancels by confirmation id', async () => {
+      (invoke as jest.Mock).mockResolvedValue(true);
+
+      const result = await cancelTaskConfirmation('confirm-2');
+
+      expect(invoke).toHaveBeenCalledWith('scheduler_cancel_confirmation', {
+        confirmationId: 'confirm-2',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('loads pending confirmation queue', async () => {
+      const queue = [{ confirmation_id: 'confirm-3', operation: 'create' }];
+      (invoke as jest.Mock).mockResolvedValue(queue);
+
+      const result = await getPendingConfirmations();
+
+      expect(invoke).toHaveBeenCalledWith('scheduler_get_pending_confirmations');
+      expect(result).toEqual(queue);
     });
   });
 

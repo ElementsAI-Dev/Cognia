@@ -326,7 +326,7 @@ describe('TTS Providers', () => {
       });
 
       const callBody = JSON.parse(mockProxyFetch.mock.calls[0][1].body);
-      expect(callBody.acting_instructions).toBe('Speak with enthusiasm');
+      expect(callBody.utterances?.[0]?.description).toBe('Speak with enthusiasm');
     });
   });
 

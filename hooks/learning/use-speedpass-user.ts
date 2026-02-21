@@ -47,6 +47,7 @@ export interface Achievement {
   name: string;
   nameZh: string;
   description: string;
+  unlocked: boolean;
   unlockedAt?: Date;
   progress?: number;
   target?: number;
@@ -71,48 +72,56 @@ const ACHIEVEMENTS: Achievement[] = [
     name: 'First Steps',
     nameZh: '迈出第一步',
     description: '完成第一次学习',
+    unlocked: false,
   },
   {
     id: 'streak_3',
     name: '3-Day Streak',
     nameZh: '连续学习3天',
     description: '连续3天进行学习',
+    unlocked: false,
   },
   {
     id: 'streak_7',
     name: 'Weekly Warrior',
     nameZh: '周学习达人',
     description: '连续7天进行学习',
+    unlocked: false,
   },
   {
     id: 'quiz_master',
     name: 'Quiz Master',
     nameZh: '答题高手',
     description: '完成10次测验',
+    unlocked: false,
   },
   {
     id: 'accuracy_90',
     name: 'Precision Expert',
     nameZh: '精准专家',
     description: '平均正确率达到90%',
+    unlocked: false,
   },
   {
     id: 'textbook_scholar',
     name: 'Textbook Scholar',
     nameZh: '教材学者',
     description: '上传3本教材',
+    unlocked: false,
   },
   {
     id: 'extreme_survivor',
     name: 'Extreme Survivor',
     nameZh: '极速模式存活者',
     description: '完成3次极速模式学习',
+    unlocked: false,
   },
   {
     id: 'study_10h',
     name: 'Dedicated Learner',
     nameZh: '勤奋学习者',
     description: '累计学习10小时',
+    unlocked: false,
   },
 ];
 
@@ -182,6 +191,12 @@ export function useSpeedPassUser() {
     const experience = Math.floor(stats.totalStudyTimeMs / 60000); // 1 XP per minute
     const level = Math.floor(Math.sqrt(experience / 100)) + 1;
     const nextLevelExperience = Math.pow(level, 2) * 100;
+    const extremeTutorialsCompleted = Object.values(speedpassStore.tutorials).filter(
+      (tutorial) => tutorial.mode === 'extreme' && !!tutorial.completedAt
+    ).length;
+    const stableUnlockedAt = speedpassStore.globalStats.lastActiveDate
+      ? new Date(speedpassStore.globalStats.lastActiveDate)
+      : undefined;
 
     // Check achievements
     const unlockedAchievements: Achievement[] = ACHIEVEMENTS.map((achievement) => {
@@ -220,8 +235,8 @@ export function useSpeedPassUser() {
           target = 3;
           break;
         case 'extreme_survivor':
-          // Would need to track extreme mode sessions separately
-          progress = 0;
+          unlocked = extremeTutorialsCompleted >= 3;
+          progress = Math.min(extremeTutorialsCompleted, 3);
           target = 3;
           break;
         case 'study_10h':
@@ -233,14 +248,15 @@ export function useSpeedPassUser() {
 
       return {
         ...achievement,
-        unlockedAt: unlocked ? new Date() : undefined,
+        unlocked,
+        unlockedAt: unlocked ? stableUnlockedAt : undefined,
         progress,
         target,
       };
     });
 
     const badges = unlockedAchievements
-      .filter((a) => a.unlockedAt)
+      .filter((achievement) => achievement.unlocked)
       .map((a) => a.id);
 
     return {
@@ -250,7 +266,7 @@ export function useSpeedPassUser() {
       badges,
       achievements: unlockedAchievements,
     };
-  }, [stats]);
+  }, [stats, speedpassStore.globalStats.lastActiveDate, speedpassStore.tutorials]);
 
   // Update profile
   const updateProfile = useCallback(

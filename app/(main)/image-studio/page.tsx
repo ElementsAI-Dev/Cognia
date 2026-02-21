@@ -46,6 +46,7 @@ export default function ImageStudioPage() {
     editHistory,
     historyIndex,
     addToHistory,
+    clearHistory,
     undo: storeUndo,
     redo: storeRedo,
     canUndo,
@@ -168,6 +169,9 @@ export default function ImageStudioPage() {
   const batchProcessor = useBatchProcessor({
     onJobComplete: (jobId) => console.log(`Batch job ${jobId} completed`),
     onImageComplete: (_jobId, _imageId, outputPath) => {
+      if (!outputPath) {
+        return;
+      }
       addImage({ url: outputPath, prompt: 'Batch processed', model, size, quality, style });
     },
     onImageError: (_jobId, imageId, err) => console.error(`Batch image ${imageId} failed:`, err),
@@ -515,7 +519,7 @@ export default function ImageStudioPage() {
               }}
               onUndo={handleUndo}
               onRedo={handleRedo}
-              onClear={() => {}}
+              onClear={clearHistory}
               canUndo={canUndo()}
               canRedo={canRedo()}
             />

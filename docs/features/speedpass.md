@@ -13,6 +13,8 @@ SpeedPass is an interactive learning system that enables rapid knowledge acquisi
 | **Knowledge Matching** | Match teacher notes with knowledge points |
 | **Progress Tracking** | Study sessions, streaks, and daily goals |
 | **Textbook Upload** | PDF/document parsing into structured content |
+| **xAPI Interop** | Export/import standards-aligned xAPI statements |
+| **QTI 3 Interop** | Export/import QTI 3 item XML + package zip |
 
 ## Getting Started
 
@@ -72,3 +74,11 @@ lib/learning/speedpass/            → Core logic
 - **Knowledge Matcher**: Matches teacher key points with textbook knowledge points
 - **Mode Router**: Uses NLP to detect learning intent and recommend appropriate modes
 - **Extreme Mode Engine**: Manages countdown timers and phase transitions
+- **xAPI Adapter**: Maps SpeedPass events to/from xAPI Statement (`id/actor/verb/object/result/context/timestamp`)
+- **QTI Adapter**: Maps internal questions to/from QTI 3 `assessmentItem` XML and manifest package
+
+## Interoperability & Rollout
+
+- `learningInteropV2Enabled`: controls strict xAPI/QTI 3 interop path (env + localStorage override)
+- `learningModeV2Enabled`: controls learning-mode v2 message/tool/session linkage
+- SpeedPass constraints injected into learning prompts include auditable structured JSON with ISO timestamps

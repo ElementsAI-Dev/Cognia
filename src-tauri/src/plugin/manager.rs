@@ -91,10 +91,6 @@ impl PluginManager {
         self.plugin_dir.clone()
     }
 
-    pub fn runtime_root(&self) -> PathBuf {
-        self.runtime_root.clone()
-    }
-
     async fn persist_index(&self) -> PluginResult<()> {
         let plugins = self.plugins.read().await;
         let grants = self.permission_grants.read().await;
@@ -971,6 +967,24 @@ impl PluginManager {
     pub async fn get_all_plugins(&self) -> Vec<PluginState> {
         let plugins = self.plugins.read().await;
         plugins.values().cloned().collect()
+    }
+
+    /// Get runtime snapshot including plugin state and granted permissions
+    pub async fn get_runtime_snapshot(&self) -> Vec<PluginRuntimeSnapshotEntry> {
+        let plugins = self.plugins.read().await;
+        let grants = self.permission_grants.read().await;
+
+        plugins
+            .values()
+            .cloned()
+            .map(|plugin| PluginRuntimeSnapshotEntry {
+                granted_permissions: grants
+                    .get(&plugin.manifest.id)
+                    .map(|permissions| permissions.iter().cloned().collect())
+                    .unwrap_or_default(),
+                plugin,
+            })
+            .collect()
     }
 
     /// Get Python runtime info

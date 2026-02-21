@@ -15,14 +15,28 @@ import { listen } from '@tauri-apps/api/event';
 import {
   hasLspCapability,
   isTauriRuntime,
+  lspGetServerStatus,
+  lspInstallServer,
+  lspListenInstallProgress,
   lspCancelRequest,
   lspChangeDocument,
   lspExecuteCommand,
+  lspRegistrySearch,
+  lspResolveLaunch,
   lspCodeActions,
   lspCompletion,
+  lspDocumentHighlights,
   lspDocumentSymbols,
   lspFormatDocument,
+  lspImplementation,
+  lspInlayHints,
   lspListenDiagnostics,
+  lspListenServerStatusChanged,
+  lspRename,
+  lspReferences,
+  lspSemanticTokensFull,
+  lspSignatureHelp,
+  lspTypeDefinition,
   lspWorkspaceSymbols,
   lspResolveCodeAction,
   lspStartSession,
@@ -91,6 +105,14 @@ describe('lsp-client', () => {
       capabilities: {
         completionProvider: { triggerCharacters: ['.'] },
         hoverProvider: true,
+        referencesProvider: undefined,
+        renameProvider: undefined,
+        implementationProvider: undefined,
+        typeDefinitionProvider: undefined,
+        signatureHelpProvider: undefined,
+        documentHighlightProvider: undefined,
+        semanticTokensProvider: undefined,
+        inlayHintProvider: undefined,
         definitionProvider: undefined,
         documentSymbolProvider: undefined,
         codeActionProvider: { codeActionKinds: ['quickfix'] },
@@ -241,6 +263,90 @@ describe('lsp-client', () => {
     });
   });
 
+  it('forwards extended LSP methods and normalizes nullable arrays', async () => {
+    mockInvoke.mockResolvedValueOnce(null);
+    await expect(
+      lspReferences('session-1', { uri: 'file:///a.ts' }, 1, 2, true, {
+        clientRequestId: 'refs:1',
+        timeoutMs: 1200,
+      })
+    ).resolves.toEqual([]);
+    expect(mockInvoke).toHaveBeenLastCalledWith('lsp_references', {
+      request: expect.objectContaining({
+        sessionId: 'session-1',
+        uri: 'file:///a.ts',
+        includeDeclaration: true,
+        clientRequestId: 'refs:1',
+        timeoutMs: 1200,
+      }),
+    });
+
+    mockInvoke.mockResolvedValueOnce({ changes: {} });
+    await expect(
+      lspRename('session-1', { uri: 'file:///a.ts' }, 2, 3, { newName: 'nextValue' }, {
+        clientRequestId: 'rename:1',
+      })
+    ).resolves.toEqual({ changes: {} });
+    expect(mockInvoke).toHaveBeenLastCalledWith('lsp_rename', {
+      request: expect.objectContaining({
+        sessionId: 'session-1',
+        newName: 'nextValue',
+        clientRequestId: 'rename:1',
+      }),
+    });
+
+    mockInvoke.mockResolvedValueOnce(null);
+    await expect(
+      lspImplementation('session-1', { uri: 'file:///a.ts' }, 4, 1)
+    ).resolves.toEqual([]);
+
+    mockInvoke.mockResolvedValueOnce(null);
+    await expect(
+      lspTypeDefinition('session-1', { uri: 'file:///a.ts' }, 4, 1)
+    ).resolves.toEqual([]);
+
+    mockInvoke.mockResolvedValueOnce({
+      signatures: [{ label: 'fn(a: string)' }],
+      activeSignature: 0,
+      activeParameter: 0,
+    });
+    await expect(
+      lspSignatureHelp('session-1', { uri: 'file:///a.ts' }, 4, 1)
+    ).resolves.toEqual(
+      expect.objectContaining({
+        signatures: [{ label: 'fn(a: string)' }],
+      })
+    );
+
+    mockInvoke.mockResolvedValueOnce(null);
+    await expect(
+      lspDocumentHighlights('session-1', { uri: 'file:///a.ts' }, 1, 1)
+    ).resolves.toEqual([]);
+
+    mockInvoke.mockResolvedValueOnce(null);
+    await expect(
+      lspInlayHints(
+        'session-1',
+        { uri: 'file:///a.ts' },
+        {
+          start: { line: 0, character: 0 },
+          end: { line: 0, character: 10 },
+        }
+      )
+    ).resolves.toEqual([]);
+
+    mockInvoke.mockResolvedValueOnce({ data: [0, 0, 5, 0, 0] });
+    await expect(
+      lspSemanticTokensFull('session-1', { uri: 'file:///a.ts' })
+    ).resolves.toEqual({ data: [0, 0, 5, 0, 0] });
+    expect(mockInvoke).toHaveBeenLastCalledWith('lsp_semantic_tokens_full', {
+      request: expect.objectContaining({
+        sessionId: 'session-1',
+        uri: 'file:///a.ts',
+      }),
+    });
+  });
+
   it('forwards explicit cancel command', async () => {
     mockInvoke.mockResolvedValueOnce(undefined);
     await expect(lspCancelRequest('session-1', 'completion:5')).resolves.toBeUndefined();
@@ -250,6 +356,57 @@ describe('lsp-client', () => {
         clientRequestId: 'completion:5',
       },
     });
+  });
+
+  it('forwards registry, install and resolve launch commands', async () => {
+    mockInvoke.mockResolvedValueOnce([{ extensionId: 'dbaeumer.vscode-eslint' }]);
+    await expect(
+      lspRegistrySearch({ query: 'eslint', languageId: 'javascript' })
+    ).resolves.toEqual([{ extensionId: 'dbaeumer.vscode-eslint' }]);
+    expect(mockInvoke).toHaveBeenLastCalledWith('lsp_registry_search', {
+      request: { query: 'eslint', languageId: 'javascript' },
+    });
+
+    mockInvoke.mockResolvedValueOnce({
+      extensionId: 'dbaeumer.vscode-eslint',
+      provider: 'open_vsx',
+    });
+    await expect(
+      lspInstallServer({ extensionId: 'dbaeumer.vscode-eslint', languageId: 'javascript' })
+    ).resolves.toEqual({
+      extensionId: 'dbaeumer.vscode-eslint',
+      provider: 'open_vsx',
+    });
+
+    mockInvoke.mockResolvedValueOnce({
+      languageId: 'javascript',
+      ready: true,
+      args: ['--yes'],
+      needsApproval: false,
+      installed: false,
+      supported: true,
+      normalizedLanguageId: 'javascript',
+    });
+    await expect(lspGetServerStatus('javascript')).resolves.toEqual(
+      expect.objectContaining({
+        ready: true,
+      })
+    );
+
+    mockInvoke.mockResolvedValueOnce({
+      languageId: 'javascript',
+      normalizedLanguageId: 'javascript',
+      command: 'npx',
+      args: ['--yes', 'typescript-language-server', '--stdio'],
+      source: 'npx_runtime',
+      trusted: true,
+      requiresApproval: false,
+    });
+    await expect(lspResolveLaunch('javascript')).resolves.toEqual(
+      expect.objectContaining({
+        command: 'npx',
+      })
+    );
   });
 
   it('forwards diagnostics events to callback', async () => {
@@ -275,6 +432,56 @@ describe('lsp-client', () => {
       uri: 'file:///a.ts',
       diagnostics: [],
     });
+  });
+
+  it('forwards install and status events', async () => {
+    const unlisten = jest.fn();
+    const installCallback = jest.fn();
+    const statusCallback = jest.fn();
+
+    mockListen.mockImplementationOnce(async (_event, handler) => {
+      handler({
+        event: 'lsp-install-progress',
+        id: 2,
+        payload: {
+          taskId: 'task-1',
+          status: 'downloading',
+          extensionId: 'demo.ext',
+          provider: 'open_vsx',
+          totalBytes: 100,
+          downloadedBytes: 50,
+          percent: 50,
+          speedBps: 1000,
+        },
+      });
+      return unlisten;
+    });
+    mockListen.mockImplementationOnce(async (_event, handler) => {
+      handler({
+        event: 'lsp-server-status-changed',
+        id: 3,
+        payload: {
+          languageId: 'typescript',
+          status: 'starting',
+        },
+      });
+      return unlisten;
+    });
+
+    await expect(lspListenInstallProgress(installCallback)).resolves.toBe(unlisten);
+    await expect(lspListenServerStatusChanged(statusCallback)).resolves.toBe(unlisten);
+    expect(installCallback).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: 'task-1',
+        status: 'downloading',
+      })
+    );
+    expect(statusCallback).toHaveBeenCalledWith(
+      expect.objectContaining({
+        languageId: 'typescript',
+        status: 'starting',
+      })
+    );
   });
 
   it('maps LSP severity to Monaco severity', () => {

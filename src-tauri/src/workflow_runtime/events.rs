@@ -9,6 +9,49 @@ use super::{
     WorkflowRuntimeLogLevel,
 };
 
+pub(crate) struct ExecutionEventArgs<'a> {
+    pub app_handle: Option<&'a AppHandle>,
+    pub event_type: WorkflowRuntimeEventType,
+    pub request_id: Option<&'a str>,
+    pub execution_id: &'a str,
+    pub workflow_id: &'a str,
+    pub progress: Option<f64>,
+    pub step_id: Option<&'a str>,
+    pub message: Option<String>,
+    pub error: Option<String>,
+    pub data: Option<JsonValue>,
+}
+
+pub(crate) struct ExecutionLogArgs<'a> {
+    pub app_handle: Option<&'a AppHandle>,
+    pub request_id: Option<&'a str>,
+    pub execution_id: &'a str,
+    pub workflow_id: &'a str,
+    pub progress: Option<f64>,
+    pub step_id: Option<&'a str>,
+    pub level: WorkflowRuntimeLogLevel,
+    pub code: &'a str,
+    pub message: Option<String>,
+    pub error: Option<String>,
+    pub data: Option<JsonValue>,
+}
+
+struct ExecutionEventInnerArgs<'a> {
+    app_handle: Option<&'a AppHandle>,
+    event_type: WorkflowRuntimeEventType,
+    request_id: Option<&'a str>,
+    execution_id: &'a str,
+    workflow_id: &'a str,
+    progress: Option<f64>,
+    step_id: Option<&'a str>,
+    message: Option<String>,
+    error: Option<String>,
+    data: Option<JsonValue>,
+    level: WorkflowRuntimeLogLevel,
+    code: Option<String>,
+    trace_id: Option<&'a str>,
+}
+
 pub(crate) fn emit_runtime_event(
     app_handle: Option<&AppHandle>,
     payload: WorkflowRuntimeEventPayload,
@@ -49,21 +92,23 @@ fn default_code_for_event(event_type: &WorkflowRuntimeEventType) -> &'static str
     }
 }
 
-fn emit_execution_event_inner(
-    app_handle: Option<&AppHandle>,
-    event_type: WorkflowRuntimeEventType,
-    request_id: Option<&str>,
-    execution_id: &str,
-    workflow_id: &str,
-    progress: Option<f64>,
-    step_id: Option<&str>,
-    message: Option<String>,
-    error: Option<String>,
-    data: Option<JsonValue>,
-    level: WorkflowRuntimeLogLevel,
-    code: Option<String>,
-    trace_id: Option<&str>,
-) -> WorkflowRuntimeLogEntry {
+fn emit_execution_event_inner(args: ExecutionEventInnerArgs<'_>) -> WorkflowRuntimeLogEntry {
+    let ExecutionEventInnerArgs {
+        app_handle,
+        event_type,
+        request_id,
+        execution_id,
+        workflow_id,
+        progress,
+        step_id,
+        message,
+        error,
+        data,
+        level,
+        code,
+        trace_id,
+    } = args;
+
     let timestamp = now_iso();
     let event_id = Uuid::new_v4().to_string();
     let resolved_code = code.unwrap_or_else(|| default_code_for_event(&event_type).to_string());
@@ -109,20 +154,21 @@ fn emit_execution_event_inner(
     }
 }
 
-pub(crate) fn emit_execution_event(
-    app_handle: Option<&AppHandle>,
-    event_type: WorkflowRuntimeEventType,
-    request_id: Option<&str>,
-    execution_id: &str,
-    workflow_id: &str,
-    progress: Option<f64>,
-    step_id: Option<&str>,
-    message: Option<String>,
-    error: Option<String>,
-    data: Option<JsonValue>,
-) -> WorkflowRuntimeLogEntry {
+pub(crate) fn emit_execution_event(args: ExecutionEventArgs<'_>) -> WorkflowRuntimeLogEntry {
+    let ExecutionEventArgs {
+        app_handle,
+        event_type,
+        request_id,
+        execution_id,
+        workflow_id,
+        progress,
+        step_id,
+        message,
+        error,
+        data,
+    } = args;
     let level = default_level_for_event(&event_type);
-    emit_execution_event_inner(
+    emit_execution_event_inner(ExecutionEventInnerArgs {
         app_handle,
         event_type,
         request_id,
@@ -134,27 +180,29 @@ pub(crate) fn emit_execution_event(
         error,
         data,
         level,
-        None,
-        None,
-    )
+        code: None,
+        trace_id: None,
+    })
 }
 
-pub(crate) fn emit_execution_log(
-    app_handle: Option<&AppHandle>,
-    request_id: Option<&str>,
-    execution_id: &str,
-    workflow_id: &str,
-    progress: Option<f64>,
-    step_id: Option<&str>,
-    level: WorkflowRuntimeLogLevel,
-    code: &str,
-    message: Option<String>,
-    error: Option<String>,
-    data: Option<JsonValue>,
-) -> WorkflowRuntimeLogEntry {
-    emit_execution_event_inner(
+pub(crate) fn emit_execution_log(args: ExecutionLogArgs<'_>) -> WorkflowRuntimeLogEntry {
+    let ExecutionLogArgs {
         app_handle,
-        WorkflowRuntimeEventType::ExecutionLog,
+        request_id,
+        execution_id,
+        workflow_id,
+        progress,
+        step_id,
+        level,
+        code,
+        message,
+        error,
+        data,
+    } = args;
+
+    emit_execution_event_inner(ExecutionEventInnerArgs {
+        app_handle,
+        event_type: WorkflowRuntimeEventType::ExecutionLog,
         request_id,
         execution_id,
         workflow_id,
@@ -164,7 +212,7 @@ pub(crate) fn emit_execution_log(
         error,
         data,
         level,
-        Some(code.to_string()),
-        None,
-    )
+        code: Some(code.to_string()),
+        trace_id: None,
+    })
 }

@@ -45,8 +45,8 @@ pub use windows_ocr::{OcrBounds, OcrLine, OcrWord, WinOcrResult, WindowsOcr};
 
 use base64::Engine;
 use serde::{Deserialize, Serialize};
-use tauri::Manager;
 use std::path::PathBuf;
+use tauri::Manager;
 
 /// Screenshot configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

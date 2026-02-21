@@ -34,6 +34,7 @@ import {
   executeDelayStep,
   executeMergeStep,
   executeSubworkflowStep,
+  executeKnowledgeRetrievalStep,
   setExecuteWorkflowFn,
 } from './step-executors';
 
@@ -255,6 +256,8 @@ async function executeStep(
         result = await executeSubworkflowStep(step, stepInput, config, callbacks);
         break;
       case 'knowledgeRetrieval':
+        result = await executeKnowledgeRetrievalStep(step, stepInput, execution);
+        break;
       case 'parameterExtractor':
       case 'variableAggregator':
       case 'questionClassifier':

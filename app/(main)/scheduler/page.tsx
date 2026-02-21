@@ -6,7 +6,6 @@
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
 import { RefreshCw } from 'lucide-react';
 import { useScheduler, useSystemScheduler } from '@/hooks/scheduler';
 import type {
@@ -22,7 +21,6 @@ import { SystemSchedulerView } from './system-scheduler-view';
 import { SchedulerDialogs } from './scheduler-dialogs';
 
 export default function SchedulerPage() {
-  const t = useTranslations('scheduler');
   const {
     tasks,
     executions,
@@ -72,7 +70,6 @@ export default function SchedulerPage() {
     disableTask: disableSystemTask,
     runTaskNow: runSystemTaskNow,
     confirmPending,
-    confirmTask,
     cancelPending,
     validateTask,
     requestElevation,
@@ -84,7 +81,6 @@ export default function SchedulerPage() {
   const [showEditSheet, setShowEditSheet] = useState(false);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [mobileView, setMobileView] = useState<'list' | 'details'>('list');
   const [schedulerTab, setSchedulerTab] = useState<'app' | 'system'>('app');
   const [showSystemCreateSheet, setShowSystemCreateSheet] = useState(false);
   const [showSystemEditSheet, setShowSystemEditSheet] = useState(false);
@@ -479,7 +475,9 @@ export default function SchedulerPage() {
         onSystemDeleteTaskIdChange={setSystemDeleteTaskId}
         onSystemDeleteConfirm={handleSystemDeleteConfirm}
         pendingConfirmation={pendingConfirmation}
-        onConfirmPending={pendingConfirmation?.task_id ? () => confirmTask(pendingConfirmation.task_id!) : confirmPending}
+        onConfirmPending={() => {
+          void confirmPending();
+        }}
         onCancelPending={cancelPending}
         showAdminDialog={showAdminDialog}
         onShowAdminDialogChange={setShowAdminDialog}

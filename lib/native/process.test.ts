@@ -182,7 +182,7 @@ describe('Process Management Service', () => {
   });
 
   describe('when in Tauri', () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     const { invoke } = require('@tauri-apps/api/core');
     const mockInvoke = invoke as jest.MockedFunction<typeof invoke>;
 

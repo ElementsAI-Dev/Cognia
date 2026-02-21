@@ -378,7 +378,7 @@ describe('TransformNode edge cases', () => {
   });
 
   it('handles unknown transformType', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const unknownTypeData = { ...mockData, transformType: 'unknown' as any };
     render(<TransformNode {...mockProps} data={unknownTypeData} />);
     expect(screen.getByText('unknown')).toBeInTheDocument();

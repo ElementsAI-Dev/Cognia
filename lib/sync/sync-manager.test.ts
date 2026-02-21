@@ -81,10 +81,28 @@ jest.mock('@/stores/sync', () => ({
 // Mock data export/import
 jest.mock('@/lib/storage/data-export', () => ({
   createFullBackup: jest.fn().mockResolvedValue({
-    version: '2.0',
-    exportedAt: '2025-01-31T12:00:00Z',
-    sessions: [],
-    settings: { theme: 'dark' },
+    version: '3.0',
+    manifest: {
+      version: '3.0',
+      schemaVersion: 3,
+      traceId: 'trace-id',
+      exportedAt: '2025-01-31T12:00:00Z',
+      backend: 'web-dexie',
+      integrity: {
+        algorithm: 'SHA-256',
+        checksum: '',
+      },
+    },
+    payload: {
+      sessions: [],
+      messages: [],
+      projects: [],
+      knowledgeFiles: [],
+      summaries: [],
+      settings: { theme: 'dark' },
+      artifacts: {},
+      folders: [],
+    },
   }),
 }));
 
@@ -101,6 +119,8 @@ describe('SyncManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockWebDAVProvider.listBackups.mockResolvedValue([]);
+    mockGitHubProvider.listBackups.mockResolvedValue([]);
     manager = new SyncManager();
   });
 

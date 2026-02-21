@@ -225,7 +225,7 @@ export function createKnowledgeBaseManagementTools(
     inputSchema: emptySchema,
     execute: async () => {
       try {
-        const stats = pipeline.getCollectionStats(collectionName);
+        const stats = await pipeline.getCollectionStats(collectionName);
         return `Knowledge base "${collectionName}": ${stats.documentCount} documents indexed, exists: ${stats.exists}`;
       } catch (error) {
         log.error('Stats error', error as Error);
@@ -242,7 +242,7 @@ export function createKnowledgeBaseManagementTools(
         return 'Deletion cancelled. Set confirm to true to proceed.';
       }
       try {
-        pipeline.clearCollection(collectionName);
+        await pipeline.clearCollection(collectionName);
         return `Knowledge base "${collectionName}" has been cleared.`;
       } catch (error) {
         log.error('Clear error', error as Error);

@@ -5,7 +5,7 @@
  * Includes version history support
  */
 
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import {
@@ -108,6 +108,11 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Toggle } from '@/components/ui/toggle';
+import {
+  bindMonacoEditorContext,
+  type MonacoContextBinding,
+} from '@/lib/editor-workbench/monaco-context-binding';
+import { isEditorFeatureFlagEnabled } from '@/lib/editor-workbench/feature-flags';
 
 // Dynamically import Monaco to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -155,6 +160,7 @@ function CanvasPanelContent() {
   const updateCanvasDocument = useArtifactStore((state) => state.updateCanvasDocument);
   const saveCanvasVersion = useArtifactStore((state) => state.saveCanvasVersion);
   const theme = useSettingsStore((state) => state.theme);
+  const globalEditorSettings = useSettingsStore((state) => state.editorSettings);
 
   const activeDocument = activeCanvasId ? canvasDocuments[activeCanvasId] : null;
   const [selection, setSelection] = useState<string>('');
@@ -164,6 +170,7 @@ function CanvasPanelContent() {
   const [targetLanguage, setTargetLanguage] = useState('english');
   const [copied, setCopied] = useState(false);
   const [showExecutionPanel, setShowExecutionPanel] = useState(false);
+  const workbenchBindingRef = useRef<MonacoContextBinding | null>(null);
 
   // Code execution hook
   const {
@@ -206,6 +213,24 @@ function CanvasPanelContent() {
     handleEditorChange,
     handleManualSave,
   } = useCanvasAutoSave(autoSaveOptions);
+
+  useEffect(() => {
+    return () => {
+      workbenchBindingRef.current?.dispose();
+      workbenchBindingRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeDocument) {
+      workbenchBindingRef.current?.dispose();
+      workbenchBindingRef.current = null;
+      return;
+    }
+    workbenchBindingRef.current?.update({
+      languageId: activeDocument ? getMonacoLanguage(activeDocument.language) : 'plaintext',
+    });
+  }, [activeCanvasId, activeDocument]);
 
   // AI actions hook - handles streaming, diff preview, action execution
   const handleActionContentChange = useCallback(
@@ -790,10 +815,22 @@ function CanvasPanelContent() {
                   bracketPairColorization: { enabled: editorSettings.bracketPairColorization },
                   guides: editorSettings.guides,
                   inlineSuggest: { enabled: true },
+                }, {
+                  editorSettings: globalEditorSettings,
                 })}
                 onMount={(editor, monaco) => {
                   // Initialize canvas infrastructure (snippets, symbols, themes, plugins)
                   onCanvasEditorMount(editor, monaco);
+                  if (isEditorFeatureFlagEnabled('editor.workbench.v2')) {
+                    workbenchBindingRef.current?.dispose();
+                    workbenchBindingRef.current = bindMonacoEditorContext({
+                      contextId: 'canvas',
+                      label: 'Canvas Editor',
+                      languageId: activeDocument ? getMonacoLanguage(activeDocument.language) : 'plaintext',
+                      editor,
+                      fallbackReason: 'Using Monaco + canvas local providers',
+                    });
+                  }
 
                   // Track selection changes
                   editor.onDidChangeCursorSelection((e) => {

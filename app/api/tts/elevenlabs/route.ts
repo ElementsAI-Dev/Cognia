@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonTtsError } from '../_utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,28 +19,19 @@ export async function POST(request: NextRequest) {
 
     // Validate input
     if (!text || typeof text !== 'string') {
-      return NextResponse.json(
-        { error: 'Text is required' },
-        { status: 400 }
-      );
+      return jsonTtsError('elevenlabs', 'Text is required', 400, 'validation_error');
     }
 
     // Get API key from environment
     const apiKey = process.env.ELEVENLABS_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json(
-        { error: 'ElevenLabs API key not configured' },
-        { status: 500 }
-      );
+      return jsonTtsError('elevenlabs', 'ElevenLabs API key not configured', 500, 'api_key_missing');
     }
 
     // Validate text length
     if (text.length > 5000) {
-      return NextResponse.json(
-        { error: 'Text exceeds maximum length of 5000 characters' },
-        { status: 400 }
-      );
+      return jsonTtsError('elevenlabs', 'Text exceeds maximum length of 5000 characters', 400, 'text_too_long');
     }
 
     // Call ElevenLabs TTS API
@@ -62,9 +54,12 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      return NextResponse.json(
-        { error: errorData.detail?.message || `ElevenLabs API error: ${response.status}` },
-        { status: response.status }
+      return jsonTtsError(
+        'elevenlabs',
+        errorData.detail?.message || `ElevenLabs API error: ${response.status}`,
+        response.status,
+        'upstream_error',
+        response.status >= 500
       );
     }
 
@@ -80,9 +75,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('ElevenLabs TTS error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate speech' },
-      { status: 500 }
+    return jsonTtsError(
+      'elevenlabs',
+      error instanceof Error ? error.message : 'Failed to generate speech',
+      500,
+      'internal_error',
+      true
     );
   }
 }

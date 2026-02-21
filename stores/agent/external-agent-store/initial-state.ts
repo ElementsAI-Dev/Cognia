@@ -9,6 +9,7 @@ export const initialState: ExternalAgentState = {
   defaultPermissionMode: 'default',
   autoConnectOnStartup: false,
   showConnectionNotifications: true,
+  chatFailurePolicy: 'fallback',
   // Runtime state
   runningAgents: {},
   runningAgentIds: [],

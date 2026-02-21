@@ -352,4 +352,61 @@ describe('normalizeBackgroundSettings', () => {
     expect(normalized.layers.length).toBeGreaterThan(0);
     expect(normalized.layers[0].id).toBeTruthy();
   });
+
+  it('ensures at least one slide exists when mode=slideshow and slides are empty', () => {
+    const normalized = normalizeBackgroundSettings({
+      mode: 'slideshow',
+      slideshow: {
+        slides: [],
+        intervalMs: 5000,
+        transitionMs: 1000,
+        shuffle: false,
+      },
+    });
+
+    expect(normalized.mode).toBe('slideshow');
+    expect(normalized.slideshow.slides.length).toBeGreaterThan(0);
+    expect(normalized.slideshow.slides[0].id).toBeTruthy();
+  });
+
+  it('clamps out-of-range numeric values', () => {
+    const normalized = normalizeBackgroundSettings({
+      opacity: -100,
+      blur: 100,
+      brightness: -10,
+      saturation: 999,
+      contrast: 999,
+      grayscale: -20,
+      animationSpeed: 99,
+      slideshow: {
+        slides: [],
+        intervalMs: 999999,
+        transitionMs: 999999,
+        shuffle: false,
+      },
+    });
+
+    expect(normalized.opacity).toBe(10);
+    expect(normalized.blur).toBe(20);
+    expect(normalized.brightness).toBe(50);
+    expect(normalized.saturation).toBe(200);
+    expect(normalized.contrast).toBe(150);
+    expect(normalized.grayscale).toBe(0);
+    expect(normalized.animationSpeed).toBe(10);
+    expect(normalized.slideshow.intervalMs).toBeLessThanOrEqual(300000);
+  });
+
+  it('ensures slideshow transition does not exceed interval minus 100ms', () => {
+    const normalized = normalizeBackgroundSettings({
+      mode: 'slideshow',
+      slideshow: {
+        slides: [{ ...DEFAULT_BACKGROUND_SETTINGS.layers[0], id: 'slide-1' }],
+        intervalMs: 1200,
+        transitionMs: 2000,
+        shuffle: false,
+      },
+    });
+
+    expect(normalized.slideshow.transitionMs).toBe(1100);
+  });
 });

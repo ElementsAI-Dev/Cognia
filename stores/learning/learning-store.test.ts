@@ -754,4 +754,90 @@ describe('useLearningStore', () => {
       expect(updatedItem?.lastReviewedAt).toBeDefined();
     });
   });
+
+  describe('Learning lifecycle automation', () => {
+    it('auto-creates journey path and links session', () => {
+      const { result } = renderHook(() => useLearningStore());
+
+      let learningSession!: LearningSession;
+      act(() => {
+        learningSession = result.current.startLearningSession('session-journey', {
+          topic: 'Learn TypeScript deeply',
+          durationType: 'journey',
+          category: 'framework',
+        });
+      });
+
+      expect(learningSession.learningPathId).toBeDefined();
+      const linkedPath = result.current.getPath(learningSession.learningPathId!);
+      expect(linkedPath).toBeDefined();
+      expect(linkedPath?.sessionId).toBe('session-journey');
+      expect(result.current.activeLearningPathId).toBe(learningSession.learningPathId);
+    });
+
+    it('updates global stats and quick archive when ending quick session', () => {
+      const { result } = renderHook(() => useLearningStore());
+
+      let learningSession!: LearningSession;
+      act(() => {
+        learningSession = result.current.startLearningSession('session-quick', {
+          topic: 'What is memoization?',
+          durationType: 'quick',
+        });
+      });
+
+      act(() => {
+        result.current.endLearningSession(learningSession.id);
+      });
+
+      expect(result.current.globalStats.totalSessions).toBe(1);
+      expect(result.current.globalStats.quickSessionsCount).toBe(1);
+      expect(result.current.globalStats.lastActiveDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(result.current.globalStats.currentStreak).toBeGreaterThanOrEqual(1);
+
+      const quickSessions = result.current.getAllQuickSessions();
+      expect(quickSessions).toHaveLength(1);
+      expect(quickSessions[0].sessionId).toBe('session-quick');
+      expect(quickSessions[0].resolvedAt).toBeDefined();
+    });
+
+    it('records path study metrics and journey counters on session completion', () => {
+      const { result } = renderHook(() => useLearningStore());
+
+      let learningSession!: LearningSession;
+      act(() => {
+        learningSession = result.current.startLearningSession('session-journey-stats', {
+          topic: 'Master data structures',
+          durationType: 'journey',
+          category: 'skill',
+        });
+      });
+
+      act(() => {
+        result.current.endLearningSession(learningSession.id, 'Finished');
+      });
+
+      const linkedPath = result.current.getPath(learningSession.learningPathId!);
+      expect(result.current.globalStats.journeySessionsCount).toBe(1);
+      expect(linkedPath?.sessionsCompleted).toBe(1);
+      expect(linkedPath?.totalTimeSpentMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('awards explorer achievement on first completed session', () => {
+      const { result } = renderHook(() => useLearningStore());
+
+      let learningSession!: LearningSession;
+      act(() => {
+        learningSession = result.current.startLearningSession('session-achievement', {
+          topic: 'Achievement test',
+        });
+      });
+
+      act(() => {
+        result.current.endLearningSession(learningSession.id, 'Done');
+      });
+
+      expect(result.current.achievements.some((item) => item.type === 'explorer')).toBe(true);
+    });
+  });
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, memo, useState } from 'react';
+import { useEffect, useRef, memo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -26,7 +26,8 @@ import {
 import { Streamdown } from 'streamdown';
 import { InlineCopyButton } from '@/components/chat/ui/copy-button';
 import { LoadingAnimation } from '@/components/chat/renderers/loading-animation';
-import { useSpeech } from '@/hooks/media/use-speech';
+import { useTTS } from '@/hooks/media/use-tts';
+import { useSettingsStore } from '@/stores';
 import type { ChatWidgetMessage, MessageFeedback } from '@/stores/chat';
 
 interface ChatWidgetMessagesProps {
@@ -55,11 +56,83 @@ export function ChatWidgetMessages({
   const t = useTranslations('chatWidget.messages');
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const spokenMessageIdsRef = useRef<Set<string>>(new Set());
+  const autoPlayInitializedRef = useRef(false);
+  const [activeSpeechMessageId, setActiveSpeechMessageId] = useState<string | null>(null);
+  const speechSettings = useSettingsStore((state) => state.speechSettings);
+  const {
+    speak,
+    stop,
+    isPlaying: isSpeaking,
+    isLoading: isTTSLoading,
+    isSupported: ttsSupported,
+  } = useTTS({ source: 'chat-widget' });
+
+  const handleSpeakMessage = useCallback(
+    async (message: ChatWidgetMessage) => {
+      if (!message.content.trim()) return;
+
+      if (isSpeaking && activeSpeechMessageId === message.id) {
+        stop();
+        setActiveSpeechMessageId(null);
+        return;
+      }
+
+      if (isSpeaking) {
+        stop();
+      }
+
+      setActiveSpeechMessageId(message.id);
+      try {
+        await speak(message.content);
+      } finally {
+        setActiveSpeechMessageId((current) => (current === message.id ? null : current));
+      }
+    },
+    [activeSpeechMessageId, isSpeaking, speak, stop]
+  );
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    if (autoPlayInitializedRef.current) {
+      return;
+    }
+
+    for (const message of messages) {
+      if (message.role !== 'assistant') continue;
+      if (message.isStreaming) continue;
+      if (!message.content.trim()) continue;
+      spokenMessageIdsRef.current.add(message.id);
+    }
+
+    autoPlayInitializedRef.current = true;
+  }, [messages]);
+
+  useEffect(() => {
+    if (messages.length > 0) return;
+    spokenMessageIdsRef.current.clear();
+    setActiveSpeechMessageId(null);
+  }, [messages.length]);
+
+  useEffect(() => {
+    if (!speechSettings.ttsEnabled || !speechSettings.ttsAutoPlay || isLoading) return;
+
+    const latestAssistant = [...messages]
+      .reverse()
+      .find((message) => message.role === 'assistant' && !message.isStreaming && message.content.trim().length > 0);
+
+    if (!latestAssistant) return;
+    if (spokenMessageIdsRef.current.has(latestAssistant.id)) return;
+
+    spokenMessageIdsRef.current.add(latestAssistant.id);
+    void handleSpeakMessage(latestAssistant).catch(() => {
+      setActiveSpeechMessageId((current) => (current === latestAssistant.id ? null : current));
+    });
+  }, [handleSpeakMessage, isLoading, messages, speechSettings.ttsAutoPlay, speechSettings.ttsEnabled]);
 
   return (
     <ScrollArea ref={scrollRef} className={cn('flex-1 px-3 py-2', className)}>
@@ -74,6 +147,10 @@ export function ChatWidgetMessages({
             onRegenerate={onRegenerate}
             onFeedback={onFeedback}
             onEdit={onEdit}
+            onSpeak={handleSpeakMessage}
+            isSpeaking={isSpeaking && activeSpeechMessageId === message.id}
+            isTTSLoading={isTTSLoading && activeSpeechMessageId === message.id}
+            ttsSupported={ttsSupported}
           />
         ))}
 
@@ -129,6 +206,10 @@ interface MessageBubbleProps {
   onRegenerate?: (messageId: string) => void;
   onFeedback?: (messageId: string, feedback: MessageFeedback) => void;
   onEdit?: (messageId: string, newContent: string) => void;
+  onSpeak: (message: ChatWidgetMessage) => Promise<void>;
+  isSpeaking: boolean;
+  isTTSLoading: boolean;
+  ttsSupported: boolean;
 }
 
 const MessageBubble = memo(function MessageBubble({
@@ -138,21 +219,18 @@ const MessageBubble = memo(function MessageBubble({
   onRegenerate,
   onFeedback,
   onEdit,
+  onSpeak,
+  isSpeaking,
+  isTTSLoading,
+  ttsSupported,
 }: MessageBubbleProps) {
   const t = useTranslations('chatWidget.messages');
   const isUser = message.role === 'user';
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
 
-  // TTS functionality
-  const { isSpeaking, speak, stopSpeaking, ttsSupported } = useSpeech({});
-
   const handleSpeak = () => {
-    if (isSpeaking) {
-      stopSpeaking();
-    } else {
-      speak(message.content);
-    }
+    void onSpeak(message);
   };
 
   const handleFeedback = (feedback: MessageFeedback) => {
@@ -292,10 +370,10 @@ const MessageBubble = memo(function MessageBubble({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className={cn('h-6 w-6', isSpeaking && 'text-primary')}
+                      className={cn('h-6 w-6', (isSpeaking || isTTSLoading) && 'text-primary')}
                       onClick={handleSpeak}
                     >
-                      {isSpeaking ? (
+                      {isSpeaking || isTTSLoading ? (
                         <VolumeX className="h-3 w-3" />
                       ) : (
                         <Volume2 className="h-3 w-3" />
@@ -303,7 +381,7 @@ const MessageBubble = memo(function MessageBubble({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
-                    {isSpeaking ? t('stopReading') : t('read')}
+                    {isSpeaking || isTTSLoading ? t('stopReading') : t('read')}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

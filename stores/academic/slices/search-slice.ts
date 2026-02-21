@@ -3,7 +3,7 @@
  * Search state, actions, and history management
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { academicRuntimeInvoke } from '@/lib/native/academic-runtime';
 import type {
   Paper,
   PaperSearchFilter,
@@ -25,6 +25,7 @@ export interface SearchState {
   searchError: string | null;
   lastSearchTime: number;
   searchHistory: string[];
+  degradedProviders: Record<string, { reason: string; retriable: boolean }>;
 }
 
 export const initialSearchState: SearchState = {
@@ -36,6 +37,7 @@ export const initialSearchState: SearchState = {
   searchError: null,
   lastSearchTime: 0,
   searchHistory: [],
+  degradedProviders: {},
 };
 
 // ============================================================================
@@ -83,6 +85,7 @@ export const createSearchSlice: AcademicSliceCreator<SearchActions> = (set, get)
           results: [],
           totalResults: 0,
           searchError: null,
+          degradedProviders: {},
         },
       }));
       return;
@@ -93,13 +96,13 @@ export const createSearchSlice: AcademicSliceCreator<SearchActions> = (set, get)
     }));
 
     try {
-      const result = await invoke<AggregatedSearchResult>('academic_search', {
+      const result = await academicRuntimeInvoke<AggregatedSearchResult>('academic_search', {
         query: searchQuery,
         options: {
           ...state.search.filter,
           providers: state.settings.defaultProviders,
-          sort_by: state.search.filter.sortBy || 'relevance',
-          sort_order: state.search.filter.sortOrder || 'desc',
+          sortBy: state.search.filter.sortBy || 'relevance',
+          sortOrder: state.search.filter.sortOrder || 'desc',
           limit: state.settings.defaultSearchLimit,
         },
       });
@@ -110,7 +113,8 @@ export const createSearchSlice: AcademicSliceCreator<SearchActions> = (set, get)
           results: result.papers,
           totalResults: result.totalResults,
           isSearching: false,
-          lastSearchTime: result.searchTime,
+          lastSearchTime: result.searchTimeMs ?? result.searchTime,
+          degradedProviders: result.degradedProviders ?? {},
         },
       }));
     } catch (error) {
@@ -130,17 +134,18 @@ export const createSearchSlice: AcademicSliceCreator<SearchActions> = (set, get)
     }));
 
     try {
-      const result = await invoke<{
+      const result = await academicRuntimeInvoke<{
         papers: Paper[];
         totalResults: number;
         searchTime: number;
+        searchTimeMs?: number;
       }>('academic_search_provider', {
         providerId: provider,
         query,
         options: {
           ...get().search.filter,
-          sort_by: 'relevance',
-          sort_order: 'desc',
+          sortBy: 'relevance',
+          sortOrder: 'desc',
           limit: get().settings.defaultSearchLimit,
         },
       });
@@ -151,7 +156,8 @@ export const createSearchSlice: AcademicSliceCreator<SearchActions> = (set, get)
           results: result.papers,
           totalResults: result.totalResults,
           isSearching: false,
-          lastSearchTime: result.searchTime,
+          lastSearchTime: result.searchTimeMs ?? result.searchTime,
+          degradedProviders: {},
         },
       }));
     } catch (error) {

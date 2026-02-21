@@ -685,8 +685,10 @@ mod tests {
 
     #[test]
     fn test_aggregated_status_unlimited_storage() {
-        let mut config = StorageConfig::default();
-        config.max_storage_gb = 0.0; // unlimited
+        let config = StorageConfig {
+            max_storage_gb: 0.0, // unlimited
+            ..StorageConfig::default()
+        };
         let manager = StorageManager::new(config);
 
         let status = manager.get_aggregated_status();

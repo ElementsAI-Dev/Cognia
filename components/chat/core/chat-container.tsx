@@ -64,7 +64,7 @@ import { WelcomeState } from '../welcome/welcome-state';
 import { CarriedContextBanner } from '../ui/carried-context-banner';
 import { ChatGoalBanner } from '../goal';
 import { QuotedContent } from '../message';
-import { hasA2UIContent, useA2UIMessageIntegration } from '@/components/a2ui';
+import { useA2UIMessageIntegration } from '@/components/a2ui';
 import { Suggestions, Suggestion } from '@/components/ai-elements/suggestion';
 import {
   runPluginPreChatHook,
@@ -75,12 +75,15 @@ import {
 import {
   type ToolExecution,
   type ToolApprovalRequest,
+  ExternalAgentCommands,
+  ExternalAgentConfigOptions,
+  ExternalAgentPlan,
 } from '@/components/agent';
 
 import { SkillSuggestions } from '@/components/skills';
 
 import { useSkillStore } from '@/stores/skills';
-import { buildProgressiveSkillsPrompt, findMatchingSkills, selectSkillsForContext } from '@/lib/skills/executor';
+import { findMatchingSkills } from '@/lib/skills/executor';
 import { useWorkflowStore } from '@/stores/workflow';
 import {
   initializeAgentTools,
@@ -110,14 +113,22 @@ import {
   useQuoteStore,
   useLearningStore,
   useArtifactStore,
+  useExternalAgentStore,
 } from '@/stores';
 
 
 
 
-import { useMessages, useAgent, useProjectContext, calculateTokenBreakdown } from '@/hooks';
+import {
+  useMessages,
+  useAgent,
+  useExternalAgent,
+  useProjectContext,
+  calculateTokenBreakdown,
+} from '@/hooks';
 import { useIntentDetection } from '@/hooks/chat/use-intent-detection';
 import { useFeatureRouting } from '@/hooks/chat/use-feature-routing';
+import { useTTS } from '@/hooks/media/use-tts';
 
 
 import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
@@ -129,12 +140,24 @@ import {
   useAIChat,
   useAutoRouter,
   type ProviderName,
+  normalizeLearningToolName,
   isVisionModel,
   buildMultimodalContent,
   type MultimodalMessage,
   isAudioModel,
   isVideoModel,
 } from '@/lib/ai';
+import { buildExternalAgentInstructionStack } from '@/lib/ai/instructions/external-agent-instruction-stack';
+import {
+  registerExternalAgentCommands,
+  unregisterExternalAgentCommands,
+} from '@/lib/chat/slash-command-registry';
+import {
+  analyzeLearnerResponse,
+  detectPhaseTransition,
+  extractSubQuestions,
+  isLearningModeV2Enabled,
+} from '@/lib/learning';
 import { detectSpeedLearningMode, isSpeedLearningIntent } from '@/lib/learning/speedpass';
 import { RoutingIndicator } from '../ui/routing-indicator';
 
@@ -142,6 +165,8 @@ import type { ModelSelection } from '@/types/provider/auto-router';
 import { messageRepository } from '@/lib/db';
 import { PROVIDERS } from '@/types/provider';
 import type { ChatMode, UIMessage, ChatViewMode } from '@/types';
+import type { ToolInvocationPart } from '@/types/core/message';
+import type { AcpPermissionOption, AcpPermissionResponse, AcpMcpServerConfig } from '@/types/agent/external-agent';
 import { getPluginEventHooks, getPluginLifecycleHooks } from '@/lib/plugin';
 import { toast } from 'sonner';
 import { useSummary } from '@/hooks/chat';
@@ -265,6 +290,12 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   // Learning store for Socratic method learning mode
   const getLearningSessionByChat = useLearningStore((state) => state.getLearningSessionByChat);
+  const addLearningSubQuestion = useLearningStore((state) => state.addSubQuestion);
+  const incrementLearningAttempts = useLearningStore((state) => state.incrementAttempts);
+  const setLearningPhase = useLearningStore((state) => state.setPhase);
+  const updateLearningEngagement = useLearningStore((state) => state.updateEngagement);
+  const recordLearningAnswer = useLearningStore((state) => state.recordAnswer);
+  const endLearningSession = useLearningStore((state) => state.endLearningSession);
 
   // Artifact store for auto-creating artifacts from AI responses
   const autoCreateFromContent = useArtifactStore((state) => state.autoCreateFromContent);
@@ -296,6 +327,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   // Settings store for API keys and global defaults
   const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const speechSettings = useSettingsStore((state) => state.speechSettings);
   const defaultTemperature = useSettingsStore((state) => state.defaultTemperature);
   const defaultMaxTokens = useSettingsStore((state) => state.defaultMaxTokens);
   const defaultTopP = useSettingsStore((state) => state.defaultTopP);
@@ -303,7 +335,12 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const defaultPresencePenalty = useSettingsStore((state) => state.defaultPresencePenalty);
   const addAlwaysAllowedTool = useSettingsStore((state) => state.addAlwaysAllowedTool);
   const simplifiedModeSettings = useSettingsStore((state) => state.simplifiedModeSettings);
+  const customInstructionsEnabled = useSettingsStore((state) => state.customInstructionsEnabled);
+  const aboutUser = useSettingsStore((state) => state.aboutUser);
+  const responsePreferences = useSettingsStore((state) => state.responsePreferences);
+  const globalCustomInstructions = useSettingsStore((state) => state.customInstructions);
   const isSimplifiedMode = simplifiedModeSettings.enabled;
+  const externalChatFailurePolicy = useExternalAgentStore((state) => state.chatFailurePolicy);
 
   // Local state
   const [inputValue, setInputValue] = useState('');
@@ -314,6 +351,9 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+  const autoPlayedMessageIdsRef = useRef<Set<string>>(new Set());
+  const autoPlayInitializedRef = useRef(false);
+  const { speak: speakChatReply } = useTTS({ source: 'chat' });
 
   // Derive streaming message ID for flow canvas
   const streamingMessageId = useMemo(() => {
@@ -321,6 +361,51 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     const lastMsg = messages[messages.length - 1];
     return lastMsg.role === 'assistant' ? lastMsg.id : undefined;
   }, [isStreaming, messages]);
+
+  useEffect(() => {
+    autoPlayedMessageIdsRef.current.clear();
+    autoPlayInitializedRef.current = false;
+  }, [activeSessionId, activeBranchId]);
+
+  useEffect(() => {
+    if (!autoPlayInitializedRef.current) {
+      if (!isInitialized) return;
+      for (const message of messages) {
+        if (message.role !== 'assistant') continue;
+        if (!message.content?.trim()) continue;
+        autoPlayedMessageIdsRef.current.add(message.id);
+      }
+      autoPlayInitializedRef.current = true;
+    }
+
+    if (!speechSettings.ttsEnabled || !speechSettings.ttsAutoPlay || isStreaming || isLoading) {
+      return;
+    }
+
+    const latestAssistant = [...messages]
+      .reverse()
+      .find((message) => {
+        if (message.role !== 'assistant') return false;
+        if (!message.content?.trim()) return false;
+        if (message.id.startsWith('translation-')) return false;
+        if (message.id.startsWith('workflow-')) return false;
+        return true;
+      });
+
+    if (!latestAssistant) return;
+    if (autoPlayedMessageIdsRef.current.has(latestAssistant.id)) return;
+
+    autoPlayedMessageIdsRef.current.add(latestAssistant.id);
+    void speakChatReply(latestAssistant.content).catch(() => {});
+  }, [
+    isLoading,
+    isStreaming,
+    messages,
+    speakChatReply,
+    speechSettings.ttsAutoPlay,
+    speechSettings.ttsEnabled,
+    isInitialized,
+  ]);
 
   // New feature states
   const [showPromptOptimizer, setShowPromptOptimizer] = useState(false);
@@ -411,6 +496,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   // Streaming chunk coalescing (reduces render churn during token streaming)
   const streamBufferRef = useRef<{ messageId: string; buffer: string } | null>(null);
   const streamFlushTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const permissionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /** Flush any buffered streaming tokens to the message store immediately. */
   const flushStreamBuffer = useCallback(() => {
@@ -446,6 +532,26 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const externalAcpMcpServers = useMemo<AcpMcpServerConfig[]>(() => {
+    return mcpServers
+      .filter((server) => server.status.type === 'connected')
+      .map((server) => {
+        if (server.config.connectionType === 'sse' && server.config.url) {
+          return {
+            type: 'sse',
+            name: server.name,
+            url: server.config.url,
+          } as AcpMcpServerConfig;
+        }
+        return {
+          name: server.name,
+          command: server.config.command,
+          args: server.config.args || [],
+          env: Object.entries(server.config.env || {}).map(([name, value]) => ({ name, value })),
+        } as AcpMcpServerConfig;
+      });
+  }, [mcpServers]);
 
   // Feature toggles from session
   const webSearchEnabled = session?.webSearchEnabled ?? false;
@@ -617,6 +723,8 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     searchProviders: agentSearchProviders = {},
     defaultSearchProvider: agentDefaultSearchProvider,
   } = useSettingsStore();
+  const enableRAGSearch = useSettingsStore((state) => state.enableRAGSearch);
+  const learningModeV2Enabled = useMemo(() => isLearningModeV2Enabled(), []);
   const allAgentTools = useMemo(() => {
     const tavilyApiKey = providerSettings.tavily?.apiKey;
     const openaiApiKey = providerSettings.openai?.apiKey;
@@ -630,7 +738,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       defaultSearchProvider: agentDefaultSearchProvider,
       enableWebSearch: hasEnabledSearchProvider || !!tavilyApiKey,
       enableCalculator: true,
-      enableRAGSearch: true,
+      enableRAGSearch,
       enableWebScraper: true,
       enableDocumentTools: true,
       enableAcademicTools: true,
@@ -638,7 +746,18 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       enablePPTTools: true,
       enableLearningTools: true,
     });
-  }, [providerSettings.tavily?.apiKey, providerSettings.openai?.apiKey, agentSearchProviders, agentDefaultSearchProvider]);
+  }, [providerSettings.tavily?.apiKey, providerSettings.openai?.apiKey, agentSearchProviders, agentDefaultSearchProvider, enableRAGSearch]);
+
+  const learningChatTools = useMemo(() => {
+    if (!learningModeV2Enabled) {
+      return undefined;
+    }
+    const tools = Object.entries(allAgentTools).filter(([name]) => name.startsWith('display_'));
+    if (tools.length === 0) {
+      return undefined;
+    }
+    return Object.fromEntries(tools);
+  }, [allAgentTools, learningModeV2Enabled]);
 
   /**
    * MCP-based tools selected by the current custom agent mode.
@@ -681,41 +800,50 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     return { ...tools, ...customModeMcpTools };
   }, [allAgentTools, currentCustomMode, customModeMcpTools]);
 
-  /**
-   * Agent-mode system prompt with template variables resolved and
-   * active skills injected via Progressive Disclosure (up to 4 000 token budget).
-   */
-  const processedSystemPrompt = useMemo(() => {
+  const baseAgentPrompt = useMemo(() => {
     const basePrompt =
       session?.systemPrompt || 'You are a helpful AI assistant with access to tools.';
-    let prompt = basePrompt;
-    if (currentCustomMode) {
-      prompt = processPromptTemplateVariables(basePrompt, {
-        modeName: currentCustomMode.name,
-        modeDescription: currentCustomMode.description,
-        tools: currentCustomMode.tools,
-      });
+    if (!currentCustomMode) {
+      return basePrompt;
     }
+    return processPromptTemplateVariables(basePrompt, {
+      modeName: currentCustomMode.name,
+      modeDescription: currentCustomMode.description,
+      tools: currentCustomMode.tools,
+    });
+  }, [session?.systemPrompt, currentCustomMode]);
 
-    // Inject active skills into agent mode system prompt
-    const activeSkills = getActiveSkills();
-    if (activeSkills.length > 0) {
-      const {
-        prompt: skillsPrompt,
-        level,
-        tokenEstimate,
-      } = buildProgressiveSkillsPrompt(activeSkills, 4000);
-      if (skillsPrompt) {
-        console.log(
-          `[Agent] Injecting ${activeSkills.length} skills (level: ${level}, ~${tokenEstimate} tokens)`
-        );
-        prompt = `${skillsPrompt}\n\n${prompt}`;
-      }
-    }
+  const activeSkills = useMemo(() => {
+    void skillStoreActiveIds;
+    return getActiveSkills();
+  }, [getActiveSkills, skillStoreActiveIds]);
 
-    return prompt;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.systemPrompt, currentCustomMode, getActiveSkills, skillStoreActiveIds]);
+  const activeProject = useMemo(
+    () => (session?.projectId ? getProject(session.projectId) : undefined),
+    [session?.projectId, getProject]
+  );
+
+  const agentInstructionStack = useMemo(() => {
+    return buildExternalAgentInstructionStack({
+      baseSystemPrompt: baseAgentPrompt,
+      customInstructionsEnabled,
+      aboutUser,
+      responsePreferences,
+      customInstructions: globalCustomInstructions,
+      activeSkills,
+      project: activeProject,
+      workingDirectory: session?.virtualEnvPath,
+    });
+  }, [
+    baseAgentPrompt,
+    customInstructionsEnabled,
+    aboutUser,
+    responsePreferences,
+    globalCustomInstructions,
+    activeSkills,
+    activeProject,
+    session?.virtualEnvPath,
+  ]);
 
   // Agent hook for multi-step execution
   const {
@@ -727,7 +855,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     stop: stopAgent,
     reset: _resetAgent,
   } = useAgent({
-    systemPrompt: processedSystemPrompt,
+    systemPrompt: agentInstructionStack.systemPrompt,
     maxSteps: 10,
     temperature: session?.temperature ?? 0.7,
     tools: agentTools,
@@ -761,6 +889,129 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     },
   });
 
+  const {
+    execute: executeExternalAgent,
+    setActiveAgent: setActiveExternalAgent,
+    checkHealth: checkExternalAgentHealth,
+    connect: connectExternalAgent,
+    cancel: cancelExternalAgent,
+    pendingPermission: pendingExternalPermission,
+    respondToPermission: respondToExternalPermission,
+    availableCommands: externalAvailableCommands,
+    planEntries: externalPlanEntries,
+    planStep: externalPlanStep,
+    configOptions: externalConfigOptions,
+    setConfigOption: setExternalConfigOption,
+    isExecuting: isExternalAgentExecuting,
+  } = useExternalAgent();
+
+  const mapAcpOptions = useCallback(
+    (options?: AcpPermissionOption[]) =>
+      options?.map((option) => ({
+        optionId: option.optionId,
+        name: option.name,
+        kind: option.kind,
+        description: option.description,
+        isDefault: option.isDefault,
+      })),
+    []
+  );
+
+  const resolvePermissionRequestId = useCallback((): string => {
+    if (!pendingExternalPermission) {
+      return '';
+    }
+    return pendingExternalPermission.requestId || pendingExternalPermission.id;
+  }, [pendingExternalPermission]);
+
+  const pickAllowOptionId = useCallback((options?: AcpPermissionOption[]): string | undefined => {
+    if (!options?.length) {
+      return undefined;
+    }
+    const preferred =
+      options.find((option) => option.kind === 'allow_always') ||
+      options.find((option) => option.kind === 'allow_once');
+    return preferred?.optionId;
+  }, []);
+
+  useEffect(() => {
+    if (!pendingExternalPermission) {
+      if (toolApprovalRequest?.acpOptions) {
+        setToolApprovalRequest(null);
+        setShowToolApproval(false);
+      }
+      return;
+    }
+
+    const nextRequest: ToolApprovalRequest = {
+      id: resolvePermissionRequestId(),
+      toolName: pendingExternalPermission.title || pendingExternalPermission.toolInfo.name,
+      toolDescription:
+        pendingExternalPermission.reason || pendingExternalPermission.toolInfo.description || '',
+      args: pendingExternalPermission.rawInput || {},
+      riskLevel:
+        pendingExternalPermission.riskLevel === 'critical'
+          ? 'high'
+          : pendingExternalPermission.riskLevel || 'medium',
+      acpOptions: mapAcpOptions(pendingExternalPermission.options),
+    };
+
+    setToolApprovalRequest((current) => {
+      if (current?.id === nextRequest.id) {
+        return current;
+      }
+      return nextRequest;
+    });
+    setShowToolApproval(true);
+  }, [pendingExternalPermission, mapAcpOptions, resolvePermissionRequestId, toolApprovalRequest?.acpOptions]);
+
+  useEffect(() => {
+    if (permissionTimeoutRef.current) {
+      clearTimeout(permissionTimeoutRef.current);
+      permissionTimeoutRef.current = null;
+    }
+
+    if (!pendingExternalPermission) {
+      return;
+    }
+
+    const rawTimeout = pendingExternalPermission.autoApproveTimeout;
+    const timeoutMs =
+      typeof rawTimeout === 'number' && Number.isFinite(rawTimeout) && rawTimeout > 0
+        ? rawTimeout
+        : 300000;
+    const requestId = pendingExternalPermission.requestId || pendingExternalPermission.id;
+
+    permissionTimeoutRef.current = setTimeout(() => {
+      void (async () => {
+        try {
+          await respondToExternalPermission({
+            requestId,
+            granted: false,
+            reason: 'Permission request timed out',
+          });
+        } catch (error) {
+          console.error('[ChatContainer] Failed to deny timed-out permission request:', error);
+        }
+
+        if (pendingApprovalRef.current) {
+          pendingApprovalRef.current.resolve(false);
+          pendingApprovalRef.current = null;
+        }
+        setShowToolApproval(false);
+        setToolApprovalRequest(null);
+        toast.error('Permission request timed out. Please retry.');
+      })();
+    }, timeoutMs);
+
+    return () => {
+      if (permissionTimeoutRef.current) {
+        clearTimeout(permissionTimeoutRef.current);
+        permissionTimeoutRef.current = null;
+      }
+    };
+  }, [pendingExternalPermission, respondToExternalPermission]);
+
   /**
    * Approve a pending agent tool execution.
    * Optionally persists an "always allow" preference for the tool.
@@ -769,7 +1020,17 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
    * @param alwaysAllow - When `true`, adds the tool to the always-allowed list in settings
    */
   const handleToolApproval = useCallback(
-    async (toolCallId: string, alwaysAllow?: boolean) => {
+    async (_toolCallId: string, alwaysAllow?: boolean) => {
+      if (pendingExternalPermission) {
+        const requestId = resolvePermissionRequestId();
+        const response: AcpPermissionResponse = {
+          requestId,
+          granted: true,
+          optionId: pickAllowOptionId(pendingExternalPermission.options),
+        };
+        await respondToExternalPermission(response);
+      }
+
       if (pendingApprovalRef.current) {
         pendingApprovalRef.current.resolve(true);
         pendingApprovalRef.current = null;
@@ -783,7 +1044,14 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
       setToolApprovalRequest(null);
     },
-    [toolApprovalRequest, addAlwaysAllowedTool]
+    [
+      pendingExternalPermission,
+      resolvePermissionRequestId,
+      pickAllowOptionId,
+      respondToExternalPermission,
+      toolApprovalRequest,
+      addAlwaysAllowedTool,
+    ]
   );
 
   /**
@@ -791,15 +1059,56 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
    *
    * @param toolCallId - ID of the tool call being denied
    */
-  const handleToolDeny = useCallback((toolCallId: string) => {
-    if (pendingApprovalRef.current) {
-      pendingApprovalRef.current.resolve(false);
-      pendingApprovalRef.current = null;
-    }
-    setShowToolApproval(false);
-    setToolApprovalRequest(null);
-    console.log('Tool denied:', toolCallId);
-  }, []);
+  const handleToolDeny = useCallback(
+    async (_toolCallId: string) => {
+      if (pendingExternalPermission) {
+        const requestId = resolvePermissionRequestId();
+        await respondToExternalPermission({
+          requestId,
+          granted: false,
+        });
+      }
+      if (pendingApprovalRef.current) {
+        pendingApprovalRef.current.resolve(false);
+        pendingApprovalRef.current = null;
+      }
+      setShowToolApproval(false);
+      setToolApprovalRequest(null);
+    },
+    [pendingExternalPermission, resolvePermissionRequestId, respondToExternalPermission]
+  );
+
+  const handleToolOptionSelect = useCallback(
+    async (_toolCallId: string, optionId: string) => {
+      if (!pendingExternalPermission) {
+        return;
+      }
+      const requestId = resolvePermissionRequestId();
+      await respondToExternalPermission({
+        requestId,
+        granted: true,
+        optionId,
+      });
+      setShowToolApproval(false);
+      setToolApprovalRequest(null);
+    },
+    [pendingExternalPermission, resolvePermissionRequestId, respondToExternalPermission]
+  );
+
+  const handleToolApprovalOpenChange = useCallback(
+    (open: boolean) => {
+      setShowToolApproval(open);
+      if (!open && pendingExternalPermission) {
+        void handleToolDeny(toolApprovalRequest?.id || resolvePermissionRequestId());
+      }
+    },
+    [
+      pendingExternalPermission,
+      handleToolDeny,
+      toolApprovalRequest?.id,
+      resolvePermissionRequestId,
+    ]
+  );
 
   /** Agent tool executions mapped to the {@link ToolTimeline} display format. */
   const toolTimelineExecutions: ToolExecution[] = useMemo(() => {
@@ -1295,31 +1604,192 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       const assistantMessage = createStreamingMessage('assistant');
 
       try {
-        // Run the agent with the user's prompt
-        const agentResult = await runAgent(content);
+        const currentSession = getSession(currentSessionId);
+        const externalAgentId = currentSession?.externalAgentId;
+
+        const formatBuiltInToolSummary = (steps: Array<{ toolCalls: Array<{ name: string; status: string }> }>) => {
+          if (!steps.length) {
+            return '';
+          }
+          return steps
+            .filter((step) => step.toolCalls.length > 0)
+            .map((step) =>
+              step.toolCalls
+                .map(
+                  (toolCall) =>
+                    `- **${toolCall.name}**: ${toolCall.status === 'completed' ? '✅' : '❌'} ${toolCall.status}`
+                )
+                .join('\n')
+            )
+            .join('\n');
+        };
+
+        const formatExternalToolSummary = (
+          toolCalls: Array<{ name: string; status: 'pending' | 'completed' | 'error' }>
+        ) =>
+          toolCalls
+            .map(
+              (toolCall) =>
+                `- **${toolCall.name}**: ${toolCall.status === 'completed' ? '✅' : '❌'} ${toolCall.status}`
+            )
+            .join('\n');
+
+        let agentResult: {
+          success: boolean;
+          finalResponse: string;
+          toolSummary: string;
+          error?: string;
+        };
+
+        if (externalAgentId) {
+          try {
+            setActiveExternalAgent(externalAgentId);
+            let isHealthy = await checkExternalAgentHealth(externalAgentId);
+            if (!isHealthy) {
+              await connectExternalAgent(externalAgentId);
+              isHealthy = await checkExternalAgentHealth(externalAgentId);
+            }
+            if (!isHealthy) {
+              throw new Error('External agent is unavailable. Please retry.');
+            }
+
+            let resolvedExternalSessionId = currentSession?.externalAgentSessionId;
+            if (
+              currentSession?.externalAgentInstructionHash &&
+              currentSession.externalAgentInstructionHash !== agentInstructionStack.instructionHash
+            ) {
+              resolvedExternalSessionId = undefined;
+              updateSession(currentSessionId, {
+                externalAgentSessionId: undefined,
+              });
+            }
+
+            const externalResult = await executeExternalAgent(content, {
+              sessionId: resolvedExternalSessionId,
+              systemPrompt: agentInstructionStack.systemPrompt,
+              workingDirectory: session?.virtualEnvPath,
+              instructionEnvelope: {
+                hash: agentInstructionStack.instructionHash,
+                developerInstructions: agentInstructionStack.developerInstructions,
+                customInstructions: agentInstructionStack.customInstructionsSection,
+                skillsSummary: agentInstructionStack.skillsSummary,
+                sourceFlags: agentInstructionStack.sourceFlags,
+                projectContextSummary: agentInstructionStack.projectContextSummary,
+              },
+              context: {
+                custom: {
+                  mcpServers: externalAcpMcpServers,
+                  sessionId: currentSessionId,
+                },
+              },
+              onEvent: (event) => {
+                if (event.type === 'message_delta' && event.delta.type === 'text') {
+                  appendToMessage(assistantMessage.id, event.delta.text);
+                  return;
+                }
+                if (event.type === 'tool_use_start') {
+                  addToolExecution({
+                    id: event.toolUseId,
+                    toolName: event.toolName,
+                    input: event.rawInput || {},
+                    status: 'running',
+                    state: 'input-available',
+                  });
+                  return;
+                }
+                if (event.type === 'tool_result') {
+                  if (event.isError) {
+                    failToolExecution(
+                      event.toolUseId,
+                      typeof event.result === 'string'
+                        ? event.result
+                        : JSON.stringify(event.result || 'External tool execution failed')
+                    );
+                  } else {
+                    completeToolExecution(event.toolUseId, event.result);
+                  }
+                }
+              },
+              traceContext: {
+                sessionId: currentSessionId,
+                metadata: {
+                  source: 'chat-container',
+                  mode: 'agent',
+                },
+              },
+            });
+
+            if (!externalResult.success) {
+              throw new Error(externalResult.error || 'External agent execution failed');
+            }
+
+            if (
+              externalResult.sessionId &&
+              (externalResult.sessionId !== currentSession?.externalAgentSessionId ||
+                currentSession?.externalAgentInstructionHash !== agentInstructionStack.instructionHash)
+            ) {
+              updateSession(currentSessionId, {
+                externalAgentSessionId: externalResult.sessionId,
+                externalAgentInstructionHash: agentInstructionStack.instructionHash,
+              });
+            }
+
+            agentResult = {
+              success: true,
+              finalResponse: externalResult.finalResponse,
+              toolSummary: formatExternalToolSummary(externalResult.toolCalls),
+            };
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'External agent execution failed';
+            if (externalChatFailurePolicy === 'strict') {
+              toast.error('External agent execution failed.', {
+                description: errorMessage,
+              });
+              agentResult = {
+                success: false,
+                finalResponse: '',
+                toolSummary: '',
+                error: errorMessage,
+              };
+            } else {
+              toast.warning('External agent failed. Switched to built-in agent.', {
+                description: errorMessage,
+              });
+              log.warn('External agent execution failed. Falling back to built-in agent.', {
+                externalAgentId,
+                sessionId: currentSessionId,
+                error: errorMessage,
+              });
+
+              const fallbackResult = await runAgent(content);
+              agentResult = {
+                success: fallbackResult.success,
+                finalResponse: fallbackResult.finalResponse,
+                toolSummary: formatBuiltInToolSummary(
+                  fallbackResult.steps as Array<{
+                    toolCalls: Array<{ name: string; status: string }>;
+                  }>
+                ),
+                error: fallbackResult.error,
+              };
+            }
+          }
+        } else {
+          const builtInResult = await runAgent(content);
+          agentResult = {
+            success: builtInResult.success,
+            finalResponse: builtInResult.finalResponse,
+            toolSummary: formatBuiltInToolSummary(
+              builtInResult.steps as Array<{ toolCalls: Array<{ name: string; status: string }> }>
+            ),
+            error: builtInResult.error,
+          };
+        }
 
         if (agentResult.success) {
-          // Format the agent response with tool execution info
           let formattedResponse = agentResult.finalResponse;
-
-          // Add tool execution summary if there were tool calls
-          if (agentResult.steps.length > 0) {
-            const toolSummary = agentResult.steps
-              .filter((step) => step.toolCalls.length > 0)
-              .map((step) => {
-                const toolInfo = step.toolCalls
-                  .map(
-                    (tc) =>
-                      `- **${tc.name}**: ${tc.status === 'completed' ? '✅' : '❌'} ${tc.status}`
-                  )
-                  .join('\n');
-                return toolInfo;
-              })
-              .join('\n');
-
-            if (toolSummary) {
-              formattedResponse = `${formattedResponse}\n\n---\n**Tools Used:**\n${toolSummary}`;
-            }
+          if (agentResult.toolSummary) {
+            formattedResponse = `${formattedResponse}\n\n---\n**Tools Used:**\n${agentResult.toolSummary}`;
           }
 
           // Update the assistant message with the final response
@@ -1356,11 +1826,103 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     [
       addMessage,
       createStreamingMessage,
+      executeExternalAgent,
+      setActiveExternalAgent,
+      checkExternalAgentHealth,
+      connectExternalAgent,
+      getSession,
+      agentInstructionStack,
+      session?.virtualEnvPath,
+      externalAcpMcpServers,
+      appendToMessage,
+      addToolExecution,
+      completeToolExecution,
+      failToolExecution,
+      externalChatFailurePolicy,
       runAgent,
       updateMessage,
+      updateSession,
       currentModel,
       currentProvider,
       loadSuggestions,
+    ]
+  );
+
+  const applyLearningSessionAutomation = useCallback(
+    (
+      chatSessionId: string,
+      userInput: string,
+      assistantOutput: string,
+      responseStartedAt: number
+    ) => {
+      const currentChatSession = getSession(chatSessionId);
+      if (!learningModeV2Enabled) {
+        return;
+      }
+      if (currentChatSession?.learningContext?.subMode === 'speedpass') {
+        return;
+      }
+
+      const learningSession = getLearningSessionByChat(chatSessionId);
+      if (!learningSession) {
+        return;
+      }
+
+      const responseAnalysis = analyzeLearnerResponse(userInput, [], learningSession);
+      const responseTimeMs = Math.max(0, Date.now() - responseStartedAt);
+      const answeredCorrectly =
+        responseAnalysis.understanding === 'good' || responseAnalysis.understanding === 'excellent';
+      recordLearningAnswer(learningSession.id, answeredCorrectly, responseTimeMs);
+      updateLearningEngagement(learningSession.id, responseAnalysis.confidenceScore >= 45);
+
+      const existingQuestions = new Set(
+        learningSession.subQuestions.map((subQuestion) => subQuestion.question.trim().toLowerCase())
+      );
+      const extractedQuestions = extractSubQuestions(assistantOutput);
+      for (const question of extractedQuestions) {
+        const normalizedQuestion = question.trim().toLowerCase();
+        if (!normalizedQuestion || existingQuestions.has(normalizedQuestion)) {
+          continue;
+        }
+        if (existingQuestions.size >= 10) {
+          break;
+        }
+        addLearningSubQuestion(learningSession.id, question);
+        existingQuestions.add(normalizedQuestion);
+      }
+
+      const refreshedSession = getLearningSessionByChat(chatSessionId);
+      if (!refreshedSession) {
+        return;
+      }
+
+      const transition = detectPhaseTransition(refreshedSession);
+      if (transition.shouldTransition && transition.nextPhase) {
+        if (transition.nextPhase === 'summary') {
+          const keyTakeaways = assistantOutput
+            .split('\n')
+            .map((line) => line.replace(/^[-*]\s+/, '').replace(/^\d+\.\s+/, '').trim())
+            .filter((line) => line.length > 8)
+            .slice(0, 5);
+          endLearningSession(
+            refreshedSession.id,
+            assistantOutput.slice(0, 1200),
+            keyTakeaways.length > 0 ? keyTakeaways : undefined
+          );
+        } else {
+          setLearningPhase(refreshedSession.id, transition.nextPhase);
+        }
+      }
+    },
+    [
+      addLearningSubQuestion,
+      endLearningSession,
+      getLearningSessionByChat,
+      getSession,
+      recordLearningAnswer,
+      setLearningPhase,
+      updateLearningEngagement,
+      learningModeV2Enabled,
     ]
   );
 
@@ -1426,6 +1988,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
             speedpassContext: {
               ...existingSpeedPassContext,
               sourceMessage: effectiveContent,
+              textbookId: existingSpeedPassContext?.textbookId,
               availableTimeMinutes:
                 modeDetection.detectedTime ?? existingSpeedPassContext?.availableTimeMinutes,
               targetScore:
@@ -1437,6 +2000,11 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
             },
           },
         });
+
+        const featureResult = await checkFeatureIntent(effectiveContent);
+        if (featureResult.detected && featureResult.feature?.id === 'speedpass') {
+          return;
+        }
       } else {
         // Check for feature routing intent (navigate to feature pages)
         const featureResult = await checkFeatureIntent(effectiveContent);
@@ -1582,6 +2150,39 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
         // Create streaming assistant message
         const assistantMessage = createStreamingMessage('assistant');
+        const responseStartedAt = Date.now();
+        let streamedAssistantContent = '';
+        const toolPartsById = new Map<string, ToolInvocationPart>();
+
+        const activeLearningSession =
+          currentMode === 'learning' ? getLearningSessionByChat(currentSessionId!) : undefined;
+        if (
+          learningModeV2Enabled &&
+          activeLearningSession?.currentSubQuestionId &&
+          session?.learningContext?.subMode !== 'speedpass'
+        ) {
+          incrementLearningAttempts(
+            activeLearningSession.id,
+            activeLearningSession.currentSubQuestionId
+          );
+        }
+
+        const syncAssistantParts = (latestContent?: string) => {
+          const resolvedContent = latestContent ?? streamedAssistantContent;
+          const toolParts = Array.from(toolPartsById.values()).sort((left, right) => {
+            const leftTime = left.startedAt ? new Date(left.startedAt).getTime() : 0;
+            const rightTime = right.startedAt ? new Date(right.startedAt).getTime() : 0;
+            return leftTime - rightTime;
+          });
+          const parts = [
+            ...(resolvedContent ? [{ type: 'text' as const, content: resolvedContent }] : []),
+            ...toolParts,
+          ];
+          if (parts.length > 0) {
+            assistantMessage.parts = parts;
+            void updateMessage(assistantMessage.id, { parts });
+          }
+        };
 
         // Determine the actual provider/model to use
         let actualProvider = currentProvider as ProviderName;
@@ -1752,6 +2353,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
           {
             messages: coreMessages,
             systemPrompt: enhancedSystemPrompt || undefined,
+            ...(currentMode === 'learning' && learningChatTools ? { tools: learningChatTools } : {}),
             temperature: session?.temperature ?? 0.7,
             maxTokens: session?.maxTokens,
             topP: session?.topP,
@@ -1759,11 +2361,52 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
             presencePenalty: session?.presencePenalty,
             sessionId: currentSessionId!,
             messageId: assistantMessage.id,
+            onToolEvent: (event) => {
+              if (!learningModeV2Enabled) {
+                return;
+              }
+              const normalizedToolName = normalizeLearningToolName(event.toolName) ?? event.toolName;
+              const existingPart = toolPartsById.get(event.toolCallId);
+              const nextPart: ToolInvocationPart = {
+                type: 'tool-invocation',
+                toolCallId: event.toolCallId,
+                toolName: normalizedToolName,
+                args:
+                  event.input && typeof event.input === 'object'
+                    ? (event.input as Record<string, unknown>)
+                    : {},
+                state:
+                  event.type === 'finish'
+                    ? 'output-available'
+                    : event.type === 'error'
+                      ? 'output-error'
+                      : event.type === 'start'
+                        ? 'input-available'
+                        : 'input-streaming',
+                result: event.type === 'finish' ? event.output : existingPart?.result,
+                errorText: event.type === 'error' ? event.error : existingPart?.errorText,
+                startedAt: existingPart?.startedAt ?? event.startedAt ?? new Date(),
+                completedAt: event.type === 'finish' || event.type === 'error'
+                  ? event.completedAt ?? new Date()
+                  : existingPart?.completedAt,
+                duration:
+                  event.type === 'finish' || event.type === 'error'
+                    ? Math.max(
+                        0,
+                        (event.completedAt ?? new Date()).getTime() -
+                          (existingPart?.startedAt ?? event.startedAt ?? new Date()).getTime()
+                      )
+                    : existingPart?.duration,
+              };
+              toolPartsById.set(event.toolCallId, nextPart);
+              syncAssistantParts();
+            },
             // Per-session streaming override (undefined = use global setting)
             streaming: session?.streamingEnabled,
           },
           // Streaming callback
           (chunk) => {
+            streamedAssistantContent += chunk;
             if (
               !streamBufferRef.current ||
               streamBufferRef.current.messageId !== assistantMessage.id
@@ -1771,6 +2414,9 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
               streamBufferRef.current = { messageId: assistantMessage.id, buffer: '' };
             }
             streamBufferRef.current.buffer += chunk;
+            if (toolPartsById.size > 0) {
+              syncAssistantParts(streamedAssistantContent);
+            }
 
             if (!streamFlushTimerRef.current) {
               streamFlushTimerRef.current = setTimeout(() => {
@@ -1782,14 +2428,26 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
         flushStreamBuffer();
 
+        if (response) {
+          streamedAssistantContent = response;
+        }
+
         // If no streaming was used, update the message with the full response
         if (response && !isStreaming) {
           await updateMessage(assistantMessage.id, { content: response });
         }
 
+        if (toolPartsById.size > 0) {
+          syncAssistantParts(response);
+        }
+
         // Save the final assistant message to database
         let finalContent = response || assistantMessage.content;
         if (finalContent) {
+          streamedAssistantContent = finalContent;
+          if (toolPartsById.size > 0) {
+            syncAssistantParts(finalContent);
+          }
           // ========== 4. Post-response processing ==========
           finalContent = await processPostResponse({
             finalContent,
@@ -1807,6 +2465,13 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
             addAnalysisResult,
             processA2UIMessage,
           });
+
+          applyLearningSessionAutomation(
+            currentSessionId!,
+            content,
+            finalContent,
+            responseStartedAt
+          );
 
           // Add any additional plugin messages (requires addMessage from component scope)
           const pluginEventHooks = getPluginEventHooks();
@@ -1864,6 +2529,8 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       recordSkillUsage,
       updateSession,
       getLearningSessionByChat,
+      incrementLearningAttempts,
+      applyLearningSessionAutomation,
       autoCreateFromContent,
       addAnalysisResult,
       processA2UIMessage,
@@ -1873,8 +2540,54 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       flushStreamBuffer,
       chatHistoryContextSettings,
       checkFeatureIntent,
+      learningChatTools,
+      learningModeV2Enabled,
     ]
   );
+
+  const executeExternalSlashCommand = useCallback(
+    (commandName: string, args: string) => {
+      const prompt = `/${commandName} ${args}`.trim();
+      void handleSendMessage(prompt);
+    },
+    [handleSendMessage]
+  );
+
+  useEffect(() => {
+    const activeExternalAgentId =
+      currentMode === 'agent' ? session?.externalAgentId || null : null;
+
+    if (!activeExternalAgentId) {
+      return;
+    }
+
+    if (externalAvailableCommands.length === 0) {
+      unregisterExternalAgentCommands(activeExternalAgentId);
+      return;
+    }
+
+    unregisterExternalAgentCommands(activeExternalAgentId);
+    registerExternalAgentCommands(
+      activeExternalAgentId,
+      session?.title || 'External Agent',
+      externalAvailableCommands.map((command) => ({
+        name: command.name,
+        description: command.description,
+        inputHint: command.input?.hint,
+      })),
+      executeExternalSlashCommand
+    );
+
+    return () => {
+      unregisterExternalAgentCommands(activeExternalAgentId);
+    };
+  }, [
+    currentMode,
+    session?.externalAgentId,
+    session?.title,
+    externalAvailableCommands,
+    executeExternalSlashCommand,
+  ]);
 
   /** Stop all in-flight generation: AI streaming, agent execution, and flush remaining buffer. */
   const handleStop = useCallback(() => {
@@ -1884,9 +2597,34 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     if (isAgentExecuting) {
       stopAgent();
     }
+    if (isExternalAgentExecuting) {
+      void cancelExternalAgent();
+    }
     setIsLoading(false);
     setIsStreaming(false);
-  }, [aiStop, flushStreamBuffer, isAgentExecuting, stopAgent]);
+  }, [aiStop, flushStreamBuffer, isAgentExecuting, stopAgent, isExternalAgentExecuting, cancelExternalAgent]);
+
+  const handleExternalRuntimeCommand = useCallback(
+    (command: string, args?: string) => {
+      const prompt = args ? `${command} ${args}` : command;
+      void handleSendMessage(prompt);
+    },
+    [handleSendMessage]
+  );
+
+  const handleExternalRuntimeConfigOption = useCallback(
+    async (configId: string, value: string) => {
+      return setExternalConfigOption(configId, value);
+    },
+    [setExternalConfigOption]
+  );
+
+  const showExternalRuntimeControls =
+    currentMode === 'agent' &&
+    !!session?.externalAgentId &&
+    (externalConfigOptions.length > 0 ||
+      externalAvailableCommands.length > 0 ||
+      externalPlanEntries.length > 0);
 
   // Keyboard shortcuts for chat actions
   useKeyboardShortcuts({
@@ -2474,6 +3212,35 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
           }
         }}
       />
+      {showExternalRuntimeControls && (
+        <div className="px-3 pb-2 flex flex-col gap-2">
+          {externalConfigOptions.length > 0 && (
+            <ExternalAgentConfigOptions
+              configOptions={externalConfigOptions}
+              onSetConfigOption={handleExternalRuntimeConfigOption}
+              disabled={isLoading || isStreaming}
+              compact
+            />
+          )}
+          {(externalAvailableCommands.length > 0 || externalPlanEntries.length > 0) && (
+            <div className="flex flex-col gap-2">
+              {externalAvailableCommands.length > 0 && (
+                <ExternalAgentCommands
+                  commands={externalAvailableCommands}
+                  onExecute={handleExternalRuntimeCommand}
+                  isExecuting={isExternalAgentExecuting}
+                />
+              )}
+              {externalPlanEntries.length > 0 && (
+                <ExternalAgentPlan
+                  entries={externalPlanEntries}
+                  currentStep={externalPlanStep ?? undefined}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      )}
       <PluginExtensionPoint point="chat.input.below" />
       <PluginExtensionPoint point="chat.footer" />
 
@@ -2524,9 +3291,10 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
         // Tool approval & timeline
         toolApprovalRequest={toolApprovalRequest}
         showToolApproval={showToolApproval}
-        setShowToolApproval={setShowToolApproval}
+        setShowToolApproval={handleToolApprovalOpenChange}
         onToolApproval={handleToolApproval}
         onToolDeny={handleToolDeny}
+        onToolOptionSelect={handleToolOptionSelect}
         currentMode={currentMode}
         toolTimelineExecutions={toolTimelineExecutions}
         // Mode switch suggestion

@@ -207,7 +207,10 @@ impl SandboxState {
         })
     }
 
-    async fn persist_config_snapshot(config_path: &std::path::Path, config: &SandboxConfig) -> Result<(), SandboxError> {
+    async fn persist_config_snapshot(
+        config_path: &std::path::Path,
+        config: &SandboxConfig,
+    ) -> Result<(), SandboxError> {
         let content = serde_json::to_string_pretty(config).map_err(|e| {
             log::error!("Failed to serialize sandbox config: {}", e);
             SandboxError::Config(format!("Failed to serialize config: {}", e))
@@ -221,21 +224,17 @@ impl SandboxState {
             })?;
         }
 
-        tokio::fs::write(config_path, &content)
-            .await
-            .map_err(|e| {
-                log::error!(
-                    "Failed to write sandbox config to {:?}: {}",
-                    config_path,
-                    e
-                );
-                SandboxError::Config(format!("Failed to write config: {}", e))
-            })?;
+        tokio::fs::write(config_path, &content).await.map_err(|e| {
+            log::error!("Failed to write sandbox config to {:?}: {}", config_path, e);
+            SandboxError::Config(format!("Failed to write config: {}", e))
+        })?;
 
         Ok(())
     }
 
-    async fn migrate_legacy_config_if_needed(config_path: &std::path::Path) -> Result<(), SandboxError> {
+    async fn migrate_legacy_config_if_needed(
+        config_path: &std::path::Path,
+    ) -> Result<(), SandboxError> {
         if config_path.exists() {
             return Ok(());
         }
@@ -280,16 +279,6 @@ impl SandboxState {
                 Ok(())
             }
         }
-    }
-
-    /// Save configuration to disk
-    pub async fn save_config(&self) -> Result<(), SandboxError> {
-        log::debug!("Saving sandbox configuration to {:?}", self.config_path);
-        let config = self.config.read().await;
-        Self::persist_config_snapshot(&self.config_path, &config).await?;
-
-        log::info!("Sandbox configuration saved successfully");
-        Ok(())
     }
 
     /// Apply configuration: validate by creating a new manager, then atomically swap and persist.

@@ -29,18 +29,27 @@ jest.mock('next-intl', () => ({
   },
 }));
 
-// Mock useSpeech hook
-jest.mock('@/hooks/media/use-speech', () => ({
-  useSpeech: () => ({
-    isListening: false,
-    startListening: jest.fn(),
-    stopListening: jest.fn(),
-    sttSupported: true,
-    interimTranscript: '',
-    isSpeaking: false,
-    speak: jest.fn(),
-    stopSpeaking: jest.fn(),
-    ttsSupported: true,
+const mockSpeak = jest.fn(() => Promise.resolve());
+const mockStop = jest.fn();
+const mockSpeechSettings = {
+  ttsEnabled: true,
+  ttsAutoPlay: false,
+};
+
+jest.mock('@/stores', () => ({
+  useSettingsStore: (selector: (state: unknown) => unknown) =>
+    selector({
+      speechSettings: mockSpeechSettings,
+    }),
+}));
+
+jest.mock('@/hooks/media/use-tts', () => ({
+  useTTS: () => ({
+    speak: mockSpeak,
+    stop: mockStop,
+    isPlaying: false,
+    isLoading: false,
+    isSupported: true,
   }),
 }));
 
@@ -130,6 +139,8 @@ describe('ChatWidgetMessages', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSpeechSettings.ttsEnabled = true;
+    mockSpeechSettings.ttsAutoPlay = false;
   });
 
   it('renders without crashing', () => {
@@ -287,6 +298,28 @@ describe('ChatWidgetMessages', () => {
     // Streaming message should have animate-pulse class
     const messageElement = container.querySelector('.animate-pulse');
     expect(messageElement).toBeInTheDocument();
+  });
+
+  it('auto-plays final assistant message when enabled', () => {
+    mockSpeechSettings.ttsAutoPlay = true;
+    const messages = [createMessage({ role: 'assistant', content: 'Auto read this' })];
+
+    const { rerender } = render(<ChatWidgetMessages {...defaultProps} messages={[]} />);
+    rerender(<ChatWidgetMessages {...defaultProps} messages={messages} />);
+
+    expect(mockSpeak).toHaveBeenCalledWith('Auto read this');
+    expect(mockSpeak).toHaveBeenCalledTimes(1);
+  });
+
+  it('dedupes auto-play by message id', () => {
+    mockSpeechSettings.ttsAutoPlay = true;
+    const messages = [createMessage({ id: 'assistant-1', role: 'assistant', content: 'Read once' })];
+
+    const { rerender } = render(<ChatWidgetMessages {...defaultProps} messages={[]} />);
+    rerender(<ChatWidgetMessages {...defaultProps} messages={messages} />);
+    rerender(<ChatWidgetMessages {...defaultProps} messages={messages} />);
+
+    expect(mockSpeak).toHaveBeenCalledTimes(1);
   });
 });
 

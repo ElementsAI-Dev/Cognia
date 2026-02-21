@@ -346,10 +346,8 @@ mod tests {
 
         assert!(first);
         assert!(!second);
-        assert!(
-            storage
-                .is_migration_applied(key)
-                .expect("query should succeed")
-        );
+        assert!(storage
+            .is_migration_applied(key)
+            .expect("query should succeed"));
     }
 }

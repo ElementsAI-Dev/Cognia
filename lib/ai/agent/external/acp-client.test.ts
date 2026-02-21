@@ -327,6 +327,75 @@ describe('AcpClientAdapter protocol behavior', () => {
     expect(client.tools).toEqual([tool]);
   });
 
+  it('sends Cognia/Codex/Claude metadata in session/new', async () => {
+    const client = new AcpClientAdapter();
+    (client as unknown as { _connectionStatus: string })._connectionStatus = 'connected';
+    (client as unknown as { _config: { id: string; process?: { cwd?: string } } })._config = {
+      id: 'agent-1',
+      process: { cwd: '/workspace' },
+    };
+
+    const sendRequestSpy = jest
+      .spyOn(
+        client as unknown as {
+          sendRequest: (method: string, params?: Record<string, unknown>) => Promise<unknown>;
+        },
+        'sendRequest'
+      )
+      .mockResolvedValue({
+        sessionId: 'session-1',
+        configOptions: [],
+      });
+
+    await client.createSession({
+      cwd: '/tmp/project',
+      mcpServers: [
+        {
+          name: 'local-mcp',
+          command: 'npx',
+          args: ['-y', 'mock-mcp'],
+        },
+      ],
+      systemPrompt: 'System prompt',
+      context: { feature: 'chat' },
+      instructionEnvelope: {
+        hash: 'hash-1',
+        developerInstructions: 'Follow AGENTS',
+        skillsSummary: 'skill-a',
+        sourceFlags: { hasSkills: true },
+      },
+      metadata: { source: 'test' },
+    });
+
+    expect(sendRequestSpy).toHaveBeenCalledWith(
+      'session/new',
+      expect.objectContaining({
+        cwd: '/tmp/project',
+        mcpServers: expect.any(Array),
+        _meta: expect.objectContaining({
+          systemPrompt: { append: 'System prompt' },
+          claudeCode: { options: { feature: 'chat' } },
+          codex: {
+            options: expect.objectContaining({
+              developer_instructions: 'Follow AGENTS',
+              project_doc_fallback_filenames: ['AGENTS.md', 'CLAUDE.md', 'README.md'],
+              project_doc_max_bytes: 32768,
+              skills: 'skill-a',
+              instruction_hash: 'hash-1',
+              working_directory: '/tmp/project',
+            }),
+          },
+          cognia: expect.objectContaining({
+            traceContext: { source: 'test' },
+            instructionEnvelope: expect.objectContaining({
+              hash: 'hash-1',
+            }),
+          }),
+        }),
+      })
+    );
+  });
+
   it('caches unsupported session/list after -32601 probing', async () => {
     const client = new AcpClientAdapter();
     const sendRequestSpy = jest

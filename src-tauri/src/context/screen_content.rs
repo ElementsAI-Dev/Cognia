@@ -172,76 +172,6 @@ impl ScreenContentAnalyzer {
         }
     }
 
-    /// Analyze screen content from screenshot
-    pub fn analyze(
-        &self,
-        image_data: &[u8],
-        width: u32,
-        height: u32,
-    ) -> Result<ScreenContent, String> {
-        trace!(
-            "analyze called for image: {}x{}, {} bytes",
-            width,
-            height,
-            image_data.len()
-        );
-
-        // Check cache
-        {
-            let cached = self.last_analysis.read();
-            if let Some(ref content) = *cached {
-                let now = chrono::Utc::now().timestamp_millis();
-                let age_ms = now - content.timestamp;
-                if age_ms < DEFAULT_CACHE_DURATION_MS {
-                    trace!("Returning cached analysis (age: {}ms)", age_ms);
-                    return Ok(content.clone());
-                }
-                trace!(
-                    "Cache expired (age: {}ms, max: {}ms)",
-                    age_ms,
-                    DEFAULT_CACHE_DURATION_MS
-                );
-            }
-        }
-
-        // Perform analysis
-        debug!(
-            "Performing screen content analysis for {}x{} image",
-            width, height
-        );
-        let content = self.perform_analysis(image_data, width, height)?;
-
-        // Update cache
-        *self.last_analysis.write() = Some(content.clone());
-        debug!(
-            "Analysis complete: {} text blocks, {} UI elements, confidence: {:.2}",
-            content.text_blocks.len(),
-            content.ui_elements.len(),
-            content.confidence
-        );
-
-        Ok(content)
-    }
-
-    fn perform_analysis(
-        &self,
-        image_data: &[u8],
-        width: u32,
-        height: u32,
-    ) -> Result<ScreenContent, String> {
-        trace!(
-            "perform_analysis: using fallback path without explicit OCR result for {}x{} ({} bytes)",
-            width,
-            height,
-            image_data.len()
-        );
-        let ui_elements = self.analyze_ui_automation().unwrap_or_else(|e| {
-            error!("UI Automation analysis failed in fallback path: {}", e);
-            Vec::new()
-        });
-        Ok(self.build_content(width, height, None, ui_elements))
-    }
-
     pub fn analyze_with_ocr_result(
         &self,
         width: u32,
@@ -494,7 +424,7 @@ mod tests {
     #[test]
     fn test_clear_cache() {
         let analyzer = ScreenContentAnalyzer::new();
-        let _ = analyzer.analyze(&[], 100, 100);
+        let _ = analyzer.analyze_with_ocr_result(100, 100, None);
         analyzer.clear_cache();
         assert!(analyzer.last_analysis.read().is_none());
     }
@@ -502,7 +432,7 @@ mod tests {
     #[test]
     fn test_analyze_returns_content() {
         let analyzer = ScreenContentAnalyzer::new();
-        let result = analyzer.analyze(&[], 1920, 1080);
+        let result = analyzer.analyze_with_ocr_result(1920, 1080, None);
         assert!(result.is_ok());
         let content = result.unwrap();
         assert_eq!(content.width, 1920);
@@ -512,9 +442,9 @@ mod tests {
     #[test]
     fn test_analyze_caching() {
         let analyzer = ScreenContentAnalyzer::new();
-        let result1 = analyzer.analyze(&[], 1920, 1080).unwrap();
+        let result1 = analyzer.analyze_with_ocr_result(1920, 1080, None).unwrap();
         let timestamp1 = result1.timestamp;
-        let result2 = analyzer.analyze(&[], 1920, 1080).unwrap();
+        let result2 = analyzer.analyze_with_ocr_result(1920, 1080, None).unwrap();
         assert_eq!(timestamp1, result2.timestamp);
     }
 

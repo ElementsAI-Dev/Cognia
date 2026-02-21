@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ThemeProvider } from "@/components/providers/ui";
+import { StandaloneThemeSyncProvider } from "@/components/providers/ui";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "../../globals.css";
 
@@ -23,14 +23,9 @@ export default function RecordingToolbarLayout({
           padding: 0,
         }}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
+        <StandaloneThemeSyncProvider allowBackgroundImage={true}>
           <TooltipProvider delayDuration={0}>{children}</TooltipProvider>
-        </ThemeProvider>
+        </StandaloneThemeSyncProvider>
       </body>
     </html>
   );

@@ -41,7 +41,7 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
+import { cn, isTauri } from '@/lib/utils';
 import { useExternalAgent } from '@/hooks/agent';
 import { ExternalAgentCommands } from './external-agent-commands';
 import { ExternalAgentPlan } from './external-agent-plan';
@@ -51,7 +51,9 @@ import type {
   ExternalAgentConfig,
   ExternalAgentConnectionStatus,
   AcpPermissionOption,
+  CreateExternalAgentInput,
 } from '@/types/agent/external-agent';
+import { getExternalAgentExecutionBlockReason } from '@/lib/ai/agent/external/config-normalizer';
 import {
   EXTERNAL_AGENT_PRESETS,
   getAvailablePresets,
@@ -113,6 +115,8 @@ function AgentCard({
 }: AgentCardProps) {
   const { config, connectionStatus } = agent;
   const isConnected = connectionStatus === 'connected';
+  const executionBlockReason = getExternalAgentExecutionBlockReason(config);
+  const connectDisabled = !isConnected && !!executionBlockReason;
 
   return (
     <Card
@@ -147,12 +151,16 @@ function AgentCard({
                   className="h-7 w-7"
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (connectDisabled) {
+                      return;
+                    }
                     if (isConnected) {
                       onDisconnect();
                     } else {
                       onConnect();
                     }
                   }}
+                  disabled={connectDisabled}
                 >
                   {isConnected ? (
                     <PowerOff className="h-4 w-4 text-destructive" />
@@ -181,6 +189,9 @@ function AgentCard({
             </Tooltip>
           </div>
         </div>
+        {executionBlockReason && (
+          <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">{executionBlockReason}</p>
+        )}
       </CardContent>
     </Card>
   );
@@ -197,6 +208,7 @@ interface AddAgentDialogProps {
 }
 
 function AddAgentDialog({ open, onOpenChange, onAdd }: AddAgentDialogProps) {
+  const tauriRuntime = isTauri();
   const [selectedPreset, setSelectedPreset] = useState<ExternalAgentPresetId | ''>('');
   const [formData, setFormData] = useState<AddAgentFormData>({
     name: '',
@@ -226,6 +238,9 @@ function AddAgentDialog({ open, onOpenChange, onAdd }: AddAgentDialogProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.protocol !== 'acp') {
+      return;
+    }
     onAdd(formData);
     setFormData({
       name: '',
@@ -313,10 +328,18 @@ function AddAgentDialog({ open, onOpenChange, onAdd }: AddAgentDialogProps) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="acp">ACP</SelectItem>
-                    <SelectItem value="a2a">A2A</SelectItem>
-                    <SelectItem value="http">HTTP</SelectItem>
-                    <SelectItem value="websocket">WebSocket</SelectItem>
-                    <SelectItem value="custom">Custom</SelectItem>
+                    <SelectItem value="a2a" disabled>
+                      A2A (Coming Soon)
+                    </SelectItem>
+                    <SelectItem value="http" disabled>
+                      HTTP Protocol (Coming Soon)
+                    </SelectItem>
+                    <SelectItem value="websocket" disabled>
+                      WebSocket Protocol (Coming Soon)
+                    </SelectItem>
+                    <SelectItem value="custom" disabled>
+                      Custom Protocol (Coming Soon)
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -342,6 +365,11 @@ function AddAgentDialog({ open, onOpenChange, onAdd }: AddAgentDialogProps) {
             </div>
             {isStdio ? (
               <>
+                {!tauriRuntime && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                    stdio transport requires desktop runtime. You can still save this config, but execution is disabled on web.
+                  </div>
+                )}
                 <div className="grid gap-2">
                   <Label htmlFor="command">Command</Label>
                   <Input
@@ -429,11 +457,10 @@ export function ExternalAgentManager({ className }: ExternalAgentManagerProps) {
 
   const handleAddAgent = useCallback(
     async (data: AddAgentFormData) => {
-      const config: Partial<ExternalAgentConfig> = {
+      const config: CreateExternalAgentInput = {
         name: data.name,
-        protocol: data.protocol,
+        protocol: 'acp',
         transport: data.transport,
-        enabled: true,
       };
 
       if (data.transport === 'stdio') {
@@ -447,7 +474,7 @@ export function ExternalAgentManager({ className }: ExternalAgentManagerProps) {
         };
       }
 
-      await addAgent(config as ExternalAgentConfig);
+      await addAgent(config);
     },
     [addAgent]
   );

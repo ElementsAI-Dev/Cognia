@@ -88,7 +88,9 @@ export async function generateGeminiTTS(
     const result = await response.json();
     
     // Extract audio data from response
-    const audioData = result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    const inlineData = result.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+    const audioData = inlineData?.data;
+    const mimeType = inlineData?.mimeType as string | undefined;
     
     if (!audioData) {
       return {
@@ -104,10 +106,13 @@ export async function generateGeminiTTS(
       bytes[i] = binaryString.charCodeAt(i);
     }
 
+    const maybePcm = !mimeType || /audio\/(l16|pcm)/i.test(mimeType);
+    const wavData = maybePcm ? pcmToWav(bytes.buffer, 24000, 1) : bytes.buffer;
+
     return {
       success: true,
-      audioData: bytes.buffer,
-      mimeType: 'audio/wav', // Gemini returns PCM at 24kHz, single channel
+      audioData: wavData,
+      mimeType: maybePcm ? 'audio/wav' : mimeType,
     };
   } catch (error) {
     log.error('Gemini TTS error', error as Error);

@@ -49,6 +49,19 @@ example where this kind of repetition might be useful?"
 
 ### Learning Mode Features
 
+**Generative UI Toolchain**:
+
+- Unified snake_case tool names (`display_*`) with camelCase alias compatibility
+- 10 interactive renderers (flashcard, quiz, review, progress, concept explanation, step guide, concept map, animation)
+- Tool invocation parts stream into chat message parts in real time
+
+**Session State Machine Automation**:
+
+- Automatically increments attempts on active sub-question
+- Extracts and de-duplicates sub-questions from assistant output
+- Detects phase transitions and advances/finishes sessions automatically
+- Updates engagement, response stats, achievements, and global learning metrics
+
 **Adaptive Difficulty**:
 
 - Starts with basics

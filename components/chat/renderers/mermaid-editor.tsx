@@ -54,6 +54,11 @@ import { useSettingsStore } from '@/stores';
 import { LoadingAnimation } from './loading-animation';
 import { MERMAID_TEMPLATES, type MermaidTemplate } from './mermaid-templates';
 import { createEditorOptions, getMonacoTheme, registerMermaidLanguage, MERMAID_LANGUAGE_ID } from '@/lib/monaco';
+import {
+  bindMonacoEditorContext,
+  type MonacoContextBinding,
+} from '@/lib/editor-workbench/monaco-context-binding';
+import { isEditorFeatureFlagEnabled } from '@/lib/editor-workbench/feature-flags';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,
@@ -94,6 +99,7 @@ export const MermaidEditor = memo(function MermaidEditor({
   const t = useTranslations('mermaidEditor');
   const tToasts = useTranslations('toasts');
   const theme = useSettingsStore((state) => state.theme);
+  const globalEditorSettings = useSettingsStore((state) => state.editorSettings);
 
   const [internalViewMode, setInternalViewMode] = useState<MermaidEditorViewMode>('split');
   const viewMode = controlledViewMode ?? internalViewMode;
@@ -107,6 +113,7 @@ export const MermaidEditor = memo(function MermaidEditor({
 
   const previewRef = useRef<HTMLDivElement>(null);
   const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const workbenchBindingRef = useRef<MonacoContextBinding | null>(null);
 
   const { copy, isCopying } = useCopy({ toastMessage: tToasts('mermaidCopied') });
   const { svg, error, isLoading, render } = useMermaid(initialCode, { debounceMs: 400 });
@@ -227,6 +234,13 @@ export const MermaidEditor = memo(function MermaidEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialCode]);
 
+  useEffect(() => {
+    return () => {
+      workbenchBindingRef.current?.dispose();
+      workbenchBindingRef.current = null;
+    };
+  }, []);
+
   const renderPreview = () => (
     <div
       className={cn(
@@ -329,6 +343,19 @@ export const MermaidEditor = memo(function MermaidEditor({
         value={code}
         onChange={handleCodeChange}
         beforeMount={(monaco) => registerMermaidLanguage(monaco)}
+        onMount={(editor) => {
+          if (!isEditorFeatureFlagEnabled('editor.workbench.v2')) {
+            return;
+          }
+          workbenchBindingRef.current?.dispose();
+          workbenchBindingRef.current = bindMonacoEditorContext({
+            contextId: 'mermaid',
+            label: 'Mermaid Editor',
+            languageId: MERMAID_LANGUAGE_ID,
+            editor,
+            fallbackReason: 'Using Monaco built-in Mermaid support',
+          });
+        }}
         options={createEditorOptions('code', {
           minimap: { enabled: false },
           fontSize: 13,
@@ -336,6 +363,8 @@ export const MermaidEditor = memo(function MermaidEditor({
           padding: { top: 12, bottom: 12 },
           stickyScroll: { enabled: false },
           bracketPairColorization: { enabled: true },
+        }, {
+          editorSettings: globalEditorSettings,
         })}
       />
     </div>

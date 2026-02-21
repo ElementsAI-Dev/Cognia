@@ -14,9 +14,11 @@ export type {
   DBWorkflowExecution,
   DBSummary,
   DBAgentTrace,
+  DBCheckpoint,
   DBAsset,
   DBFolder,
   DBVideoProject,
+  DBContextFile,
 } from './schema';
 
 export {

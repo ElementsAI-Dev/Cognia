@@ -8,23 +8,14 @@
 import { useCallback, useState } from 'react';
 import { useVectorStore, useSettingsStore } from '@/stores';
 import {
-  indexDocument,
-  indexDocuments,
-  retrieveContext,
-  createRAGPrompt,
-  SimpleRAG,
-  type RAGDocument,
-  type RAGConfig,
-  type RAGContext,
-  type IndexingResult,
-} from '@/lib/ai/rag';
-import {
   RAGPipeline,
   createRAGPipeline,
   type RAGPipelineConfig,
   type RAGPipelineContext,
   createRAGTools,
   type RAGToolsConfig,
+  createRAGRuntimeConfigFromVectorSettings,
+  createRAGRuntime,
 } from '@/lib/ai/rag/index';
 import {
   chunkDocument,
@@ -32,6 +23,8 @@ import {
   type ChunkingResult,
 } from '@/lib/ai/embedding/chunking';
 import { getPluginEventHooks } from '@/lib/plugin';
+import { resolveEmbeddingApiKey } from '@/lib/vector/embedding';
+import type { RAGDocument, RAGContext, IndexingResult } from '@/types/document/rag';
 
 export interface UseRAGOptions {
   collectionName?: string;
@@ -77,8 +70,8 @@ export interface UseRAGReturn {
   chunkText: (text: string, options?: Partial<ChunkingOptions>) => ChunkingResult;
   estimateChunks: (textLength: number) => number;
 
-  // Simple RAG (in-memory)
-  createSimpleRAG: () => SimpleRAG;
+  // Simple RAG handle (legacy API name)
+  createSimpleRAG: () => RAGPipeline;
 
   // Advanced RAG pipeline
   createAdvancedPipeline: () => RAGPipeline;
@@ -108,51 +101,109 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
 
   // Get API key
   const getApiKey = useCallback((): string => {
-    const provider = vectorSettings.embeddingProvider;
-    if (provider === 'openai') {
-      return providerSettings.openai?.apiKey || '';
-    }
-    if (provider === 'google') {
-      return providerSettings.google?.apiKey || '';
-    }
-    return providerSettings.openai?.apiKey || '';
+    return resolveEmbeddingApiKey(
+      vectorSettings.embeddingProvider,
+      providerSettings as Record<string, { apiKey?: string }>
+    );
   }, [vectorSettings.embeddingProvider, providerSettings]);
 
-  // Build RAG config
-  const buildRAGConfig = useCallback(
-    (overrides?: Partial<UseRAGOptions>): RAGConfig => {
+  const buildPipelineConfig = useCallback(
+    (overrides?: Partial<UseRAGOptions>): RAGPipelineConfig => {
       const opts = { ...options, ...overrides };
-      return {
-        chromaConfig: {
-          mode: vectorSettings.mode,
-          serverUrl: vectorSettings.serverUrl,
-          embeddingConfig: {
-            provider: vectorSettings.embeddingProvider,
-            model: vectorSettings.embeddingModel,
-          },
-          apiKey: getApiKey(),
+      const runtimeConfig = createRAGRuntimeConfigFromVectorSettings(
+        {
+          ...vectorSettings,
+          ragTopK: opts.topK || topK,
+          ragSimilarityThreshold: opts.similarityThreshold || similarityThreshold,
+          ragMaxContextLength: opts.maxContextLength || maxContextLength,
+          enableHybridSearch: opts.enableHybridSearch ?? options.enableHybridSearch ?? false,
+          enableQueryExpansion: opts.enableQueryExpansion ?? options.enableQueryExpansion ?? false,
+          enableReranking: opts.enableReranking ?? options.enableReranking ?? false,
+          vectorWeight: opts.vectorWeight ?? options.vectorWeight ?? 0.7,
+          keywordWeight: opts.keywordWeight ?? options.keywordWeight ?? 0.3,
         },
+        getApiKey()
+      );
+
+      return {
+        embeddingConfig: runtimeConfig.vectorStore.embeddingConfig,
+        embeddingApiKey: runtimeConfig.vectorStore.embeddingApiKey,
+        vectorStoreConfig: runtimeConfig.vectorStore,
+        hybridSearch: {
+          enabled: opts.enableHybridSearch ?? true,
+          vectorWeight: opts.vectorWeight ?? 0.5,
+          keywordWeight: opts.keywordWeight ?? 0.5,
+          sparseWeight: opts.sparseWeight ?? 0.3,
+          lateInteractionWeight: opts.lateInteractionWeight ?? 0.2,
+          enableSparseSearch: opts.enableSparseSearch ?? false,
+          enableLateInteraction: opts.enableLateInteraction ?? false,
+        },
+        reranking: {
+          enabled: opts.enableReranking ?? true,
+          useLLM: false,
+        },
+        queryExpansion: {
+          enabled: opts.enableQueryExpansion ?? false,
+          maxVariants: 3,
+        },
+        contextualRetrieval: {
+          enabled: false,
+        },
+        topK: opts.topK || topK,
+        similarityThreshold: opts.similarityThreshold || similarityThreshold,
+        maxContextLength: opts.maxContextLength || maxContextLength,
         chunkingOptions: {
           strategy: opts.chunkingStrategy || chunkingStrategy,
           chunkSize: opts.chunkSize || chunkSize,
           chunkOverlap: opts.chunkOverlap || chunkOverlap,
         },
-        topK: opts.topK || topK,
-        similarityThreshold: opts.similarityThreshold || similarityThreshold,
-        maxContextLength: opts.maxContextLength || maxContextLength,
       };
     },
     [
-      options,
-      vectorSettings,
-      getApiKey,
-      chunkingStrategy,
-      chunkSize,
       chunkOverlap,
-      topK,
-      similarityThreshold,
+      chunkSize,
+      chunkingStrategy,
+      getApiKey,
       maxContextLength,
+      options,
+      similarityThreshold,
+      topK,
+      vectorSettings,
     ]
+  );
+
+  const mapToLegacyContext = useCallback((context: RAGPipelineContext): RAGContext => {
+    return {
+      query: context.query,
+      formattedContext: context.formattedContext,
+      totalTokensEstimate: context.totalTokensEstimate,
+      documents: context.documents.map((doc) => ({
+        id: doc.id,
+        content: doc.content,
+        metadata: doc.metadata as Record<string, string | number | boolean> | undefined,
+        similarity: doc.rerankScore,
+        distance: 1 - doc.rerankScore,
+      })),
+    };
+  }, []);
+
+  const createPrompt = useCallback(
+    (query: string, context: RAGContext, systemPrompt?: string): string => {
+      const base = systemPrompt || 'You are a helpful assistant.';
+      if (!context.formattedContext) {
+        return `${base}\n\nUser: ${query}`;
+      }
+      return `${base}
+
+Use the following context to answer the user's question.
+
+## Context
+${context.formattedContext}
+
+## User Question
+${query}`;
+    },
+    []
   );
 
   // Index single document
@@ -161,12 +212,22 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const config = buildRAGConfig();
-        const result = await indexDocument(collectionName, doc, config);
+        const pipeline = createRAGPipeline(buildPipelineConfig());
+        const result = await pipeline.indexDocument(doc.content, {
+          collectionName,
+          documentId: doc.id,
+          documentTitle: doc.title,
+          metadata: doc.metadata,
+        });
         if (!result.success) {
           setError(result.error || 'Indexing failed');
         }
-        return result;
+        return {
+          documentId: doc.id,
+          chunksCreated: result.chunksCreated,
+          success: result.success,
+          error: result.error,
+        };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Indexing failed';
         setError(message);
@@ -175,7 +236,7 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
         setIsLoading(false);
       }
     },
-    [collectionName, buildRAGConfig]
+    [buildPipelineConfig, collectionName]
   );
 
   // Index multiple documents
@@ -184,9 +245,23 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const config = buildRAGConfig();
-        const results = await indexDocuments(collectionName, docs, config);
-        const failures = results.filter((r) => !r.success);
+        const pipeline = createRAGPipeline(buildPipelineConfig());
+        const results: IndexingResult[] = [];
+        for (const doc of docs) {
+          const result = await pipeline.indexDocument(doc.content, {
+            collectionName,
+            documentId: doc.id,
+            documentTitle: doc.title,
+            metadata: doc.metadata,
+          });
+          results.push({
+            documentId: doc.id,
+            chunksCreated: result.chunksCreated,
+            success: result.success,
+            error: result.error,
+          });
+        }
+        const failures = results.filter((item) => !item.success);
         if (failures.length > 0) {
           setError(`${failures.length} documents failed to index`);
         }
@@ -204,7 +279,7 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
         setIsLoading(false);
       }
     },
-    [collectionName, buildRAGConfig]
+    [buildPipelineConfig, collectionName]
   );
 
   // Index plain text
@@ -225,14 +300,15 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const config = buildRAGConfig();
-        const context = await retrieveContext(collectionName, query, config);
+        const pipeline = createRAGPipeline(buildPipelineConfig());
+        const pipelineContext = await pipeline.retrieve(collectionName, query);
+        const context = mapToLegacyContext(pipelineContext);
         setLastContext(context);
-        if (context.documents?.length) {
-          getPluginEventHooks().dispatchRAGContextRetrieved('', context.documents.map((d: { id?: string; content: string; score?: number }) => ({
-            id: d.id || '',
+        if (pipelineContext.documents?.length) {
+          getPluginEventHooks().dispatchRAGContextRetrieved('', pipelineContext.documents.map((d) => ({
+            id: d.id,
             content: d.content,
-            score: d.score || 0,
+            score: d.rerankScore,
           })));
         }
         return context;
@@ -251,7 +327,7 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
         setIsLoading(false);
       }
     },
-    [collectionName, buildRAGConfig]
+    [buildPipelineConfig, collectionName, mapToLegacyContext]
   );
 
   // Retrieve with custom options
@@ -260,14 +336,15 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const config = buildRAGConfig(overrides);
-        const context = await retrieveContext(collectionName, query, config);
+        const pipeline = createRAGPipeline(buildPipelineConfig(overrides));
+        const pipelineContext = await pipeline.retrieve(collectionName, query);
+        const context = mapToLegacyContext(pipelineContext);
         setLastContext(context);
-        if (context.documents?.length) {
-          getPluginEventHooks().dispatchRAGContextRetrieved('', context.documents.map((d: { id?: string; content: string; score?: number }) => ({
-            id: d.id || '',
+        if (pipelineContext.documents?.length) {
+          getPluginEventHooks().dispatchRAGContextRetrieved('', pipelineContext.documents.map((d) => ({
+            id: d.id,
             content: d.content,
-            score: d.score || 0,
+            score: d.rerankScore,
           })));
         }
         return context;
@@ -285,24 +362,24 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
         setIsLoading(false);
       }
     },
-    [collectionName, buildRAGConfig]
+    [buildPipelineConfig, collectionName, mapToLegacyContext]
   );
 
   // Generate RAG-enhanced prompt
   const generatePrompt = useCallback(
     async (query: string, systemPrompt?: string): Promise<string> => {
       const context = await retrieve(query);
-      return createRAGPrompt(query, context, systemPrompt);
+      return createPrompt(query, context, systemPrompt);
     },
-    [retrieve]
+    [createPrompt, retrieve]
   );
 
   // Generate prompt with existing context
   const generatePromptWithContext = useCallback(
     (query: string, context: RAGContext, systemPrompt?: string): string => {
-      return createRAGPrompt(query, context, systemPrompt);
+      return createPrompt(query, context, systemPrompt);
     },
-    []
+    [createPrompt]
   );
 
   // Chunk text utility
@@ -328,74 +405,25 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
     [chunkSize, chunkOverlap]
   );
 
-  // Create simple in-memory RAG
-  const createSimpleRAG = useCallback((): SimpleRAG => {
-    return new SimpleRAG(
+  // Create simple RAG handle (legacy API name)
+  const createSimpleRAG = useCallback((): RAGPipeline => {
+    const runtimeConfig = createRAGRuntimeConfigFromVectorSettings(
       {
-        provider: vectorSettings.embeddingProvider,
-        model: vectorSettings.embeddingModel,
+        ...vectorSettings,
+        ragTopK: topK,
+        ragSimilarityThreshold: similarityThreshold,
+        ragMaxContextLength: maxContextLength,
       },
       getApiKey()
     );
-  }, [vectorSettings.embeddingProvider, vectorSettings.embeddingModel, getApiKey]);
+    return createRAGRuntime(runtimeConfig).getPipeline();
+  }, [getApiKey, maxContextLength, similarityThreshold, topK, vectorSettings]);
 
   // Create advanced RAG pipeline with hybrid search, reranking, etc.
   const createAdvancedPipeline = useCallback((): RAGPipeline => {
-    const pipelineConfig: RAGPipelineConfig = {
-      embeddingConfig: {
-        provider: vectorSettings.embeddingProvider,
-        model: vectorSettings.embeddingModel,
-      },
-      embeddingApiKey: getApiKey(),
-      hybridSearch: {
-        enabled: options.enableHybridSearch ?? true,
-        vectorWeight: options.vectorWeight ?? 0.5,
-        keywordWeight: options.keywordWeight ?? 0.5,
-        sparseWeight: options.sparseWeight ?? 0.3,
-        lateInteractionWeight: options.lateInteractionWeight ?? 0.2,
-        enableSparseSearch: options.enableSparseSearch ?? false,
-        enableLateInteraction: options.enableLateInteraction ?? false,
-      },
-      reranking: {
-        enabled: options.enableReranking ?? true,
-        useLLM: false,
-      },
-      queryExpansion: {
-        enabled: options.enableQueryExpansion ?? false,
-        maxVariants: 3,
-      },
-      contextualRetrieval: {
-        enabled: false,
-      },
-      topK,
-      similarityThreshold,
-      maxContextLength,
-      chunkingOptions: {
-        strategy: chunkingStrategy,
-        chunkSize,
-        chunkOverlap,
-      },
-    };
-    return createRAGPipeline(pipelineConfig);
+    return createRAGPipeline(buildPipelineConfig());
   }, [
-    vectorSettings.embeddingProvider,
-    vectorSettings.embeddingModel,
-    getApiKey,
-    options.enableHybridSearch,
-    options.enableReranking,
-    options.enableQueryExpansion,
-    options.enableSparseSearch,
-    options.enableLateInteraction,
-    options.vectorWeight,
-    options.keywordWeight,
-    options.sparseWeight,
-    options.lateInteractionWeight,
-    topK,
-    similarityThreshold,
-    maxContextLength,
-    chunkingStrategy,
-    chunkSize,
-    chunkOverlap,
+    buildPipelineConfig,
   ]);
 
   // Create RAG tools for use with AI SDK streamText/generateText

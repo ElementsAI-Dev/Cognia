@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonTtsError } from '../_utils';
 
 const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech';
 
@@ -13,35 +14,39 @@ export async function POST(request: NextRequest) {
     const {
       text,
       voice = 'alloy',
-      model = 'tts-1',
+      model = 'gpt-4o-mini-tts',
       speed = 1.0,
+      instructions,
       responseFormat = 'mp3',
     } = body;
 
     // Validate input
     if (!text || typeof text !== 'string') {
-      return NextResponse.json(
-        { error: 'Text is required' },
-        { status: 400 }
-      );
+      return jsonTtsError('openai', 'Text is required', 400, 'validation_error');
     }
 
     // Get API key from environment or request
     const apiKey = process.env.OPENAI_API_KEY;
     
     if (!apiKey) {
-      return NextResponse.json(
-        { error: 'OpenAI API key not configured' },
-        { status: 500 }
-      );
+      return jsonTtsError('openai', 'OpenAI API key not configured', 500, 'api_key_missing');
     }
 
     // Validate text length
     if (text.length > 4096) {
-      return NextResponse.json(
-        { error: 'Text exceeds maximum length of 4096 characters' },
-        { status: 400 }
-      );
+      return jsonTtsError('openai', 'Text exceeds maximum length of 4096 characters', 400, 'text_too_long');
+    }
+
+    const requestBody: Record<string, unknown> = {
+      model,
+      input: text,
+      voice,
+      speed: Math.min(4.0, Math.max(0.25, speed)),
+      response_format: responseFormat,
+    };
+
+    if (instructions && model === 'gpt-4o-mini-tts') {
+      requestBody.instructions = instructions;
     }
 
     // Call OpenAI TTS API
@@ -51,20 +56,17 @@ export async function POST(request: NextRequest) {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model,
-        input: text,
-        voice,
-        speed: Math.min(4.0, Math.max(0.25, speed)),
-        response_format: responseFormat,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      return NextResponse.json(
-        { error: errorData.error?.message || `OpenAI API error: ${response.status}` },
-        { status: response.status }
+      return jsonTtsError(
+        'openai',
+        errorData.error?.message || `OpenAI API error: ${response.status}`,
+        response.status,
+        'upstream_error',
+        response.status >= 500
       );
     }
 
@@ -90,9 +92,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('OpenAI TTS error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate speech' },
-      { status: 500 }
+    return jsonTtsError(
+      'openai',
+      error instanceof Error ? error.message : 'Failed to generate speech',
+      500,
+      'internal_error',
+      true
     );
   }
 }

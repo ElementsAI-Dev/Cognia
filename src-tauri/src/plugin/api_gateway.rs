@@ -157,7 +157,7 @@ fn required_permission_for_api(api: &str) -> Option<String> {
 }
 
 fn is_high_risk(permission: &str) -> bool {
-    HIGH_RISK_PERMISSIONS.iter().any(|item| *item == permission)
+    HIGH_RISK_PERMISSIONS.contains(&permission)
 }
 
 fn normalize_relative(path: &str) -> Result<PathBuf, PluginApiError> {
@@ -292,14 +292,17 @@ fn map_query_rows(
         .map(|name| name.to_string())
         .collect::<Vec<_>>();
     let rows = statement
-        .query_map(params_from_iter(params.iter().map(json_to_sql_value)), |row| {
-            let mut record = serde_json::Map::new();
-            for (index, column) in columns.iter().enumerate() {
-                let value = row.get_ref(index)?;
-                record.insert(column.clone(), sql_value_to_json(value));
-            }
-            Ok(Value::Object(record))
-        })
+        .query_map(
+            params_from_iter(params.iter().map(json_to_sql_value)),
+            |row| {
+                let mut record = serde_json::Map::new();
+                for (index, column) in columns.iter().enumerate() {
+                    let value = row.get_ref(index)?;
+                    record.insert(column.clone(), sql_value_to_json(value));
+                }
+                Ok(Value::Object(record))
+            },
+        )
         .map_err(io_error)?;
 
     let mut result = Vec::new();
@@ -525,14 +528,15 @@ async fn dispatch_api(
             Ok(json!(content))
         }
         "fs:writeText" => {
-            let path = payload
-                .get("path")
-                .and_then(Value::as_str)
-                .ok_or_else(|| PluginApiError {
-                    code: PluginApiErrorCode::InvalidRequest,
-                    message: "Missing path".to_string(),
-                    details: None,
-                })?;
+            let path =
+                payload
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| PluginApiError {
+                        code: PluginApiErrorCode::InvalidRequest,
+                        message: "Missing path".to_string(),
+                        details: None,
+                    })?;
             let content = payload
                 .get("content")
                 .and_then(Value::as_str)
@@ -549,14 +553,15 @@ async fn dispatch_api(
             Ok(json!(null))
         }
         "fs:writeBinary" => {
-            let path = payload
-                .get("path")
-                .and_then(Value::as_str)
-                .ok_or_else(|| PluginApiError {
-                    code: PluginApiErrorCode::InvalidRequest,
-                    message: "Missing path".to_string(),
-                    details: None,
-                })?;
+            let path =
+                payload
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| PluginApiError {
+                        code: PluginApiErrorCode::InvalidRequest,
+                        message: "Missing path".to_string(),
+                        details: None,
+                    })?;
             let content = payload
                 .get("content")
                 .and_then(Value::as_array)
@@ -587,14 +592,15 @@ async fn dispatch_api(
             Ok(json!(file.exists()))
         }
         "fs:mkdir" => {
-            let path = payload
-                .get("path")
-                .and_then(Value::as_str)
-                .ok_or_else(|| PluginApiError {
-                    code: PluginApiErrorCode::InvalidRequest,
-                    message: "Missing path".to_string(),
-                    details: None,
-                })?;
+            let path =
+                payload
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| PluginApiError {
+                        code: PluginApiErrorCode::InvalidRequest,
+                        message: "Missing path".to_string(),
+                        details: None,
+                    })?;
             let recursive = payload
                 .get("recursive")
                 .and_then(Value::as_bool)
@@ -608,14 +614,15 @@ async fn dispatch_api(
             Ok(json!(null))
         }
         "fs:remove" => {
-            let path = payload
-                .get("path")
-                .and_then(Value::as_str)
-                .ok_or_else(|| PluginApiError {
-                    code: PluginApiErrorCode::InvalidRequest,
-                    message: "Missing path".to_string(),
-                    details: None,
-                })?;
+            let path =
+                payload
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| PluginApiError {
+                        code: PluginApiErrorCode::InvalidRequest,
+                        message: "Missing path".to_string(),
+                        details: None,
+                    })?;
             let recursive = payload
                 .get("recursive")
                 .and_then(Value::as_bool)
@@ -641,14 +648,15 @@ async fn dispatch_api(
                     message: "Missing src".to_string(),
                     details: None,
                 })?;
-            let dest = payload
-                .get("dest")
-                .and_then(Value::as_str)
-                .ok_or_else(|| PluginApiError {
-                    code: PluginApiErrorCode::InvalidRequest,
-                    message: "Missing dest".to_string(),
-                    details: None,
-                })?;
+            let dest =
+                payload
+                    .get("dest")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| PluginApiError {
+                        code: PluginApiErrorCode::InvalidRequest,
+                        message: "Missing dest".to_string(),
+                        details: None,
+                    })?;
             let src_path = resolve_plugin_path(Path::new(&runtime_dirs.data), src)?;
             let dest_path = resolve_plugin_path(Path::new(&runtime_dirs.data), dest)?;
             if let Some(parent) = dest_path.parent() {
@@ -694,15 +702,18 @@ async fn dispatch_api(
             })?;
             let target = resolve_plugin_path(Path::new(&runtime_dirs.data), &payload.path)?;
             let metadata = std::fs::symlink_metadata(target).map_err(io_error)?;
-            let created = metadata.created().ok().map(|value| {
-                chrono::DateTime::<chrono::Utc>::from(value).to_rfc3339()
-            });
-            let modified = metadata.modified().ok().map(|value| {
-                chrono::DateTime::<chrono::Utc>::from(value).to_rfc3339()
-            });
-            let accessed = metadata.accessed().ok().map(|value| {
-                chrono::DateTime::<chrono::Utc>::from(value).to_rfc3339()
-            });
+            let created = metadata
+                .created()
+                .ok()
+                .map(|value| chrono::DateTime::<chrono::Utc>::from(value).to_rfc3339());
+            let modified = metadata
+                .modified()
+                .ok()
+                .map(|value| chrono::DateTime::<chrono::Utc>::from(value).to_rfc3339());
+            let accessed = metadata
+                .accessed()
+                .ok()
+                .map(|value| chrono::DateTime::<chrono::Utc>::from(value).to_rfc3339());
             serde_json::to_value(FileStat {
                 size: metadata.len(),
                 is_file: metadata.is_file(),
@@ -721,14 +732,15 @@ async fn dispatch_api(
             Ok(json!(text))
         }
         "clipboard:writeText" => {
-            let text = payload
-                .get("text")
-                .and_then(Value::as_str)
-                .ok_or_else(|| PluginApiError {
-                    code: PluginApiErrorCode::InvalidRequest,
-                    message: "Missing text".to_string(),
-                    details: None,
-                })?;
+            let text =
+                payload
+                    .get("text")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| PluginApiError {
+                        code: PluginApiErrorCode::InvalidRequest,
+                        message: "Missing text".to_string(),
+                        details: None,
+                    })?;
             let mut clipboard = arboard::Clipboard::new().map_err(io_error)?;
             clipboard.set_text(text).map_err(io_error)?;
             Ok(json!(null))
@@ -862,7 +874,11 @@ async fn dispatch_api(
             let db_path = Path::new(&runtime_dirs.db).join("plugin.sqlite");
             let connection = Connection::open(db_path).map_err(io_error)?;
             ensure_db_schema(&connection)?;
-            let rows = map_query_rows(&connection, &payload.sql, &payload.params.unwrap_or_default())?;
+            let rows = map_query_rows(
+                &connection,
+                &payload.sql,
+                &payload.params.unwrap_or_default(),
+            )?;
             Ok(json!(rows))
         }
         "db:execute" => {
@@ -877,7 +893,13 @@ async fn dispatch_api(
             let changed = connection
                 .execute(
                     &payload.sql,
-                    params_from_iter(payload.params.unwrap_or_default().iter().map(json_to_sql_value)),
+                    params_from_iter(
+                        payload
+                            .params
+                            .unwrap_or_default()
+                            .iter()
+                            .map(json_to_sql_value),
+                    ),
                 )
                 .map_err(io_error)?;
             serde_json::to_value(DatabaseResult {
@@ -887,14 +909,15 @@ async fn dispatch_api(
             .map_err(io_error)
         }
         "db:createTable" => {
-            let name = payload
-                .get("name")
-                .and_then(Value::as_str)
-                .ok_or_else(|| PluginApiError {
-                    code: PluginApiErrorCode::InvalidRequest,
-                    message: "Missing table name".to_string(),
-                    details: None,
-                })?;
+            let name =
+                payload
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| PluginApiError {
+                        code: PluginApiErrorCode::InvalidRequest,
+                        message: "Missing table name".to_string(),
+                        details: None,
+                    })?;
             let schema = payload
                 .get("schema")
                 .and_then(Value::as_object)
@@ -913,22 +936,24 @@ async fn dispatch_api(
                 })?;
             let mut column_defs = Vec::new();
             for column in columns {
-                let name = column
-                    .get("name")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| PluginApiError {
-                        code: PluginApiErrorCode::InvalidRequest,
-                        message: "Column name is required".to_string(),
-                        details: None,
-                    })?;
-                let kind = column
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| PluginApiError {
-                        code: PluginApiErrorCode::InvalidRequest,
-                        message: "Column type is required".to_string(),
-                        details: None,
-                    })?;
+                let name =
+                    column
+                        .get("name")
+                        .and_then(Value::as_str)
+                        .ok_or_else(|| PluginApiError {
+                            code: PluginApiErrorCode::InvalidRequest,
+                            message: "Column name is required".to_string(),
+                            details: None,
+                        })?;
+                let kind =
+                    column
+                        .get("type")
+                        .and_then(Value::as_str)
+                        .ok_or_else(|| PluginApiError {
+                            code: PluginApiErrorCode::InvalidRequest,
+                            message: "Column type is required".to_string(),
+                            details: None,
+                        })?;
                 column_defs.push(format!("\"{name}\" {kind}"));
             }
             let sql = format!(
@@ -943,14 +968,15 @@ async fn dispatch_api(
             Ok(json!(null))
         }
         "db:dropTable" => {
-            let name = payload
-                .get("name")
-                .and_then(Value::as_str)
-                .ok_or_else(|| PluginApiError {
-                    code: PluginApiErrorCode::InvalidRequest,
-                    message: "Missing table name".to_string(),
-                    details: None,
-                })?;
+            let name =
+                payload
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| PluginApiError {
+                        code: PluginApiErrorCode::InvalidRequest,
+                        message: "Missing table name".to_string(),
+                        details: None,
+                    })?;
             let db_path = Path::new(&runtime_dirs.db).join("plugin.sqlite");
             let connection = Connection::open(db_path).map_err(io_error)?;
             ensure_db_schema(&connection)?;
@@ -960,14 +986,15 @@ async fn dispatch_api(
             Ok(json!(null))
         }
         "db:tableExists" => {
-            let name = payload
-                .get("name")
-                .and_then(Value::as_str)
-                .ok_or_else(|| PluginApiError {
-                    code: PluginApiErrorCode::InvalidRequest,
-                    message: "Missing table name".to_string(),
-                    details: None,
-                })?;
+            let name =
+                payload
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| PluginApiError {
+                        code: PluginApiErrorCode::InvalidRequest,
+                        message: "Missing table name".to_string(),
+                        details: None,
+                    })?;
             let db_path = Path::new(&runtime_dirs.db).join("plugin.sqlite");
             let connection = Connection::open(db_path).map_err(io_error)?;
             ensure_db_schema(&connection)?;
@@ -989,7 +1016,9 @@ async fn dispatch_api(
             let db_path = Path::new(&runtime_dirs.db).join("plugin.sqlite");
             let connection = Connection::open(db_path).map_err(io_error)?;
             ensure_db_schema(&connection)?;
-            connection.execute("BEGIN IMMEDIATE", []).map_err(io_error)?;
+            connection
+                .execute("BEGIN IMMEDIATE", [])
+                .map_err(io_error)?;
             let mut txs = TX_CONNECTIONS.lock().map_err(io_error)?;
             if txs.contains_key(&payload.tx_id) {
                 return Err(PluginApiError {
@@ -1056,7 +1085,13 @@ async fn dispatch_api(
                 .connection
                 .execute(
                     &payload.sql,
-                    params_from_iter(payload.params.unwrap_or_default().iter().map(json_to_sql_value)),
+                    params_from_iter(
+                        payload
+                            .params
+                            .unwrap_or_default()
+                            .iter()
+                            .map(json_to_sql_value),
+                    ),
                 )
                 .map_err(io_error)?;
             Ok(json!({
@@ -1076,7 +1111,11 @@ async fn dispatch_api(
                 message: format!("Transaction not found: {}", payload.tx_id),
                 details: None,
             })?;
-            let sql = if api == "db:commit" { "COMMIT" } else { "ROLLBACK" };
+            let sql = if api == "db:commit" {
+                "COMMIT"
+            } else {
+                "ROLLBACK"
+            };
             tx.connection.execute(sql, []).map_err(io_error)?;
             Ok(json!(null))
         }
@@ -1110,8 +1149,11 @@ async fn dispatch_api(
                             details: None,
                         })?;
                     store.insert(namespaced, value.to_string());
-                    std::fs::write(&file, serde_json::to_string_pretty(&store).map_err(io_error)?)
-                        .map_err(io_error)?;
+                    std::fs::write(
+                        &file,
+                        serde_json::to_string_pretty(&store).map_err(io_error)?,
+                    )
+                    .map_err(io_error)?;
                     Ok(json!(null))
                 }
                 "secrets:get" => Ok(store
@@ -1120,8 +1162,11 @@ async fn dispatch_api(
                     .unwrap_or(Value::Null)),
                 "secrets:delete" => {
                     store.remove(&namespaced);
-                    std::fs::write(&file, serde_json::to_string_pretty(&store).map_err(io_error)?)
-                        .map_err(io_error)?;
+                    std::fs::write(
+                        &file,
+                        serde_json::to_string_pretty(&store).map_err(io_error)?,
+                    )
+                    .map_err(io_error)?;
                     Ok(json!(null))
                 }
                 _ => Ok(json!(store.contains_key(&namespaced))),
@@ -1144,20 +1189,15 @@ async fn dispatch_api(
             .map_err(io_error)?;
             Ok(json!(window_id))
         }
-        "window:close"
-        | "window:show"
-        | "window:hide"
-        | "window:focus"
-        | "window:setTitle"
-        | "window:setSize"
-        | "window:setPosition"
-        | "window:center" => {
+        "window:close" | "window:show" | "window:hide" | "window:focus" | "window:setTitle"
+        | "window:setSize" | "window:setPosition" | "window:center" => {
             let raw_payload = payload;
-            let parsed: WindowIdPayload = parse_payload(raw_payload.clone()).map_err(|error| PluginApiError {
-                code: PluginApiErrorCode::InvalidRequest,
-                message: error,
-                details: None,
-            })?;
+            let parsed: WindowIdPayload =
+                parse_payload(raw_payload.clone()).map_err(|error| PluginApiError {
+                    code: PluginApiErrorCode::InvalidRequest,
+                    message: error,
+                    details: None,
+                })?;
             let window = app_handle
                 .get_webview_window(&parsed.window_id)
                 .ok_or_else(|| PluginApiError {
@@ -1400,6 +1440,8 @@ mod tests {
             .find(|item| item.api == "shell:execute")
             .expect("shell:execute capability should exist");
         assert!(capability.high_risk);
-        assert!(capability.required_permissions.contains(&"shell:execute".to_string()));
+        assert!(capability
+            .required_permissions
+            .contains(&"shell:execute".to_string()));
     }
 }

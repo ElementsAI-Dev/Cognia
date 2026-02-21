@@ -123,6 +123,88 @@ export const relatedConceptSchema = z.object({
 
 export type RelatedConcept = z.infer<typeof relatedConceptSchema>;
 
+export const LEARNING_TOOL_CANONICAL_NAMES = [
+  'display_flashcard',
+  'display_flashcard_deck',
+  'display_quiz',
+  'display_quiz_question',
+  'display_review_session',
+  'display_progress_summary',
+  'display_concept_explanation',
+  'display_step_guide',
+  'display_concept_map',
+  'display_animation',
+] as const;
+
+export type CanonicalLearningToolName = (typeof LEARNING_TOOL_CANONICAL_NAMES)[number];
+
+export const LEARNING_TOOL_ALIASES: Record<string, CanonicalLearningToolName> = {
+  displayFlashcard: 'display_flashcard',
+  displayFlashcardDeck: 'display_flashcard_deck',
+  displayQuiz: 'display_quiz',
+  displayQuizQuestion: 'display_quiz_question',
+  displayReviewSession: 'display_review_session',
+  displayProgressSummary: 'display_progress_summary',
+  displayConceptExplanation: 'display_concept_explanation',
+  displayStepGuide: 'display_step_guide',
+  displayConceptMap: 'display_concept_map',
+  displayAnimation: 'display_animation',
+};
+
+export type LearningToolAliasName = keyof typeof LEARNING_TOOL_ALIASES;
+export type LearningToolName = CanonicalLearningToolName | LearningToolAliasName;
+
+export const LEARNING_TOOL_CANONICAL_TO_ALIAS: Record<CanonicalLearningToolName, LearningToolAliasName> = {
+  display_flashcard: 'displayFlashcard',
+  display_flashcard_deck: 'displayFlashcardDeck',
+  display_quiz: 'displayQuiz',
+  display_quiz_question: 'displayQuizQuestion',
+  display_review_session: 'displayReviewSession',
+  display_progress_summary: 'displayProgressSummary',
+  display_concept_explanation: 'displayConceptExplanation',
+  display_step_guide: 'displayStepGuide',
+  display_concept_map: 'displayConceptMap',
+  display_animation: 'displayAnimation',
+};
+
+export function normalizeLearningToolName(
+  name: string | null | undefined
+): CanonicalLearningToolName | undefined {
+  if (!name) {
+    return undefined;
+  }
+
+  if (LEARNING_TOOL_CANONICAL_NAMES.includes(name as CanonicalLearningToolName)) {
+    return name as CanonicalLearningToolName;
+  }
+
+  if (name in LEARNING_TOOL_ALIASES) {
+    return LEARNING_TOOL_ALIASES[name];
+  }
+
+  const snakeName = name
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/-/g, '_')
+    .toLowerCase();
+
+  return LEARNING_TOOL_CANONICAL_NAMES.includes(snakeName as CanonicalLearningToolName)
+    ? (snakeName as CanonicalLearningToolName)
+    : undefined;
+}
+
+export function toLearningToolAliasName(name: LearningToolName): LearningToolAliasName | undefined {
+  const canonicalName = normalizeLearningToolName(name);
+  if (!canonicalName) {
+    return undefined;
+  }
+
+  return LEARNING_TOOL_CANONICAL_TO_ALIAS[canonicalName];
+}
+
+export function isLearningToolName(name: string | null | undefined): name is LearningToolName {
+  return !!normalizeLearningToolName(name);
+}
+
 // Input schemas for tools
 export const displayFlashcardInputSchema = z.object({
   flashcard: flashcardSchema,
@@ -548,90 +630,115 @@ export async function executeDisplayAnimation(
   };
 }
 
-/**
- * Learning tool definitions (compatible with project's tool pattern)
- */
-export const learningTools = {
-  displayFlashcard: {
-    name: 'displayFlashcard',
-    description: 'Display an interactive flashcard for the user to review. Use this when presenting a concept that needs memorization with a question-answer format.',
+const canonicalLearningTools = {
+  display_flashcard: {
+    name: 'display_flashcard',
+    description:
+      'Display an interactive flashcard for the user to review. Use this when presenting a concept that needs memorization with a question-answer format.',
     parameters: displayFlashcardInputSchema,
     execute: executeDisplayFlashcard,
     requiresApproval: false,
     category: 'learning' as const,
   },
-  displayFlashcardDeck: {
-    name: 'displayFlashcardDeck',
-    description: 'Display a deck of flashcards for sequential review. Use this when presenting multiple related concepts for study.',
+  display_flashcard_deck: {
+    name: 'display_flashcard_deck',
+    description:
+      'Display a deck of flashcards for sequential review. Use this when presenting multiple related concepts for study.',
     parameters: displayFlashcardDeckInputSchema,
     execute: executeDisplayFlashcardDeck,
     requiresApproval: false,
     category: 'learning' as const,
   },
-  displayQuiz: {
-    name: 'displayQuiz',
-    description: 'Display an interactive quiz to test the user\'s understanding. Use this to assess knowledge retention with various question types.',
+  display_quiz: {
+    name: 'display_quiz',
+    description:
+      'Display an interactive quiz to test the user\'s understanding. Use this to assess knowledge retention with various question types.',
     parameters: displayQuizInputSchema,
     execute: executeDisplayQuiz,
     requiresApproval: false,
     category: 'learning' as const,
   },
-  displayQuizQuestion: {
-    name: 'displayQuizQuestion',
-    description: 'Display a single quiz question for quick knowledge check. Use this for spot-checking understanding during a learning conversation.',
+  display_quiz_question: {
+    name: 'display_quiz_question',
+    description:
+      'Display a single quiz question for quick knowledge check. Use this for spot-checking understanding during a learning conversation.',
     parameters: displayQuizQuestionInputSchema,
     execute: executeDisplayQuizQuestion,
     requiresApproval: false,
     category: 'learning' as const,
   },
-  displayReviewSession: {
-    name: 'displayReviewSession',
-    description: 'Start an interactive review session combining flashcards and quiz questions. Use this for comprehensive review of learned material with spaced repetition support.',
+  display_review_session: {
+    name: 'display_review_session',
+    description:
+      'Start an interactive review session combining flashcards and quiz questions. Use this for comprehensive review of learned material with spaced repetition support.',
     parameters: displayReviewSessionInputSchema,
     execute: executeDisplayReviewSession,
     requiresApproval: false,
     category: 'learning' as const,
   },
-  displayProgressSummary: {
-    name: 'displayProgressSummary',
-    description: 'Display a visual summary of learning progress including mastery levels, review statistics, and achievements.',
+  display_progress_summary: {
+    name: 'display_progress_summary',
+    description:
+      'Display a visual summary of learning progress including mastery levels, review statistics, and achievements.',
     parameters: displayProgressSummaryInputSchema,
     execute: executeDisplayProgressSummary,
     requiresApproval: false,
     category: 'learning' as const,
   },
-  displayConceptExplanation: {
-    name: 'displayConceptExplanation',
-    description: 'Display an interactive concept explanation with expandable sections, examples, and related concepts.',
+  display_concept_explanation: {
+    name: 'display_concept_explanation',
+    description:
+      'Display an interactive concept explanation with expandable sections, examples, and related concepts.',
     parameters: displayConceptExplanationInputSchema,
     execute: executeDisplayConceptExplanation,
     requiresApproval: false,
     category: 'learning' as const,
   },
-  displayStepGuide: {
-    name: 'displayStepGuide',
-    description: 'Display an interactive step-by-step guide for learning a process or procedure. Use this when walking the user through a multi-step workflow, tutorial, or methodology.',
+  display_step_guide: {
+    name: 'display_step_guide',
+    description:
+      'Display an interactive step-by-step guide for learning a process or procedure. Use this when walking the user through a multi-step workflow, tutorial, or methodology.',
     parameters: displayStepGuideInputSchema,
     execute: executeDisplayStepGuide,
     requiresApproval: false,
     category: 'learning' as const,
   },
-  displayConceptMap: {
-    name: 'displayConceptMap',
-    description: 'Display an interactive concept visualization (flow diagram, hierarchy, network graph, or layered diagram). Use this when explaining relationships between concepts, system architectures, or data flows.',
+  display_concept_map: {
+    name: 'display_concept_map',
+    description:
+      'Display an interactive concept visualization (flow diagram, hierarchy, network graph, or layered diagram). Use this when explaining relationships between concepts, system architectures, or data flows.',
     parameters: displayConceptMapInputSchema,
     execute: executeDisplayConceptMap,
     requiresApproval: false,
     category: 'learning' as const,
   },
-  displayAnimation: {
-    name: 'displayAnimation',
-    description: 'Display an interactive step-by-step animation with playback controls. Use this for visualizing algorithms, processes, or any concept that benefits from animated step-by-step illustration.',
+  display_animation: {
+    name: 'display_animation',
+    description:
+      'Display an interactive step-by-step animation with playback controls. Use this for visualizing algorithms, processes, or any concept that benefits from animated step-by-step illustration.',
     parameters: displayAnimationInputSchema,
     execute: executeDisplayAnimation,
     requiresApproval: false,
     category: 'learning' as const,
   },
+};
+
+export const learningToolsByCanonicalName = canonicalLearningTools;
+
+/**
+ * Learning tool definitions (compatible with project's tool pattern)
+ */
+export const learningTools = {
+  displayFlashcard: canonicalLearningTools.display_flashcard,
+  displayFlashcardDeck: canonicalLearningTools.display_flashcard_deck,
+  displayQuiz: canonicalLearningTools.display_quiz,
+  displayQuizQuestion: canonicalLearningTools.display_quiz_question,
+  displayReviewSession: canonicalLearningTools.display_review_session,
+  displayProgressSummary: canonicalLearningTools.display_progress_summary,
+  displayConceptExplanation: canonicalLearningTools.display_concept_explanation,
+  displayStepGuide: canonicalLearningTools.display_step_guide,
+  displayConceptMap: canonicalLearningTools.display_concept_map,
+  displayAnimation: canonicalLearningTools.display_animation,
 };
 
 export default learningTools;

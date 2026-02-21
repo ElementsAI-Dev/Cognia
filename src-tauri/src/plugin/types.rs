@@ -331,6 +331,15 @@ pub struct PluginState {
     pub enabled_at: Option<String>,
 }
 
+/// Aggregated plugin runtime snapshot entry (state + granted permissions)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginRuntimeSnapshotEntry {
+    pub plugin: PluginState,
+    #[serde(default)]
+    pub granted_permissions: Vec<String>,
+}
+
 /// Plugin scan result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginScanResult {

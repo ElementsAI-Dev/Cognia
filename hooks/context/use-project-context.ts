@@ -221,7 +221,8 @@ export function useAdvancedKnowledgeSearch(projectId: string | undefined) {
         const result = await searchKnowledgeBaseAdvanced(
           project.knowledgeBase,
           query,
-          config
+          config,
+          { projectId }
         );
         return result;
       } catch (error) {

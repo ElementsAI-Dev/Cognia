@@ -13,6 +13,7 @@
 //! - Admin elevation handling
 
 pub mod error;
+pub mod metadata_store;
 pub mod service;
 pub mod types;
 
@@ -25,25 +26,65 @@ pub mod macos;
 #[cfg(target_os = "linux")]
 pub mod linux;
 
-use log::info;
+use chrono::{Duration as ChronoDuration, Utc};
+use log::{debug, info, warn};
+use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub use error::{Result, SchedulerError};
+use metadata_store::SchedulerMetadataStore;
 pub use service::SystemScheduler;
 pub use types::*;
+
+#[derive(Clone)]
+#[allow(dead_code)]
+enum PendingOperation {
+    Create {
+        input: CreateSystemTaskInput,
+    },
+    Update {
+        task_id: SystemTaskId,
+        input: CreateSystemTaskInput,
+    },
+    Delete {
+        task_id: SystemTaskId,
+    },
+    Enable {
+        task_id: SystemTaskId,
+    },
+    RunNow {
+        task_id: SystemTaskId,
+    },
+}
+
+#[derive(Clone)]
+struct PendingConfirmationRecord {
+    request: TaskConfirmationRequest,
+    operation: PendingOperation,
+}
 
 /// Global scheduler state
 pub struct SchedulerState {
     scheduler: Arc<dyn SystemScheduler>,
-    /// Tasks pending confirmation (task_id -> confirmation request)
-    pending_confirmations: RwLock<std::collections::HashMap<String, TaskConfirmationRequest>>,
+    metadata_store: Option<SchedulerMetadataStore>,
+    /// Pending confirmations keyed by confirmation_id
+    pending_confirmations: RwLock<HashMap<String, PendingConfirmationRecord>>,
 }
 
 impl SchedulerState {
     /// Create a new scheduler state with platform-appropriate scheduler
-    pub fn new() -> Self {
+    pub fn new(metadata_db_path: Option<PathBuf>) -> Self {
         let scheduler: Arc<dyn SystemScheduler> = Self::create_platform_scheduler();
+        let metadata_store =
+            metadata_db_path.and_then(|path| match SchedulerMetadataStore::new(path) {
+                Ok(store) => Some(store),
+                Err(error) => {
+                    warn!("Failed to initialize scheduler metadata store: {}", error);
+                    None
+                }
+            });
 
         info!(
             "Scheduler state initialized: os={}, backend={}",
@@ -53,7 +94,8 @@ impl SchedulerState {
 
         Self {
             scheduler,
-            pending_confirmations: RwLock::new(std::collections::HashMap::new()),
+            metadata_store,
+            pending_confirmations: RwLock::new(HashMap::new()),
         }
     }
 
@@ -98,21 +140,28 @@ impl SchedulerState {
         self.scheduler.requires_admin(task)
     }
 
-    /// Create a task with confirmation flow
-    pub async fn create_task_with_confirmation(
-        &self,
-        input: CreateSystemTaskInput,
-        confirmed: bool,
-    ) -> Result<std::result::Result<SystemTask, TaskConfirmationRequest>> {
-        // Build a temporary task to assess risk
-        let temp_task = SystemTask {
-            id: SystemTask::generate_id(),
+    fn is_placeholder_task(task: &SystemTask) -> bool {
+        matches!(task.trigger, SystemTaskTrigger::Interval { seconds: 0 })
+            && matches!(
+                task.action,
+                SystemTaskAction::RunCommand { ref command, .. } if command.is_empty()
+            )
+    }
+
+    fn make_temp_task(
+        id: String,
+        input: &CreateSystemTaskInput,
+        status: SystemTaskStatus,
+        metadata_state: TaskMetadataState,
+    ) -> SystemTask {
+        SystemTask {
+            id,
             name: input.name.clone(),
             description: input.description.clone(),
             trigger: input.trigger.clone(),
             action: input.action.clone(),
             run_level: input.run_level,
-            status: SystemTaskStatus::Enabled,
+            status,
             requires_admin: false,
             tags: input.tags.clone(),
             created_at: None,
@@ -120,9 +169,169 @@ impl SchedulerState {
             last_run_at: None,
             next_run_at: None,
             last_result: None,
-        };
+            metadata_state,
+        }
+    }
 
-        let requires_admin = temp_task.check_requires_admin();
+    fn expires_at_iso() -> String {
+        (Utc::now() + ChronoDuration::hours(24)).to_rfc3339()
+    }
+
+    fn now_iso() -> String {
+        Utc::now().to_rfc3339()
+    }
+
+    fn build_confirmation(
+        &self,
+        task: &SystemTask,
+        operation: TaskOperation,
+        target_task_id: Option<SystemTaskId>,
+        confirmation_id: String,
+    ) -> TaskConfirmationRequest {
+        let requires_admin = task.check_requires_admin() || self.scheduler.requires_admin(task);
+        TaskConfirmationRequest {
+            confirmation_id,
+            task_id: Some(task.id.clone()),
+            target_task_id,
+            operation,
+            risk_level: task.calculate_risk_level(),
+            requires_admin,
+            warnings: task.generate_warnings(),
+            details: TaskConfirmationDetails {
+                task_name: task.name.clone(),
+                action_summary: Some(Self::summarize_action(&task.action)),
+                trigger_summary: Some(Self::summarize_trigger(&task.trigger)),
+                script_preview: Self::get_script_preview(&task.action),
+            },
+            created_at: Self::now_iso(),
+            expires_at: Self::expires_at_iso(),
+        }
+    }
+
+    async fn store_pending_confirmation(
+        &self,
+        request: TaskConfirmationRequest,
+        operation: PendingOperation,
+    ) -> TaskConfirmationRequest {
+        let confirmation_id = request.confirmation_id.clone();
+        let mut pending = self.pending_confirmations.write().await;
+        pending.insert(
+            confirmation_id.clone(),
+            PendingConfirmationRecord {
+                request: request.clone(),
+                operation,
+            },
+        );
+        debug!(
+            "Stored pending confirmation: confirmation_id={}, operation={:?}, target_task_id={}",
+            confirmation_id,
+            request.operation,
+            request.target_task_id.clone().unwrap_or_default()
+        );
+        request
+    }
+
+    fn is_confirmation_expired(request: &TaskConfirmationRequest) -> bool {
+        chrono::DateTime::parse_from_rfc3339(&request.expires_at)
+            .map(|dt| dt.with_timezone(&Utc) < Utc::now())
+            .unwrap_or(false)
+    }
+
+    async fn prune_expired_confirmations(&self) {
+        let mut pending = self.pending_confirmations.write().await;
+        let expired_ids = pending
+            .iter()
+            .filter_map(|(id, record)| {
+                if Self::is_confirmation_expired(&record.request) {
+                    Some(id.clone())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        for confirmation_id in expired_ids {
+            pending.remove(&confirmation_id);
+            debug!("Expired confirmation pruned: {}", confirmation_id);
+        }
+    }
+
+    fn merge_platform_with_metadata(
+        platform_task: &SystemTask,
+        metadata_task: &SystemTask,
+    ) -> SystemTask {
+        let mut merged = metadata_task.clone();
+        merged.id = platform_task.id.clone();
+        if !platform_task.name.trim().is_empty() {
+            merged.name = platform_task.name.clone();
+        }
+        merged.status = platform_task.status;
+        merged.last_run_at = platform_task.last_run_at.clone();
+        merged.next_run_at = platform_task.next_run_at.clone();
+        merged.last_result = platform_task.last_result.clone();
+        merged.metadata_state = TaskMetadataState::Full;
+        merged.requires_admin = merged.check_requires_admin();
+        merged
+    }
+
+    async fn enrich_task_with_metadata(&self, platform_task: SystemTask) -> SystemTask {
+        if let Some(store) = &self.metadata_store {
+            match store.get_task_metadata(&platform_task.id, Some(&platform_task.name)) {
+                Ok(Some(metadata_task)) => {
+                    return Self::merge_platform_with_metadata(&platform_task, &metadata_task);
+                }
+                Ok(None) => {}
+                Err(error) => {
+                    warn!(
+                        "Failed loading metadata for task {}: {}",
+                        platform_task.id, error
+                    );
+                }
+            }
+        }
+
+        let mut task = platform_task;
+        if Self::is_placeholder_task(&task) {
+            task.metadata_state = TaskMetadataState::Degraded;
+        }
+        task
+    }
+
+    fn persist_task_metadata(&self, task: &SystemTask) {
+        if let Some(store) = &self.metadata_store {
+            if let Err(error) = store.upsert_task(task) {
+                warn!(
+                    "Failed to persist scheduler metadata for task {}: {}",
+                    task.id, error
+                );
+            }
+        }
+    }
+
+    fn delete_task_metadata(&self, task_id: &str) {
+        if let Some(store) = &self.metadata_store {
+            if let Err(error) = store.delete_task(task_id) {
+                warn!(
+                    "Failed deleting scheduler metadata for task {}: {}",
+                    task_id, error
+                );
+            }
+        }
+    }
+
+    /// Create a task with confirmation flow
+    pub async fn create_task_with_confirmation(
+        &self,
+        input: CreateSystemTaskInput,
+        confirmed: bool,
+    ) -> Result<std::result::Result<SystemTask, TaskConfirmationRequest>> {
+        let temp_task = Self::make_temp_task(
+            SystemTask::generate_id(),
+            &input,
+            SystemTaskStatus::Enabled,
+            TaskMetadataState::Full,
+        );
+        let requires_admin =
+            temp_task.check_requires_admin() || self.scheduler.requires_admin(&temp_task);
         let risk_level = temp_task.calculate_risk_level();
 
         // Check if confirmation is needed
@@ -131,27 +340,17 @@ impl SchedulerState {
             || matches!(temp_task.action, SystemTaskAction::ExecuteScript { .. });
 
         if needs_confirmation && !confirmed {
-            // Generate confirmation request
-            let confirmation = TaskConfirmationRequest {
-                task_id: Some(temp_task.id.clone()),
-                operation: TaskOperation::Create,
-                risk_level,
-                requires_admin,
-                warnings: temp_task.generate_warnings(),
-                details: TaskConfirmationDetails {
-                    task_name: temp_task.name.clone(),
-                    action_summary: Some(Self::summarize_action(&temp_task.action)),
-                    trigger_summary: Some(Self::summarize_trigger(&temp_task.trigger)),
-                    script_preview: Self::get_script_preview(&temp_task.action),
-                },
-            };
-
-            // Store pending confirmation
-            {
-                let mut pending = self.pending_confirmations.write().await;
-                pending.insert(temp_task.id.clone(), confirmation.clone());
-            }
-
+            let confirmation_id = format!("confirm-{}", uuid::Uuid::new_v4());
+            let confirmation =
+                self.build_confirmation(&temp_task, TaskOperation::Create, None, confirmation_id);
+            let confirmation = self
+                .store_pending_confirmation(
+                    confirmation,
+                    PendingOperation::Create {
+                        input: input.clone(),
+                    },
+                )
+                .await;
             return Ok(Err(confirmation));
         }
 
@@ -163,37 +362,103 @@ impl SchedulerState {
         }
 
         // Create the task
-        let task = self.scheduler.create_task(input).await?;
+        let mut task = self.scheduler.create_task(input).await?;
+        task.metadata_state = TaskMetadataState::Full;
+        self.persist_task_metadata(&task);
         Ok(Ok(task))
     }
 
-    /// Confirm a pending task creation
-    pub async fn confirm_task(&self, task_id: &str) -> Result<Option<SystemTask>> {
-        let confirmation = {
+    /// Confirm a pending operation
+    pub async fn confirm_task(&self, confirmation_id: &str) -> Result<Option<SystemTask>> {
+        self.prune_expired_confirmations().await;
+        let record = {
             let mut pending = self.pending_confirmations.write().await;
-            pending.remove(task_id)
+            pending.remove(confirmation_id)
         };
 
-        if confirmation.is_none() {
+        let Some(record) = record else {
             return Ok(None);
+        };
+
+        if Self::is_confirmation_expired(&record.request) {
+            return Err(SchedulerError::Timeout(format!(
+                "Confirmation expired: {}",
+                confirmation_id
+            )));
         }
 
-        // Task was already prepared, but we need to retrieve the input
-        // In practice, you'd store the input alongside the confirmation
-        // For now, return None as the frontend should re-submit with confirmed=true
-        Ok(None)
+        debug!(
+            "Executing pending confirmation: confirmation_id={}, operation={:?}, task_id={}",
+            confirmation_id,
+            record.request.operation,
+            record
+                .request
+                .target_task_id
+                .clone()
+                .or_else(|| record.request.task_id.clone())
+                .unwrap_or_default()
+        );
+
+        match record.operation {
+            PendingOperation::Create { input } => {
+                let mut task = self.scheduler.create_task(input).await?;
+                task.metadata_state = TaskMetadataState::Full;
+                self.persist_task_metadata(&task);
+                Ok(Some(task))
+            }
+            PendingOperation::Update { task_id, input } => {
+                let mut task = self.scheduler.update_task(&task_id, input).await?;
+                task.metadata_state = TaskMetadataState::Full;
+                self.persist_task_metadata(&task);
+                Ok(Some(task))
+            }
+            PendingOperation::Delete { task_id } => {
+                let _ = self.scheduler.delete_task(&task_id).await?;
+                self.delete_task_metadata(&task_id);
+                Ok(None)
+            }
+            PendingOperation::Enable { task_id } => {
+                let _ = self.scheduler.enable_task(&task_id).await?;
+                if let Some(task) = self.scheduler.get_task(&task_id).await? {
+                    let enriched = self.enrich_task_with_metadata(task).await;
+                    self.persist_task_metadata(&enriched);
+                    Ok(Some(enriched))
+                } else {
+                    Ok(None)
+                }
+            }
+            PendingOperation::RunNow { task_id } => {
+                let _ = self.scheduler.run_task_now(&task_id).await?;
+                if let Some(task) = self.scheduler.get_task(&task_id).await? {
+                    let enriched = self.enrich_task_with_metadata(task).await;
+                    if enriched.metadata_state == TaskMetadataState::Full {
+                        self.persist_task_metadata(&enriched);
+                    }
+                    Ok(Some(enriched))
+                } else {
+                    Ok(None)
+                }
+            }
+        }
     }
 
     /// Cancel a pending confirmation
-    pub async fn cancel_confirmation(&self, task_id: &str) -> bool {
+    pub async fn cancel_confirmation(&self, confirmation_id: &str) -> bool {
+        self.prune_expired_confirmations().await;
         let mut pending = self.pending_confirmations.write().await;
-        pending.remove(task_id).is_some()
+        pending.remove(confirmation_id).is_some()
     }
 
     /// Get all pending confirmations
     pub async fn get_pending_confirmations(&self) -> Vec<TaskConfirmationRequest> {
+        self.prune_expired_confirmations().await;
         let pending = self.pending_confirmations.read().await;
-        pending.values().cloned().collect()
+        let mut items: Vec<TaskConfirmationRequest> = pending
+            .values()
+            .map(|entry| entry.request.clone())
+            .collect();
+        items.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        items
     }
 
     /// Update a task
@@ -203,45 +468,37 @@ impl SchedulerState {
         input: CreateSystemTaskInput,
         confirmed: bool,
     ) -> Result<std::result::Result<SystemTask, TaskConfirmationRequest>> {
-        // Similar confirmation flow for updates
-        let temp_task = SystemTask {
-            id: id.to_string(),
-            name: input.name.clone(),
-            description: input.description.clone(),
-            trigger: input.trigger.clone(),
-            action: input.action.clone(),
-            run_level: input.run_level,
-            status: SystemTaskStatus::Enabled,
-            requires_admin: false,
-            tags: input.tags.clone(),
-            created_at: None,
-            updated_at: None,
-            last_run_at: None,
-            next_run_at: None,
-            last_result: None,
-        };
-
-        let requires_admin = temp_task.check_requires_admin();
+        let temp_task = Self::make_temp_task(
+            id.to_string(),
+            &input,
+            SystemTaskStatus::Enabled,
+            TaskMetadataState::Full,
+        );
+        let requires_admin =
+            temp_task.check_requires_admin() || self.scheduler.requires_admin(&temp_task);
         let risk_level = temp_task.calculate_risk_level();
 
-        let needs_confirmation =
-            matches!(risk_level, RiskLevel::High | RiskLevel::Critical) || requires_admin;
+        let needs_confirmation = matches!(risk_level, RiskLevel::High | RiskLevel::Critical)
+            || requires_admin
+            || matches!(temp_task.action, SystemTaskAction::ExecuteScript { .. });
 
         if needs_confirmation && !confirmed {
-            let confirmation = TaskConfirmationRequest {
-                task_id: Some(id.to_string()),
-                operation: TaskOperation::Update,
-                risk_level,
-                requires_admin,
-                warnings: temp_task.generate_warnings(),
-                details: TaskConfirmationDetails {
-                    task_name: temp_task.name.clone(),
-                    action_summary: Some(Self::summarize_action(&temp_task.action)),
-                    trigger_summary: Some(Self::summarize_trigger(&temp_task.trigger)),
-                    script_preview: Self::get_script_preview(&temp_task.action),
-                },
-            };
-
+            let confirmation_id = format!("confirm-{}", uuid::Uuid::new_v4());
+            let confirmation = self.build_confirmation(
+                &temp_task,
+                TaskOperation::Update,
+                Some(id.to_string()),
+                confirmation_id,
+            );
+            let confirmation = self
+                .store_pending_confirmation(
+                    confirmation,
+                    PendingOperation::Update {
+                        task_id: id.to_string(),
+                        input: input.clone(),
+                    },
+                )
+                .await;
             return Ok(Err(confirmation));
         }
 
@@ -251,23 +508,57 @@ impl SchedulerState {
             ));
         }
 
-        let task = self.scheduler.update_task(id, input).await?;
+        let mut task = self.scheduler.update_task(id, input).await?;
+        task.metadata_state = TaskMetadataState::Full;
+        self.persist_task_metadata(&task);
         Ok(Ok(task))
     }
 
     /// Delete a task
     pub async fn delete_task(&self, id: &str) -> Result<bool> {
-        self.scheduler.delete_task(id).await
+        let deleted = self.scheduler.delete_task(id).await?;
+        if deleted {
+            self.delete_task_metadata(id);
+        }
+        Ok(deleted)
     }
 
     /// Get a task by ID
     pub async fn get_task(&self, id: &str) -> Result<Option<SystemTask>> {
-        self.scheduler.get_task(id).await
+        match self.scheduler.get_task(id).await? {
+            Some(task) => {
+                let enriched = self.enrich_task_with_metadata(task).await;
+                if enriched.metadata_state == TaskMetadataState::Full {
+                    self.persist_task_metadata(&enriched);
+                }
+                Ok(Some(enriched))
+            }
+            None => {
+                if let Some(store) = &self.metadata_store {
+                    if let Some(mut metadata_task) = store.get_task_metadata(id, None)? {
+                        metadata_task.status = SystemTaskStatus::Unknown;
+                        metadata_task.metadata_state = TaskMetadataState::Degraded;
+                        metadata_task.requires_admin = metadata_task.check_requires_admin();
+                        return Ok(Some(metadata_task));
+                    }
+                }
+                Ok(None)
+            }
+        }
     }
 
     /// List all tasks
     pub async fn list_tasks(&self) -> Result<Vec<SystemTask>> {
-        self.scheduler.list_tasks().await
+        let tasks = self.scheduler.list_tasks().await?;
+        let mut enriched = Vec::with_capacity(tasks.len());
+        for task in tasks {
+            let merged = self.enrich_task_with_metadata(task).await;
+            if merged.metadata_state == TaskMetadataState::Full {
+                self.persist_task_metadata(&merged);
+            }
+            enriched.push(merged);
+        }
+        Ok(enriched)
     }
 
     /// Enable a task
@@ -365,7 +656,7 @@ impl SchedulerState {
 
 impl Default for SchedulerState {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
@@ -452,6 +743,177 @@ impl SystemScheduler for NoopScheduler {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+
+    #[derive(Default)]
+    struct MockScheduler {
+        tasks: Mutex<HashMap<String, SystemTask>>,
+    }
+
+    #[async_trait]
+    impl SystemScheduler for MockScheduler {
+        fn capabilities(&self) -> SchedulerCapabilities {
+            SchedulerCapabilities {
+                os: "test".to_string(),
+                backend: "mock".to_string(),
+                available: true,
+                can_elevate: true,
+                supported_triggers: vec!["interval".to_string()],
+                max_tasks: 0,
+            }
+        }
+
+        fn is_available(&self) -> bool {
+            true
+        }
+
+        async fn create_task(&self, input: CreateSystemTaskInput) -> Result<SystemTask> {
+            let id = SystemTask::generate_id();
+            let task = SystemTask {
+                id: id.clone(),
+                name: input.name,
+                description: input.description,
+                trigger: input.trigger,
+                action: input.action,
+                run_level: input.run_level,
+                status: SystemTaskStatus::Enabled,
+                requires_admin: false,
+                tags: input.tags,
+                created_at: Some(SchedulerState::now_iso()),
+                updated_at: Some(SchedulerState::now_iso()),
+                last_run_at: None,
+                next_run_at: None,
+                last_result: None,
+                metadata_state: TaskMetadataState::Full,
+            };
+            self.tasks
+                .lock()
+                .expect("lock")
+                .insert(id.clone(), task.clone());
+            Ok(task)
+        }
+
+        async fn update_task(&self, id: &str, input: CreateSystemTaskInput) -> Result<SystemTask> {
+            let mut tasks = self.tasks.lock().expect("lock");
+            if !tasks.contains_key(id) {
+                return Err(SchedulerError::TaskNotFound(id.to_string()));
+            }
+            let task = SystemTask {
+                id: id.to_string(),
+                name: input.name,
+                description: input.description,
+                trigger: input.trigger,
+                action: input.action,
+                run_level: input.run_level,
+                status: SystemTaskStatus::Enabled,
+                requires_admin: false,
+                tags: input.tags,
+                created_at: Some(SchedulerState::now_iso()),
+                updated_at: Some(SchedulerState::now_iso()),
+                last_run_at: None,
+                next_run_at: None,
+                last_result: None,
+                metadata_state: TaskMetadataState::Full,
+            };
+            tasks.insert(id.to_string(), task.clone());
+            Ok(task)
+        }
+
+        async fn delete_task(&self, id: &str) -> Result<bool> {
+            Ok(self.tasks.lock().expect("lock").remove(id).is_some())
+        }
+
+        async fn get_task(&self, id: &str) -> Result<Option<SystemTask>> {
+            Ok(self.tasks.lock().expect("lock").get(id).cloned())
+        }
+
+        async fn list_tasks(&self) -> Result<Vec<SystemTask>> {
+            Ok(self
+                .tasks
+                .lock()
+                .expect("lock")
+                .values()
+                .cloned()
+                .collect::<Vec<_>>())
+        }
+
+        async fn enable_task(&self, _id: &str) -> Result<bool> {
+            Ok(true)
+        }
+
+        async fn disable_task(&self, _id: &str) -> Result<bool> {
+            Ok(true)
+        }
+
+        async fn run_task_now(&self, _id: &str) -> Result<TaskRunResult> {
+            Ok(TaskRunResult {
+                success: true,
+                exit_code: Some(0),
+                stdout: None,
+                stderr: None,
+                error: None,
+                duration_ms: Some(1),
+            })
+        }
+
+        fn requires_admin(&self, task: &SystemTask) -> bool {
+            task.check_requires_admin()
+        }
+
+        async fn request_elevation(&self) -> Result<bool> {
+            Ok(true)
+        }
+
+        fn is_elevated(&self) -> bool {
+            true
+        }
+    }
+
+    fn build_state_with_mock() -> SchedulerState {
+        SchedulerState {
+            scheduler: Arc::new(MockScheduler::default()),
+            metadata_store: None,
+            pending_confirmations: RwLock::new(HashMap::new()),
+        }
+    }
+
+    fn interval_command_input(name: &str) -> CreateSystemTaskInput {
+        CreateSystemTaskInput {
+            name: name.to_string(),
+            description: Some("desc".to_string()),
+            trigger: SystemTaskTrigger::Interval { seconds: 60 },
+            action: SystemTaskAction::RunCommand {
+                command: "/bin/echo".to_string(),
+                args: vec!["ok".to_string()],
+                working_dir: None,
+                env: HashMap::new(),
+            },
+            run_level: RunLevel::User,
+            tags: vec!["test".to_string()],
+        }
+    }
+
+    fn risky_script_input(name: &str) -> CreateSystemTaskInput {
+        CreateSystemTaskInput {
+            name: name.to_string(),
+            description: Some("script".to_string()),
+            trigger: SystemTaskTrigger::Interval { seconds: 60 },
+            action: SystemTaskAction::ExecuteScript {
+                language: "python".to_string(),
+                code: "print('x')".to_string(),
+                working_dir: None,
+                args: vec![],
+                env: HashMap::new(),
+                timeout_secs: 300,
+                memory_mb: 512,
+                use_sandbox: false,
+            },
+            run_level: RunLevel::User,
+            tags: vec!["test".to_string()],
+        }
+    }
 
     #[test]
     fn test_task_id_generation() {
@@ -484,6 +946,7 @@ mod tests {
             last_run_at: None,
             next_run_at: None,
             last_result: None,
+            metadata_state: TaskMetadataState::Full,
         };
 
         assert_eq!(task.calculate_risk_level(), RiskLevel::Low);
@@ -515,8 +978,61 @@ mod tests {
             last_run_at: None,
             next_run_at: None,
             last_result: None,
+            metadata_state: TaskMetadataState::Full,
         };
 
         assert_eq!(task.calculate_risk_level(), RiskLevel::Critical);
+    }
+
+    #[tokio::test]
+    async fn pending_confirmation_create_confirm_flow_executes_operation() {
+        let state = build_state_with_mock();
+        let input = risky_script_input("pending-create");
+
+        let create_result = state
+            .create_task_with_confirmation(input, false)
+            .await
+            .expect("create");
+        let confirmation = create_result.expect_err("should require confirmation");
+
+        let pending = state.get_pending_confirmations().await;
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].confirmation_id, confirmation.confirmation_id);
+
+        let confirmed = state
+            .confirm_task(&confirmation.confirmation_id)
+            .await
+            .expect("confirm");
+        assert!(confirmed.is_some());
+
+        let pending_after = state.get_pending_confirmations().await;
+        assert!(pending_after.is_empty());
+    }
+
+    #[tokio::test]
+    async fn pending_confirmation_update_cancel_flow_clears_record() {
+        let state = build_state_with_mock();
+        let created = state
+            .create_task_with_confirmation(interval_command_input("seed"), true)
+            .await
+            .expect("seed create")
+            .expect("no confirmation for low risk");
+
+        let update_result = state
+            .update_task(&created.id, risky_script_input("updated"), false)
+            .await
+            .expect("update");
+        let confirmation = update_result.expect_err("update should require confirmation");
+
+        let cancelled = state
+            .cancel_confirmation(&confirmation.confirmation_id)
+            .await;
+        assert!(cancelled);
+
+        let confirmed = state
+            .confirm_task(&confirmation.confirmation_id)
+            .await
+            .expect("confirm after cancel");
+        assert!(confirmed.is_none());
     }
 }

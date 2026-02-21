@@ -208,7 +208,7 @@ export function useAcademicAnalysis(
           includeReferences: pptOptions?.includeReferences ?? true,
           customInstructions: pptOptions?.customInstructions,
         };
-        const result = executePaperToPPT(input);
+        const result = await executePaperToPPT(input);
         return result;
       } finally {
         setIsGeneratingPPT(false);
@@ -245,7 +245,7 @@ export function useAcademicAnalysis(
           includeReferences: pptOptions?.includeReferences ?? true,
           customInstructions: pptOptions?.customInstructions,
         };
-        const result = executePaperToPPTOutline(input);
+        const result = await executePaperToPPTOutline(input);
         return result;
       } finally {
         setIsGeneratingPPT(false);

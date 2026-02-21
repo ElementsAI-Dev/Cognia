@@ -88,6 +88,9 @@ export * from './map';
 // Observability types
 export * from './observability';
 
+// Editor workbench types
+export * from './editor';
+
 // Export types
 export * from './export';
 

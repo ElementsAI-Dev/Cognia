@@ -277,6 +277,35 @@ describe('input-completion API', () => {
     });
   });
 
+  describe('triggerCompletionV3', () => {
+    it('should trigger completion with v3 request', async () => {
+      const mockResult = {
+        request_id: 'req-3',
+        surface: 'chat_input',
+        mode: 'chat',
+        cursor_offset: 5,
+        suggestions: [],
+        latency_ms: 42,
+        model: 'test-model',
+        cached: false,
+      };
+      mockInvoke.mockResolvedValue(mockResult);
+
+      const request = {
+        request_id: 'req-3',
+        text_before_cursor: 'hello',
+        text_after_cursor: ' world',
+        cursor_offset: 5,
+        mode: 'chat' as const,
+        surface: 'chat_input' as const,
+      };
+
+      const result = await api.triggerCompletionV3(request);
+      expect(mockInvoke).toHaveBeenCalledWith('input_completion_trigger_v3', { request });
+      expect(result).toEqual(mockResult);
+    });
+  });
+
   describe('isInputCompletionRunning', () => {
     beforeEach(() => {
       jest.resetModules();

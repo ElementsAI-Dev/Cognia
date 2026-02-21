@@ -91,6 +91,10 @@
   "created": "Created",
   "actions": "Actions",
   "noBackups": "No backups found",
+  "restore": "Restore",
+  "restoreSuccess": "Backup restored",
+  "restoreFailed": "Failed to restore backup",
+  "deleteBackup": "Delete backup",
   "backupDeleted": "Backup deleted",
   "deleteFailed": "Failed to delete backup",
   

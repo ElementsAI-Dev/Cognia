@@ -21,9 +21,10 @@ pub use ime_state::{ImeMonitor, ImeState};
 use ime_state::InputMode;
 pub use keyboard_monitor::{KeyEvent, KeyEventType, KeyboardMonitor};
 pub use types::{
-    CompletionContext, CompletionFeedback, CompletionMode, CompletionRequestV2, CompletionResult,
-    CompletionResultV2, CompletionStatus, CompletionSuggestion, CompletionSuggestionRef,
-    CompletionSurface, InputCompletionEvent,
+    CompletionContext, CompletionFeedback, CompletionMode, CompletionRequestV2,
+    CompletionRequestV3, CompletionResult, CompletionResultV2, CompletionResultV3,
+    CompletionStatus, CompletionSuggestion, CompletionSuggestionRef, CompletionSurface,
+    InputCompletionEvent,
 };
 
 use parking_lot::RwLock;
@@ -395,7 +396,7 @@ impl InputCompletionManager {
                     // If user types characters that match an existing cached suggestion,
                     // return the remaining portion immediately
                     if let Some(prefix_result) =
-                        completion_service.get_cached_by_prefix(&buffer_text)
+                        completion_service.get_cached_by_prefix(&buffer_text, None)
                     {
                         if let Some(suggestion) = prefix_result.suggestions.first() {
                             log::debug!(
@@ -445,9 +446,12 @@ impl InputCompletionManager {
                         // Request completion
                         let context = CompletionContext {
                             text: buffer_text,
+                            text_after_cursor: None,
+                            cursor_offset: None,
                             cursor_position: None,
                             file_path: None,
                             language: None,
+                            conversation_digest: None,
                             ime_state: Some(ime_state),
                             mode: None,
                             surface: Some(CompletionSurface::Generic),
@@ -629,9 +633,31 @@ impl InputCompletionManager {
     fn request_to_context(&self, request: &CompletionRequestV2) -> CompletionContext {
         CompletionContext {
             text: request.text.clone(),
+            text_after_cursor: None,
+            cursor_offset: None,
             cursor_position: request.cursor_position.clone(),
             file_path: request.file_path.clone(),
             language: request.language.clone(),
+            conversation_digest: None,
+            ime_state: request
+                .ime_state
+                .clone()
+                .or_else(|| Some(self.ime_monitor.get_state())),
+            mode: request.mode.clone(),
+            surface: request.surface.clone(),
+        }
+    }
+
+    /// Convert v3 request to internal completion context.
+    fn request_v3_to_context(&self, request: &CompletionRequestV3) -> CompletionContext {
+        CompletionContext {
+            text: request.text_before_cursor.clone(),
+            text_after_cursor: request.text_after_cursor.clone(),
+            cursor_offset: request.cursor_offset,
+            cursor_position: request.cursor_position.clone(),
+            file_path: request.file_path.clone(),
+            language: request.language.clone(),
+            conversation_digest: request.conversation_digest.clone(),
             ime_state: request
                 .ime_state
                 .clone()
@@ -682,19 +708,53 @@ impl InputCompletionManager {
         })
     }
 
+    /// Manually trigger completion using v3 alignment payload.
+    pub async fn trigger_completion_v3(
+        &self,
+        request: CompletionRequestV3,
+    ) -> Result<CompletionResultV3, String> {
+        let config = self.config.read().clone();
+        let request_id = request
+            .request_id
+            .clone()
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        let surface = request.surface.clone().unwrap_or_default();
+        let cursor_offset = request.cursor_offset;
+        let context = self.request_v3_to_context(&request);
+        let mode = CompletionService::resolve_mode(&context);
+
+        let result = self
+            .completion_service
+            .get_completion(&context, &config.model)
+            .await?;
+
+        if let Some(first) = result.suggestions.first() {
+            *self.current_suggestion.write() = Some(first.clone());
+            self.set_active_suggestions(&result.suggestions);
+            let _ = self.app_handle.emit(
+                "input-completion://event",
+                InputCompletionEvent::Suggestion(first.clone()),
+            );
+        } else {
+            self.clear_suggestions();
+        }
+
+        Ok(CompletionResultV3 {
+            request_id,
+            surface,
+            mode,
+            cursor_offset,
+            suggestions: result.suggestions,
+            latency_ms: result.latency_ms,
+            model: result.model,
+            cached: result.cached,
+        })
+    }
+
     /// Manually trigger completion for given text
     pub async fn trigger_completion(&self, text: &str) -> Result<CompletionResult, String> {
         let result = self
-            .trigger_completion_v2(CompletionRequestV2 {
-                request_id: None,
-                text: text.to_string(),
-                cursor_position: None,
-                file_path: None,
-                language: None,
-                ime_state: Some(self.ime_monitor.get_state()),
-                mode: None,
-                surface: Some(CompletionSurface::Generic),
-            })
+            .trigger_completion_with_surface(text, CompletionSurface::Generic, None)
             .await?;
 
         Ok(CompletionResult {
@@ -950,9 +1010,12 @@ mod tests {
     fn test_completion_context_with_language() {
         let context = CompletionContext {
             text: "fn main()".to_string(),
+            text_after_cursor: None,
+            cursor_offset: None,
             cursor_position: None,
             file_path: Some("main.rs".to_string()),
             language: Some("rust".to_string()),
+            conversation_digest: None,
             ime_state: None,
             mode: Some(CompletionMode::Code),
             surface: Some(CompletionSurface::Generic),

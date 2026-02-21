@@ -6,7 +6,12 @@
  * Lightweight alternative to the native Rust completion service.
  */
 
-import type { CompletionSuggestion, InputCompletionResult } from '@/types/input-completion';
+import type {
+  CompletionSuggestion,
+  InputCompletionResult,
+  CompletionMode,
+  CompletionSurface,
+} from '@/types/input-completion';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { CompletionCache } from './completion-cache';
 import { createLogger } from '@/lib/logger';
@@ -29,6 +34,18 @@ export interface WebCompletionConfig {
   timeoutMs?: number;
   /** Recent conversation messages for context-aware completion */
   conversationContext?: ConversationMessage[];
+  /** Optional text after cursor for suffix-aware alignment */
+  textAfterCursor?: string;
+  /** Cursor offset in full text */
+  cursorOffset?: number;
+  /** Completion mode hint */
+  mode?: CompletionMode;
+  /** Completion surface hint */
+  surface?: CompletionSurface;
+  /** Language hint */
+  language?: string;
+  /** Optional digest of recent conversation */
+  conversationDigest?: string;
 }
 
 export interface ConversationMessage {
@@ -42,6 +59,8 @@ const DEFAULT_CONFIG: WebCompletionConfig = {
   maxTokens: 64,
   temperature: 0.1,
   timeoutMs: 5000,
+  mode: 'plain_text',
+  surface: 'generic',
 };
 
 /** AbortController for the current request */
@@ -77,10 +96,21 @@ export async function triggerWebCompletion(
   const cfg = { ...DEFAULT_CONFIG, ...config };
 
   // Check cache first
-  const cacheKey = CompletionCache.generateKey(text, cfg.modelId);
+  const cacheKey = CompletionCache.generateStructuredKey({
+    textBeforeCursor: text,
+    textAfterCursor: cfg.textAfterCursor,
+    provider: cfg.provider,
+    modelId: cfg.modelId,
+    endpoint: cfg.endpoint,
+    mode: cfg.mode,
+    surface: cfg.surface,
+    language: cfg.language,
+    cursorOffset: cfg.cursorOffset,
+    conversationDigest: cfg.conversationDigest,
+  });
   const cached = webCompletionCache.get(cacheKey);
   if (cached) {
-    return cached;
+    return { ...cached, cached: true };
   }
 
   currentController = new AbortController();
@@ -177,7 +207,7 @@ async function requestOllamaCompletion(
   signal: AbortSignal
 ): Promise<CompletionSuggestion | null> {
   const endpoint = config.endpoint || 'http://localhost:11434';
-  const prompt = buildPrompt(text, config.conversationContext);
+  const prompt = buildPrompt(text, config.conversationContext, config.textAfterCursor);
 
   const response = await proxyFetch(`${endpoint}/api/generate`, {
     method: 'POST',
@@ -222,7 +252,7 @@ async function requestOpenAICompatibleCompletion(
 
   if (!config.apiKey) return null;
 
-  const prompt = buildPrompt(text, config.conversationContext);
+  const prompt = buildPrompt(text, config.conversationContext, config.textAfterCursor);
 
   const response = await proxyFetch(`${endpoint}/chat/completions`, {
     method: 'POST',
@@ -269,7 +299,7 @@ async function requestCustomCompletion(
 ): Promise<CompletionSuggestion | null> {
   if (!config.endpoint) return null;
 
-  const prompt = buildPrompt(text, config.conversationContext);
+  const prompt = buildPrompt(text, config.conversationContext, config.textAfterCursor);
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (config.apiKey) {
     headers['Authorization'] = `Bearer ${config.apiKey}`;
@@ -305,7 +335,7 @@ async function requestCustomCompletion(
   };
 }
 
-function buildPrompt(text: string, context?: ConversationMessage[]): string {
+function buildPrompt(text: string, context?: ConversationMessage[], textAfterCursor?: string): string {
   // Detect if the text looks like code
   const isCodeLike = /[{}();=<>]|function |const |let |var |import |class |def |return /.test(text);
 
@@ -325,6 +355,10 @@ function buildPrompt(text: string, context?: ConversationMessage[]): string {
     prompt += `Complete the following code naturally. Only output the completion, nothing else:\n\n${text}`;
   } else {
     prompt += `Complete the following message naturally in the same language and tone. Only output the completion, nothing else:\n\n${text}`;
+  }
+
+  if (textAfterCursor && textAfterCursor.trim().length > 0) {
+    prompt += `\n\nText after cursor (must remain intact):\n${textAfterCursor.slice(0, 300)}`;
   }
 
   return prompt;

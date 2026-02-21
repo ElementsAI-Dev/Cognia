@@ -56,6 +56,8 @@ export interface ExternalAgentState {
   autoConnectOnStartup: boolean;
   /** Show connection notifications */
   showConnectionNotifications: boolean;
+  /** Chat-time failure handling policy for external agent execution */
+  chatFailurePolicy: 'fallback' | 'strict';
 
   // Runtime state (spawned processes)
   /** Running agent instances */
@@ -102,6 +104,7 @@ export interface ExternalAgentActions {
   setDefaultPermissionMode: (mode: ExternalAgentState['defaultPermissionMode']) => void;
   setAutoConnectOnStartup: (enabled: boolean) => void;
   setShowConnectionNotifications: (enabled: boolean) => void;
+  setChatFailurePolicy: (policy: ExternalAgentState['chatFailurePolicy']) => void;
 
   // Bulk operations
   importAgents: (agents: ExternalAgentConfig[]) => void;

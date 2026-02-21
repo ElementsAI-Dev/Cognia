@@ -7,7 +7,9 @@ use uuid::Uuid;
 
 use crate::sandbox::SandboxState;
 use crate::screen_recording::ScreenRecordingManager;
-use crate::workflow_runtime::events::{emit_execution_event, emit_execution_log};
+use crate::workflow_runtime::events::{
+    emit_execution_event, emit_execution_log, ExecutionEventArgs, ExecutionLogArgs,
+};
 use crate::workflow_runtime::runtime_state::{
     clear_execution_flags, is_cancelled, is_paused, persist_execution,
 };
@@ -108,18 +110,18 @@ pub async fn run_definition(
     };
     persist_execution(state, record.clone()).await;
 
-    record.logs.push(emit_execution_event(
+    record.logs.push(emit_execution_event(ExecutionEventArgs {
         app_handle,
-        WorkflowRuntimeEventType::ExecutionStarted,
-        request_id.as_deref(),
-        &execution_id,
-        &request.definition.id,
-        Some(0.0),
-        None,
-        Some("workflow execution started".to_string()),
-        None,
-        None,
-    ));
+        event_type: WorkflowRuntimeEventType::ExecutionStarted,
+        request_id: request_id.as_deref(),
+        execution_id: &execution_id,
+        workflow_id: &request.definition.id,
+        progress: Some(0.0),
+        step_id: None,
+        message: Some("workflow execution started".to_string()),
+        error: None,
+        data: None,
+    }));
     persist_execution(state, record.clone()).await;
 
     let mut outputs_by_step: HashMap<String, HashMap<String, JsonValue>> = HashMap::new();
@@ -141,18 +143,18 @@ pub async fn run_definition(
             record.completed_at = Some(now_iso());
             record.step_states = step_states.clone();
             persist_execution(state, record.clone()).await;
-            record.logs.push(emit_execution_event(
+            record.logs.push(emit_execution_event(ExecutionEventArgs {
                 app_handle,
-                WorkflowRuntimeEventType::ExecutionCancelled,
-                request_id.as_deref(),
-                &execution_id,
-                &request.definition.id,
-                Some(workflow_progress(&step_states)),
-                None,
-                Some("workflow execution cancelled".to_string()),
-                None,
-                None,
-            ));
+                event_type: WorkflowRuntimeEventType::ExecutionCancelled,
+                request_id: request_id.as_deref(),
+                execution_id: &execution_id,
+                workflow_id: &request.definition.id,
+                progress: Some(workflow_progress(&step_states)),
+                step_id: None,
+                message: Some("workflow execution cancelled".to_string()),
+                error: None,
+                data: None,
+            }));
             persist_execution(state, record.clone()).await;
             clear_execution_flags(state, &execution_id).await;
             return Ok(WorkflowRunResult {
@@ -171,19 +173,19 @@ pub async fn run_definition(
                 record.status = WorkflowExecutionStatus::Paused;
                 record.step_states = step_states.clone();
                 persist_execution(state, record.clone()).await;
-                record.logs.push(emit_execution_log(
+                record.logs.push(emit_execution_log(ExecutionLogArgs {
                     app_handle,
-                    request_id.as_deref(),
-                    &execution_id,
-                    &request.definition.id,
-                    Some(workflow_progress(&step_states)),
-                    None,
-                    WorkflowRuntimeLogLevel::Info,
-                    "workflow.execution.paused",
-                    Some("workflow execution paused".to_string()),
-                    None,
-                    None,
-                ));
+                    request_id: request_id.as_deref(),
+                    execution_id: &execution_id,
+                    workflow_id: &request.definition.id,
+                    progress: Some(workflow_progress(&step_states)),
+                    step_id: None,
+                    level: WorkflowRuntimeLogLevel::Info,
+                    code: "workflow.execution.paused",
+                    message: Some("workflow execution paused".to_string()),
+                    error: None,
+                    data: None,
+                }));
                 persist_execution(state, record.clone()).await;
             }
             tokio::time::sleep(Duration::from_millis(150)).await;
@@ -194,19 +196,19 @@ pub async fn run_definition(
             record.status = WorkflowExecutionStatus::Running;
             record.step_states = step_states.clone();
             persist_execution(state, record.clone()).await;
-            record.logs.push(emit_execution_log(
+            record.logs.push(emit_execution_log(ExecutionLogArgs {
                 app_handle,
-                request_id.as_deref(),
-                &execution_id,
-                &request.definition.id,
-                Some(workflow_progress(&step_states)),
-                None,
-                WorkflowRuntimeLogLevel::Info,
-                "workflow.execution.resumed",
-                Some("workflow execution resumed".to_string()),
-                None,
-                None,
-            ));
+                request_id: request_id.as_deref(),
+                execution_id: &execution_id,
+                workflow_id: &request.definition.id,
+                progress: Some(workflow_progress(&step_states)),
+                step_id: None,
+                level: WorkflowRuntimeLogLevel::Info,
+                code: "workflow.execution.resumed",
+                message: Some("workflow execution resumed".to_string()),
+                error: None,
+                data: None,
+            }));
             persist_execution(state, record.clone()).await;
         }
 
@@ -241,34 +243,34 @@ pub async fn run_definition(
                     completed_or_skipped.insert(step.id.clone());
                     record.step_states = step_states.clone();
                     persist_execution(state, record.clone()).await;
-                    emit_execution_event(
+                    emit_execution_event(ExecutionEventArgs {
                         app_handle,
-                        WorkflowRuntimeEventType::StepCompleted,
-                        request_id.as_deref(),
-                        &execution_id,
-                        &request.definition.id,
-                        Some(workflow_progress(&step_states)),
-                        Some(&step.id),
-                        Some("optional step skipped".to_string()),
-                        None,
-                        Some(JsonValue::Object(
+                        event_type: WorkflowRuntimeEventType::StepCompleted,
+                        request_id: request_id.as_deref(),
+                        execution_id: &execution_id,
+                        workflow_id: &request.definition.id,
+                        progress: Some(workflow_progress(&step_states)),
+                        step_id: Some(&step.id),
+                        message: Some("optional step skipped".to_string()),
+                        error: None,
+                        data: Some(JsonValue::Object(
                             [("skipped".to_string(), JsonValue::Bool(true))]
                                 .into_iter()
                                 .collect(),
                         )),
-                    );
-                    emit_execution_event(
+                    });
+                    emit_execution_event(ExecutionEventArgs {
                         app_handle,
-                        WorkflowRuntimeEventType::ExecutionProgress,
-                        request_id.as_deref(),
-                        &execution_id,
-                        &request.definition.id,
-                        Some(workflow_progress(&step_states)),
-                        None,
-                        None,
-                        None,
-                        None,
-                    );
+                        event_type: WorkflowRuntimeEventType::ExecutionProgress,
+                        request_id: request_id.as_deref(),
+                        execution_id: &execution_id,
+                        workflow_id: &request.definition.id,
+                        progress: Some(workflow_progress(&step_states)),
+                        step_id: None,
+                        message: None,
+                        error: None,
+                        data: None,
+                    });
                     continue;
                 }
 
@@ -277,18 +279,18 @@ pub async fn run_definition(
                 step_states[index].completed_at = Some(now_iso());
                 step_states[index].error = Some(dep_error.clone());
                 step_states[index].retry_count += 1;
-                emit_execution_event(
+                emit_execution_event(ExecutionEventArgs {
                     app_handle,
-                    WorkflowRuntimeEventType::StepFailed,
-                    request_id.as_deref(),
-                    &execution_id,
-                    &request.definition.id,
-                    Some(workflow_progress(&step_states)),
-                    Some(&step.id),
-                    None,
-                    Some(dep_error.clone()),
-                    None,
-                );
+                    event_type: WorkflowRuntimeEventType::StepFailed,
+                    request_id: request_id.as_deref(),
+                    execution_id: &execution_id,
+                    workflow_id: &request.definition.id,
+                    progress: Some(workflow_progress(&step_states)),
+                    step_id: Some(&step.id),
+                    message: None,
+                    error: Some(dep_error.clone()),
+                    data: None,
+                });
 
                 match resolve_step_error_branch(step) {
                     StepErrorBranch::Fallback => {
@@ -298,31 +300,31 @@ pub async fn run_definition(
                         step_states[index].error = None;
                         outputs_by_step.insert(step.id.clone(), fallback.clone());
                         completed_or_skipped.insert(step.id.clone());
-                        record.logs.push(emit_execution_log(
+                        record.logs.push(emit_execution_log(ExecutionLogArgs {
                             app_handle,
-                            request_id.as_deref(),
-                            &execution_id,
-                            &request.definition.id,
-                            Some(workflow_progress(&step_states)),
-                            Some(&step.id),
-                            WorkflowRuntimeLogLevel::Warn,
-                            "workflow.step.dependency_fallback_applied",
-                            Some("dependency failed, fallbackOutput applied".to_string()),
-                            None,
-                            None,
-                        ));
-                        emit_execution_event(
+                            request_id: request_id.as_deref(),
+                            execution_id: &execution_id,
+                            workflow_id: &request.definition.id,
+                            progress: Some(workflow_progress(&step_states)),
+                            step_id: Some(&step.id),
+                            level: WorkflowRuntimeLogLevel::Warn,
+                            code: "workflow.step.dependency_fallback_applied",
+                            message: Some("dependency failed, fallbackOutput applied".to_string()),
+                            error: None,
+                            data: None,
+                        }));
+                        emit_execution_event(ExecutionEventArgs {
                             app_handle,
-                            WorkflowRuntimeEventType::StepCompleted,
-                            request_id.as_deref(),
-                            &execution_id,
-                            &request.definition.id,
-                            Some(workflow_progress(&step_states)),
-                            Some(&step.id),
-                            Some("fallback output applied".to_string()),
-                            None,
-                            Some(to_json_object(&fallback)),
-                        );
+                            event_type: WorkflowRuntimeEventType::StepCompleted,
+                            request_id: request_id.as_deref(),
+                            execution_id: &execution_id,
+                            workflow_id: &request.definition.id,
+                            progress: Some(workflow_progress(&step_states)),
+                            step_id: Some(&step.id),
+                            message: Some("fallback output applied".to_string()),
+                            error: None,
+                            data: Some(to_json_object(&fallback)),
+                        });
                     }
                     StepErrorBranch::Continue => {
                         completed_or_skipped.insert(step.id.clone());
@@ -338,18 +340,18 @@ pub async fn run_definition(
 
                 record.step_states = step_states.clone();
                 persist_execution(state, record.clone()).await;
-                emit_execution_event(
+                emit_execution_event(ExecutionEventArgs {
                     app_handle,
-                    WorkflowRuntimeEventType::ExecutionProgress,
-                    request_id.as_deref(),
-                    &execution_id,
-                    &request.definition.id,
-                    Some(workflow_progress(&step_states)),
-                    None,
-                    None,
-                    None,
-                    None,
-                );
+                    event_type: WorkflowRuntimeEventType::ExecutionProgress,
+                    request_id: request_id.as_deref(),
+                    execution_id: &execution_id,
+                    workflow_id: &request.definition.id,
+                    progress: Some(workflow_progress(&step_states)),
+                    step_id: None,
+                    message: None,
+                    error: None,
+                    data: None,
+                });
                 continue;
             }
 
@@ -368,18 +370,18 @@ pub async fn run_definition(
             step_states[index].input = Some(step_input.clone());
             record.step_states = step_states.clone();
             persist_execution(state, record.clone()).await;
-            emit_execution_event(
+            emit_execution_event(ExecutionEventArgs {
                 app_handle,
-                WorkflowRuntimeEventType::StepStarted,
-                request_id.as_deref(),
-                &execution_id,
-                &request.definition.id,
-                Some(workflow_progress(&step_states)),
-                Some(&step.id),
-                None,
-                None,
-                None,
-            );
+                event_type: WorkflowRuntimeEventType::StepStarted,
+                request_id: request_id.as_deref(),
+                execution_id: &execution_id,
+                workflow_id: &request.definition.id,
+                progress: Some(workflow_progress(&step_states)),
+                step_id: Some(&step.id),
+                message: None,
+                error: None,
+                data: None,
+            });
 
             let max_retries = step.retry_count.unwrap_or(0);
             let mut last_error: Option<String> = None;
@@ -403,23 +405,23 @@ pub async fn run_definition(
                         step_states[index].retry_count += 1;
                         last_error = Some(error.clone());
                         if retry_index < max_retries {
-                            record.logs.push(emit_execution_log(
+                            record.logs.push(emit_execution_log(ExecutionLogArgs {
                                 app_handle,
-                                request_id.as_deref(),
-                                &execution_id,
-                                &request.definition.id,
-                                Some(workflow_progress(&step_states)),
-                                Some(&step.id),
-                                WorkflowRuntimeLogLevel::Warn,
-                                "workflow.step.retrying",
-                                Some(format!(
+                                request_id: request_id.as_deref(),
+                                execution_id: &execution_id,
+                                workflow_id: &request.definition.id,
+                                progress: Some(workflow_progress(&step_states)),
+                                step_id: Some(&step.id),
+                                level: WorkflowRuntimeLogLevel::Warn,
+                                code: "workflow.step.retrying",
+                                message: Some(format!(
                                     "retrying step (attempt {}/{})",
                                     retry_index + 1,
                                     max_retries
                                 )),
-                                Some(error),
-                                None,
-                            ));
+                                error: Some(error),
+                                data: None,
+                            }));
                         }
                     }
                 }
@@ -432,36 +434,36 @@ pub async fn run_definition(
                 step_states[index].completed_at = Some(now_iso());
                 outputs_by_step.insert(step.id.clone(), step_output.clone());
                 completed_or_skipped.insert(step.id.clone());
-                emit_execution_event(
+                emit_execution_event(ExecutionEventArgs {
                     app_handle,
-                    WorkflowRuntimeEventType::StepCompleted,
-                    request_id.as_deref(),
-                    &execution_id,
-                    &request.definition.id,
-                    Some(workflow_progress(&step_states)),
-                    Some(&step.id),
-                    None,
-                    None,
-                    Some(to_json_object(&step_output)),
-                );
+                    event_type: WorkflowRuntimeEventType::StepCompleted,
+                    request_id: request_id.as_deref(),
+                    execution_id: &execution_id,
+                    workflow_id: &request.definition.id,
+                    progress: Some(workflow_progress(&step_states)),
+                    step_id: Some(&step.id),
+                    message: None,
+                    error: None,
+                    data: Some(to_json_object(&step_output)),
+                });
             } else {
                 let error = last_error
                     .unwrap_or_else(|| format!("step {} failed without error details", step.id));
                 step_states[index].status = WorkflowStepStatus::Failed;
                 step_states[index].error = Some(error.clone());
                 step_states[index].completed_at = Some(now_iso());
-                emit_execution_event(
+                emit_execution_event(ExecutionEventArgs {
                     app_handle,
-                    WorkflowRuntimeEventType::StepFailed,
-                    request_id.as_deref(),
-                    &execution_id,
-                    &request.definition.id,
-                    Some(workflow_progress(&step_states)),
-                    Some(&step.id),
-                    None,
-                    Some(error.clone()),
-                    None,
-                );
+                    event_type: WorkflowRuntimeEventType::StepFailed,
+                    request_id: request_id.as_deref(),
+                    execution_id: &execution_id,
+                    workflow_id: &request.definition.id,
+                    progress: Some(workflow_progress(&step_states)),
+                    step_id: Some(&step.id),
+                    message: None,
+                    error: Some(error.clone()),
+                    data: None,
+                });
 
                 match resolve_step_error_branch(step) {
                     StepErrorBranch::Fallback => {
@@ -471,31 +473,31 @@ pub async fn run_definition(
                         step_states[index].error = None;
                         outputs_by_step.insert(step.id.clone(), fallback.clone());
                         completed_or_skipped.insert(step.id.clone());
-                        record.logs.push(emit_execution_log(
+                        record.logs.push(emit_execution_log(ExecutionLogArgs {
                             app_handle,
-                            request_id.as_deref(),
-                            &execution_id,
-                            &request.definition.id,
-                            Some(workflow_progress(&step_states)),
-                            Some(&step.id),
-                            WorkflowRuntimeLogLevel::Warn,
-                            "workflow.step.failure_fallback_applied",
-                            Some("fallbackOutput applied after failure".to_string()),
-                            None,
-                            None,
-                        ));
-                        emit_execution_event(
+                            request_id: request_id.as_deref(),
+                            execution_id: &execution_id,
+                            workflow_id: &request.definition.id,
+                            progress: Some(workflow_progress(&step_states)),
+                            step_id: Some(&step.id),
+                            level: WorkflowRuntimeLogLevel::Warn,
+                            code: "workflow.step.failure_fallback_applied",
+                            message: Some("fallbackOutput applied after failure".to_string()),
+                            error: None,
+                            data: None,
+                        }));
+                        emit_execution_event(ExecutionEventArgs {
                             app_handle,
-                            WorkflowRuntimeEventType::StepCompleted,
-                            request_id.as_deref(),
-                            &execution_id,
-                            &request.definition.id,
-                            Some(workflow_progress(&step_states)),
-                            Some(&step.id),
-                            Some("fallback output applied".to_string()),
-                            None,
-                            Some(to_json_object(&fallback)),
-                        );
+                            event_type: WorkflowRuntimeEventType::StepCompleted,
+                            request_id: request_id.as_deref(),
+                            execution_id: &execution_id,
+                            workflow_id: &request.definition.id,
+                            progress: Some(workflow_progress(&step_states)),
+                            step_id: Some(&step.id),
+                            message: Some("fallback output applied".to_string()),
+                            error: None,
+                            data: Some(to_json_object(&fallback)),
+                        });
                     }
                     StepErrorBranch::Continue => {
                         completed_or_skipped.insert(step.id.clone());
@@ -510,18 +512,18 @@ pub async fn run_definition(
 
             record.step_states = step_states.clone();
             persist_execution(state, record.clone()).await;
-            emit_execution_event(
+            emit_execution_event(ExecutionEventArgs {
                 app_handle,
-                WorkflowRuntimeEventType::ExecutionProgress,
-                request_id.as_deref(),
-                &execution_id,
-                &request.definition.id,
-                Some(workflow_progress(&step_states)),
-                None,
-                None,
-                None,
-                None,
-            );
+                event_type: WorkflowRuntimeEventType::ExecutionProgress,
+                request_id: request_id.as_deref(),
+                execution_id: &execution_id,
+                workflow_id: &request.definition.id,
+                progress: Some(workflow_progress(&step_states)),
+                step_id: None,
+                message: None,
+                error: None,
+                data: None,
+            });
 
             if failed {
                 break;
@@ -567,32 +569,32 @@ pub async fn run_definition(
 
     match record.status {
         WorkflowExecutionStatus::Completed => {
-            record.logs.push(emit_execution_event(
+            record.logs.push(emit_execution_event(ExecutionEventArgs {
                 app_handle,
-                WorkflowRuntimeEventType::ExecutionCompleted,
-                request_id.as_deref(),
-                &execution_id,
-                &request.definition.id,
-                Some(100.0),
-                None,
-                Some("workflow execution completed".to_string()),
-                None,
-                Some(to_json_object(&final_output)),
-            ));
+                event_type: WorkflowRuntimeEventType::ExecutionCompleted,
+                request_id: request_id.as_deref(),
+                execution_id: &execution_id,
+                workflow_id: &request.definition.id,
+                progress: Some(100.0),
+                step_id: None,
+                message: Some("workflow execution completed".to_string()),
+                error: None,
+                data: Some(to_json_object(&final_output)),
+            }));
         }
         WorkflowExecutionStatus::Failed => {
-            record.logs.push(emit_execution_event(
+            record.logs.push(emit_execution_event(ExecutionEventArgs {
                 app_handle,
-                WorkflowRuntimeEventType::ExecutionFailed,
-                request_id.as_deref(),
-                &execution_id,
-                &request.definition.id,
-                Some(workflow_progress(&step_states)),
-                None,
-                None,
-                workflow_error.clone(),
-                Some(to_json_object(&final_output)),
-            ));
+                event_type: WorkflowRuntimeEventType::ExecutionFailed,
+                request_id: request_id.as_deref(),
+                execution_id: &execution_id,
+                workflow_id: &request.definition.id,
+                progress: Some(workflow_progress(&step_states)),
+                step_id: None,
+                message: None,
+                error: workflow_error.clone(),
+                data: Some(to_json_object(&final_output)),
+            }));
         }
         _ => {}
     }

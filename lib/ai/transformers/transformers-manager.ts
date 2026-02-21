@@ -16,15 +16,77 @@ import type {
   TransformersEmbeddingResult,
   TransformersBatchEmbeddingResult,
   PipelineTensorOutput,
+  TransformersCachePolicy,
+  TransformersErrorCode,
+  TransformersSettings,
+  TransformersWorkerStatusData,
 } from '@/types/transformers';
+import { buildTransformersModelCacheKey } from '@/types/transformers';
 
 type ProgressCallback = (progress: ModelDownloadProgress) => void;
 
+type TransformersWorkerSuccessResponse = Exclude<TransformersWorkerResponse, { type: 'progress' | 'error' }>;
+
+const DEFAULT_REQUEST_TIMEOUT_MS = 120_000;
+const DEFAULT_EMBEDDING_BATCH_SIZE = 16;
+
+export class TransformersManagerError extends Error {
+  readonly code: TransformersErrorCode;
+  readonly cause?: unknown;
+
+  constructor(message: string, code: TransformersErrorCode, cause?: unknown) {
+    super(message);
+    this.name = 'TransformersManagerError';
+    this.code = code;
+    this.cause = cause;
+  }
+}
+
+export interface TransformersManagerRuntimeSettings {
+  cacheModels: boolean;
+  maxCachedModels: number;
+  requestTimeoutMs: number;
+  embeddingBatchSize: number;
+}
+
+export interface TransformersLoadOptions {
+  device?: TransformersDevice;
+  dtype?: TransformersDtype;
+  timeoutMs?: number;
+  cachePolicy?: Partial<TransformersCachePolicy>;
+  onProgress?: ProgressCallback;
+}
+
+export interface TransformersInferOptions {
+  inferenceOptions?: TransformersInferenceOptions;
+  device?: TransformersDevice;
+  dtype?: TransformersDtype;
+  timeoutMs?: number;
+  autoLoad?: boolean;
+  cachePolicy?: Partial<TransformersCachePolicy>;
+  onProgress?: ProgressCallback;
+}
+
+export interface TransformersEmbeddingOptions {
+  device?: TransformersDevice;
+  dtype?: TransformersDtype;
+  timeoutMs?: number;
+  batchSize?: number;
+  cachePolicy?: Partial<TransformersCachePolicy>;
+  onProgress?: ProgressCallback;
+  onBatchComplete?: (batch: {
+    batchIndex: number;
+    totalBatches: number;
+    processed: number;
+    total: number;
+  }) => void;
+}
+
 interface PendingRequest {
-  resolve: (value: unknown) => void;
+  resolve: (value: TransformersWorkerSuccessResponse) => void;
   reject: (reason: unknown) => void;
   progressCallback?: ProgressCallback;
-  startTime: number;
+  timeoutHandle: ReturnType<typeof setTimeout>;
 }
 
 /**
@@ -53,6 +115,15 @@ export class TransformersManager {
   private requestCounter = 0;
   private globalProgressCallback: ProgressCallback | null = null;
   private isDisposed = false;
+  private knownLoadedModelKeys = new Set<string>();
+  private manuallyLoadedModelKeys = new Set<string>();
+
+  private runtimeSettings: TransformersManagerRuntimeSettings = {
+    cacheModels: true,
+    maxCachedModels: 5,
+    requestTimeoutMs: DEFAULT_REQUEST_TIMEOUT_MS,
+    embeddingBatchSize: DEFAULT_EMBEDDING_BATCH_SIZE,
+  };
 
   private constructor() {}
 
@@ -64,6 +135,20 @@ export class TransformersManager {
       instance = new TransformersManager();
     }
     return instance;
+  }
+
+  setRuntimeSettings(settings: Partial<TransformersManagerRuntimeSettings>): void {
+    this.runtimeSettings = {
+      ...this.runtimeSettings,
+      ...settings,
+    };
+  }
+
+  syncFromTransformersSettings(settings: Pick<TransformersSettings, 'cacheModels' | 'maxCachedModels'>): void {
+    this.setRuntimeSettings({
+      cacheModels: settings.cacheModels,
+      maxCachedModels: settings.maxCachedModels,
+    });
   }
 
   /**
@@ -78,19 +163,18 @@ export class TransformersManager {
    */
   private ensureWorker(): Worker {
     if (this.isDisposed) {
-      throw new Error('TransformersManager has been disposed');
+      throw new TransformersManagerError('TransformersManager has been disposed', 'manager_disposed');
     }
 
     if (!this.worker) {
       if (!isWebWorkerAvailable()) {
-        throw new Error('Web Workers are not available in this environment');
+        throw new TransformersManagerError(
+          'Web Workers are not available in this environment',
+          'worker_unavailable'
+        );
       }
 
-      this.worker = new Worker(
-        new URL('./worker.ts', import.meta.url),
-        { type: 'module' }
-      );
-
+      this.worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
       this.worker.addEventListener('message', this.handleMessage.bind(this));
       this.worker.addEventListener('error', this.handleError.bind(this));
     }
@@ -105,40 +189,56 @@ export class TransformersManager {
     return `tfjs_${++this.requestCounter}_${Date.now()}`;
   }
 
+  private makeCachePolicy(overrides?: Partial<TransformersCachePolicy>): Partial<TransformersCachePolicy> {
+    return {
+      enabled: overrides?.enabled ?? this.runtimeSettings.cacheModels,
+      maxCachedModels: overrides?.maxCachedModels ?? this.runtimeSettings.maxCachedModels,
+    };
+  }
+
   /**
    * Handle messages from worker
    */
   private handleMessage(event: MessageEvent<TransformersWorkerResponse>): void {
-    const { id, type, data, error, progress, duration } = event.data;
+    const message = event.data;
 
-    // Progress events: forward to callbacks
-    if (type === 'progress' && progress) {
-      const pending = this.pendingRequests.get(id);
-      pending?.progressCallback?.(progress);
-      this.globalProgressCallback?.(progress);
+    if (message.type === 'progress') {
+      const pending = this.pendingRequests.get(message.id);
+      pending?.progressCallback?.(message.progress);
+      this.globalProgressCallback?.(message.progress);
       return;
     }
 
-    const pending = this.pendingRequests.get(id);
-    if (!pending) return;
-
-    if (type === 'error') {
-      pending.reject(new Error(error || 'Unknown worker error'));
-    } else {
-      pending.resolve({ data, duration, type });
+    const pending = this.pendingRequests.get(message.id);
+    if (!pending) {
+      return;
     }
 
-    this.pendingRequests.delete(id);
+    clearTimeout(pending.timeoutHandle);
+
+    if (message.type === 'error') {
+      pending.reject(
+        new TransformersManagerError(
+          message.error,
+          message.errorCode || 'worker_runtime_error'
+        )
+      );
+    } else {
+      pending.resolve(message);
+    }
+
+    this.pendingRequests.delete(message.id);
   }
 
   /**
    * Handle worker errors
    */
   private handleError(event: ErrorEvent): void {
-    console.error('Transformers Worker error:', event.message);
-    // Reject all pending requests
+    const error = new TransformersManagerError(`Worker error: ${event.message}`, 'worker_runtime_error', event);
+
     for (const [id, pending] of this.pendingRequests.entries()) {
-      pending.reject(new Error(`Worker error: ${event.message}`));
+      clearTimeout(pending.timeoutHandle);
+      pending.reject(error);
       this.pendingRequests.delete(id);
     }
   }
@@ -148,21 +248,44 @@ export class TransformersManager {
    */
   private sendMessage(
     request: Omit<TransformersWorkerRequest, 'id'>,
-    progressCallback?: ProgressCallback
-  ): Promise<{ data: unknown; duration?: number; type: string }> {
+    options?: {
+      progressCallback?: ProgressCallback;
+      timeoutMs?: number;
+    }
+  ): Promise<TransformersWorkerSuccessResponse> {
     const id = this.nextId();
     const worker = this.ensureWorker();
+    const timeoutMs = options?.timeoutMs ?? this.runtimeSettings.requestTimeoutMs;
 
     return new Promise((resolve, reject) => {
+      const timeoutHandle = setTimeout(() => {
+        this.pendingRequests.delete(id);
+        reject(new TransformersManagerError(`Request timed out after ${timeoutMs}ms`, 'request_timeout'));
+      }, timeoutMs);
+
       this.pendingRequests.set(id, {
-        resolve: resolve as (value: unknown) => void,
+        resolve,
         reject,
-        progressCallback,
-        startTime: performance.now(),
+        progressCallback: options?.progressCallback,
+        timeoutHandle,
       });
 
       worker.postMessage({ ...request, id });
     });
+  }
+
+  private markModelLoaded(task: TransformersTask, modelId: string, manual: boolean): void {
+    const key = buildTransformersModelCacheKey(task, modelId);
+    this.knownLoadedModelKeys.add(key);
+    if (manual) {
+      this.manuallyLoadedModelKeys.add(key);
+    }
+  }
+
+  private markModelUnloaded(task: TransformersTask, modelId: string): void {
+    const key = buildTransformersModelCacheKey(task, modelId);
+    this.knownLoadedModelKeys.delete(key);
+    this.manuallyLoadedModelKeys.delete(key);
   }
 
   /**
@@ -171,13 +294,9 @@ export class TransformersManager {
   async loadModel(
     task: TransformersTask,
     modelId: string,
-    options?: {
-      device?: TransformersDevice;
-      dtype?: TransformersDtype;
-      onProgress?: ProgressCallback;
-    }
+    options?: TransformersLoadOptions & { markAsManual?: boolean }
   ): Promise<{ task: TransformersTask; modelId: string; duration: number }> {
-    const result = await this.sendMessage(
+    const response = await this.sendMessage(
       {
         type: 'load',
         payload: {
@@ -185,15 +304,28 @@ export class TransformersManager {
           modelId,
           device: options?.device,
           dtype: options?.dtype,
+          cachePolicy: this.makeCachePolicy(options?.cachePolicy),
         },
       },
-      options?.onProgress
+      {
+        progressCallback: options?.onProgress,
+        timeoutMs: options?.timeoutMs,
+      }
     );
+
+    if (response.type !== 'loaded') {
+      throw new TransformersManagerError(
+        `Unexpected worker response type for load: ${response.type}`,
+        'worker_runtime_error'
+      );
+    }
+
+    this.markModelLoaded(task, modelId, options?.markAsManual ?? true);
 
     return {
       task,
       modelId,
-      duration: result.duration ?? 0,
+      duration: response.duration ?? 0,
     };
   }
 
@@ -204,14 +336,30 @@ export class TransformersManager {
     task: TransformersTask,
     modelId: string,
     input: unknown,
-    options?: {
-      inferenceOptions?: TransformersInferenceOptions;
-      device?: TransformersDevice;
-      dtype?: TransformersDtype;
-      onProgress?: ProgressCallback;
-    }
+    options?: TransformersInferOptions
   ): Promise<TransformersInferenceResult> {
-    const result = await this.sendMessage(
+    const autoLoad = options?.autoLoad ?? true;
+    const cacheKey = buildTransformersModelCacheKey(task, modelId);
+
+    if (!this.knownLoadedModelKeys.has(cacheKey) && autoLoad) {
+      await this.loadModel(task, modelId, {
+        device: options?.device,
+        dtype: options?.dtype,
+        timeoutMs: options?.timeoutMs,
+        cachePolicy: options?.cachePolicy,
+        onProgress: options?.onProgress,
+        markAsManual: false,
+      });
+    }
+
+    if (!this.knownLoadedModelKeys.has(cacheKey) && !autoLoad) {
+      throw new TransformersManagerError(
+        `Model is not loaded: ${task}/${modelId}`,
+        'invalid_request'
+      );
+    }
+
+    const response = await this.sendMessage(
       {
         type: 'infer',
         payload: {
@@ -221,16 +369,29 @@ export class TransformersManager {
           options: options?.inferenceOptions,
           device: options?.device,
           dtype: options?.dtype,
+          cachePolicy: this.makeCachePolicy(options?.cachePolicy),
         },
       },
-      options?.onProgress
+      {
+        progressCallback: options?.onProgress,
+        timeoutMs: options?.timeoutMs,
+      }
     );
+
+    if (response.type !== 'result') {
+      throw new TransformersManagerError(
+        `Unexpected worker response type for infer: ${response.type}`,
+        'worker_runtime_error'
+      );
+    }
+
+    this.markModelLoaded(task, modelId, false);
 
     return {
       task,
       modelId,
-      output: result.data,
-      duration: result.duration ?? 0,
+      output: response.data,
+      duration: response.duration ?? 0,
     };
   }
 
@@ -240,31 +401,27 @@ export class TransformersManager {
   async generateEmbedding(
     text: string,
     modelId: string = 'Xenova/all-MiniLM-L6-v2',
-    options?: {
-      device?: TransformersDevice;
-      dtype?: TransformersDtype;
-      onProgress?: ProgressCallback;
-    }
+    options?: TransformersEmbeddingOptions
   ): Promise<TransformersEmbeddingResult> {
     const startTime = performance.now();
 
-    const result = await this.infer(
-      'feature-extraction',
-      modelId,
-      text,
-      {
-        inferenceOptions: {},
-        device: options?.device,
-        dtype: options?.dtype,
-        onProgress: options?.onProgress,
-      }
-    );
+    const result = await this.infer('feature-extraction', modelId, text, {
+      inferenceOptions: {},
+      device: options?.device,
+      dtype: options?.dtype,
+      timeoutMs: options?.timeoutMs,
+      cachePolicy: options?.cachePolicy,
+      onProgress: options?.onProgress,
+      autoLoad: true,
+    });
 
-    // feature-extraction returns nested arrays: [[embedding]]
-    // We need to extract the first (and only) embedding and mean-pool
-    const rawOutput = result.output;
-    const embedding = extractEmbedding(rawOutput);
+    const embeddings = extractEmbeddings(result.output);
+    const embedding = embeddings[0];
     const duration = performance.now() - startTime;
+
+    if (!embedding) {
+      throw new TransformersManagerError('Unable to extract embedding from pipeline output', 'worker_runtime_error');
+    }
 
     return {
       embedding,
@@ -275,24 +432,65 @@ export class TransformersManager {
   }
 
   /**
-   * Generate embeddings for multiple texts
+   * Generate embeddings for multiple texts (batched)
    */
   async generateEmbeddings(
     texts: string[],
     modelId: string = 'Xenova/all-MiniLM-L6-v2',
-    options?: {
-      device?: TransformersDevice;
-      dtype?: TransformersDtype;
-      onProgress?: ProgressCallback;
-    }
+    options?: TransformersEmbeddingOptions
   ): Promise<TransformersBatchEmbeddingResult> {
     const startTime = performance.now();
     const embeddings: number[][] = [];
 
-    // Process texts sequentially to avoid overwhelming the worker
-    for (const text of texts) {
-      const result = await this.generateEmbedding(text, modelId, options);
-      embeddings.push(result.embedding);
+    if (texts.length === 0) {
+      return {
+        embeddings,
+        modelId,
+        dimension: 0,
+        duration: 0,
+      };
+    }
+
+    const batchSize = Math.max(1, Math.floor(options?.batchSize ?? this.runtimeSettings.embeddingBatchSize));
+    const totalBatches = Math.ceil(texts.length / batchSize);
+
+    for (let i = 0, batchIndex = 0; i < texts.length; i += batchSize, batchIndex += 1) {
+      const batchTexts = texts.slice(i, i + batchSize);
+
+      const batchResult = await this.infer('feature-extraction', modelId, batchTexts, {
+        inferenceOptions: {},
+        device: options?.device,
+        dtype: options?.dtype,
+        timeoutMs: options?.timeoutMs,
+        cachePolicy: options?.cachePolicy,
+        onProgress: options?.onProgress,
+        autoLoad: true,
+      });
+
+      const parsed = extractEmbeddings(batchResult.output);
+      if (parsed.length !== batchTexts.length) {
+        // Fallback to single inference for shape-incompatible outputs.
+        for (const text of batchTexts) {
+          const single = await this.generateEmbedding(text, modelId, options);
+          embeddings.push(single.embedding);
+        }
+      } else {
+        embeddings.push(...parsed);
+      }
+
+      const progress = Math.round(((i + batchTexts.length) / texts.length) * 100);
+      options?.onProgress?.({
+        task: 'feature-extraction',
+        modelId,
+        status: 'loading',
+        progress,
+      });
+      options?.onBatchComplete?.({
+        batchIndex,
+        totalBatches,
+        processed: i + batchTexts.length,
+        total: texts.length,
+      });
     }
 
     const duration = performance.now() - startTime;
@@ -309,29 +507,72 @@ export class TransformersManager {
   /**
    * Dispose a specific model or all models
    */
-  async dispose(task?: TransformersTask, modelId?: string): Promise<void> {
-    if (!this.worker) return;
+  async dispose(task?: TransformersTask, modelId?: string, timeoutMs?: number): Promise<void> {
+    if (!this.worker) {
+      return;
+    }
 
-    await this.sendMessage({
-      type: 'dispose',
-      payload: { task, modelId },
-    });
+    const response = await this.sendMessage(
+      {
+        type: 'dispose',
+        payload: { task, modelId },
+      },
+      { timeoutMs }
+    );
+
+    if (response.type !== 'result') {
+      throw new TransformersManagerError(
+        `Unexpected worker response type for dispose: ${response.type}`,
+        'worker_runtime_error'
+      );
+    }
+
+    if (task && modelId) {
+      this.markModelUnloaded(task, modelId);
+    } else {
+      this.knownLoadedModelKeys.clear();
+      this.manuallyLoadedModelKeys.clear();
+    }
+  }
+
+  async disposeAll(timeoutMs?: number): Promise<void> {
+    await this.dispose(undefined, undefined, timeoutMs);
   }
 
   /**
    * Get status of loaded models
    */
-  async getStatus(): Promise<{ loadedModels: { task: string; modelId: string }[]; count: number }> {
+  async getStatus(timeoutMs?: number): Promise<TransformersWorkerStatusData> {
     if (!this.worker) {
-      return { loadedModels: [], count: 0 };
+      return {
+        loadedModels: [],
+        count: 0,
+        cache: {
+          enabled: this.runtimeSettings.cacheModels,
+          maxCachedModels: this.runtimeSettings.maxCachedModels,
+          currentCachedModels: 0,
+        },
+      };
     }
 
-    const result = await this.sendMessage({
-      type: 'status',
-      payload: {},
-    });
+    const response = await this.sendMessage(
+      {
+        type: 'status',
+        payload: {},
+      },
+      { timeoutMs }
+    );
 
-    return result.data as { loadedModels: { task: string; modelId: string }[]; count: number };
+    if (response.type !== 'status') {
+      throw new TransformersManagerError(
+        `Unexpected worker response type for status: ${response.type}`,
+        'worker_runtime_error'
+      );
+    }
+
+    this.knownLoadedModelKeys = new Set(response.data.loadedModels.map((model) => model.cacheKey));
+
+    return response.data;
   }
 
   /**
@@ -347,93 +588,124 @@ export class TransformersManager {
 
     // Reject all pending requests
     for (const [id, pending] of this.pendingRequests.entries()) {
-      pending.reject(new Error('Manager terminated'));
+      clearTimeout(pending.timeoutHandle);
+      pending.reject(new TransformersManagerError('Manager terminated', 'manager_disposed'));
       this.pendingRequests.delete(id);
     }
 
     this.globalProgressCallback = null;
+    this.knownLoadedModelKeys.clear();
+    this.manuallyLoadedModelKeys.clear();
     instance = null;
   }
 }
 
-/**
- * Extract a 1D embedding vector from the pipeline output.
- * feature-extraction pipeline returns Tensor objects or nested arrays.
- * We perform mean pooling across the token dimension.
- */
-function extractEmbedding(output: unknown): number[] {
-  const out = output as PipelineTensorOutput | number[] | number[][] | number[][][];
-
-  // If it has a tolist() method (Tensor), use it
-  if (out && typeof (out as PipelineTensorOutput).tolist === 'function') {
-    const list = (out as PipelineTensorOutput).tolist!();
-    // Result shape is [1, seq_len, hidden_dim] — mean pool over seq_len
-    if (Array.isArray(list) && Array.isArray(list[0]) && Array.isArray(list[0][0])) {
-      return meanPool(list[0] as number[][]);
-    }
-    if (Array.isArray(list) && Array.isArray(list[0]) && typeof list[0][0] === 'number') {
-      return list[0] as number[];
-    }
-    return list as number[];
-  }
-
-  // If it's a typed array with dims metadata
-  const tensor = out as PipelineTensorOutput;
-  if (tensor && tensor.data && tensor.dims) {
-    const data = Array.from(tensor.data as Float32Array);
-    const dims = tensor.dims;
-
-    if (dims.length === 3) {
-      // [batch=1, seq_len, hidden_dim]
-      const seqLen = dims[1];
-      const hiddenDim = dims[2];
-      const tokenEmbeddings: number[][] = [];
-      for (let i = 0; i < seqLen; i++) {
-        tokenEmbeddings.push(data.slice(i * hiddenDim, (i + 1) * hiddenDim));
-      }
-      return meanPool(tokenEmbeddings);
-    }
-    if (dims.length === 2) {
-      // [batch=1, hidden_dim] — already pooled
-      return data.slice(0, dims[1]);
-    }
-    return data;
-  }
-
-  // Nested arrays fallback
-  if (Array.isArray(out)) {
-    if (Array.isArray(out[0]) && Array.isArray(out[0][0])) {
-      return meanPool(out[0] as number[][]);
-    }
-    if (Array.isArray(out[0]) && typeof out[0][0] === 'number') {
-      return out[0] as number[];
-    }
-    return out as number[];
-  }
-
-  throw new Error('Unable to extract embedding from pipeline output');
+function toNumberArray(values: unknown[]): number[] {
+  return values.map((value) => Number(value));
 }
 
-/**
- * Mean pooling over token dimension: [seq_len, hidden_dim] → [hidden_dim]
- */
+function isNumberArray(value: unknown): value is number[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'number');
+}
+
+function isMatrix(value: unknown): value is number[][] {
+  return Array.isArray(value) && value.every((row) => isNumberArray(row));
+}
+
 function meanPool(tokenEmbeddings: number[][]): number[] {
-  if (tokenEmbeddings.length === 0) return [];
+  if (tokenEmbeddings.length === 0) {
+    return [];
+  }
+
   const dim = tokenEmbeddings[0].length;
   const result = new Array(dim).fill(0);
 
   for (const token of tokenEmbeddings) {
-    for (let i = 0; i < dim; i++) {
+    for (let i = 0; i < dim; i += 1) {
       result[i] += token[i];
     }
   }
 
-  const len = tokenEmbeddings.length;
-  for (let i = 0; i < dim; i++) {
-    result[i] /= len;
+  for (let i = 0; i < dim; i += 1) {
+    result[i] /= tokenEmbeddings.length;
   }
 
   return result;
+}
+
+function parseEmbeddingArray(value: unknown): number[][] {
+  if (isNumberArray(value)) {
+    return [value];
+  }
+
+  if (!Array.isArray(value) || value.length === 0) {
+    return [];
+  }
+
+  if (isMatrix(value)) {
+    return [meanPool(value)];
+  }
+
+  if (Array.isArray(value[0]) && isMatrix(value[0])) {
+    return (value as unknown[]).map((item) => meanPool(item as number[][]));
+  }
+
+  if (Array.isArray(value[0]) && isNumberArray(value[0])) {
+    return value as number[][];
+  }
+
+  return [];
+}
+
+/**
+ * Extract embedding vectors from feature-extraction outputs.
+ */
+function extractEmbeddings(output: unknown): number[][] {
+  const out = output as PipelineTensorOutput | unknown[];
+
+  if (out && typeof (out as PipelineTensorOutput).tolist === 'function') {
+    const list = (out as PipelineTensorOutput).tolist?.();
+    return parseEmbeddingArray(list);
+  }
+
+  const tensor = out as PipelineTensorOutput;
+  if (tensor && tensor.data && tensor.dims) {
+    const data = Array.from(tensor.data as Float32Array | number[]);
+    const dims = tensor.dims;
+
+    if (dims.length === 3) {
+      const [batchSize, seqLen, hiddenDim] = dims;
+      const result: number[][] = [];
+
+      for (let batch = 0; batch < batchSize; batch += 1) {
+        const start = batch * seqLen * hiddenDim;
+        const tokens: number[][] = [];
+        for (let tokenIndex = 0; tokenIndex < seqLen; tokenIndex += 1) {
+          const tokenStart = start + tokenIndex * hiddenDim;
+          tokens.push(toNumberArray(data.slice(tokenStart, tokenStart + hiddenDim)));
+        }
+        result.push(meanPool(tokens));
+      }
+
+      return result;
+    }
+
+    if (dims.length === 2) {
+      const [batchSize, hiddenDim] = dims;
+      const result: number[][] = [];
+      for (let batch = 0; batch < batchSize; batch += 1) {
+        const start = batch * hiddenDim;
+        result.push(toNumberArray(data.slice(start, start + hiddenDim)));
+      }
+      return result;
+    }
+
+    if (dims.length === 1) {
+      return [toNumberArray(data)];
+    }
+  }
+
+  return parseEmbeddingArray(output);
 }
 
 /**

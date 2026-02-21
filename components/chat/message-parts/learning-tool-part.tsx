@@ -35,7 +35,12 @@ import { StepGuide } from '@/components/learning/visualization/step-guide';
 import { ConceptVisualizer } from '@/components/learning/visualization/concept-visualizer';
 import { InteractiveAnimation } from '@/components/learning/visualization/interactive-animation';
 import { TransformerDiagram } from '@/components/learning/visualization/transformer-diagram';
+import {
+  LEARNING_TOOL_CANONICAL_NAMES,
+  normalizeLearningToolName,
+} from '@/lib/ai/tools/learning-tools';
 import type {
+  CanonicalLearningToolName,
   LearningToolOutput,
   FlashcardToolOutput,
   FlashcardDeckToolOutput,
@@ -53,26 +58,15 @@ import type { ToolInvocationPart } from '@/types/core/message';
 /**
  * Learning tool names that this component handles
  */
-export const LEARNING_TOOL_NAMES = [
-  'displayFlashcard',
-  'displayFlashcardDeck',
-  'displayQuiz',
-  'displayQuizQuestion',
-  'displayReviewSession',
-  'displayProgressSummary',
-  'displayConceptExplanation',
-  'displayStepGuide',
-  'displayConceptMap',
-  'displayAnimation',
-] as const;
+export const LEARNING_TOOL_NAMES = LEARNING_TOOL_CANONICAL_NAMES;
 
-export type LearningToolName = typeof LEARNING_TOOL_NAMES[number];
+export type LearningToolName = CanonicalLearningToolName;
 
 /**
  * Check if a tool name is a learning tool
  */
 export function isLearningTool(toolName: string): toolName is LearningToolName {
-  return LEARNING_TOOL_NAMES.includes(toolName as LearningToolName);
+  return !!normalizeLearningToolName(toolName);
 }
 
 interface LearningToolPartProps {
@@ -86,21 +80,21 @@ interface LearningToolPartProps {
 const LearningToolLoading = memo(function LearningToolLoading({
   toolName,
 }: {
-  toolName: string;
+  toolName: LearningToolName;
 }) {
   const t = useTranslations('learning');
 
   const loadingMessages: Record<LearningToolName, string> = {
-    displayFlashcard: t('loading.flashcard'),
-    displayFlashcardDeck: t('loading.flashcardDeck'),
-    displayQuiz: t('loading.quiz'),
-    displayQuizQuestion: t('loading.quizQuestion'),
-    displayReviewSession: t('loading.reviewSession'),
-    displayProgressSummary: t('loading.progressSummary'),
-    displayConceptExplanation: t('loading.conceptExplanation'),
-    displayStepGuide: t('loading.stepGuide'),
-    displayConceptMap: t('loading.conceptMap'),
-    displayAnimation: t('loading.animation'),
+    display_flashcard: t('loading.flashcard'),
+    display_flashcard_deck: t('loading.flashcardDeck'),
+    display_quiz: t('loading.quiz'),
+    display_quiz_question: t('loading.quizQuestion'),
+    display_review_session: t('loading.reviewSession'),
+    display_progress_summary: t('loading.progressSummary'),
+    display_concept_explanation: t('loading.conceptExplanation'),
+    display_step_guide: t('loading.stepGuide'),
+    display_concept_map: t('loading.conceptMap'),
+    display_animation: t('loading.animation'),
   };
 
   return (
@@ -108,7 +102,7 @@ const LearningToolLoading = memo(function LearningToolLoading({
       <CardContent className="flex items-center justify-center py-8">
         <Loader size={24} className="text-muted-foreground mr-2" />
         <span className="text-muted-foreground">
-          {loadingMessages[toolName as LearningToolName] || t('loading.default')}
+          {loadingMessages[toolName] || t('loading.default')}
         </span>
       </CardContent>
     </Card>
@@ -220,7 +214,11 @@ export const LearningToolPart = memo(function LearningToolPart({
   part,
   className,
 }: LearningToolPartProps) {
-  const { toolName, state, result, errorText } = part;
+  const { state, result, errorText } = part;
+  const toolName = normalizeLearningToolName(part.toolName);
+  if (!toolName) {
+    return null;
+  }
 
   // Handle loading states
   if (state === 'input-streaming' || state === 'input-available') {
@@ -237,49 +235,49 @@ export const LearningToolPart = memo(function LearningToolPart({
     const output = result as LearningToolOutput;
 
     switch (toolName) {
-      case 'displayFlashcard':
+      case 'display_flashcard':
         return (
           <div className={className}>
             <FlashcardFromTool output={output as FlashcardToolOutput} />
           </div>
         );
 
-      case 'displayFlashcardDeck':
+      case 'display_flashcard_deck':
         return (
           <div className={className}>
             <FlashcardDeckFromTool output={output as FlashcardDeckToolOutput} />
           </div>
         );
 
-      case 'displayQuiz':
+      case 'display_quiz':
         return (
           <div className={className}>
             <QuizFromTool output={output as QuizToolOutput} />
           </div>
         );
 
-      case 'displayQuizQuestion':
+      case 'display_quiz_question':
         return (
           <div className={className}>
             <QuizQuestionFromTool output={output as QuizQuestionToolOutput} />
           </div>
         );
 
-      case 'displayReviewSession':
+      case 'display_review_session':
         return (
           <div className={className}>
             <ReviewSessionFromTool output={output as ReviewSessionToolOutput} />
           </div>
         );
 
-      case 'displayProgressSummary':
+      case 'display_progress_summary':
         return (
           <div className={className}>
             <ProgressSummaryFromTool output={output as ProgressSummaryToolOutput} />
           </div>
         );
 
-      case 'displayConceptExplanation': {
+      case 'display_concept_explanation': {
         const conceptOutput = output as ConceptExplanationToolOutput;
         const isAIMLTopic = conceptOutput.title?.toLowerCase().match(/transformer|attention|neural|deep learning|machine learning|nlp|gpt|bert|llm/);
         return (
@@ -292,7 +290,7 @@ export const LearningToolPart = memo(function LearningToolPart({
         );
       }
 
-      case 'displayStepGuide': {
+      case 'display_step_guide': {
         const guideOutput = output as StepGuideToolOutput;
         return (
           <div className={className}>
@@ -310,7 +308,7 @@ export const LearningToolPart = memo(function LearningToolPart({
         );
       }
 
-      case 'displayConceptMap': {
+      case 'display_concept_map': {
         const mapOutput = output as ConceptMapToolOutput;
         return (
           <div className={className}>
@@ -334,7 +332,7 @@ export const LearningToolPart = memo(function LearningToolPart({
         );
       }
 
-      case 'displayAnimation': {
+      case 'display_animation': {
         const animOutput = output as AnimationToolOutput;
         return (
           <div className={className}>

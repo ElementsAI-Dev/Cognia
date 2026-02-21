@@ -89,6 +89,11 @@ import { SkillAIAssistant } from './skill-ai-assistant';
 import { SkillEditorAIPopup } from './skill-editor-ai-popup';
 import type { Skill, SkillResource } from '@/types/system/skill';
 import { createEditorOptions } from '@/lib/monaco';
+import {
+  bindMonacoEditorContext,
+  type MonacoContextBinding,
+} from '@/lib/editor-workbench/monaco-context-binding';
+import { isEditorFeatureFlagEnabled } from '@/lib/editor-workbench/feature-flags';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,
@@ -127,6 +132,7 @@ export function SkillEditor({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
+  const workbenchBindingRef = useRef<MonacoContextBinding | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
   // AI floating popup state
@@ -138,9 +144,17 @@ export function SkillEditor({
   const [optimizedText, setOptimizedText] = useState('');
   const [optimizeMode, setOptimizeMode] = useState<'improve' | 'simplify' | 'expand' | 'fix' | 'translate' | 'summarize' | 'formal' | 'casual' | 'technical' | 'custom' | null>(null);
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
+
+  useEffect(() => {
+    return () => {
+      workbenchBindingRef.current?.dispose();
+      workbenchBindingRef.current = null;
+    };
+  }, []);
   
   // Get theme from settings store
   const theme = useSettingsStore(selectTheme);
+  const globalEditorSettings = useSettingsStore((state) => state.editorSettings);
   const editorTheme = theme === 'dark' ? 'vs-dark' : theme === 'light' ? 'vs' : 'vs-dark';
 
   // Parse content using useMemo to avoid useEffect setState issues
@@ -200,6 +214,16 @@ export function SkillEditor({
   const handleEditorMount: OnMount = useCallback((editorInstance, monaco) => {
     editorRef.current = editorInstance;
     monacoRef.current = monaco;
+    if (isEditorFeatureFlagEnabled('editor.workbench.v2')) {
+      workbenchBindingRef.current?.dispose();
+      workbenchBindingRef.current = bindMonacoEditorContext({
+        contextId: 'skill',
+        label: 'Skill Editor',
+        languageId: 'markdown',
+        editor: editorInstance,
+        fallbackReason: 'Using Monaco markdown providers',
+      });
+    }
 
     // Register markdown snippets
     monaco.languages.registerCompletionItemProvider('markdown', {
@@ -989,6 +1013,8 @@ Expected output here
                     glyphMargin: true,
                     suggest: { showWords: true, showSnippets: true },
                     scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
+                  }, {
+                    editorSettings: globalEditorSettings,
                   })}
                 />
                 

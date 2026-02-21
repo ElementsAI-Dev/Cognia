@@ -448,7 +448,7 @@ describe('RecordingControls - Props', () => {
 describe('RecordingControls - Web Environment', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     jest.spyOn(require('@/lib/native/utils'), 'isTauri').mockReturnValue(false);
   });
 

@@ -186,7 +186,7 @@ describe('PPT Page with presentations', () => {
       },
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     const { useWorkflowStore } = require('@/stores');
     useWorkflowStore.mockImplementation((selector: (state: unknown) => unknown) => {
       const state = {
@@ -241,7 +241,7 @@ describe('PPT Page with URL parameters', () => {
     // Set URL parameter
     mockSearchParams.set('id', 'ppt-url');
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     const { useWorkflowStore, usePPTEditorStore } = require('@/stores');
     const mockLoadPresentation = jest.fn();
 
@@ -265,7 +265,7 @@ describe('PPT Page with URL parameters', () => {
   });
 
   it('should load presentation from URL parameter', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     const { usePPTEditorStore } = require('@/stores');
 
     render(<PPTPage />);

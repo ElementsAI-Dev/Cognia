@@ -157,8 +157,10 @@ export {
 export {
   executeAgentLoop,
   createAgentLoop,
+  createAgentLoopCancellationToken,
   type AgentLoopConfig,
   type AgentLoopResult,
+  type AgentLoopCancellationToken,
   type AgentTask,
 } from './agent-loop';
 

@@ -5,7 +5,7 @@
  */
 
 import type { KnowledgeFile, Project } from '@/types';
-import type { RAGDocument } from '@/lib/ai/rag';
+import type { RAGDocument } from '@/types/document/rag';
 import type { EmbeddingProvider } from '@/lib/vector/embedding';
 import { chunkDocument, type ChunkingOptions, type DocumentChunk } from '@/lib/ai/embedding/chunking';
 import { projectRepository } from '@/lib/db/repositories/project-repository';
@@ -486,6 +486,17 @@ export async function getProjectKnowledgeStats(projectId: string): Promise<{
  * with hybrid search, reranking, query expansion, and contextual retrieval.
  * Falls back to keyword search if pipeline setup fails.
  */
+const knowledgeIndexState = new Map<string, Map<string, string>>();
+
+function computeKnowledgeFingerprint(content: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < content.length; i++) {
+    hash ^= content.charCodeAt(i);
+    hash = (hash * 0x01000193) >>> 0;
+  }
+  return hash.toString(36);
+}
+
 export async function searchKnowledgeBaseAdvanced(
   files: KnowledgeFile[],
   query: string,
@@ -498,6 +509,11 @@ export async function searchKnowledgeBaseAdvanced(
     enableQueryExpansion?: boolean;
     topK?: number;
     similarityThreshold?: number;
+    collectionName?: string;
+  },
+  scope: {
+    projectId: string;
+    collectionName?: string;
   }
 ): Promise<{
   context: string;
@@ -511,16 +527,25 @@ export async function searchKnowledgeBaseAdvanced(
   };
 }> {
   const { topK = 5, similarityThreshold = 0.3 } = config;
+  const collectionName =
+    scope.collectionName || config.collectionName || `knowledge-project:${scope.projectId}`;
 
   try {
-    const { createRAGPipeline } = await import('@/lib/ai/rag');
-
-    const pipeline = createRAGPipeline({
-      embeddingConfig: {
-        provider: config.embeddingProvider,
-        model: config.embeddingModel,
+    const { getSharedRAGRuntime } = await import('@/lib/ai/rag');
+    const runtime = getSharedRAGRuntime(`knowledge:${scope.projectId}`, {
+      vectorStore: {
+        provider: 'chroma',
+        embeddingConfig: {
+          provider: config.embeddingProvider,
+          model: config.embeddingModel,
+        },
+        embeddingApiKey: config.embeddingApiKey,
+        chromaMode: 'embedded',
+        native: {},
       },
-      embeddingApiKey: config.embeddingApiKey,
+      defaultCollectionName: collectionName,
+      topK,
+      similarityThreshold,
       hybridSearch: {
         enabled: config.enableHybridSearch ?? true,
       },
@@ -530,15 +555,26 @@ export async function searchKnowledgeBaseAdvanced(
       queryExpansion: {
         enabled: config.enableQueryExpansion ?? false,
       },
-      topK,
-      similarityThreshold,
     });
 
-    // Index all knowledge files into the pipeline
-    const collectionName = 'knowledge-search';
+    // Incremental indexing: upsert changed documents, remove stale documents.
+    const stateKey = `${scope.projectId}:${collectionName}`;
+    const previousState = knowledgeIndexState.get(stateKey) || new Map<string, string>();
+    const nextState = new Map<string, string>();
+    const currentFileIds = new Set(files.map((file) => file.id));
+
     for (const file of files) {
+      const fingerprint = computeKnowledgeFingerprint(file.content || '');
+      nextState.set(file.id, fingerprint);
+      const previousFingerprint = previousState.get(file.id);
+      if (previousFingerprint === fingerprint) {
+        continue;
+      }
+
+      // Replace all chunks for this source file, then re-index latest content.
+      await runtime.deleteByDocumentId(collectionName, file.id);
       if (file.content) {
-        await pipeline.indexDocument(file.content, {
+        await runtime.indexDocument(file.content, {
           collectionName,
           documentId: file.id,
           documentTitle: file.name,
@@ -546,13 +582,22 @@ export async function searchKnowledgeBaseAdvanced(
             type: file.type,
             name: file.name,
             size: file.size,
+            projectId: scope.projectId,
+            contentFingerprint: fingerprint,
           },
         });
       }
     }
 
-    // Retrieve relevant context
-    const result = await pipeline.retrieve(collectionName, query);
+    for (const previousFileId of previousState.keys()) {
+      if (!currentFileIds.has(previousFileId)) {
+        await runtime.deleteByDocumentId(collectionName, previousFileId);
+      }
+    }
+    knowledgeIndexState.set(stateKey, nextState);
+
+    // Retrieve relevant context after sync
+    const result = await runtime.retrieve(collectionName, query);
 
     if (result.documents.length === 0) {
       // Fallback to keyword search

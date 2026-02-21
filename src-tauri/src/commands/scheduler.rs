@@ -235,9 +235,13 @@ pub async fn scheduler_run_task_now(
 #[tauri::command]
 pub async fn scheduler_cancel_confirmation(
     state: State<'_, SchedulerState>,
-    task_id: SystemTaskId,
+    confirmation_id: Option<SystemTaskId>,
+    task_id: Option<SystemTaskId>,
 ) -> Result<bool, String> {
-    Ok(state.cancel_confirmation(&task_id).await)
+    let id = confirmation_id
+        .or(task_id)
+        .ok_or_else(|| "confirmation_id is required".to_string())?;
+    Ok(state.cancel_confirmation(&id).await)
 }
 
 /// Get all pending confirmations
@@ -261,14 +265,18 @@ pub async fn scheduler_request_elevation(state: State<'_, SchedulerState>) -> Re
 #[tauri::command]
 pub async fn scheduler_confirm_task(
     state: State<'_, SchedulerState>,
-    task_id: SystemTaskId,
+    confirmation_id: Option<SystemTaskId>,
+    task_id: Option<SystemTaskId>,
 ) -> Result<Option<SystemTask>, String> {
-    debug!("Confirming pending task: {}", task_id);
+    let id = confirmation_id
+        .or(task_id)
+        .ok_or_else(|| "confirmation_id is required".to_string())?;
+    debug!("Confirming pending task operation: {}", id);
 
-    match state.confirm_task(&task_id).await {
+    match state.confirm_task(&id).await {
         Ok(task) => {
             if task.is_some() {
-                info!("Task confirmed: {}", task_id);
+                info!("Task operation confirmed: {}", id);
             }
             Ok(task)
         }
@@ -360,6 +368,7 @@ pub fn scheduler_validate_task(
         last_run_at: None,
         next_run_at: None,
         last_result: None,
+        metadata_state: crate::scheduler::TaskMetadataState::Full,
     };
 
     let risk_level = temp_task.calculate_risk_level();

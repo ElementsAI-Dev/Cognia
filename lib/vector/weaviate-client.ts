@@ -38,6 +38,7 @@ interface WeaviateGraphQLItem {
   _additional?: {
     id: string;
     certainty?: number;
+    distance?: number;
   };
   content?: string;
   metadata?: string;
@@ -213,23 +214,34 @@ export async function getWeaviateDocuments(
 export async function queryWeaviate(
   config: WeaviateConfig,
   query: string,
-  options: { topK?: number; threshold?: number } = {}
+  options: {
+    topK?: number;
+    threshold?: number;
+    embedding?: number[];
+    offset?: number;
+    filter?: Record<string, unknown>;
+  } = {}
 ): Promise<WeaviateSearchResult[]> {
-  const { topK = 5 } = options;
-  const queryResult = await generateEmbedding(
-    query,
-    config.embeddingConfig,
-    config.embeddingApiKey
-  );
+  const { topK = 5, embedding, offset = 0 } = options;
+  const queryEmbedding = embedding
+    ? embedding
+    : (
+      await generateEmbedding(
+        query,
+        config.embeddingConfig,
+        config.embeddingApiKey
+      )
+    ).embedding;
 
   const graphqlQuery = {
     query: `{
       Get {
         ${config.className}(
-          nearVector: { vector: [${queryResult.embedding.join(',')}] }
+          nearVector: { vector: [${queryEmbedding.join(',')}] }
           limit: ${topK}
+          offset: ${offset}
         ) {
-          _additional { id certainty }
+          _additional { id certainty distance }
           content
           metadata
         }
@@ -253,7 +265,69 @@ export async function queryWeaviate(
       id: item._additional?.id ?? '',
       content: item.content ?? '',
       metadata: item.metadata ? JSON.parse(item.metadata) : undefined,
-      score: item._additional?.certainty ?? 0,
+      score: item._additional?.certainty ?? (item._additional?.distance !== undefined ? 1 - item._additional.distance : 0),
     }))
-    .filter((item) => item.id);
+    .filter((item) => item.id)
+    .filter((item) => (options.threshold === undefined ? true : item.score >= options.threshold));
+}
+
+export async function countWeaviateDocuments(config: WeaviateConfig): Promise<number> {
+  const response = await weaviateFetch<{
+    data?: {
+      Aggregate?: Record<string, Array<{ meta?: { count?: number } }>>;
+    };
+  }>(config, '/v1/graphql', {
+    method: 'POST',
+    body: JSON.stringify({
+      query: `{
+        Aggregate {
+          ${config.className} {
+            meta { count }
+          }
+        }
+      }`,
+    }),
+  });
+
+  const rows = response.data?.Aggregate?.[config.className ?? ''] ?? [];
+  return rows[0]?.meta?.count ?? 0;
+}
+
+interface WeaviateObjectResponse {
+  id: string;
+  properties?: {
+    content?: string;
+    metadata?: string;
+  };
+  vector?: number[];
+}
+
+export async function scrollWeaviateDocuments(
+  config: WeaviateConfig,
+  options: {
+    offset?: number;
+    limit?: number;
+    filter?: Record<string, unknown>;
+  } = {}
+): Promise<WeaviateDocument[]> {
+  const offset = options.offset ?? 0;
+  const limit = options.limit ?? 100;
+  const params = new URLSearchParams({
+    class: config.className || '',
+    limit: String(limit),
+    offset: String(offset),
+    include: 'vector',
+  });
+
+  const response = await weaviateFetch<{ objects?: WeaviateObjectResponse[] }>(
+    config,
+    `/v1/objects?${params.toString()}`
+  );
+
+  return (response.objects || []).map((item) => ({
+    id: item.id,
+    content: item.properties?.content ?? '',
+    metadata: item.properties?.metadata ? JSON.parse(item.properties.metadata) : undefined,
+    embedding: item.vector,
+  }));
 }

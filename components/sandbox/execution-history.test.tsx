@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import React from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { ExecutionHistory } from './execution-history';

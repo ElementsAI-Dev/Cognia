@@ -2849,8 +2849,8 @@ pub async fn git_repo_stats(repo_path: String) -> GitOperationResult<GitRepoStat
         let mut current_email = String::new();
         for line in numstat_output.lines() {
             let line = line.trim();
-            if line.starts_with('\x01') {
-                current_email = line[1..].trim().to_string();
+            if let Some(stripped) = line.strip_prefix('\x01') {
+                current_email = stripped.trim().to_string();
             } else if !line.is_empty() && !current_email.is_empty() {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 2 {

@@ -5,7 +5,7 @@
  */
 
 import { useSettingsStore } from '@/stores';
-import { THEME_PRESETS } from '@/lib/themes';
+import { resolveActiveThemeColors } from '@/lib/themes';
 import { createPluginSystemLogger } from '../core/logger';
 import type {
   PluginThemeAPI,
@@ -29,31 +29,41 @@ function getResolvedMode(mode: ThemeMode): 'light' | 'dark' {
   return mode;
 }
 
-/**
- * Get theme colors for current state
- */
-function getCurrentColors(preset: ColorThemePreset, isDark: boolean): ThemeColors {
-  const presetConfig = THEME_PRESETS[preset];
-  const colors = isDark ? presetConfig?.dark : presetConfig?.light;
-  
+function getThemeState(): ThemeState {
+  const store = useSettingsStore.getState();
+  const mode = store.theme;
+  const resolvedMode = getResolvedMode(mode);
+  const colorPreset = store.colorTheme;
+  const customThemeId = store.activeCustomThemeId;
+  const resolved = resolveActiveThemeColors({
+    colorTheme: colorPreset,
+    resolvedTheme: resolvedMode,
+    activeCustomThemeId: customThemeId,
+    customThemes: store.customThemes,
+  });
+
   return {
-    primary: colors?.primary || 'oklch(0.6 0.2 250)',
-    primaryForeground: colors?.primaryForeground || 'oklch(0.98 0.01 0)',
-    secondary: colors?.secondary || 'oklch(0.9 0.02 250)',
-    secondaryForeground: colors?.secondaryForeground || 'oklch(0.2 0.02 250)',
-    accent: colors?.accent || 'oklch(0.6 0.2 250)',
-    accentForeground: colors?.accentForeground || 'oklch(0.98 0.01 0)',
-    background: colors?.background || (isDark ? 'oklch(0.15 0.02 250)' : 'oklch(0.99 0.01 0)'),
-    foreground: colors?.foreground || (isDark ? 'oklch(0.95 0.01 0)' : 'oklch(0.15 0.02 250)'),
-    muted: colors?.muted || (isDark ? 'oklch(0.25 0.02 250)' : 'oklch(0.95 0.01 0)'),
-    mutedForeground: colors?.mutedForeground || 'oklch(0.6 0.02 250)',
-    card: colors?.card || (isDark ? 'oklch(0.18 0.02 250)' : 'oklch(0.99 0.01 0)'),
-    cardForeground: colors?.cardForeground || (isDark ? 'oklch(0.95 0.01 0)' : 'oklch(0.15 0.02 250)'),
-    border: colors?.border || 'oklch(0.8 0.01 250)',
-    ring: colors?.ring || 'oklch(0.6 0.2 250)',
-    destructive: colors?.destructive || 'oklch(0.55 0.25 25)',
-    destructiveForeground: colors?.destructiveForeground || 'oklch(0.98 0.01 0)',
+    mode,
+    resolvedMode,
+    colorPreset,
+    customThemeId,
+    colors: resolved.colors as ThemeColors,
+    themeSource: resolved.themeSource,
   };
+}
+
+function createThemeChangeKey(): string {
+  const state = useSettingsStore.getState();
+  const activeCustomTheme = state.activeCustomThemeId
+    ? state.customThemes.find((theme) => theme.id === state.activeCustomThemeId)
+    : null;
+
+  return JSON.stringify({
+    mode: state.theme,
+    colorTheme: state.colorTheme,
+    customThemeId: state.activeCustomThemeId,
+    activeCustomTheme,
+  });
 }
 
 /**
@@ -62,21 +72,7 @@ function getCurrentColors(preset: ColorThemePreset, isDark: boolean): ThemeColor
 export function createThemeAPI(pluginId: string): PluginThemeAPI {
   const logger = createPluginSystemLogger(pluginId);
   return {
-    getTheme: (): ThemeState => {
-      const store = useSettingsStore.getState();
-      const mode = store.theme;
-      const resolvedMode = getResolvedMode(mode);
-      const colorPreset = store.colorTheme;
-      const customThemeId = store.activeCustomThemeId;
-
-      return {
-        mode,
-        resolvedMode,
-        colorPreset,
-        customThemeId,
-        colors: getCurrentColors(colorPreset, resolvedMode === 'dark'),
-      };
-    },
+    getTheme: (): ThemeState => getThemeState(),
 
     getMode: () => {
       return useSettingsStore.getState().theme;
@@ -106,9 +102,7 @@ export function createThemeAPI(pluginId: string): PluginThemeAPI {
     },
 
     getColors: (): ThemeColors => {
-      const store = useSettingsStore.getState();
-      const resolvedMode = getResolvedMode(store.theme);
-      return getCurrentColors(store.colorTheme, resolvedMode === 'dark');
+      return getThemeState().colors;
     },
 
     registerCustomTheme: (theme: Omit<CustomTheme, 'id'>): string => {
@@ -118,6 +112,7 @@ export function createThemeAPI(pluginId: string): PluginThemeAPI {
         name: theme.name,
         isDark: theme.isDark,
         colors: {
+          ...theme.colors,
           primary: theme.colors.primary || '#3b82f6',
           secondary: theme.colors.secondary || '#64748b',
           accent: theme.colors.accent || '#3b82f6',
@@ -138,13 +133,16 @@ export function createThemeAPI(pluginId: string): PluginThemeAPI {
       if (updates.name) storeUpdates.name = updates.name;
       if (updates.isDark !== undefined) storeUpdates.isDark = updates.isDark;
       if (updates.colors) {
+        const existing = store.customThemes.find((theme) => theme.id === id);
         storeUpdates.colors = {
-          primary: updates.colors.primary || '#3b82f6',
-          secondary: updates.colors.secondary || '#64748b',
-          accent: updates.colors.accent || '#3b82f6',
-          background: updates.colors.background || '#ffffff',
-          foreground: updates.colors.foreground || '#0f172a',
-          muted: updates.colors.muted || '#f1f5f9',
+          ...(existing?.colors ?? {}),
+          ...updates.colors,
+          primary: updates.colors.primary || existing?.colors.primary || '#3b82f6',
+          secondary: updates.colors.secondary || existing?.colors.secondary || '#64748b',
+          accent: updates.colors.accent || existing?.colors.accent || '#3b82f6',
+          background: updates.colors.background || existing?.colors.background || '#ffffff',
+          foreground: updates.colors.foreground || existing?.colors.foreground || '#0f172a',
+          muted: updates.colors.muted || existing?.colors.muted || '#f1f5f9',
         };
       }
       store.updateCustomTheme(id, storeUpdates);
@@ -168,29 +166,21 @@ export function createThemeAPI(pluginId: string): PluginThemeAPI {
     },
 
     onThemeChange: (handler: (theme: ThemeState) => void) => {
-      let lastState = JSON.stringify({
-        mode: useSettingsStore.getState().theme,
-        colorTheme: useSettingsStore.getState().colorTheme,
-        customThemeId: useSettingsStore.getState().activeCustomThemeId,
-      });
+      let lastState = createThemeChangeKey();
 
       const unsubscribe = useSettingsStore.subscribe((state) => {
         const currentState = JSON.stringify({
           mode: state.theme,
           colorTheme: state.colorTheme,
           customThemeId: state.activeCustomThemeId,
+          activeCustomTheme: state.activeCustomThemeId
+            ? state.customThemes.find((theme) => theme.id === state.activeCustomThemeId)
+            : null,
         });
 
         if (currentState !== lastState) {
           lastState = currentState;
-          const resolvedMode = getResolvedMode(state.theme);
-          handler({
-            mode: state.theme,
-            resolvedMode,
-            colorPreset: state.colorTheme,
-            customThemeId: state.activeCustomThemeId,
-            colors: getCurrentColors(state.colorTheme, resolvedMode === 'dark'),
-          });
+          handler(getThemeState());
         }
       });
 

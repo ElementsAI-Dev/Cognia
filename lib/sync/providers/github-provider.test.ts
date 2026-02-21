@@ -118,11 +118,6 @@ describe('GitHubProvider', () => {
     };
 
     it('should upload data to repository', async () => {
-      // Mock get repo (check if exists)
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: jest.fn().mockResolvedValue({ name: 'cognia-sync' }),
-      });
       // Mock get file SHA (for update)
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -133,6 +128,22 @@ describe('GitHubProvider', () => {
         ok: true,
         json: jest.fn().mockResolvedValue({ commit: { sha: 'new-sha' } }),
       });
+      // Mock metadata lookup (not found)
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        text: jest.fn().mockResolvedValue('Not Found'),
+      });
+      // Mock metadata write
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ commit: { sha: 'meta-sha' } }),
+      });
+      // Mock backup write
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ commit: { sha: 'backup-sha' } }),
+      });
 
       const result = await provider.upload(mockSyncData);
 
@@ -140,31 +151,77 @@ describe('GitHubProvider', () => {
       expect(result.direction).toBe('upload');
     });
 
-    it('should create repo if not exists', async () => {
-      // Mock get repo (not found)
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-      });
-      // Mock create repo
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: jest.fn().mockResolvedValue({ name: 'cognia-sync' }),
-      });
+    it('should upload when target files do not exist yet', async () => {
       // Mock get file SHA (not found - new file)
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 404,
+        text: jest.fn().mockResolvedValue('Not Found'),
       });
       // Mock create file
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValue({ commit: { sha: 'new-sha' } }),
       });
+      // Mock metadata lookup (not found)
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        text: jest.fn().mockResolvedValue('Not Found'),
+      });
+      // Mock metadata write
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ commit: { sha: 'meta-sha' } }),
+      });
+      // Mock backup write
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ commit: { sha: 'backup-sha' } }),
+      });
 
       const result = await provider.upload(mockSyncData);
 
       expect(result.success).toBe(true);
+    });
+
+    it('should write files using configured branch', async () => {
+      const branchProvider = new GitHubProvider(
+        { ...mockConfig, branch: 'release/backup' },
+        'ghp_test_token'
+      );
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        text: jest.fn().mockResolvedValue('Not Found'),
+      });
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ commit: { sha: 'current-sha' } }),
+      });
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        text: jest.fn().mockResolvedValue('Not Found'),
+      });
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ commit: { sha: 'meta-sha' } }),
+      });
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ commit: { sha: 'backup-sha' } }),
+      });
+
+      const result = await branchProvider.upload(mockSyncData);
+
+      expect(result.success).toBe(true);
+      const putCalls = mockFetch.mock.calls.filter((call) => call[1]?.method === 'PUT');
+      expect(putCalls.length).toBeGreaterThan(0);
+      for (const [, request] of putCalls) {
+        const parsedBody = JSON.parse(String(request?.body));
+        expect(parsedBody.branch).toBe('release/backup');
+      }
     });
 
     it('should return error on upload failure', async () => {

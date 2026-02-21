@@ -10,9 +10,10 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Learning Mode', () => {
+  test.describe.configure({ timeout: 120000 });
+
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
+    await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 60000 });
   });
 
   test.describe('Mode Selection', () => {

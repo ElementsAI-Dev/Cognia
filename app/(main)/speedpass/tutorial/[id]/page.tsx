@@ -1,21 +1,18 @@
 /**
- * Tutorial Detail Page (Server Component Wrapper)
- * Provides generateStaticParams for static export, delegates to client component.
+ * Legacy tutorial detail route.
+ * Preferred route: /speedpass/tutorial?id=<tutorialId>
  */
 
 import TutorialDetailClient from './tutorial-detail-client';
 
-export const dynamicParams = false;
+export const dynamicParams = true;
 
 export async function generateStaticParams() {
-  // Return a placeholder to satisfy static export build validation.
-  // Actual tutorials are created at runtime via Zustand store.
-  // Client-side navigation via next/link and router.push still works.
+  // Keep a placeholder for static-export compatibility.
   return [{ id: '_placeholder' }];
 }
 
 export default function TutorialDetailPage() {
   return <TutorialDetailClient />;
 }
-
 

@@ -656,15 +656,20 @@ Custom skill framework for extending AI:
 Interactive learning system for educational content:
 
 - **Phases**: Question analysis, guided learning, summary
-- **Flashcards**: Spaced repetition learning
-- **Quizzes**: Interactive knowledge testing
-- **Progress Tracking**: Achievements and history
+- **Generative UI Tools**: 10 interactive tools (`display_*`) for flashcards, quizzes, review, concept map, step guide, and animation
+- **Session Automation**: Automatic attempt tracking, sub-question extraction, phase transition detection, and summary closure
+- **Journey/Quick Linking**: Journey sessions auto-create learning paths with milestones; quick sessions auto-archive to quick history
+- **Strict Interop**: xAPI Statement export/import and QTI 3 item/package import/export with legacy compatibility
+- **Feature Flags**: `learningModeV2Enabled` and `learningInteropV2Enabled` via env + localStorage override
 
 #### Key Files
 
 - `components/learning/learning-mode-panel.tsx` — Main interface
 - `stores/learning/learning-store.ts` — State management
 - `hooks/ui/use-learning-mode.ts` — React hook
+- `lib/learning/feature-flags.ts` — Runtime rollout controls
+- `lib/learning/speedpass/xapi-event-adapter.ts` — xAPI mapping layer
+- `lib/learning/speedpass/qti-adapter.ts` — QTI 3 XML/package adapter
 
 ### Artifacts & Canvas
 

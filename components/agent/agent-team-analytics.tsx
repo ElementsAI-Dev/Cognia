@@ -35,7 +35,6 @@ import {
 } from '@/components/ui/tooltip';
 import { useAgentTeamStore } from '@/stores/agent/agent-team-store';
 import { cn } from '@/lib/utils';
-import type { AgentTeammate, AgentTeamTask } from '@/types/agent/agent-team';
 
 // ============================================================================
 // Types

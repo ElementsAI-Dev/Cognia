@@ -343,6 +343,13 @@ export class PluginLoader {
   }
 
   /**
+   * Get loaded plugin definition
+   */
+  getDefinition(pluginId: string): PluginDefinition | undefined {
+    return this.loadedModules.get(pluginId)?.definition;
+  }
+
+  /**
    * Clear all loaded modules
    */
   clear(): void {

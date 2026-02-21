@@ -24,6 +24,25 @@ export type ScheduledTaskStatus = 'active' | 'paused' | 'disabled' | 'expired';
 // Notification channels
 export type NotificationChannel = 'desktop' | 'toast' | 'webhook' | 'none';
 
+export type BackupTaskType = 'full' | 'sessions' | 'settings' | 'plugins' | 'all';
+
+export type BackupDestination = 'local' | 'webdav' | 'github' | 'googledrive' | 'all';
+
+export interface BackupSelectionOptions {
+  includeSessions?: boolean;
+  includeSettings?: boolean;
+  includeArtifacts?: boolean;
+  includeIndexedDB?: boolean;
+}
+
+export interface BackupTaskPayload extends Record<string, unknown> {
+  backupType?: BackupTaskType;
+  destination?: BackupDestination;
+  options?: BackupSelectionOptions;
+}
+
+export type ScheduledTaskPayload = Record<string, unknown> | BackupTaskPayload;
+
 /**
  * Cron expression parts for validation and display
  */
@@ -119,7 +138,7 @@ export interface ScheduledTask {
   description?: string;
   type: ScheduledTaskType;
   trigger: TaskTrigger;
-  payload?: Record<string, unknown>;
+  payload?: ScheduledTaskPayload;
   config: TaskExecutionConfig;
   notification: TaskNotificationConfig;
   status: ScheduledTaskStatus;
@@ -150,7 +169,7 @@ export interface TaskExecution {
   taskName: string;
   taskType: ScheduledTaskType;
   status: TaskExecutionStatus;
-  input?: Record<string, unknown>;
+  input?: ScheduledTaskPayload;
   output?: Record<string, unknown>;
   error?: string;
   /** Retry attempt number (0 = first attempt) */
@@ -182,7 +201,7 @@ export interface CreateScheduledTaskInput {
   description?: string;
   type: ScheduledTaskType;
   trigger: TaskTrigger;
-  payload?: Record<string, unknown>;
+  payload?: ScheduledTaskPayload;
   config?: Partial<TaskExecutionConfig>;
   notification?: Partial<TaskNotificationConfig>;
   tags?: string[];
@@ -195,7 +214,7 @@ export interface UpdateScheduledTaskInput {
   name?: string;
   description?: string;
   trigger?: Partial<TaskTrigger>;
-  payload?: Record<string, unknown>;
+  payload?: ScheduledTaskPayload;
   config?: Partial<TaskExecutionConfig>;
   notification?: Partial<TaskNotificationConfig>;
   status?: ScheduledTaskStatus;

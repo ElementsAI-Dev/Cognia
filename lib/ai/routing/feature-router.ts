@@ -6,6 +6,7 @@
  */
 
 import type {
+  FeatureNavigationContext,
   FeatureRoute,
   FeatureRouteResult,
   FeatureRoutingSettings,
@@ -415,7 +416,7 @@ export function mightTriggerFeatureRouting(message: string): boolean {
  */
 export function buildFeatureNavigationUrl(
   feature: FeatureRoute,
-  context?: { message?: string; [key: string]: unknown }
+  context?: ({ message?: string } & Partial<FeatureNavigationContext> & Record<string, unknown>)
 ): string {
   const url = new URL(feature.path, 'http://localhost');
   
@@ -428,11 +429,48 @@ export function buildFeatureNavigationUrl(
   
   // If feature supports carrying context, store it
   if (feature.carryContext && context?.message) {
+    const normalizedSpeedPassContext = (() => {
+      const nested = context.speedpassContext ?? {};
+      const merged = {
+        textbookId:
+          nested.textbookId ??
+          (typeof context.textbookId === 'string' ? context.textbookId : undefined),
+        availableTimeMinutes:
+          nested.availableTimeMinutes ??
+          (typeof context.availableTimeMinutes === 'number' ? context.availableTimeMinutes : undefined),
+        targetScore:
+          nested.targetScore ??
+          (typeof context.targetScore === 'number' ? context.targetScore : undefined),
+        examDate:
+          nested.examDate ??
+          (typeof context.examDate === 'string' ? context.examDate : undefined),
+        recommendedMode:
+          nested.recommendedMode ??
+          (context.recommendedMode === 'extreme' ||
+          context.recommendedMode === 'speed' ||
+          context.recommendedMode === 'comprehensive'
+            ? context.recommendedMode
+            : undefined),
+      };
+      const hasValues = Object.values(merged).some((value) => value !== undefined);
+      return hasValues ? merged : undefined;
+    })();
+
     const contextKey = storeFeatureNavigationContext({
       message: context.message,
       from: '/',
       timestamp: Date.now(),
       ...context,
+      ...(normalizedSpeedPassContext
+        ? {
+            speedpassContext: normalizedSpeedPassContext,
+            textbookId: normalizedSpeedPassContext.textbookId,
+            availableTimeMinutes: normalizedSpeedPassContext.availableTimeMinutes,
+            targetScore: normalizedSpeedPassContext.targetScore,
+            examDate: normalizedSpeedPassContext.examDate,
+            recommendedMode: normalizedSpeedPassContext.recommendedMode,
+          }
+        : {}),
     });
     if (contextKey) {
       url.searchParams.set('ctx', contextKey);

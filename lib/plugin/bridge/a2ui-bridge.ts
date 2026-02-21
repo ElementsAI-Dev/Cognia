@@ -159,7 +159,7 @@ export class PluginA2UIBridge {
     pluginComponent: PluginA2UIComponent
   ): React.ComponentType<A2UIPluginComponentProps> {
     const OriginalComponent = pluginComponent.component;
-    const bridge = this;
+    const missingContextWarnings = this.missingContextWarnings;
     const contextResolver = this.config.contextResolver;
 
     // Return a wrapper that injects plugin context
@@ -167,8 +167,8 @@ export class PluginA2UIBridge {
       const resolvedContext = contextResolver?.(pluginId);
       if (!resolvedContext) {
         const warningKey = `${pluginId}:${pluginComponent.type}`;
-        if (!bridge.missingContextWarnings.has(warningKey)) {
-          bridge.missingContextWarnings.add(warningKey);
+        if (!missingContextWarnings.has(warningKey)) {
+          missingContextWarnings.add(warningKey);
           loggers.manager.error(
             `[PluginA2UIBridge] Missing plugin context for component "${pluginComponent.type}" from plugin "${pluginId}". Rendering degraded fallback.`
           );

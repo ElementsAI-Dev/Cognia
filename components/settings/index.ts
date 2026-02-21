@@ -100,6 +100,7 @@ export {
 // System settings
 export {
   DesktopSettings,
+  EditorSettings,
   EnvironmentSettings,
   KeyboardSettings,
   ProxySettings,

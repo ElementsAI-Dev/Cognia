@@ -337,7 +337,7 @@ describe('MergeNode edge cases', () => {
   });
 
   it('handles unknown mergeStrategy', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const unknownStrategyData = { ...mockData, mergeStrategy: 'unknown' as any };
     render(<MergeNode {...mockProps} data={unknownStrategyData} />);
     // Multiple elements may contain 'unknown', use getAllByText

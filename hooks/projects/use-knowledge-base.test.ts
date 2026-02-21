@@ -242,7 +242,7 @@ describe('useKnowledgeBase', () => {
   });
 
   it('should handle download', () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     const importExport = require('@/lib/project/import-export') as { downloadFile: jest.Mock };
     const { result } = renderHook(() => useKnowledgeBase({ projectId: 'project-1' }));
 

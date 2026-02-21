@@ -5,6 +5,7 @@
 import { useMemo, useCallback } from 'react';
 import { usePluginStore } from '@/stores/plugin';
 import type { PluginTool } from '@/types/plugin';
+import { getPluginManager } from '@/lib/plugin';
 
 interface UsePluginToolsReturn {
   tools: PluginTool[];
@@ -33,13 +34,31 @@ export function usePluginTools(): UsePluginToolsReturn {
 
   const executeTool = useCallback(
     async (name: string, args: Record<string, unknown>) => {
-      const tool = getToolByName(name);
+      let tool = getToolByName(name);
+      if (!tool) {
+        try {
+          await getPluginManager().handleActivationEvent(`onTool:${name}`);
+          tool = getToolByName(name);
+        } catch {
+          // Plugin manager may be unavailable.
+        }
+      }
+
       if (!tool) {
         throw new Error(`Tool not found: ${name}`);
       }
 
       // Check if plugin is enabled
-      const plugin = plugins[tool.pluginId];
+      let plugin = plugins[tool.pluginId];
+      if (!plugin || plugin.status !== 'enabled') {
+        try {
+          await getPluginManager().handleActivationEvent(`onTool:${name}`);
+          plugin = usePluginStore.getState().plugins[tool.pluginId];
+        } catch {
+          // Plugin manager may be unavailable.
+        }
+      }
+
       if (!plugin || plugin.status !== 'enabled') {
         throw new Error(`Plugin ${tool.pluginId} is not enabled`);
       }

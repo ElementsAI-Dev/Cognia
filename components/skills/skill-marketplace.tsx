@@ -39,8 +39,10 @@ import {
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/toaster';
 import { useSkillMarketplace } from '@/hooks/skills/use-skill-marketplace';
+import { useNativeSkills, useNativeSkillAvailable, type AddSkillRepoInput } from '@/hooks/skills';
 import { SkillMarketplaceCard } from './skill-marketplace-card';
 import { SkillMarketplaceDetail } from './skill-marketplace-detail';
+import { SkillRepoManagerDialog } from './skill-repo-manager-dialog';
 import type { SkillsMarketplaceSortOption } from '@/types/skill/skill-marketplace';
 
 interface SkillMarketplaceProps {
@@ -49,6 +51,7 @@ interface SkillMarketplaceProps {
 
 export function SkillMarketplace({ className }: SkillMarketplaceProps) {
   const t = useTranslations('skills');
+  const isNativeSkillEnabled = useNativeSkillAvailable();
 
   const {
     itemsWithStatus,
@@ -79,11 +82,26 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
     setCurrentPage,
     setViewMode,
   } = useSkillMarketplace();
+  const {
+    repos,
+    addRepo,
+    removeRepo,
+    toggleRepo,
+    discover: discoverRepoSkills,
+  } = useNativeSkills();
 
   const [searchQuery, setSearchQuery] = useState(filters.query);
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState(apiKey || '');
   const [useAiSearch, setUseAiSearch] = useState(filters.useAiSearch);
+
+  const handleAddRepo = useCallback(
+    async (input: AddSkillRepoInput) => {
+      await addRepo(input);
+      await discoverRepoSkills();
+    },
+    [addRepo, discoverRepoSkills]
+  );
 
   // Handle search
   const handleSearch = useCallback(async () => {
@@ -197,6 +215,14 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
           >
             <Key className={cn('h-4 w-4', hasApiKey && 'text-green-500')} />
           </Button>
+          {isNativeSkillEnabled && (
+            <SkillRepoManagerDialog
+              repos={repos}
+              onAddRepo={handleAddRepo}
+              onRemoveRepo={removeRepo}
+              onToggleRepo={toggleRepo}
+            />
+          )}
         </div>
 
         {/* Filters row */}

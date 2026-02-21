@@ -68,6 +68,324 @@ function sanitizePineconeMetadata(
   return safe;
 }
 
+const PINECONE_DEFAULT_NAMESPACE = '__default__';
+
+function getMetadataValue(metadata: Record<string, unknown> | undefined, key: string): unknown {
+  if (!metadata) return undefined;
+  return metadata[key];
+}
+
+function comparePrimitive(left: unknown, right: unknown): number | null {
+  if (typeof left === 'number' && typeof right === 'number') {
+    return left - right;
+  }
+  if (typeof left === 'string' && typeof right === 'string') {
+    return left.localeCompare(right);
+  }
+  return null;
+}
+
+function matchesUnifiedFilter(
+  metadata: Record<string, unknown> | undefined,
+  filter: PayloadFilter
+): boolean {
+  const payloadValue = getMetadataValue(metadata, filter.key);
+
+  switch (filter.operation) {
+    case 'equals':
+      return payloadValue === filter.value;
+    case 'not_equals':
+      return payloadValue !== filter.value;
+    case 'contains': {
+      if (typeof payloadValue === 'string' && typeof filter.value === 'string') {
+        return payloadValue.includes(filter.value);
+      }
+      if (Array.isArray(payloadValue)) {
+        return payloadValue.includes(filter.value);
+      }
+      return false;
+    }
+    case 'not_contains': {
+      if (typeof payloadValue === 'string' && typeof filter.value === 'string') {
+        return !payloadValue.includes(filter.value);
+      }
+      if (Array.isArray(payloadValue)) {
+        return !payloadValue.includes(filter.value);
+      }
+      return true;
+    }
+    case 'greater_than': {
+      const cmp = comparePrimitive(payloadValue, filter.value);
+      return cmp !== null && cmp > 0;
+    }
+    case 'greater_than_or_equals': {
+      const cmp = comparePrimitive(payloadValue, filter.value);
+      return cmp !== null && cmp >= 0;
+    }
+    case 'less_than': {
+      const cmp = comparePrimitive(payloadValue, filter.value);
+      return cmp !== null && cmp < 0;
+    }
+    case 'less_than_or_equals': {
+      const cmp = comparePrimitive(payloadValue, filter.value);
+      return cmp !== null && cmp <= 0;
+    }
+    case 'is_null':
+      return payloadValue === null || payloadValue === undefined;
+    case 'is_not_null':
+      return payloadValue !== null && payloadValue !== undefined;
+    case 'starts_with':
+      return typeof payloadValue === 'string' && typeof filter.value === 'string'
+        ? payloadValue.startsWith(filter.value)
+        : false;
+    case 'ends_with':
+      return typeof payloadValue === 'string' && typeof filter.value === 'string'
+        ? payloadValue.endsWith(filter.value)
+        : false;
+    case 'in':
+      return Array.isArray(filter.value) ? filter.value.includes(payloadValue) : false;
+    case 'not_in':
+      return Array.isArray(filter.value) ? !filter.value.includes(payloadValue) : false;
+    default:
+      return true;
+  }
+}
+
+function applyUnifiedPostFilters<T extends { metadata?: Record<string, unknown> }>(
+  results: T[],
+  filters?: PayloadFilter[],
+  filterMode: 'and' | 'or' = 'and'
+): T[] {
+  if (!filters || filters.length === 0) return results;
+
+  return results.filter((result) => {
+    const matches = filters.map((filter) => matchesUnifiedFilter(result.metadata, filter));
+    return filterMode === 'or' ? matches.some(Boolean) : matches.every(Boolean);
+  });
+}
+
+function applyThresholdAndPagination(
+  results: VectorSearchResult[],
+  options: SearchOptions = {}
+): SearchResponse {
+  const thresholdFiltered =
+    options.threshold === undefined
+      ? results
+      : results.filter((result) => result.score >= options.threshold!);
+  const offset = options.offset ?? 0;
+  const limit = options.limit ?? options.topK ?? 5;
+  const paginated = thresholdFiltered.slice(offset, offset + limit);
+
+  return {
+    results: paginated,
+    total: thresholdFiltered.length,
+    offset,
+    limit,
+  };
+}
+
+function toPineconeClause(filter: PayloadFilter): Record<string, unknown> | null {
+  const key = filter.key;
+
+  switch (filter.operation) {
+    case 'equals':
+      return { [key]: { $eq: filter.value } };
+    case 'not_equals':
+      return { [key]: { $ne: filter.value } };
+    case 'greater_than':
+      return { [key]: { $gt: filter.value } };
+    case 'greater_than_or_equals':
+      return { [key]: { $gte: filter.value } };
+    case 'less_than':
+      return { [key]: { $lt: filter.value } };
+    case 'less_than_or_equals':
+      return { [key]: { $lte: filter.value } };
+    case 'in':
+      return Array.isArray(filter.value) ? { [key]: { $in: filter.value } } : null;
+    case 'not_in':
+      return Array.isArray(filter.value) ? { [key]: { $nin: filter.value } } : null;
+    case 'is_null':
+      return { [key]: { $exists: false } };
+    case 'is_not_null':
+      return { [key]: { $exists: true } };
+    default:
+      return null;
+  }
+}
+
+function buildPineconeFilterFromUnified(
+  filters?: PayloadFilter[],
+  filterMode: 'and' | 'or' = 'and'
+): { filter?: Record<string, unknown>; requiresPostFilter: boolean } {
+  if (!filters || filters.length === 0) {
+    return { filter: undefined, requiresPostFilter: false };
+  }
+
+  const clauses: Record<string, unknown>[] = [];
+  let requiresPostFilter = false;
+  for (const filter of filters) {
+    const clause = toPineconeClause(filter);
+    if (clause) {
+      clauses.push(clause);
+    } else {
+      requiresPostFilter = true;
+    }
+  }
+
+  if (clauses.length === 0) {
+    return { filter: undefined, requiresPostFilter: true };
+  }
+
+  return {
+    filter: clauses.length === 1
+      ? clauses[0]
+      : (filterMode === 'or' ? { $or: clauses } : { $and: clauses }),
+    requiresPostFilter,
+  };
+}
+
+function toQdrantConditions(
+  filters?: PayloadFilter[],
+  mode: 'and' | 'or' = 'and'
+): { filter?: Record<string, unknown>; requiresPostFilter: boolean } {
+  if (!filters || filters.length === 0) {
+    return { filter: undefined, requiresPostFilter: false };
+  }
+
+  const must: Record<string, unknown>[] = [];
+  const should: Record<string, unknown>[] = [];
+  const mustNot: Record<string, unknown>[] = [];
+  let requiresPostFilter = false;
+
+  for (const filter of filters) {
+    const target = mode === 'or' ? should : must;
+
+    switch (filter.operation) {
+      case 'equals':
+        target.push({ key: filter.key, match: { value: filter.value } });
+        break;
+      case 'not_equals':
+        mustNot.push({ key: filter.key, match: { value: filter.value } });
+        break;
+      case 'greater_than':
+        target.push({ key: filter.key, range: { gt: filter.value } });
+        break;
+      case 'greater_than_or_equals':
+        target.push({ key: filter.key, range: { gte: filter.value } });
+        break;
+      case 'less_than':
+        target.push({ key: filter.key, range: { lt: filter.value } });
+        break;
+      case 'less_than_or_equals':
+        target.push({ key: filter.key, range: { lte: filter.value } });
+        break;
+      case 'in':
+        if (Array.isArray(filter.value)) {
+          target.push({ key: filter.key, match: { any: filter.value } });
+        } else {
+          requiresPostFilter = true;
+        }
+        break;
+      case 'not_in':
+        if (Array.isArray(filter.value)) {
+          mustNot.push({ key: filter.key, match: { any: filter.value } });
+        } else {
+          requiresPostFilter = true;
+        }
+        break;
+      case 'is_null':
+        target.push({ is_null: { key: filter.key } });
+        break;
+      case 'is_not_null':
+        mustNot.push({ is_null: { key: filter.key } });
+        break;
+      default:
+        requiresPostFilter = true;
+        break;
+    }
+  }
+
+  const builtFilter: Record<string, unknown> = {};
+  if (must.length > 0) builtFilter.must = must;
+  if (should.length > 0) builtFilter.should = should;
+  if (mustNot.length > 0) builtFilter.must_not = mustNot;
+
+  return {
+    filter: Object.keys(builtFilter).length > 0 ? builtFilter : undefined,
+    requiresPostFilter,
+  };
+}
+
+function toMilvusLiteral(value: unknown): string {
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (typeof value === 'string') {
+    return `"${value.replace(/"/g, '\\"')}"`;
+  }
+  throw new Error('Milvus filter value must be a string, number, or boolean');
+}
+
+function buildMilvusFilterFromUnified(
+  filters?: PayloadFilter[],
+  filterMode: 'and' | 'or' = 'and'
+): string | undefined {
+  if (!filters || filters.length === 0) return undefined;
+
+  const clauses = filters.map((filter) => {
+    const field = filter.key;
+    switch (filter.operation) {
+      case 'equals':
+        return `${field} == ${toMilvusLiteral(filter.value)}`;
+      case 'not_equals':
+        return `${field} != ${toMilvusLiteral(filter.value)}`;
+      case 'greater_than':
+        return `${field} > ${toMilvusLiteral(filter.value)}`;
+      case 'greater_than_or_equals':
+        return `${field} >= ${toMilvusLiteral(filter.value)}`;
+      case 'less_than':
+        return `${field} < ${toMilvusLiteral(filter.value)}`;
+      case 'less_than_or_equals':
+        return `${field} <= ${toMilvusLiteral(filter.value)}`;
+      case 'in':
+        if (!Array.isArray(filter.value)) {
+          throw new Error(`Milvus filter 'in' requires array value for key ${field}`);
+        }
+        return `${field} in [${filter.value.map((v) => toMilvusLiteral(v)).join(', ')}]`;
+      case 'not_in':
+        if (!Array.isArray(filter.value)) {
+          throw new Error(`Milvus filter 'not_in' requires array value for key ${field}`);
+        }
+        return `${field} not in [${filter.value.map((v) => toMilvusLiteral(v)).join(', ')}]`;
+      case 'contains':
+        if (typeof filter.value !== 'string') {
+          throw new Error(`Milvus filter 'contains' requires string value for key ${field}`);
+        }
+        return `${field} like "%${filter.value.replace(/"/g, '\\"')}%"`;
+      case 'not_contains':
+        if (typeof filter.value !== 'string') {
+          throw new Error(`Milvus filter 'not_contains' requires string value for key ${field}`);
+        }
+        return `not (${field} like "%${filter.value.replace(/"/g, '\\"')}%")`;
+      case 'starts_with':
+        if (typeof filter.value !== 'string') {
+          throw new Error(`Milvus filter 'starts_with' requires string value for key ${field}`);
+        }
+        return `${field} like "${filter.value.replace(/"/g, '\\"')}%"`;
+      case 'ends_with':
+        if (typeof filter.value !== 'string') {
+          throw new Error(`Milvus filter 'ends_with' requires string value for key ${field}`);
+        }
+        return `${field} like "%${filter.value.replace(/"/g, '\\"')}"`;
+      default:
+        throw new Error(`Milvus filter operation '${filter.operation}' is not supported`);
+    }
+  });
+
+  const joiner = filterMode === 'or' ? ' or ' : ' and ';
+  return clauses.length > 1 ? `(${clauses.join(joiner)})` : clauses[0];
+}
+
 export interface VectorCollectionInfo {
   name: string;
   documentCount: number;
@@ -121,11 +439,19 @@ export interface PayloadFilter {
 }
 
 export interface SearchOptions {
+  /**
+   * Native provider filter payload (passthrough).
+   * This shape is backend-specific (e.g. Qdrant/Pinecone/Weaviate native DSL).
+   */
   topK?: number;
   threshold?: number;
   filter?: Record<string, unknown>;
   offset?: number;
   limit?: number;
+  /**
+   * Unified filter DSL that is mapped to provider-native filters when possible.
+   * Unsupported operations are applied via client-side post filtering.
+   */
   filters?: PayloadFilter[];
   filterMode?: 'and' | 'or';
 }
@@ -140,6 +466,7 @@ export interface SearchResponse {
 export interface ScrollOptions {
   offset?: number;
   limit?: number;
+  filter?: Record<string, unknown>;
   filters?: PayloadFilter[];
   filterMode?: 'and' | 'or';
 }
@@ -176,6 +503,12 @@ export interface IVectorStore {
   searchDocuments(
     collectionName: string,
     query: string,
+    options?: SearchOptions
+  ): Promise<VectorSearchResult[]>;
+
+  searchByEmbedding?(
+    collectionName: string,
+    embedding: number[],
     options?: SearchOptions
   ): Promise<VectorSearchResult[]>;
   
@@ -216,6 +549,15 @@ export interface IVectorStore {
   listCollections(): Promise<VectorCollectionInfo[]>;
   
   getCollectionInfo(name: string): Promise<VectorCollectionInfo>;
+
+  countDocuments?(
+    collectionName: string,
+    options?: {
+      filter?: Record<string, unknown>;
+      filters?: PayloadFilter[];
+      filterMode?: 'and' | 'or';
+    }
+  ): Promise<number>;
   
   getStats?(): Promise<VectorStats>;
 }
@@ -285,33 +627,41 @@ export class NativeVectorStore implements IVectorStore {
     query: string,
     options: SearchOptions = {}
   ): Promise<VectorSearchResult[]> {
-    const response = await this.searchDocumentsWithTotal(collectionName, query, options);
+    const queryEmbedding = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
+    return this.searchByEmbedding(collectionName, queryEmbedding.embedding, options);
+  }
+
+  async searchByEmbedding(
+    collectionName: string,
+    embedding: number[],
+    options: SearchOptions = {}
+  ): Promise<VectorSearchResult[]> {
+    const response = await this.searchByEmbeddingWithTotal(collectionName, embedding, options);
     return response.results;
   }
 
-  async searchDocumentsWithTotal(
+  private async searchByEmbeddingWithTotal(
     collectionName: string,
-    query: string,
+    embedding: number[],
     options: SearchOptions = {}
   ): Promise<SearchResponse> {
     const { topK = 5, threshold, offset, limit, filters, filterMode } = options;
-    const queryEmbedding = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
-    
+
     const searchPayload = {
       collection: collectionName,
-      vector: queryEmbedding.embedding,
+      vector: embedding,
       top_k: topK,
       score_threshold: threshold,
       offset,
       limit,
-      filters: filters?.map(f => ({
+      filters: filters?.map((f) => ({
         key: f.key,
         value: f.value,
         operation: f.operation,
       })),
       filter_mode: filterMode,
     };
-    
+
     const response = await this.invoke<
       | { id: string; score: number; payload?: Record<string, unknown> }[]
       | {
@@ -323,23 +673,21 @@ export class NativeVectorStore implements IVectorStore {
       | null
     >('vector_search_points', { payload: searchPayload });
 
-    // Handle null response
     if (!response) {
       return { results: [], total: 0, offset: 0, limit: 0 };
     }
 
-    // Handle array response (legacy format)
     if (Array.isArray(response)) {
-      const results = response.map((r) => ({
+      const mapped = response.map((r) => ({
         id: r.id,
         content: (r.payload?.content as string) || '',
         metadata: r.payload,
         score: r.score,
       }));
-      return { results, total: results.length, offset: 0, limit: results.length };
+      const paged = applyThresholdAndPagination(mapped, options);
+      return paged;
     }
 
-    // Handle object response (new format)
     return {
       results: (response.results || []).map((r) => ({
         id: r.id,
@@ -351,6 +699,15 @@ export class NativeVectorStore implements IVectorStore {
       offset: response.offset ?? 0,
       limit: response.limit ?? 0,
     };
+  }
+
+  async searchDocumentsWithTotal(
+    collectionName: string,
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<SearchResponse> {
+    const queryEmbedding = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
+    return this.searchByEmbeddingWithTotal(collectionName, queryEmbedding.embedding, options);
   }
 
   async scrollDocuments(
@@ -501,6 +858,28 @@ export class NativeVectorStore implements IVectorStore {
     };
   }
 
+  async countDocuments(
+    collectionName: string,
+    options?: {
+      filter?: Record<string, unknown>;
+      filters?: PayloadFilter[];
+      filterMode?: 'and' | 'or';
+    }
+  ): Promise<number> {
+    if (!options?.filter && (!options?.filters || options.filters.length === 0)) {
+      const info = await this.getCollectionInfo(collectionName);
+      return info.documentCount;
+    }
+
+    const response = await this.scrollDocuments(collectionName, {
+      offset: 0,
+      limit: Number.MAX_SAFE_INTEGER,
+      filters: options.filters,
+      filterMode: options.filterMode,
+    });
+    return response.total;
+  }
+
   async getStats(): Promise<VectorStats> {
     const stats = await this.invoke<{
       collection_count: number;
@@ -607,17 +986,24 @@ export class ChromaVectorStore implements IVectorStore {
     query: string,
     options: SearchOptions = {}
   ): Promise<VectorSearchResult[]> {
+    const queryResult = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
+    return this.searchByEmbedding(collectionName, queryResult.embedding, options);
+  }
+
+  async searchByEmbedding(
+    collectionName: string,
+    embedding: number[],
+    options: SearchOptions = {}
+  ): Promise<VectorSearchResult[]> {
     const client = await this.getClient();
     const collection = await client.getCollection({ name: collectionName });
-    
-    const { generateEmbedding } = await import('./embedding');
     const { topK = 5 } = options;
-
-    const queryResult = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
+    const nativeWhere = options.filter as import('chromadb').Where | undefined;
 
     const results = await collection.query({
-      queryEmbeddings: [queryResult.embedding],
+      queryEmbeddings: [embedding],
       nResults: topK,
+      where: nativeWhere,
       include: ['documents', 'metadatas', 'distances'],
     });
 
@@ -629,7 +1015,6 @@ export class ChromaVectorStore implements IVectorStore {
 
     for (let i = 0; i < resultIds.length; i++) {
       const distance = resultDist[i] || 0;
-      if (options.threshold !== undefined && (1 - distance) < options.threshold) continue;
       searchResults.push({
         id: resultIds[i],
         content: resultDocs[i] || '',
@@ -638,7 +1023,28 @@ export class ChromaVectorStore implements IVectorStore {
       });
     }
 
-    return searchResults;
+    const postFiltered = applyUnifiedPostFilters(searchResults, options.filters, options.filterMode);
+    return applyThresholdAndPagination(postFiltered, options).results;
+  }
+
+  async searchDocumentsWithTotal(
+    collectionName: string,
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<SearchResponse> {
+    const queryResult = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
+    const resultSet = await this.searchByEmbedding(collectionName, queryResult.embedding, {
+      ...options,
+      offset: 0,
+      limit: Math.max((options.offset ?? 0) + (options.limit ?? options.topK ?? 5), options.topK ?? 5),
+    });
+    const response = applyThresholdAndPagination(resultSet, options);
+    const total = await this.countDocuments(collectionName, {
+      filter: options.filter,
+      filters: options.filters,
+      filterMode: options.filterMode,
+    }).catch(() => response.total);
+    return { ...response, total };
   }
 
   async getDocuments(collectionName: string, ids: string[]): Promise<VectorDocument[]> {
@@ -675,7 +1081,10 @@ export class ChromaVectorStore implements IVectorStore {
     const collections = await client.listCollections();
     const infos: VectorCollectionInfo[] = [];
 
-    for (const collectionName of collections as unknown as string[]) {
+    for (const collectionItem of collections as unknown as Array<{ name?: string } | string>) {
+      const collectionName =
+        typeof collectionItem === 'string' ? collectionItem : (collectionItem?.name ?? '');
+      if (!collectionName) continue;
       try {
         const collection = await client.getCollection({ name: collectionName });
         const count = await collection.count();
@@ -693,6 +1102,30 @@ export class ChromaVectorStore implements IVectorStore {
     const collection = await client.getCollection({ name });
     const count = await collection.count();
     return { name, documentCount: count };
+  }
+
+  async countDocuments(
+    collectionName: string,
+    options?: {
+      filter?: Record<string, unknown>;
+      filters?: PayloadFilter[];
+      filterMode?: 'and' | 'or';
+    }
+  ): Promise<number> {
+    const client = await this.getClient();
+    const collection = await client.getCollection({ name: collectionName });
+    if (!options?.filter && (!options?.filters || options.filters.length === 0)) {
+      return collection.count();
+    }
+
+    const rows = await collection.get({
+      where: options?.filter as import('chromadb').Where | undefined,
+      include: ['metadatas'],
+    });
+    const docs: Array<{ metadata?: Record<string, unknown> }> = rows.ids.map((_, index) => ({
+      metadata: rows.metadatas?.[index] as Record<string, unknown> | undefined,
+    }));
+    return applyUnifiedPostFilters(docs, options?.filters, options?.filterMode).length;
   }
 }
 
@@ -714,11 +1147,19 @@ export class PineconeVectorStore implements IVectorStore {
     }
   }
 
+  private resolveNamespace(collectionName?: string): string {
+    const namespace = this.config.pineconeNamespace ?? collectionName;
+    if (!namespace || !namespace.trim()) {
+      return PINECONE_DEFAULT_NAMESPACE;
+    }
+    return namespace;
+  }
+
   private getPineconeConfig(collectionName?: string) {
     return {
       apiKey: this.config.pineconeApiKey!,
       indexName: this.config.pineconeIndexName!,
-      namespace: this.config.pineconeNamespace ?? collectionName,
+      namespace: this.resolveNamespace(collectionName),
       embeddingConfig: this.config.embeddingConfig,
       embeddingApiKey: this.config.embeddingApiKey,
     };
@@ -760,7 +1201,7 @@ export class PineconeVectorStore implements IVectorStore {
     const index = await this.getIndex();
     const { deleteAllDocuments, getIndexStats } = await import('./pinecone-client');
     const stats = await getIndexStats(index);
-    const namespace = this.getPineconeConfig(collectionName).namespace || 'default';
+    const namespace = this.resolveNamespace(collectionName);
     const before = stats.namespaces?.[namespace]?.vectorCount ?? 0;
     await deleteAllDocuments(index, namespace);
     return before;
@@ -771,15 +1212,69 @@ export class PineconeVectorStore implements IVectorStore {
     query: string,
     options: SearchOptions = {}
   ): Promise<VectorSearchResult[]> {
-    const index = await this.getIndex();
-    const { queryPinecone } = await import('./pinecone-client');
-    const { topK = 5, filter } = options;
+    const queryResult = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
+    return this.searchByEmbedding(collectionName, queryResult.embedding, options);
+  }
 
-    return queryPinecone(index, query, this.getPineconeConfig(collectionName), {
+  async searchByEmbedding(
+    collectionName: string,
+    embedding: number[],
+    options: SearchOptions = {}
+  ): Promise<VectorSearchResult[]> {
+    const index = await this.getIndex();
+    const namespace = this.resolveNamespace(collectionName);
+    const ns = namespace ? index.namespace(namespace) : index;
+    const { topK = 5 } = options;
+
+    const { filter: mappedFilter, requiresPostFilter } = buildPineconeFilterFromUnified(
+      options.filters,
+      options.filterMode
+    );
+    const nativeFilter = options.filter;
+    const effectiveFilter = nativeFilter ?? mappedFilter;
+
+    const response = await ns.query({
+      vector: embedding,
       topK,
-      filter,
+      filter: effectiveFilter,
       includeMetadata: true,
     });
+
+    const mapped = (response.matches || []).map((match) => ({
+      id: match.id,
+      content: (match.metadata?.content as string) || '',
+      metadata: match.metadata as Record<string, unknown> | undefined,
+      score: match.score || 0,
+    }));
+
+    const postFiltered =
+      !nativeFilter && requiresPostFilter
+        ? applyUnifiedPostFilters(mapped, options.filters, options.filterMode)
+        : mapped;
+
+    return applyThresholdAndPagination(postFiltered, options).results;
+  }
+
+  async searchDocumentsWithTotal(
+    collectionName: string,
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<SearchResponse> {
+    const queryResult = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
+    const requested = Math.max((options.offset ?? 0) + (options.limit ?? options.topK ?? 5), options.topK ?? 5);
+    const results = await this.searchByEmbedding(collectionName, queryResult.embedding, {
+      ...options,
+      topK: requested,
+      offset: 0,
+      limit: requested,
+    });
+    const paged = applyThresholdAndPagination(results, options);
+    const total = await this.countDocuments(collectionName, {
+      filter: options.filter,
+      filters: options.filters,
+      filterMode: options.filterMode,
+    }).catch(() => paged.total);
+    return { ...paged, total };
   }
 
   async getDocuments(collectionName: string, ids: string[]): Promise<VectorDocument[]> {
@@ -830,12 +1325,38 @@ export class PineconeVectorStore implements IVectorStore {
       this.config.pineconeIndexName!
     );
     const stats = await getIndexStats(index);
-    const namespace = this.getPineconeConfig(name).namespace || 'default';
+    const namespace = this.resolveNamespace(name);
     return {
       name: namespace,
       documentCount: stats.namespaces?.[namespace]?.vectorCount ?? 0,
       dimension: info.dimension,
     };
+  }
+
+  async countDocuments(
+    collectionName: string,
+    options?: {
+      filter?: Record<string, unknown>;
+      filters?: PayloadFilter[];
+      filterMode?: 'and' | 'or';
+    }
+  ): Promise<number> {
+    const index = await this.getIndex();
+    const { getIndexStats } = await import('./pinecone-client');
+    if (!options?.filter && (!options?.filters || options.filters.length === 0)) {
+      const stats = await getIndexStats(index);
+      const namespace = this.resolveNamespace(collectionName);
+      return stats.namespaces?.[namespace]?.vectorCount ?? 0;
+    }
+
+    const probeVector = new Array(this.config.embeddingConfig.dimensions || 1536).fill(0);
+    const results = await this.searchByEmbedding(collectionName, probeVector, {
+      topK: 10000,
+      filter: options?.filter,
+      filters: options?.filters,
+      filterMode: options?.filterMode,
+    });
+    return results.length;
   }
 }
 
@@ -879,8 +1400,44 @@ export class WeaviateVectorStore implements IVectorStore {
     query: string,
     options: SearchOptions = {}
   ): Promise<VectorSearchResult[]> {
+    const queryEmbedding = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
+    return this.searchByEmbedding(collectionName, queryEmbedding.embedding, options);
+  }
+
+  async searchByEmbedding(
+    collectionName: string,
+    embedding: number[],
+    options: SearchOptions = {}
+  ): Promise<VectorSearchResult[]> {
     const { queryWeaviate } = await import('./weaviate-client');
-    return queryWeaviate(this.getWeaviateConfig(collectionName), query, options);
+    const mapped = await queryWeaviate(this.getWeaviateConfig(collectionName), '', {
+      ...options,
+      embedding,
+    });
+    const postFiltered = applyUnifiedPostFilters(mapped, options.filters, options.filterMode);
+    return applyThresholdAndPagination(postFiltered, options).results;
+  }
+
+  async searchDocumentsWithTotal(
+    collectionName: string,
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<SearchResponse> {
+    const queryEmbedding = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
+    const requested = Math.max((options.offset ?? 0) + (options.limit ?? options.topK ?? 5), options.topK ?? 5);
+    const rows = await this.searchByEmbedding(collectionName, queryEmbedding.embedding, {
+      ...options,
+      topK: requested,
+      offset: 0,
+      limit: requested,
+    });
+    const paged = applyThresholdAndPagination(rows, options);
+    const total = await this.countDocuments(collectionName, {
+      filter: options.filter,
+      filters: options.filters,
+      filterMode: options.filterMode,
+    }).catch(() => paged.total);
+    return { ...paged, total };
   }
 
   async getDocuments(collectionName: string, ids: string[]): Promise<VectorDocument[]> {
@@ -921,6 +1478,53 @@ export class WeaviateVectorStore implements IVectorStore {
     const info = await getWeaviateClassInfo(this.getWeaviateConfig(name));
     return { ...info, documentCount: info.documentCount ?? 0 };
   }
+
+  async scrollDocuments(
+    collectionName: string,
+    options: ScrollOptions = {}
+  ): Promise<ScrollResponse> {
+    const { scrollWeaviateDocuments, countWeaviateDocuments } = await import('./weaviate-client');
+    const offset = options.offset ?? 0;
+    const limit = options.limit ?? 100;
+    const documents = await scrollWeaviateDocuments(this.getWeaviateConfig(collectionName), {
+      offset,
+      limit,
+      filter: options.filter as Record<string, unknown> | undefined,
+    });
+    const postFiltered = applyUnifiedPostFilters(documents, options.filters, options.filterMode);
+    const pagedDocs = postFiltered.slice(0, limit);
+    const total = options.filters?.length
+      ? postFiltered.length
+      : await countWeaviateDocuments(this.getWeaviateConfig(collectionName));
+    return {
+      documents: pagedDocs,
+      total,
+      offset,
+      limit,
+      hasMore: offset + pagedDocs.length < total,
+    };
+  }
+
+  async countDocuments(
+    collectionName: string,
+    options?: {
+      filter?: Record<string, unknown>;
+      filters?: PayloadFilter[];
+      filterMode?: 'and' | 'or';
+    }
+  ): Promise<number> {
+    const { countWeaviateDocuments, scrollWeaviateDocuments } = await import('./weaviate-client');
+    if (!options?.filters || options.filters.length === 0) {
+      return countWeaviateDocuments(this.getWeaviateConfig(collectionName));
+    }
+
+    const docs = await scrollWeaviateDocuments(this.getWeaviateConfig(collectionName), {
+      offset: 0,
+      limit: 10000,
+      filter: options.filter,
+    });
+    return applyUnifiedPostFilters(docs, options.filters, options.filterMode).length;
+  }
 }
 
 /**
@@ -944,6 +1548,70 @@ export class QdrantVectorStore implements IVectorStore {
       });
     }
     return this.qdrantClient;
+  }
+
+  private buildQdrantFilter(
+    options: {
+      filter?: Record<string, unknown>;
+      filters?: PayloadFilter[];
+      filterMode?: 'and' | 'or';
+    }
+  ): { filter?: Record<string, unknown>; requiresPostFilter: boolean } {
+    if (options.filter) {
+      return {
+        filter: options.filter,
+        requiresPostFilter: Boolean(options.filters && options.filters.length > 0),
+      };
+    }
+    return toQdrantConditions(options.filters, options.filterMode);
+  }
+
+  private async queryByEmbedding(
+    collectionName: string,
+    embedding: number[],
+    options: SearchOptions = {}
+  ): Promise<VectorSearchResult[]> {
+    const client = await this.getClient();
+    const { topK = 5, threshold } = options;
+    const { filter, requiresPostFilter } = this.buildQdrantFilter(options);
+
+    let rows: Array<{ id: string | number; payload?: Record<string, unknown>; score: number }> = [];
+    try {
+      const response = await client.query(collectionName, {
+        query: embedding,
+        limit: topK,
+        offset: options.offset,
+        score_threshold: threshold,
+        filter,
+        with_payload: true,
+        with_vector: false,
+      } as any);
+      rows = ((response as { points?: Array<{ id: string | number; payload?: Record<string, unknown>; score: number }> }).points || []);
+    } catch {
+      const fallback = await client.search(collectionName, {
+        vector: embedding,
+        limit: topK,
+        offset: options.offset,
+        score_threshold: threshold,
+        filter,
+        with_payload: true,
+      });
+      rows = fallback as Array<{ id: string | number; payload?: Record<string, unknown>; score: number }>;
+    }
+
+    const mapped = rows.map((result) => ({
+      id: String(result.id),
+      content: (result.payload?.content as string) || '',
+      metadata: result.payload as Record<string, unknown> | undefined,
+      score: result.score,
+    }));
+
+    const postFiltered =
+      requiresPostFilter
+        ? applyUnifiedPostFilters(mapped, options.filters, options.filterMode)
+        : mapped;
+
+    return applyThresholdAndPagination(postFiltered, options).results;
   }
 
   async addDocuments(collectionName: string, documents: VectorDocument[]): Promise<void> {
@@ -989,32 +1657,50 @@ export class QdrantVectorStore implements IVectorStore {
     await client.delete(collectionName, { wait: true, points: ids });
   }
 
+  async deleteAllDocuments(collectionName: string): Promise<number> {
+    const before = await this.countDocuments(collectionName).catch(() => 0);
+    await this.deleteCollection(collectionName);
+    await this.createCollection(collectionName);
+    return before;
+  }
+
   async searchDocuments(
     collectionName: string,
     query: string,
     options: SearchOptions = {}
   ): Promise<VectorSearchResult[]> {
-    const client = await this.getClient();
-    
-    const { generateEmbedding } = await import('./embedding');
-    const { topK = 5, filter, threshold } = options;
-
     const queryResult = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
+    return this.searchByEmbedding(collectionName, queryResult.embedding, options);
+  }
 
-    const results = await client.search(collectionName, {
-      vector: queryResult.embedding,
-      limit: topK,
-      filter: filter as Record<string, unknown> | undefined,
-      score_threshold: threshold,
-      with_payload: true,
+  async searchByEmbedding(
+    collectionName: string,
+    embedding: number[],
+    options: SearchOptions = {}
+  ): Promise<VectorSearchResult[]> {
+    return this.queryByEmbedding(collectionName, embedding, options);
+  }
+
+  async searchDocumentsWithTotal(
+    collectionName: string,
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<SearchResponse> {
+    const queryResult = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
+    const requested = Math.max((options.offset ?? 0) + (options.limit ?? options.topK ?? 5), options.topK ?? 5);
+    const results = await this.searchByEmbedding(collectionName, queryResult.embedding, {
+      ...options,
+      topK: requested,
+      offset: 0,
+      limit: requested,
     });
-
-    return results.map((result) => ({
-      id: String(result.id),
-      content: (result.payload?.content as string) || '',
-      metadata: result.payload as Record<string, unknown> | undefined,
-      score: result.score,
-    }));
+    const paged = applyThresholdAndPagination(results, options);
+    const total = await this.countDocuments(collectionName, {
+      filter: options.filter,
+      filters: options.filters,
+      filterMode: options.filterMode,
+    }).catch(() => paged.total);
+    return { ...paged, total };
   }
 
   async getDocuments(collectionName: string, ids: string[]): Promise<VectorDocument[]> {
@@ -1083,6 +1769,85 @@ export class QdrantVectorStore implements IVectorStore {
         : undefined,
     };
   }
+
+  async scrollDocuments(
+    collectionName: string,
+    options: ScrollOptions = {}
+  ): Promise<ScrollResponse> {
+    const client = await this.getClient();
+    const offset = options.offset;
+    const limit = options.limit ?? 100;
+    const { filter, requiresPostFilter } = this.buildQdrantFilter({
+      filter: options.filter,
+      filters: options.filters,
+      filterMode: options.filterMode,
+    });
+    const response = await client.scroll(collectionName, {
+      offset,
+      limit,
+      filter,
+      with_payload: true,
+      with_vector: true,
+    });
+
+    const mapped = response.points.map((point) => ({
+      id: String(point.id),
+      content: (point.payload?.content as string) || '',
+      metadata: point.payload as Record<string, unknown> | undefined,
+      embedding: point.vector as number[] | undefined,
+    }));
+    const postFiltered = requiresPostFilter
+      ? applyUnifiedPostFilters(mapped, options.filters, options.filterMode)
+      : mapped;
+    const total = await this.countDocuments(collectionName, {
+      filter: options.filter,
+      filters: options.filters,
+      filterMode: options.filterMode,
+    }).catch(() => postFiltered.length);
+
+    return {
+      documents: postFiltered,
+      total,
+      offset: options.offset ?? 0,
+      limit,
+      hasMore: postFiltered.length === limit && (options.offset ?? 0) + limit < total,
+    };
+  }
+
+  async countDocuments(
+    collectionName: string,
+    options?: {
+      filter?: Record<string, unknown>;
+      filters?: PayloadFilter[];
+      filterMode?: 'and' | 'or';
+    }
+  ): Promise<number> {
+    const client = await this.getClient();
+    const { filter, requiresPostFilter } = this.buildQdrantFilter({
+      filter: options?.filter,
+      filters: options?.filters,
+      filterMode: options?.filterMode,
+    });
+
+    if (!requiresPostFilter) {
+      const result = await client.count(collectionName, {
+        filter,
+        exact: true,
+      } as any);
+      return result.count ?? 0;
+    }
+
+    const response = await client.scroll(collectionName, {
+      limit: 10000,
+      with_payload: true,
+      with_vector: false,
+      filter,
+    });
+    const mapped = response.points.map((point) => ({
+      metadata: point.payload as Record<string, unknown> | undefined,
+    }));
+    return applyUnifiedPostFilters(mapped, options?.filters, options?.filterMode).length;
+  }
 }
 
 /**
@@ -1109,6 +1874,33 @@ export class MilvusVectorStore implements IVectorStore {
       });
     }
     return this.milvusClient;
+  }
+
+  private buildMilvusFilterExpression(options: {
+    filter?: Record<string, unknown>;
+    filters?: PayloadFilter[];
+    filterMode?: 'and' | 'or';
+  }): string | undefined {
+    if (options.filter) {
+      const native = options.filter as unknown;
+      if (typeof native === 'string') {
+        return native;
+      }
+      if (typeof native === 'object') {
+        const clauses = Object.entries(native as Record<string, unknown>).map(
+          ([key, value]) => `${key} == ${toMilvusLiteral(value)}`
+        );
+        if (clauses.length > 0) {
+          return clauses.length === 1 ? clauses[0] : `(${clauses.join(' and ')})`;
+        }
+      }
+    }
+
+    if (options.filters && options.filters.length > 0) {
+      return buildMilvusFilterFromUnified(options.filters, options.filterMode);
+    }
+
+    return undefined;
   }
 
   async addDocuments(collectionName: string, documents: VectorDocument[]): Promise<void> {
@@ -1169,22 +1961,32 @@ export class MilvusVectorStore implements IVectorStore {
     query: string,
     options: SearchOptions = {}
   ): Promise<VectorSearchResult[]> {
-    const client = await this.getClient();
-    const { generateEmbedding } = await import('./embedding');
-    const { topK = 5, filter, threshold } = options;
-
     const queryResult = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
+    return this.searchByEmbedding(collectionName, queryResult.embedding, options);
+  }
+
+  async searchByEmbedding(
+    collectionName: string,
+    embedding: number[],
+    options: SearchOptions = {}
+  ): Promise<VectorSearchResult[]> {
+    const client = await this.getClient();
+    const { topK = 5, threshold } = options;
+    const filterExpression = this.buildMilvusFilterExpression({
+      filter: options.filter,
+      filters: options.filters,
+      filterMode: options.filterMode,
+    });
 
     const searchResponse = await client.search({
       collection_name: collectionName,
-      data: [queryResult.embedding],
+      data: [embedding],
       limit: topK,
-      filter: filter ? JSON.stringify(filter) : undefined,
+      filter: filterExpression,
       output_fields: ['content', '*'],
     } as any);
 
-    return (searchResponse.results as any[])
-      .filter((r: Record<string, unknown>) => threshold === undefined || (r.score as number) >= threshold)
+    const mapped = (searchResponse.results as any[])
       .map((result: Record<string, unknown>) => ({
         id: String(result.id),
         content: (result.content as string) || '',
@@ -1193,6 +1995,33 @@ export class MilvusVectorStore implements IVectorStore {
         ),
         score: result.score as number,
       }));
+
+    const postFiltered = applyUnifiedPostFilters(mapped, options.filters, options.filterMode);
+    const thresholdFiltered =
+      threshold === undefined ? postFiltered : postFiltered.filter((row) => row.score >= threshold);
+    return applyThresholdAndPagination(thresholdFiltered, options).results;
+  }
+
+  async searchDocumentsWithTotal(
+    collectionName: string,
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<SearchResponse> {
+    const queryResult = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
+    const requested = Math.max((options.offset ?? 0) + (options.limit ?? options.topK ?? 5), options.topK ?? 5);
+    const rows = await this.searchByEmbedding(collectionName, queryResult.embedding, {
+      ...options,
+      topK: requested,
+      offset: 0,
+      limit: requested,
+    });
+    const paged = applyThresholdAndPagination(rows, options);
+    const total = await this.countDocuments(collectionName, {
+      filter: options.filter,
+      filters: options.filters,
+      filterMode: options.filterMode,
+    }).catch(() => paged.total);
+    return { ...paged, total };
   }
 
   async getDocuments(collectionName: string, ids: string[]): Promise<VectorDocument[]> {
@@ -1325,6 +2154,73 @@ export class MilvusVectorStore implements IVectorStore {
       dimension,
       description: describeResponse.schema.description,
     };
+  }
+
+  async scrollDocuments(
+    collectionName: string,
+    options: ScrollOptions = {}
+  ): Promise<ScrollResponse> {
+    const client = await this.getClient();
+    const offset = options.offset ?? 0;
+    const limit = options.limit ?? 100;
+    const filterExpression = this.buildMilvusFilterExpression({
+      filter: options.filter,
+      filters: options.filters,
+      filterMode: options.filterMode,
+    });
+
+    const response = await client.query({
+      collection_name: collectionName,
+      filter: filterExpression || '',
+      output_fields: ['id', 'content', 'vector', '*'],
+      limit,
+      offset,
+    });
+
+    const docs: VectorDocument[] = response.data.map((item: Record<string, unknown>) => ({
+      id: String(item.id),
+      content: (item.content as string) || '',
+      metadata: Object.fromEntries(
+        Object.entries(item).filter(([key]) => !['id', 'content', 'vector'].includes(key))
+      ),
+      embedding: item.vector as number[] | undefined,
+    }));
+
+    const total = await this.countDocuments(collectionName, {
+      filter: options.filter,
+      filters: options.filters,
+      filterMode: options.filterMode,
+    }).catch(() => docs.length);
+
+    return {
+      documents: docs,
+      total,
+      offset,
+      limit,
+      hasMore: offset + docs.length < total,
+    };
+  }
+
+  async countDocuments(
+    collectionName: string,
+    options?: {
+      filter?: Record<string, unknown>;
+      filters?: PayloadFilter[];
+      filterMode?: 'and' | 'or';
+    }
+  ): Promise<number> {
+    const client = await this.getClient();
+    const filterExpression = this.buildMilvusFilterExpression({
+      filter: options?.filter,
+      filters: options?.filters,
+      filterMode: options?.filterMode,
+    });
+    const response = await client.query({
+      collection_name: collectionName,
+      filter: filterExpression || '',
+      output_fields: ['count(*)'],
+    });
+    return (response.data[0]?.['count(*)'] as number) || 0;
   }
 }
 

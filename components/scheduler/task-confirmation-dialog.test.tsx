@@ -8,7 +8,9 @@ import type { TaskConfirmationRequest } from '@/types/scheduler';
 
 describe('TaskConfirmationDialog', () => {
   const mockConfirmation: TaskConfirmationRequest = {
+    confirmation_id: 'confirm-1',
     task_id: 'task-1',
+    target_task_id: 'task-1',
     operation: 'create',
     risk_level: 'medium',
     requires_admin: false,
@@ -18,6 +20,8 @@ describe('TaskConfirmationDialog', () => {
       trigger_summary: 'Every hour',
       action_summary: 'Run command: echo hello',
     },
+    created_at: '2026-01-01T10:00:00Z',
+    expires_at: '2026-01-02T10:00:00Z',
   };
 
   const defaultProps = {

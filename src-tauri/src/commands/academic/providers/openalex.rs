@@ -12,24 +12,24 @@ const OPENALEX_API_URL: &str = "https://api.openalex.org";
 
 pub struct OpenAlexProvider {
     enabled: bool,
-    email: Option<String>, // Used for polite pool access
+    api_key: Option<String>,
 }
 
 impl OpenAlexProvider {
-    pub fn new(email: Option<String>) -> Self {
+    pub fn new(api_key: Option<String>) -> Self {
         Self {
             enabled: true,
-            email,
+            api_key,
         }
     }
 
     fn build_url(&self, path: &str) -> String {
         let mut url = format!("{}{}", OPENALEX_API_URL, path);
-        if let Some(ref email) = self.email {
+        if let Some(ref api_key) = self.api_key {
             if url.contains('?') {
-                url.push_str(&format!("&mailto={}", email));
+                url.push_str(&format!("&api_key={}", api_key));
             } else {
-                url.push_str(&format!("?mailto={}", email));
+                url.push_str(&format!("?api_key={}", api_key));
             }
         }
         url
@@ -292,8 +292,8 @@ impl AcademicProvider for OpenAlexProvider {
             description: "Open catalog of scholarly papers, authors, and institutions".to_string(),
             base_url: OPENALEX_API_URL.to_string(),
             enabled: self.enabled,
-            requires_api_key: false,
-            has_api_key: self.email.is_some(),
+            requires_api_key: true,
+            has_api_key: self.api_key.is_some(),
             features: ProviderFeatures {
                 search: true,
                 full_text: false,
@@ -313,11 +313,15 @@ impl AcademicProvider for OpenAlexProvider {
         self.enabled = enabled;
     }
 
-    fn set_api_key(&mut self, email: Option<String>) {
-        self.email = email;
+    fn set_api_key(&mut self, api_key: Option<String>) {
+        self.api_key = api_key;
     }
 
     async fn test_connection(&self) -> Result<bool, String> {
+        if self.api_key.is_none() {
+            return Err("OpenAlex API key is required".to_string());
+        }
+
         let url = self.build_url("/works?search=test&per_page=1");
 
         match create_proxy_client()
@@ -332,6 +336,10 @@ impl AcademicProvider for OpenAlexProvider {
     }
 
     async fn search(&self, query: &str, options: &SearchOptions) -> Result<SearchResult, String> {
+        if self.api_key.is_none() {
+            return Err("OpenAlex API key is required".to_string());
+        }
+
         let start_time = std::time::Instant::now();
 
         let limit = options.limit.unwrap_or(20).min(200);
@@ -429,6 +437,10 @@ impl AcademicProvider for OpenAlexProvider {
     }
 
     async fn get_paper(&self, paper_id: &str) -> Result<Paper, String> {
+        if self.api_key.is_none() {
+            return Err("OpenAlex API key is required".to_string());
+        }
+
         let id = if paper_id.starts_with("W") {
             paper_id.to_string()
         } else {
@@ -462,6 +474,10 @@ impl AcademicProvider for OpenAlexProvider {
         limit: u32,
         offset: u32,
     ) -> Result<Vec<PaperCitation>, String> {
+        if self.api_key.is_none() {
+            return Err("OpenAlex API key is required".to_string());
+        }
+
         let id = if paper_id.starts_with("W") {
             paper_id.to_string()
         } else {
@@ -531,6 +547,10 @@ impl AcademicProvider for OpenAlexProvider {
         limit: u32,
         offset: u32,
     ) -> Result<Vec<PaperReference>, String> {
+        if self.api_key.is_none() {
+            return Err("OpenAlex API key is required".to_string());
+        }
+
         let id = if paper_id.starts_with("W") {
             paper_id.to_string()
         } else {

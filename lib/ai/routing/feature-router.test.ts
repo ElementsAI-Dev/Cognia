@@ -232,7 +232,13 @@ describe('Feature Router', () => {
 
       const url = buildFeatureNavigationUrl(speedpassRoute, {
         message: '明天考试，帮我速通高数并刷题',
-        textbookId: 'tb-1',
+        speedpassContext: {
+          textbookId: 'tb-1',
+          availableTimeMinutes: 120,
+          targetScore: 75,
+          examDate: '2026-03-01T00:00:00.000Z',
+          recommendedMode: 'speed',
+        },
       });
       const ctxKey = new URL(`http://localhost${url}`).searchParams.get('ctx');
       expect(ctxKey).toBeTruthy();
@@ -240,6 +246,8 @@ describe('Feature Router', () => {
       const consumed = consumeFeatureNavigationContext(ctxKey);
       expect(consumed?.message).toContain('速通高数');
       expect(consumed?.textbookId).toBe('tb-1');
+      expect(consumed?.speedpassContext?.recommendedMode).toBe('speed');
+      expect(consumed?.availableTimeMinutes).toBe(120);
 
       const consumedAgain = consumeFeatureNavigationContext(ctxKey);
       expect(consumedAgain).toBeNull();

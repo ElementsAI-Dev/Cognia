@@ -10,9 +10,17 @@
 
 import type { Monaco } from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
+import {
+  mapEditorSettingsToMonacoOptions,
+  type EditorSettingsInput,
+} from '@/lib/editor-workbench/editor-settings-adapter';
 
 // Re-export types for convenience
 export type { Monaco, editor };
+
+export interface CreateEditorOptionsContext {
+  editorSettings?: EditorSettingsInput;
+}
 
 /**
  * Base editor options shared across all Monaco instances
@@ -330,7 +338,8 @@ export function getMonacoLanguage(language: string): string {
  */
 export function createEditorOptions(
   preset: 'base' | 'code' | 'markdown' | 'minimal' = 'base',
-  overrides: Partial<editor.IStandaloneEditorConstructionOptions> = {}
+  overrides: Partial<editor.IStandaloneEditorConstructionOptions> = {},
+  context: CreateEditorOptionsContext = {}
 ): editor.IStandaloneEditorConstructionOptions {
   const presetOptions = {
     base: MONACO_BASE_OPTIONS,
@@ -338,24 +347,10 @@ export function createEditorOptions(
     markdown: MONACO_MARKDOWN_OPTIONS,
     minimal: MONACO_MINIMAL_OPTIONS,
   }[preset];
+  const settingsOptions = mapEditorSettingsToMonacoOptions(context.editorSettings);
+  const mergedWithSettings = mergeEditorOptions(presetOptions, settingsOptions);
 
-  return {
-    ...presetOptions,
-    ...overrides,
-    // Deep merge for nested objects
-    minimap: {
-      ...(typeof presetOptions.minimap === 'object' ? presetOptions.minimap : {}),
-      ...(typeof overrides.minimap === 'object' ? overrides.minimap : {}),
-    },
-    scrollbar: {
-      ...(typeof presetOptions.scrollbar === 'object' ? presetOptions.scrollbar : {}),
-      ...(typeof overrides.scrollbar === 'object' ? overrides.scrollbar : {}),
-    },
-    padding: {
-      ...(typeof presetOptions.padding === 'object' ? presetOptions.padding : {}),
-      ...(typeof overrides.padding === 'object' ? overrides.padding : {}),
-    },
-  };
+  return mergeEditorOptions(mergedWithSettings, overrides);
 }
 
 /**

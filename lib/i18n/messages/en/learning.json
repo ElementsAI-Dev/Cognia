@@ -171,6 +171,211 @@
         "totalWrongQuestions": "Total Wrong Questions",
         "markedReviewed": "Marked as reviewed",
         "markReviewed": "Mark Reviewed"
+      },
+      "panel": {
+        "submodeTitle": "SpeedPass Learning Panel",
+        "submodeSwitcher": "SpeedPass",
+        "dailyStudy": "Today's SpeedPass · {days} day streak",
+        "quickPanelTitle": "SpeedPass Quick Actions",
+        "recommendedModeAndTarget": "Recommended mode: {mode} · Daily target: {targetMinutes} min",
+        "modeLabels": {
+          "extreme": "Extreme Mode",
+          "speed": "Speed Mode",
+          "comprehensive": "Comprehensive Mode"
+        },
+        "todayProgress": "Today's progress",
+        "actions": {
+          "continueTutorial": "Continue Tutorial",
+          "startQuiz": "Start Quiz",
+          "openWorkspace": "Open SpeedPass Workspace"
+        },
+        "messages": {
+          "continueTutorial": "Continue my SpeedPass tutorial",
+          "startQuiz": "Start a SpeedPass practice quiz",
+          "openWorkspace": "Open SpeedPass workspace and show my plan"
+        },
+        "textbookCount": "Textbooks",
+        "currentTutorial": "Current Tutorial",
+        "noTutorial": "No active tutorial"
+      },
+      "modeSelector": {
+        "title": "Choose SpeedPass Mode",
+        "description": "Choose the most suitable mode based on your time and goals.",
+        "descriptionWithTextbook": "Choose the best mode for \"{textbookName}\".",
+        "availableTimeLabel": "Available Time (minutes)",
+        "availableTimePlaceholder": "Example: 120",
+        "freeTextLabel": "Goal Description",
+        "freeTextPlaceholder": "Example: I have an exam tomorrow and only 2 hours to review",
+        "smartRecommendation": "Smart recommendation",
+        "scoreRecommendation": "Score-based recommendation",
+        "recommendedBadge": "Recommended",
+        "knowledgeCoverage": "Estimated {count} knowledge points covered (~{coveragePercent}%)",
+        "cancel": "Cancel",
+        "selectMode": "Select a mode",
+        "startMode": "Start {modeName}",
+        "urgency": {
+          "todayTitle": "Exam is today",
+          "tomorrowTitle": "Exam is tomorrow",
+          "description": "Prioritize Extreme Mode to secure high-frequency points and must-know problem types first."
+        },
+        "modes": {
+          "extreme": {
+            "title": "Extreme Mode",
+            "description": "Last-minute sprint for quick passing",
+            "duration": "1-2 hours",
+            "targetScore": "60-70",
+            "features": {
+              "primary": "Core formula memorization",
+              "secondary": "High-frequency exam points",
+              "practice": "Must-practice question types"
+            }
+          },
+          "speed": {
+            "title": "Speed Mode",
+            "description": "Focused breakthrough for mid-range goals",
+            "duration": "2-4 hours",
+            "targetScore": "70-85",
+            "features": {
+              "primary": "Key concept structuring",
+              "secondary": "Typical example walkthroughs",
+              "practice": "Medium/high-frequency coverage"
+            }
+          },
+          "comprehensive": {
+            "title": "Comprehensive Mode",
+            "description": "Systematic learning for high scores",
+            "duration": "6-12 hours",
+            "targetScore": "85-100",
+            "features": {
+              "primary": "Full knowledge point coverage",
+              "secondary": "Deep conceptual explanations",
+              "practice": "Extended practice and transfer"
+            }
+          }
+        }
+      },
+      "tutorialDetail": {
+        "loading": "Loading tutorial...",
+        "missingTutorialId": "Missing tutorial ID. Returning to SpeedPass home.",
+        "tutorialNotFound": "Tutorial not found. Returning to SpeedPass home.",
+        "chapterToc": "Chapter Outline",
+        "chapterIndex": "Section {index}",
+        "selectChapterHint": "Select a section from the left to begin.",
+        "progressLabel": "Progress",
+        "progressDescription": "{completed} / {total} sections completed",
+        "remainingMinutes": "{minutes} minutes remaining",
+        "jumpToSuggested": "Jump to suggested section",
+        "previousSection": "Previous Section",
+        "nextSection": "Next Section",
+        "completeSection": "Complete This Section",
+        "completed": "Completed",
+        "completeTutorial": "Finish Tutorial",
+        "tutorialCompleted": "Tutorial completed. Great job!",
+        "timeSpentDescription": "Time spent this session: {duration}",
+        "sectionCompleted": "Section completed",
+        "completedItems": "{completedItems} / {totalItems} completed",
+        "quickSummary": "Quick Summary",
+        "keyPoints": "Key Points",
+        "mustKnowFormulas": "Must-Know Formulas",
+        "examples": "Examples",
+        "knowledgePointIndex": "Knowledge Point {index}",
+        "pageRange": "Pages: {range}",
+        "pageNumber": "Page {page}",
+        "commonMistakes": "Common Mistakes",
+        "memoryTips": "Memory Tips",
+        "difficulty": {
+          "easy": "Easy",
+          "medium": "Medium",
+          "hard": "Hard"
+        },
+        "importance": {
+          "critical": "Critical",
+          "important": "Important",
+          "supplementary": "Supplementary"
+        },
+        "modeBadge": {
+          "extreme": "Extreme Mode",
+          "speed": "Speed Mode",
+          "comprehensive": "Comprehensive Mode"
+        },
+        "duration": {
+          "minutesOnly": "{minutes} minutes",
+          "hoursOnly": "{hours} hours",
+          "hoursMinutes": "{hours}h {minutes}m"
+        }
+      },
+      "uploader": {
+        "card": {
+          "title": "Upload Textbook",
+          "description": "Upload a PDF or text file and we'll extract key knowledge points automatically."
+        },
+        "errors": {
+          "unsupportedFileFormat": {
+            "title": "Unsupported file format",
+            "description": "Please upload a PDF, TXT, or Markdown file."
+          },
+          "missingTextbookName": "Please enter a textbook name.",
+          "processingFailed": "Textbook processing failed",
+          "retry": "Please try again."
+        },
+        "defaults": {
+          "unknownAuthor": "Unknown author",
+          "unknownPublisher": "Unknown publisher"
+        },
+        "progress": {
+          "fileReadReady": "File read complete, preparing to parse..."
+        },
+        "success": {
+          "parsedTitle": "Textbook parsed",
+          "parsedDescription": "Successfully extracted {count} knowledge points."
+        },
+        "processing": {
+          "inProgress": "Processing...",
+          "stage": {
+            "parsing": "Parsing textbook content...",
+            "extractingChapters": "Extracting chapter structure...",
+            "extractingKnowledgePoints": "Extracting knowledge points...",
+            "extractingQuestions": "Extracting examples and questions..."
+          }
+        },
+        "errorState": {
+          "title": "Processing failed",
+          "retry": "Retry"
+        },
+        "uploadZone": {
+          "dragDrop": "Drop files here",
+          "clickToSelect": "or click to select files",
+          "supportedFormats": "Supports PDF, TXT, and Markdown",
+          "selectFile": "Select File"
+        },
+        "metadataDialog": {
+          "title": "Textbook Metadata",
+          "description": "Fill in basic textbook information so the system can parse more accurately.",
+          "cancel": "Cancel",
+          "submit": "Start Parsing"
+        },
+        "fields": {
+          "name": {
+            "label": "Textbook Name",
+            "placeholder": "Example: Advanced Mathematics (Volume I)"
+          },
+          "author": {
+            "label": "Author",
+            "placeholder": "Example: Tongji University"
+          },
+          "publisher": {
+            "label": "Publisher",
+            "placeholder": "Example: Higher Education Press"
+          },
+          "edition": {
+            "label": "Edition",
+            "placeholder": "Example: 7th Edition"
+          },
+          "isbn": {
+            "label": "ISBN (optional)",
+            "placeholder": "Example: 978-7-04-037988-6"
+          }
+        }
       }
     },
     "notes": {
@@ -364,6 +569,26 @@
     }
   },
   "learning": {
+    "loading": {
+      "default": "Loading learning content...",
+      "flashcard": "Preparing flashcard...",
+      "flashcardDeck": "Preparing flashcard deck...",
+      "quiz": "Preparing quiz...",
+      "quizQuestion": "Preparing quiz question...",
+      "reviewSession": "Preparing review session...",
+      "progressSummary": "Preparing progress summary...",
+      "conceptExplanation": "Preparing concept explanation...",
+      "stepGuide": "Preparing step guide...",
+      "conceptMap": "Preparing concept map...",
+      "animation": "Preparing animation..."
+    },
+    "error": {
+      "default": "Unable to load this learning tool result."
+    },
+    "concept": {
+      "relatedConcepts": "Related Concepts",
+      "quickReview": "Quick Review"
+    },
     "visualization": {
       "title": "Concept Visualization",
       "legend": "Legend",

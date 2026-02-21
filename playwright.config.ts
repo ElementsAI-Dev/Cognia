@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:3013';
+const webServerURL = process.env.PLAYWRIGHT_WEB_SERVER_URL || `${baseURL.replace(/\/$/, '')}/next.svg`;
 const devPort = (() => {
   try {
     const url = new URL(baseURL);
@@ -59,8 +60,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `pnpm exec next dev --webpack -H 127.0.0.1 -p ${devPort}`,
-    url: baseURL,
+    command: `pnpm exec next dev -H 127.0.0.1 -p ${devPort}`,
+    url: webServerURL,
     reuseExistingServer: true,
     timeout: 180 * 1000,
   },

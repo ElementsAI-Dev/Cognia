@@ -40,12 +40,18 @@ impl Default for CompletionMode {
 pub struct CompletionContext {
     /// The text before the cursor
     pub text: String,
+    /// Optional text after cursor for suffix-aware completion
+    pub text_after_cursor: Option<String>,
+    /// Cursor offset in the full text
+    pub cursor_offset: Option<usize>,
     /// Cursor position (if available)
     pub cursor_position: Option<CursorPosition>,
     /// File path (if editing a file)
     pub file_path: Option<String>,
     /// Programming language (if known)
     pub language: Option<String>,
+    /// Optional digest of recent conversation context
+    pub conversation_digest: Option<String>,
     /// Current IME state
     pub ime_state: Option<ImeState>,
     /// Completion mode hint
@@ -75,6 +81,33 @@ pub struct CompletionRequestV2 {
     pub surface: Option<CompletionSurface>,
 }
 
+/// v3 completion request payload with explicit before/after cursor semantics.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CompletionRequestV3 {
+    /// Client-side request id for stale-response protection
+    pub request_id: Option<String>,
+    /// Text before cursor (required)
+    pub text_before_cursor: String,
+    /// Optional text after cursor for suffix-aware matching
+    pub text_after_cursor: Option<String>,
+    /// Cursor offset in full text
+    pub cursor_offset: Option<usize>,
+    /// Cursor position (if available)
+    pub cursor_position: Option<CursorPosition>,
+    /// File path (if editing a file)
+    pub file_path: Option<String>,
+    /// Programming language (if known)
+    pub language: Option<String>,
+    /// Current IME state
+    pub ime_state: Option<ImeState>,
+    /// Completion mode hint
+    pub mode: Option<CompletionMode>,
+    /// UI surface that triggered completion
+    pub surface: Option<CompletionSurface>,
+    /// Optional digest of recent conversation context
+    pub conversation_digest: Option<String>,
+}
+
 /// Minimal suggestion reference for v2 accept/dismiss actions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompletionSuggestionRef {
@@ -90,6 +123,27 @@ pub struct CompletionResultV2 {
     pub surface: CompletionSurface,
     /// Completion mode used by backend
     pub mode: CompletionMode,
+    /// List of completion suggestions
+    pub suggestions: Vec<CompletionSuggestion>,
+    /// Request latency in milliseconds
+    pub latency_ms: u64,
+    /// Model used for completion
+    pub model: String,
+    /// Whether the result was cached
+    pub cached: bool,
+}
+
+/// v3 result payload that preserves alignment metadata.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CompletionResultV3 {
+    /// Client-side request id for response matching
+    pub request_id: String,
+    /// UI surface that triggered completion
+    pub surface: CompletionSurface,
+    /// Completion mode used by backend
+    pub mode: CompletionMode,
+    /// Echoed cursor offset
+    pub cursor_offset: Option<usize>,
     /// List of completion suggestions
     pub suggestions: Vec<CompletionSuggestion>,
     /// Request latency in milliseconds
@@ -204,6 +258,14 @@ pub struct CompletionStats {
     pub avg_latency_ms: f64,
     /// Cache hit rate (0.0 - 1.0)
     pub cache_hit_rate: f64,
+    /// Exact cache hits
+    pub cache_hits_exact: u64,
+    /// Prefix cache hits
+    pub cache_hits_prefix: u64,
+    /// Normalized cache hits
+    pub cache_hits_normalized: u64,
+    /// Stale cache rejects (suffix mismatch, etc.)
+    pub cache_stale_rejects: u64,
     /// Quality feedback stats
     pub feedback_stats: FeedbackStats,
 }
@@ -316,9 +378,12 @@ mod tests {
     fn test_completion_context_default() {
         let context = CompletionContext::default();
         assert!(context.text.is_empty());
+        assert!(context.text_after_cursor.is_none());
+        assert!(context.cursor_offset.is_none());
         assert!(context.cursor_position.is_none());
         assert!(context.file_path.is_none());
         assert!(context.language.is_none());
+        assert!(context.conversation_digest.is_none());
         assert!(context.ime_state.is_none());
         assert!(context.mode.is_none());
         assert!(context.surface.is_none());
@@ -328,6 +393,8 @@ mod tests {
     fn test_completion_context_with_values() {
         let context = CompletionContext {
             text: "fn main()".to_string(),
+            text_after_cursor: Some(" { }".to_string()),
+            cursor_offset: Some(9),
             cursor_position: Some(CursorPosition {
                 x: 100,
                 y: 200,
@@ -336,6 +403,7 @@ mod tests {
             }),
             file_path: Some("/path/to/file.rs".to_string()),
             language: Some("rust".to_string()),
+            conversation_digest: Some("user:hello".to_string()),
             ime_state: None,
             mode: Some(CompletionMode::Code),
             surface: Some(CompletionSurface::Generic),
@@ -425,6 +493,10 @@ mod tests {
         assert_eq!(stats.dismissed_suggestions, 0);
         assert_eq!(stats.avg_latency_ms, 0.0);
         assert_eq!(stats.cache_hit_rate, 0.0);
+        assert_eq!(stats.cache_hits_exact, 0);
+        assert_eq!(stats.cache_hits_prefix, 0);
+        assert_eq!(stats.cache_hits_normalized, 0);
+        assert_eq!(stats.cache_stale_rejects, 0);
     }
 
     #[test]
@@ -437,6 +509,10 @@ mod tests {
             dismissed_suggestions: 30,
             avg_latency_ms: 150.5,
             cache_hit_rate: 0.3,
+            cache_hits_exact: 10,
+            cache_hits_prefix: 8,
+            cache_hits_normalized: 12,
+            cache_stale_rejects: 3,
             feedback_stats: FeedbackStats::default(),
         };
 
@@ -504,9 +580,12 @@ mod tests {
     fn test_completion_context_serialization() {
         let context = CompletionContext {
             text: "hello".to_string(),
+            text_after_cursor: Some(" world".to_string()),
+            cursor_offset: Some(5),
             cursor_position: None,
             file_path: Some("test.rs".to_string()),
             language: Some("rust".to_string()),
+            conversation_digest: Some("u:hello".to_string()),
             ime_state: None,
             mode: Some(CompletionMode::Code),
             surface: Some(CompletionSurface::ChatInput),
@@ -591,5 +670,25 @@ mod tests {
         assert!(result.request_id.is_empty());
         assert_eq!(result.mode, CompletionMode::PlainText);
         assert_eq!(result.surface, CompletionSurface::Generic);
+    }
+
+    #[test]
+    fn test_completion_request_v3_default() {
+        let request = CompletionRequestV3::default();
+        assert!(request.request_id.is_none());
+        assert!(request.text_before_cursor.is_empty());
+        assert!(request.text_after_cursor.is_none());
+        assert!(request.cursor_offset.is_none());
+        assert!(request.mode.is_none());
+        assert!(request.surface.is_none());
+    }
+
+    #[test]
+    fn test_completion_result_v3_defaults() {
+        let result = CompletionResultV3::default();
+        assert!(result.request_id.is_empty());
+        assert_eq!(result.mode, CompletionMode::PlainText);
+        assert_eq!(result.surface, CompletionSurface::Generic);
+        assert!(result.cursor_offset.is_none());
     }
 }

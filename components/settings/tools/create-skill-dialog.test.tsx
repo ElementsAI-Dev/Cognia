@@ -227,7 +227,7 @@ const mockT = ((key: string) => {
     createSkill: 'Create Skill',
   };
   return translations[key] || key;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 }) as any;
 
 describe('CreateSkillDialog', () => {

@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { useSettingsStore } from '@/stores';
 import type { BackgroundSettings } from '@/lib/themes';
-import { normalizeBackgroundSettings, validateBackgroundData } from '@/lib/themes';
+import { migrateAndSanitizeBackgroundSettings } from '@/lib/themes';
 import type { BackgroundExportData } from '@/types/settings';
 
 export function BackgroundImportExport() {
@@ -35,16 +35,40 @@ export function BackgroundImportExport() {
   const [importMessage, setImportMessage] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const handleExport = () => {
-    // Don't export localAssetId as it's specific to the local storage
-    const { localAssetId: _localAssetId, ...rest } = backgroundSettings;
+  const stripLocalAssetsForTransport = (
+    settings: BackgroundSettings
+  ): Partial<BackgroundSettings> => ({
+    ...settings,
+    localAssetId: null,
+    layers: settings.layers.map((layer) => ({ ...layer, localAssetId: null })),
+    slideshow: {
+      ...settings.slideshow,
+      slides: settings.slideshow.slides.map((slide) => ({ ...slide, localAssetId: null })),
+    },
+  });
 
+  const handleExport = () => {
+    const migrated = migrateAndSanitizeBackgroundSettings(
+      stripLocalAssetsForTransport(backgroundSettings),
+      {
+        downgradeUnresolvedLocalToNone: true,
+        allowIncompleteUrlSource: false,
+      }
+    );
+
+    if (!migrated.success) {
+      setImportStatus('error');
+      setImportMessage(migrated.error || t('invalidFileFormat'));
+      return;
+    }
+
+    const { localAssetId: _localAssetId, ...rest } = migrated.settings;
     const settingsToExport: BackgroundExportData['settings'] = {
       ...rest,
-      layers: backgroundSettings.layers.map(({ localAssetId: _layerLocalAssetId, ...layer }) => layer),
+      layers: migrated.settings.layers.map(({ localAssetId: _layerLocalAssetId, ...layer }) => layer),
       slideshow: {
-        ...backgroundSettings.slideshow,
-        slides: backgroundSettings.slideshow.slides.map(({ localAssetId: _slideLocalAssetId, ...slide }) => slide),
+        ...migrated.settings.slideshow,
+        slides: migrated.settings.slideshow.slides.map(({ localAssetId: _slideLocalAssetId, ...slide }) => slide),
       },
     };
 
@@ -78,26 +102,46 @@ export function BackgroundImportExport() {
         const content = e.target?.result as string;
         const data = JSON.parse(content);
 
-        const validation = validateBackgroundData(data);
-        if (!validation.valid) {
+        if (!data || typeof data !== 'object' || !('version' in data) || !('settings' in data)) {
           setImportStatus('error');
-          setImportMessage(validation.error || t('invalidFileFormat'));
+          setImportMessage(t('invalidFileFormat'));
           return;
         }
 
         const bgData = data as { settings: Partial<BackgroundSettings> };
-        const normalized = normalizeBackgroundSettings(bgData.settings);
+        const slideshow = bgData.settings.slideshow
+          ? {
+              ...bgData.settings.slideshow,
+              slides: bgData.settings.slideshow.slides.map((slide) => ({
+                ...slide,
+                localAssetId: null,
+              })),
+            }
+          : undefined;
 
-        // Apply imported settings (but don't set localAssetId)
-        setBackgroundSettings({
-          ...normalized,
-          localAssetId: null, // Reset local asset since we can't import local files
-          layers: normalized.layers.map((layer) => ({ ...layer, localAssetId: null })),
-          slideshow: {
-            ...normalized.slideshow,
-            slides: normalized.slideshow.slides.map((slide) => ({ ...slide, localAssetId: null })),
+        const migrated = migrateAndSanitizeBackgroundSettings(
+          {
+            ...bgData.settings,
+            localAssetId: null,
+            layers: (bgData.settings.layers ?? []).map((layer) => ({
+              ...layer,
+              localAssetId: null,
+            })),
+            slideshow,
           },
-        });
+          {
+            downgradeUnresolvedLocalToNone: true,
+            allowIncompleteUrlSource: false,
+          }
+        );
+
+        if (!migrated.success) {
+          setImportStatus('error');
+          setImportMessage(migrated.error || t('invalidFileFormat'));
+          return;
+        }
+
+        setBackgroundSettings(migrated.settings);
 
         setImportStatus('success');
         setImportMessage(t('importSuccess'));

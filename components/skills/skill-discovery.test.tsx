@@ -19,6 +19,10 @@ jest.mock('next-intl', () => ({
       repoManagerDescription: 'Configure GitHub repositories to discover skills from.',
       branch: 'Branch',
       addRepository: 'Add Repository',
+      repoSourcePlaceholder: 'GitHub URL or owner/repo',
+      repoSourceHint: 'Supports owner/repo and full GitHub URLs.',
+      sourcePathLabel: 'Source Path',
+      sourcePathPlaceholder: 'Path inside repo',
       ownerPlaceholder: 'Owner',
       repoNamePlaceholder: 'Repository name',
       branchPlaceholder: 'Branch (default: main)',
@@ -425,6 +429,30 @@ describe('SkillDiscovery', () => {
       await userEvent.click(manageButton);
 
       expect(screen.getByText('anthropics/skills')).toBeInTheDocument();
+    });
+
+    it('should add repository using github url source', async () => {
+      render(<SkillDiscovery />);
+
+      const manageButton = screen.getByRole('button', { name: /manage repos/i });
+      await userEvent.click(manageButton);
+
+      await userEvent.type(
+        screen.getByPlaceholderText('GitHub URL or owner/repo'),
+        'https://github.com/openclaw/skills/tree/main/skills'
+      );
+      await userEvent.type(screen.getByPlaceholderText('Path inside repo'), 'skills');
+
+      const addButton = screen.getByRole('button', { name: 'Add Repository' });
+      await userEvent.click(addButton);
+
+      await waitFor(() => {
+        expect(mockAddRepo).toHaveBeenCalledWith({
+          repoUrl: 'https://github.com/openclaw/skills/tree/main/skills',
+          branch: undefined,
+          sourcePath: 'skills',
+        });
+      });
     });
   });
 

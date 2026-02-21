@@ -8,7 +8,7 @@
 use crate::skill::types::*;
 use anyhow::{anyhow, Context, Result};
 use reqwest::Client;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
@@ -77,17 +77,33 @@ impl SkillService {
 
     /// Add a repository
     pub async fn add_repo(&self, repo: SkillRepo) -> Result<()> {
+        let normalized_repo = SkillRepo {
+            owner: repo.owner.trim().to_string(),
+            name: repo.name.trim().to_string(),
+            branch: if repo.branch.trim().is_empty() {
+                "main".to_string()
+            } else {
+                repo.branch.trim().to_string()
+            },
+            source_path: repo
+                .source_path
+                .map(|path| path.replace('\\', "/"))
+                .map(|path| path.trim_matches('/').trim().to_string())
+                .filter(|path| !path.is_empty()),
+            enabled: repo.enabled,
+        };
+
         let mut store = self.store.write().await;
 
         // Check if already exists
         if let Some(existing) = store
             .repos
             .iter_mut()
-            .find(|r| r.owner == repo.owner && r.name == repo.name)
+            .find(|r| r.owner == normalized_repo.owner && r.name == normalized_repo.name)
         {
-            *existing = repo;
+            *existing = normalized_repo;
         } else {
-            store.repos.push(repo);
+            store.repos.push(normalized_repo);
         }
 
         drop(store);
@@ -166,12 +182,33 @@ impl SkillService {
 
     /// Fetch skills from a single repository
     async fn fetch_repo_skills(&self, repo: &SkillRepo) -> Result<Vec<DiscoverableSkill>> {
-        let temp_dir = timeout(std::time::Duration::from_secs(60), self.download_repo(repo))
-            .await
-            .map_err(|_| anyhow!("Download timeout after 60 seconds"))??;
+        let (temp_dir, resolved_branch) = self.download_repo(repo).await?;
+        let resolved_repo = SkillRepo {
+            owner: repo.owner.clone(),
+            name: repo.name.clone(),
+            branch: resolved_branch,
+            source_path: repo.source_path.clone(),
+            enabled: repo.enabled,
+        };
+
+        let scan_root = repo
+            .source_path
+            .as_deref()
+            .map(|source_path| temp_dir.join(source_path))
+            .unwrap_or_else(|| temp_dir.clone());
+
+        if !scan_root.exists() || !scan_root.is_dir() {
+            let _ = fs::remove_dir_all(&temp_dir);
+            return Err(anyhow!(
+                "Repository source path does not exist: {}/{}:{}",
+                repo.owner,
+                repo.name,
+                repo.source_path.clone().unwrap_or_default()
+            ));
+        }
 
         let mut skills = Vec::new();
-        self.scan_dir_recursive(&temp_dir, &temp_dir, repo, &mut skills)?;
+        self.scan_dir_recursive(&scan_root, &temp_dir, &resolved_repo, &mut skills)?;
 
         // Cleanup temp dir
         let _ = fs::remove_dir_all(&temp_dir);
@@ -267,23 +304,67 @@ impl SkillService {
         Ok(meta)
     }
 
+    fn derive_install_name(skill: &DiscoverableSkill) -> String {
+        let fallback = skill
+            .directory
+            .rsplit(['/', '\\'])
+            .next()
+            .filter(|segment| !segment.is_empty())
+            .unwrap_or(&skill.directory);
+
+        let has_nested_path = skill.directory.contains('/') || skill.directory.contains('\\');
+        if !has_nested_path {
+            return fallback.to_string();
+        }
+
+        let sanitize = |value: &str| {
+            value
+                .chars()
+                .map(|c| {
+                    if c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.' {
+                        c
+                    } else {
+                        '-'
+                    }
+                })
+                .collect::<String>()
+                .trim_matches('-')
+                .to_string()
+        };
+
+        let namespaced_path = skill
+            .directory
+            .replace('\\', "/")
+            .trim_matches('/')
+            .replace('/', "--");
+
+        format!(
+            "{}--{}--{}",
+            sanitize(&skill.repo_owner),
+            sanitize(&skill.repo_name),
+            sanitize(&namespaced_path)
+        )
+    }
+
     // ========== Skill Installation ==========
 
     /// Install a skill from repository
     pub async fn install_skill(&self, skill: &DiscoverableSkill) -> Result<InstalledSkill> {
-        // Use directory last segment as install name
-        let install_name = Path::new(&skill.directory)
-            .file_name()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_else(|| skill.directory.clone());
+        // Use stable install name that avoids collisions for nested directories
+        let install_name = Self::derive_install_name(skill);
 
         let dest = self.ssot_dir.join(&install_name);
 
         // Check if already installed
         {
             let store = self.store.read().await;
-            if store.skills.contains_key(&install_name) {
-                return Err(anyhow!("Skill already installed: {}", install_name));
+            if store
+                .skills
+                .values()
+                .any(|installed| installed.id == skill.key)
+                || store.skills.contains_key(&install_name)
+            {
+                return Err(anyhow!("Skill already installed: {}", skill.name));
             }
         }
 
@@ -293,15 +374,11 @@ impl SkillService {
                 owner: skill.repo_owner.clone(),
                 name: skill.repo_name.clone(),
                 branch: skill.repo_branch.clone(),
+                source_path: None,
                 enabled: true,
             };
 
-            let temp_dir = timeout(
-                std::time::Duration::from_secs(60),
-                self.download_repo(&repo),
-            )
-            .await
-            .map_err(|_| anyhow!("Download timeout"))??;
+            let (temp_dir, _) = self.download_repo(&repo).await?;
 
             let source = temp_dir.join(&skill.directory);
             if !source.exists() {
@@ -532,13 +609,15 @@ impl SkillService {
         &self,
         skill: &DiscoverableSkill,
     ) -> std::result::Result<(), SkillError> {
-        let install_name = Path::new(&skill.directory)
-            .file_name()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_else(|| skill.directory.clone());
+        let install_name = Self::derive_install_name(skill);
 
         let store = self.store.read().await;
-        if store.skills.contains_key(&install_name) {
+        if store
+            .skills
+            .values()
+            .any(|installed| installed.id == skill.key)
+            || store.skills.contains_key(&install_name)
+        {
             return Err(SkillError::AlreadyInstalled(install_name));
         }
         Ok(())
@@ -736,8 +815,7 @@ impl SkillService {
     /// Get all skills (merged view of discoverable, installed, and local)
     pub async fn get_all_skills(&self) -> Result<Vec<Skill>> {
         let installed = self.get_installed_skills().await;
-        let installed_dirs: std::collections::HashSet<_> =
-            installed.iter().map(|s| s.directory.clone()).collect();
+        let installed_ids: HashSet<_> = installed.iter().map(|s| s.id.clone()).collect();
 
         let mut skills: Vec<Skill> = installed
             .into_iter()
@@ -760,12 +838,7 @@ impl SkillService {
         // Try to get discoverable skills (don't fail if network error)
         if let Ok(discoverable) = self.discover_skills().await {
             for skill in discoverable {
-                let install_name = Path::new(&skill.directory)
-                    .file_name()
-                    .map(|s| s.to_string_lossy().to_string())
-                    .unwrap_or_else(|| skill.directory.clone());
-
-                if !installed_dirs.contains(&install_name) {
+                if !installed_ids.contains(&skill.key) {
                     skills.push(Skill {
                         key: skill.key,
                         name: skill.name,
@@ -878,20 +951,27 @@ impl SkillService {
     // ========== Download Helpers ==========
 
     /// Download repository to temp directory
-    async fn download_repo(&self, repo: &SkillRepo) -> Result<PathBuf> {
+    async fn download_repo(&self, repo: &SkillRepo) -> Result<(PathBuf, String)> {
         let temp_dir = tempfile::tempdir()?;
         let temp_path = temp_dir.path().to_path_buf();
         // Persist the temp directory by forgetting about it (keeps it around)
         std::mem::forget(temp_dir);
 
-        let branches = if repo.branch.is_empty() {
-            vec!["main", "master"]
-        } else {
-            vec![repo.branch.as_str(), "main", "master"]
-        };
+        let mut branches = Vec::<String>::new();
+        if !repo.branch.trim().is_empty() {
+            branches.push(repo.branch.trim().to_string());
+        }
+        if let Ok(Some(default_branch)) = self.fetch_default_branch(repo).await {
+            branches.push(default_branch);
+        }
+        branches.push("main".to_string());
+        branches.push("master".to_string());
+
+        let mut deduped = HashSet::new();
+        branches.retain(|branch| deduped.insert(branch.to_lowercase()));
 
         let mut last_error = None;
-        for branch in branches {
+        for branch in &branches {
             let url = format!(
                 "https://github.com/{}/{}/archive/refs/heads/{}.zip",
                 repo.owner, repo.name, branch
@@ -901,7 +981,7 @@ impl SkillService {
                 .check_download_timeout(300, self.download_and_extract(&url, &temp_path))
                 .await
             {
-                Ok(_) => return Ok(temp_path),
+                Ok(_) => return Ok((temp_path, branch.clone())),
                 Err(e) => {
                     last_error = Some(e);
                     continue;
@@ -915,6 +995,32 @@ impl SkillService {
             ))
         });
         Err(error)
+    }
+
+    async fn fetch_default_branch(
+        &self,
+        repo: &SkillRepo,
+    ) -> std::result::Result<Option<String>, SkillError> {
+        let url = format!("https://api.github.com/repos/{}/{}", repo.owner, repo.name);
+        let response = self
+            .http_client
+            .get(url)
+            .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+            .header(reqwest::header::USER_AGENT, "cognia-skills")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Ok(None);
+        }
+
+        let body = response.json::<serde_json::Value>().await?;
+        Ok(body
+            .get("default_branch")
+            .and_then(|value| value.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToString::to_string))
     }
 
     /// Download and extract ZIP archive
@@ -1047,6 +1153,7 @@ mod tests {
         let repos = service.list_repos().await;
         assert_eq!(repos.len(), 2);
         assert_eq!(repos[0].owner, "anthropics");
+        assert_eq!(repos[0].source_path, Some("skills".to_string()));
         assert_eq!(repos[1].owner, "ComposioHQ");
     }
 
@@ -1058,6 +1165,7 @@ mod tests {
             owner: "test-owner".to_string(),
             name: "test-repo".to_string(),
             branch: "main".to_string(),
+            source_path: None,
             enabled: true,
         };
 
@@ -1076,6 +1184,7 @@ mod tests {
             owner: "test".to_string(),
             name: "repo".to_string(),
             branch: "main".to_string(),
+            source_path: None,
             enabled: true,
         };
         service.add_repo(repo1).await.unwrap();
@@ -1084,6 +1193,7 @@ mod tests {
             owner: "test".to_string(),
             name: "repo".to_string(),
             branch: "develop".to_string(),
+            source_path: Some("skills".to_string()),
             enabled: false,
         };
         service.add_repo(repo2).await.unwrap();
@@ -1091,6 +1201,7 @@ mod tests {
         let repos = service.list_repos().await;
         let test_repo = repos.iter().find(|r| r.owner == "test").unwrap();
         assert_eq!(test_repo.branch, "develop");
+        assert_eq!(test_repo.source_path, Some("skills".to_string()));
         assert!(!test_repo.enabled);
     }
 
@@ -1172,6 +1283,23 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("already installed"));
+    }
+
+    #[test]
+    fn test_derive_install_name_for_nested_repo_skill() {
+        let skill = DiscoverableSkill {
+            key: "openclaw/skills:skills/0isone/0protocol".to_string(),
+            name: "0protocol".to_string(),
+            description: "test".to_string(),
+            directory: "skills/0isone/0protocol".to_string(),
+            readme_url: None,
+            repo_owner: "openclaw".to_string(),
+            repo_name: "skills".to_string(),
+            repo_branch: "main".to_string(),
+        };
+
+        let install_name = SkillService::derive_install_name(&skill);
+        assert_eq!(install_name, "openclaw--skills--skills--0isone--0protocol");
     }
 
     #[tokio::test]

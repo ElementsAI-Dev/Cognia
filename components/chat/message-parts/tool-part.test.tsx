@@ -6,9 +6,15 @@ import { render, screen } from '@testing-library/react';
 import { ToolPart } from './tool-part';
 import type { ToolInvocationPart } from '@/types/core/message';
 
+const mockLearningToolPart = jest.fn((_props?: unknown) => <div data-testid="learning-tool-part" />);
+
 // Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+}));
+
+jest.mock('./learning-tool-part', () => ({
+  LearningToolPart: (props: unknown) => mockLearningToolPart(props),
 }));
 
 // Mock MCP components
@@ -194,5 +200,26 @@ describe('ToolPart', () => {
   it('sets correct type attribute', () => {
     render(<ToolPart part={createToolPart()} />);
     expect(screen.getByTestId('tool-header')).toHaveAttribute('data-type', 'tool-invocation');
+  });
+
+  it('delegates learning tools to LearningToolPart with normalized name', () => {
+    render(
+      <ToolPart
+        part={createToolPart({
+          toolName: 'displayFlashcard',
+          state: 'output-available',
+          result: { flashcard: { front: 'Q', back: 'A' } },
+        })}
+      />
+    );
+
+    expect(screen.getByTestId('learning-tool-part')).toBeInTheDocument();
+    expect(mockLearningToolPart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        part: expect.objectContaining({
+          toolName: 'display_flashcard',
+        }),
+      })
+    );
   });
 });

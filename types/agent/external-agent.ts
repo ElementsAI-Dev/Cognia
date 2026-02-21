@@ -1488,6 +1488,8 @@ export interface ExternalAgentResult {
  * Execution options
  */
 export interface ExternalAgentExecutionOptions {
+  /** Reuse an existing external agent session */
+  sessionId?: string;
   /** System prompt override */
   systemPrompt?: string;
   /** Permission mode override */
@@ -1498,6 +1500,17 @@ export interface ExternalAgentExecutionOptions {
   maxSteps?: number;
   /** Context to pass to agent */
   context?: ExternalAgentContext;
+  /** Explicit working directory for ACP session creation */
+  workingDirectory?: string;
+  /** Structured instruction payload for protocol-specific metadata bridging */
+  instructionEnvelope?: {
+    hash: string;
+    developerInstructions: string;
+    customInstructions?: string;
+    skillsSummary?: string;
+    sourceFlags?: Record<string, boolean>;
+    projectContextSummary?: string;
+  };
   /** Files to include */
   files?: Array<{ path: string; content?: string }>;
   /** Callback for events */

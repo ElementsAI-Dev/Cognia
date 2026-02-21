@@ -18,6 +18,53 @@ struct StorageData {
     annotations: HashMap<String, Vec<PaperAnnotation>>,
 }
 
+fn parse_storage_data(content: &str) -> Option<StorageData> {
+    if let Ok(data) = serde_json::from_str::<StorageData>(content) {
+        return Some(data);
+    }
+
+    let value = serde_json::from_str::<serde_json::Value>(content).ok()?;
+    let normalized = normalize_json_keys_to_camel(value);
+    serde_json::from_value(normalized).ok()
+}
+
+fn normalize_json_keys_to_camel(value: serde_json::Value) -> serde_json::Value {
+    match value {
+        serde_json::Value::Object(map) => {
+            let normalized = map
+                .into_iter()
+                .map(|(key, item)| (snake_to_camel(&key), normalize_json_keys_to_camel(item)))
+                .collect();
+            serde_json::Value::Object(normalized)
+        }
+        serde_json::Value::Array(items) => serde_json::Value::Array(
+            items
+                .into_iter()
+                .map(normalize_json_keys_to_camel)
+                .collect(),
+        ),
+        other => other,
+    }
+}
+
+fn snake_to_camel(input: &str) -> String {
+    let mut result = String::with_capacity(input.len());
+    let mut uppercase_next = false;
+    for ch in input.chars() {
+        if ch == '_' {
+            uppercase_next = true;
+            continue;
+        }
+        if uppercase_next {
+            result.push(ch.to_ascii_uppercase());
+            uppercase_next = false;
+        } else {
+            result.push(ch);
+        }
+    }
+    result
+}
+
 pub struct PaperStorage {
     storage_path: PathBuf,
     pdf_path: PathBuf,
@@ -37,7 +84,7 @@ impl PaperStorage {
         let data = if storage_path.exists() {
             let content = std::fs::read_to_string(&storage_path)
                 .map_err(|e| format!("Failed to read storage file: {}", e))?;
-            serde_json::from_str(&content).unwrap_or_default()
+            parse_storage_data(&content).unwrap_or_default()
         } else {
             StorageData::default()
         };

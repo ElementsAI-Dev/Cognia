@@ -13,3 +13,6 @@ export * from './study-analyzer';
 export * from './mode-router';
 export * from './extreme-mode-engine';
 export * from './knowledge-matcher';
+export * from './xapi-event-adapter';
+export * from './qti-adapter';
+export * from './textbook-content-extractor';

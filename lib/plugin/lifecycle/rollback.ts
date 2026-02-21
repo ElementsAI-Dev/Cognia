@@ -7,6 +7,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getPluginBackupManager, type PluginBackup } from './backup';
 import { loggers } from '../core/logger';
+import { usePluginStore } from '@/stores/plugin';
+import { getPluginMarketplace } from '../package/marketplace';
 
 // =============================================================================
 // Types
@@ -97,13 +99,7 @@ export class PluginRollbackManager {
     const backups = backupManager.getBackups(pluginId);
 
     // Get current version
-    let currentVersion = 'unknown';
-    try {
-      const manifest = await invoke<{ version: string }>('plugin_get_manifest', { pluginId });
-      currentVersion = manifest.version;
-    } catch {
-      // Plugin might not be loaded
-    }
+    const currentVersion = this.getPluginVersion(pluginId) || 'unknown';
 
     // Get available versions
     const availableVersions: VersionInfo[] = [];
@@ -125,10 +121,7 @@ export class PluginRollbackManager {
 
     // Try to get versions from marketplace
     try {
-      const versions = await invoke<Array<{ version: string; date: string }>>(
-        'plugin_marketplace_versions',
-        { pluginId }
-      );
+      const versions = await getPluginMarketplace().getVersions(pluginId);
 
       for (const v of versions) {
         if (!seenVersions.has(v.version)) {
@@ -136,7 +129,7 @@ export class PluginRollbackManager {
           availableVersions.push({
             version: v.version,
             source: 'marketplace',
-            date: new Date(v.date),
+            date: v.publishedAt,
             canRollback: v.version !== currentVersion,
           });
         }
@@ -308,8 +301,14 @@ export class PluginRollbackManager {
         }
       } else {
         // Download and install from marketplace
-        await invoke('plugin_install_version', { pluginId, version: targetVersion });
+        const installResult = await getPluginMarketplace().installPlugin(pluginId, targetVersion);
+        if (!installResult.success) {
+          throw new Error(installResult.error || 'Marketplace install failed');
+        }
       }
+
+      this.projectPluginVersion(pluginId, targetVersion);
+      await this.refreshRuntimePlugins();
 
       // Step 4: Migrate data if needed
       if (this.config.migrateData) {
@@ -335,7 +334,7 @@ export class PluginRollbackManager {
         toVersion: targetVersion,
         duration: Date.now() - startTime,
         migrationApplied,
-        requiresRestart: await this.checkRequiresRestart(pluginId),
+        requiresRestart: await this.checkRequiresRestart(),
       };
 
       this.recordRollback(result);
@@ -378,20 +377,11 @@ export class PluginRollbackManager {
   }
 
   private async verifyRollback(pluginId: string, expectedVersion: string): Promise<boolean> {
-    try {
-      const manifest = await invoke<{ version: string }>('plugin_get_manifest', { pluginId });
-      return manifest.version === expectedVersion;
-    } catch {
-      return false;
-    }
+    return this.getPluginVersion(pluginId) === expectedVersion;
   }
 
-  private async checkRequiresRestart(pluginId: string): Promise<boolean> {
-    try {
-      return await invoke<boolean>('plugin_requires_restart', { pluginId });
-    } catch {
-      return false;
-    }
+  private async checkRequiresRestart(): Promise<boolean> {
+    return false;
   }
 
   // ===========================================================================
@@ -440,9 +430,13 @@ export class PluginRollbackManager {
     const isDowngrade = this.compareVersions(fromVersion, toVersion) > 0;
 
     try {
-      // Get current plugin data
-      const data = await invoke<Record<string, unknown>>('plugin_get_data', { pluginId });
-      let migratedData = { ...data };
+      const store = usePluginStore.getState();
+      const existingPlugin = store.plugins[pluginId];
+      if (!existingPlugin) {
+        return false;
+      }
+
+      let migratedData = { ...existingPlugin.config };
 
       if (isDowngrade) {
         // Apply down migrations in reverse order
@@ -471,12 +465,46 @@ export class PluginRollbackManager {
       }
 
       // Save migrated data
-      await invoke('plugin_set_data', { pluginId, data: migratedData });
+      store.setPluginConfig(pluginId, migratedData);
       return true;
     } catch (error) {
       loggers.manager.error('[Rollback] Migration failed:', error);
       return false;
     }
+  }
+
+  private getPluginVersion(pluginId: string): string | null {
+    const plugin = usePluginStore.getState().plugins[pluginId];
+    return plugin?.manifest.version || null;
+  }
+
+  private async refreshRuntimePlugins(): Promise<void> {
+    try {
+      const { getPluginManager } = await import('../core/manager');
+      await getPluginManager().scanPlugins();
+      await getPluginManager().syncRuntimeState();
+    } catch (error) {
+      loggers.manager.debug('[Rollback] Runtime refresh skipped:', error);
+    }
+  }
+
+  private projectPluginVersion(pluginId: string, version: string): void {
+    usePluginStore.setState((state) => {
+      const current = state.plugins[pluginId];
+      if (!current) return state;
+      return {
+        plugins: {
+          ...state.plugins,
+          [pluginId]: {
+            ...current,
+            manifest: {
+              ...current.manifest,
+              version,
+            },
+          },
+        },
+      };
+    });
   }
 
   // ===========================================================================

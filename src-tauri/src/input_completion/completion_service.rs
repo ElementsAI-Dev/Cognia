@@ -11,6 +11,7 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
+use unicode_normalization::UnicodeNormalization;
 
 /// Completion service for getting AI suggestions
 pub struct CompletionService {
@@ -33,6 +34,10 @@ struct ServiceStats {
     successful_completions: u64,
     failed_completions: u64,
     cache_hits: u64,
+    cache_hits_exact: u64,
+    cache_hits_prefix: u64,
+    cache_hits_normalized: u64,
+    cache_stale_rejects: u64,
     total_latency_ms: u64,
     accepted_suggestions: u64,
     dismissed_suggestions: u64,
@@ -49,8 +54,16 @@ struct CacheEntry {
     timestamp: Instant,
     /// Access count for LFU eviction
     access_count: u32,
-    /// Original text prefix for prefix matching
-    text_prefix: String,
+    /// Normalized text prefix for robust matching
+    normalized_prefix: String,
+    /// Optional normalized suffix guard
+    text_suffix: Option<String>,
+}
+
+#[derive(Clone, Copy)]
+enum CacheHitKind {
+    Exact,
+    Normalized,
 }
 
 impl CompletionService {
@@ -88,12 +101,26 @@ impl CompletionService {
         // Increment request count
         self.stats.write().total_requests += 1;
 
-        // Check cache first
-        let cache_key = self.compute_cache_key(context);
-        if let Some(cached) = self.get_cached(&cache_key) {
-            log::trace!("Cache hit for completion");
-            self.stats.write().cache_hits += 1;
+        // Check cache first (exact -> normalized -> prefix)
+        let exact_cache_key = self.compute_cache_key_with_mode(context, config, false);
+        if let Some(cached) = self.get_cached(&exact_cache_key, CacheHitKind::Exact) {
+            log::trace!("Exact cache hit for completion");
             return Ok(cached);
+        }
+
+        let normalized_cache_key = self.compute_cache_key(context, config);
+        if normalized_cache_key != exact_cache_key {
+            if let Some(cached) = self.get_cached(&normalized_cache_key, CacheHitKind::Normalized) {
+                log::trace!("Normalized cache hit for completion");
+                return Ok(cached);
+            }
+        }
+
+        if let Some(prefix_cached) =
+            self.get_cached_by_prefix(&context.text, context.text_after_cursor.as_deref())
+        {
+            log::trace!("Prefix cache hit for completion");
+            return Ok(prefix_cached);
         }
 
         let mut last_error = String::new();
@@ -129,7 +156,12 @@ impl CompletionService {
                     }
 
                     // Cache the result with text prefix for prefix matching
-                    self.set_cached(cache_key, result.clone(), context.text.clone());
+                    self.set_cached(
+                        normalized_cache_key.clone(),
+                        result.clone(),
+                        context.text.clone(),
+                        context.text_after_cursor.clone(),
+                    );
 
                     return Ok(result);
                 }
@@ -757,30 +789,94 @@ impl CompletionService {
     }
 
     /// Compute cache key for a context
-    fn compute_cache_key(&self, context: &CompletionContext) -> String {
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        context.text.hash(&mut hasher);
-        if let Some(lang) = &context.language {
-            lang.hash(&mut hasher);
-        }
-        if let Some(mode) = &context.mode {
-            format!("{mode:?}").hash(&mut hasher);
-        }
-        if let Some(surface) = &context.surface {
-            format!("{surface:?}").hash(&mut hasher);
-        }
-        format!("{:x}", hasher.finish())
+    fn compute_cache_key(
+        &self,
+        context: &CompletionContext,
+        config: &CompletionModelConfig,
+    ) -> String {
+        self.compute_cache_key_with_mode(context, config, true)
+    }
+
+    fn compute_cache_key_with_mode(
+        &self,
+        context: &CompletionContext,
+        config: &CompletionModelConfig,
+        use_normalized_text: bool,
+    ) -> String {
+        const CACHE_KEY_VERSION: &str = "completion-key:v3";
+        let before = if use_normalized_text {
+            Self::normalize_text_for_cache(&context.text)
+        } else {
+            context.text.clone()
+        };
+        let suffix_input = context.text_after_cursor.clone().unwrap_or_default();
+        let suffix = if use_normalized_text {
+            Self::normalize_text_for_cache(&suffix_input)
+        } else {
+            suffix_input
+        };
+        let digest_input = context.conversation_digest.clone().unwrap_or_default();
+        let digest = if use_normalized_text {
+            Self::normalize_text_for_cache(&digest_input)
+        } else {
+            digest_input
+        };
+
+        let mode = context
+            .mode
+            .as_ref()
+            .map(Self::normalize_mode_for_key)
+            .unwrap_or_else(|| "plain_text".to_string());
+        let surface = context
+            .surface
+            .as_ref()
+            .map(Self::normalize_surface_for_key)
+            .unwrap_or_else(|| "generic".to_string());
+        let language = context
+            .language
+            .as_ref()
+            .map(|value| Self::normalize_language_for_key(value))
+            .unwrap_or_default();
+        let provider = Self::normalize_provider_for_key(&config.provider);
+        let endpoint = config.endpoint.clone().unwrap_or_default();
+
+        let stable_payload = [
+            CACHE_KEY_VERSION.to_string(),
+            provider,
+            config.model_id.clone(),
+            endpoint,
+            mode,
+            surface,
+            language,
+            context.cursor_offset.unwrap_or(before.len()).to_string(),
+            Self::hash_string_for_cache(&before),
+            Self::hash_string_for_cache(&suffix),
+            Self::hash_string_for_cache(&digest),
+        ]
+        .join("|");
+
+        format!(
+            "completion_v3_{}",
+            Self::hash_string_for_cache(&stable_payload)
+        )
     }
 
     /// Get cached result with prefix matching support
-    fn get_cached(&self, key: &str) -> Option<CompletionResult> {
+    fn get_cached(&self, key: &str, hit_kind: CacheHitKind) -> Option<CompletionResult> {
         let mut cache = self.cache.write();
 
         // First try exact match
         if let Some(entry) = cache.get_mut(key) {
             if entry.timestamp.elapsed().as_secs() < self.cache_ttl_secs {
                 entry.access_count += 1;
+                {
+                    let mut stats = self.stats.write();
+                    stats.cache_hits += 1;
+                    match hit_kind {
+                        CacheHitKind::Exact => stats.cache_hits_exact += 1,
+                        CacheHitKind::Normalized => stats.cache_hits_normalized += 1,
+                    }
+                }
                 let mut result = entry.result.clone();
                 result.cached = true;
                 return Some(result);
@@ -792,22 +888,42 @@ impl CompletionService {
     /// Get cached result using prefix matching (for incremental completions)
     /// When the user types additional characters that match a cached suggestion,
     /// returns the remaining portion of the suggestion without an API call.
-    pub fn get_cached_by_prefix(&self, text: &str) -> Option<CompletionResult> {
+    pub fn get_cached_by_prefix(
+        &self,
+        text: &str,
+        text_after_cursor: Option<&str>,
+    ) -> Option<CompletionResult> {
         let mut cache = self.cache.write();
+        let normalized_text = Self::normalize_text_for_cache(text);
+        let normalized_suffix = text_after_cursor
+            .map(Self::normalize_text_for_cache)
+            .unwrap_or_default();
 
         // Find entries where text starts with the cached prefix
         for (_, entry) in cache.iter_mut() {
             if entry.timestamp.elapsed().as_secs() < self.cache_ttl_secs {
+                if let Some(cached_suffix) = &entry.text_suffix {
+                    if !normalized_suffix.starts_with(cached_suffix)
+                        && !cached_suffix.starts_with(&normalized_suffix)
+                    {
+                        self.stats.write().cache_stale_rejects += 1;
+                        continue;
+                    }
+                }
                 // Check if current text starts with cached prefix
-                if text.starts_with(&entry.text_prefix) && text.len() > entry.text_prefix.len() {
+                if normalized_text.starts_with(&entry.normalized_prefix)
+                    && normalized_text.len() > entry.normalized_prefix.len()
+                {
                     // The cached completion might still be valid
                     // Only use if the additional text is a prefix of the completion
-                    let additional = &text[entry.text_prefix.len()..];
+                    let additional = &normalized_text[entry.normalized_prefix.len()..];
                     if let Some(suggestion) = entry.result.suggestions.first() {
-                        if suggestion.text.starts_with(additional) {
+                        let normalized_suggestion =
+                            Self::normalize_text_for_cache(&suggestion.text);
+                        if normalized_suggestion.starts_with(additional) {
                             entry.access_count += 1;
                             // Return modified result with remaining completion
-                            let remaining = &suggestion.text[additional.len()..];
+                            let remaining = &normalized_suggestion[additional.len()..];
                             if !remaining.is_empty() {
                                 let mut result = entry.result.clone();
                                 if let Some(s) = result.suggestions.first_mut() {
@@ -815,6 +931,11 @@ impl CompletionService {
                                     s.display_text = remaining.to_string();
                                 }
                                 result.cached = true;
+                                {
+                                    let mut stats = self.stats.write();
+                                    stats.cache_hits += 1;
+                                    stats.cache_hits_prefix += 1;
+                                }
                                 return Some(result);
                             }
                         }
@@ -826,8 +947,18 @@ impl CompletionService {
     }
 
     /// Set cached result with LFU tracking
-    fn set_cached(&self, key: String, result: CompletionResult, text_prefix: String) {
+    fn set_cached(
+        &self,
+        key: String,
+        result: CompletionResult,
+        text_prefix: String,
+        text_suffix: Option<String>,
+    ) {
         let mut cache = self.cache.write();
+        let normalized_prefix = Self::normalize_text_for_cache(&text_prefix);
+        let normalized_suffix = text_suffix
+            .as_ref()
+            .map(|suffix| Self::normalize_text_for_cache(suffix));
 
         // Evict entries if cache is full using LFU strategy
         if cache.len() >= self.max_cache_size {
@@ -852,9 +983,88 @@ impl CompletionService {
                 result,
                 timestamp: Instant::now(),
                 access_count: 1,
-                text_prefix,
+                normalized_prefix,
+                text_suffix: normalized_suffix,
             },
         );
+    }
+
+    fn normalize_text_for_cache(input: &str) -> String {
+        let normalized_lines = input.replace("\r\n", "\n").replace('\r', "\n");
+        let normalized_nfkc = normalized_lines.nfkc().collect::<String>();
+
+        let mut collapsed = String::with_capacity(normalized_nfkc.len());
+        let mut last_was_space = false;
+        let mut consecutive_newlines = 0;
+
+        for ch in normalized_nfkc.chars() {
+            if ch == ' ' || ch == '\t' {
+                if !last_was_space {
+                    collapsed.push(' ');
+                    last_was_space = true;
+                }
+                continue;
+            }
+
+            if ch == '\n' {
+                consecutive_newlines += 1;
+                last_was_space = false;
+                if consecutive_newlines <= 2 {
+                    collapsed.push('\n');
+                }
+                continue;
+            }
+
+            consecutive_newlines = 0;
+            last_was_space = false;
+            collapsed.push(ch);
+        }
+
+        collapsed.trim_end().to_string()
+    }
+
+    fn normalize_mode_for_key(mode: &CompletionMode) -> String {
+        match mode {
+            CompletionMode::Chat => "chat",
+            CompletionMode::Code => "code",
+            CompletionMode::Markdown => "markdown",
+            CompletionMode::PlainText => "plain_text",
+        }
+        .to_string()
+    }
+
+    fn normalize_surface_for_key(surface: &super::types::CompletionSurface) -> String {
+        match surface {
+            super::types::CompletionSurface::ChatInput => "chat_input",
+            super::types::CompletionSurface::ChatWidget => "chat_widget",
+            super::types::CompletionSurface::LatexEditor => "latex_editor",
+            super::types::CompletionSurface::Generic => "generic",
+        }
+        .to_string()
+    }
+
+    fn normalize_provider_for_key(provider: &CompletionProvider) -> String {
+        match provider {
+            CompletionProvider::Ollama => "ollama",
+            CompletionProvider::OpenAI => "openai",
+            CompletionProvider::Groq => "groq",
+            CompletionProvider::Auto => "auto",
+            CompletionProvider::Custom => "custom",
+        }
+        .to_string()
+    }
+
+    fn normalize_language_for_key(language: &str) -> String {
+        language.trim().to_lowercase()
+    }
+
+    fn hash_string_for_cache(input: &str) -> String {
+        let mut hash: u32 = 2166136261;
+        for byte in input.as_bytes() {
+            hash ^= u32::from(*byte);
+            hash = hash.wrapping_mul(16777619);
+        }
+        format!("{hash:x}")
     }
 
     /// Clear the cache
@@ -959,6 +1169,10 @@ impl CompletionService {
             dismissed_suggestions: stats.dismissed_suggestions,
             avg_latency_ms: avg_latency,
             cache_hit_rate,
+            cache_hits_exact: stats.cache_hits_exact,
+            cache_hits_prefix: stats.cache_hits_prefix,
+            cache_hits_normalized: stats.cache_hits_normalized,
+            cache_stale_rejects: stats.cache_stale_rejects,
             feedback_stats: stats.feedback.clone(),
         }
     }
@@ -998,9 +1212,12 @@ mod tests {
 
         let context = CompletionContext {
             text: "fn hello".to_string(),
+            text_after_cursor: None,
+            cursor_offset: None,
             cursor_position: None,
             file_path: None,
             language: Some("rust".to_string()),
+            conversation_digest: None,
             ime_state: None,
             mode: None,
             surface: None,
@@ -1019,9 +1236,12 @@ mod tests {
 
         let context = CompletionContext {
             text: "hello world".to_string(),
+            text_after_cursor: None,
+            cursor_offset: None,
             cursor_position: None,
             file_path: None,
             language: None,
+            conversation_digest: None,
             ime_state: None,
             mode: None,
             surface: None,
@@ -1042,9 +1262,12 @@ mod tests {
         for lang in languages {
             let context = CompletionContext {
                 text: "test code".to_string(),
+                text_after_cursor: None,
+                cursor_offset: None,
                 cursor_position: None,
                 file_path: None,
                 language: Some(lang.to_string()),
+                conversation_digest: None,
                 ime_state: None,
                 mode: None,
                 surface: None,
@@ -1061,9 +1284,12 @@ mod tests {
 
         let context = CompletionContext {
             text: "How do I optimize this query?".to_string(),
+            text_after_cursor: None,
+            cursor_offset: None,
             cursor_position: None,
             file_path: None,
             language: None,
+            conversation_digest: None,
             ime_state: None,
             mode: Some(CompletionMode::Chat),
             surface: None,
@@ -1080,9 +1306,12 @@ mod tests {
 
         let context = CompletionContext {
             text: "const value = ".to_string(),
+            text_after_cursor: None,
+            cursor_offset: None,
             cursor_position: None,
             file_path: None,
             language: Some("typescript".to_string()),
+            conversation_digest: None,
             ime_state: None,
             mode: Some(CompletionMode::Code),
             surface: None,
@@ -1097,18 +1326,24 @@ mod tests {
     fn test_resolve_mode_infers_code_and_chat() {
         let code_context = CompletionContext {
             text: "function add(a, b) { return a + b; }".to_string(),
+            text_after_cursor: None,
+            cursor_offset: None,
             cursor_position: None,
             file_path: None,
             language: None,
+            conversation_digest: None,
             ime_state: None,
             mode: None,
             surface: None,
         };
         let chat_context = CompletionContext {
             text: "Can you summarize this?".to_string(),
+            text_after_cursor: None,
+            cursor_offset: None,
             cursor_position: None,
             file_path: None,
             language: None,
+            conversation_digest: None,
             ime_state: None,
             mode: None,
             surface: None,
@@ -1130,9 +1365,12 @@ mod tests {
 
         let context1 = CompletionContext {
             text: "hello".to_string(),
+            text_after_cursor: None,
+            cursor_offset: None,
             cursor_position: None,
             file_path: None,
             language: None,
+            conversation_digest: None,
             ime_state: None,
             mode: None,
             surface: None,
@@ -1140,16 +1378,19 @@ mod tests {
 
         let context2 = CompletionContext {
             text: "hello".to_string(),
+            text_after_cursor: None,
+            cursor_offset: None,
             cursor_position: None,
             file_path: None,
             language: None,
+            conversation_digest: None,
             ime_state: None,
             mode: None,
             surface: None,
         };
 
-        let key1 = service.compute_cache_key(&context1);
-        let key2 = service.compute_cache_key(&context2);
+        let key1 = service.compute_cache_key(&context1, &CompletionModelConfig::default());
+        let key2 = service.compute_cache_key(&context2, &CompletionModelConfig::default());
 
         assert_eq!(key1, key2);
     }
@@ -1160,9 +1401,12 @@ mod tests {
 
         let context1 = CompletionContext {
             text: "hello".to_string(),
+            text_after_cursor: None,
+            cursor_offset: None,
             cursor_position: None,
             file_path: None,
             language: None,
+            conversation_digest: None,
             ime_state: None,
             mode: None,
             surface: None,
@@ -1170,16 +1414,19 @@ mod tests {
 
         let context2 = CompletionContext {
             text: "world".to_string(),
+            text_after_cursor: None,
+            cursor_offset: None,
             cursor_position: None,
             file_path: None,
             language: None,
+            conversation_digest: None,
             ime_state: None,
             mode: None,
             surface: None,
         };
 
-        let key1 = service.compute_cache_key(&context1);
-        let key2 = service.compute_cache_key(&context2);
+        let key1 = service.compute_cache_key(&context1, &CompletionModelConfig::default());
+        let key2 = service.compute_cache_key(&context2, &CompletionModelConfig::default());
 
         assert_ne!(key1, key2);
     }
@@ -1190,9 +1437,12 @@ mod tests {
 
         let context1 = CompletionContext {
             text: "code".to_string(),
+            text_after_cursor: None,
+            cursor_offset: None,
             cursor_position: None,
             file_path: None,
             language: Some("rust".to_string()),
+            conversation_digest: None,
             ime_state: None,
             mode: None,
             surface: None,
@@ -1200,16 +1450,19 @@ mod tests {
 
         let context2 = CompletionContext {
             text: "code".to_string(),
+            text_after_cursor: None,
+            cursor_offset: None,
             cursor_position: None,
             file_path: None,
             language: Some("python".to_string()),
+            conversation_digest: None,
             ime_state: None,
             mode: None,
             surface: None,
         };
 
-        let key1 = service.compute_cache_key(&context1);
-        let key2 = service.compute_cache_key(&context2);
+        let key1 = service.compute_cache_key(&context1, &CompletionModelConfig::default());
+        let key2 = service.compute_cache_key(&context2, &CompletionModelConfig::default());
 
         assert_ne!(key1, key2);
     }
@@ -1229,9 +1482,14 @@ mod tests {
             cached: false,
         };
 
-        service.set_cached("test_key".to_string(), result.clone(), "test".to_string());
+        service.set_cached(
+            "test_key".to_string(),
+            result.clone(),
+            "test".to_string(),
+            None,
+        );
 
-        let cached = service.get_cached("test_key");
+        let cached = service.get_cached("test_key", CacheHitKind::Exact);
         assert!(cached.is_some());
         assert!(cached.unwrap().cached);
     }
@@ -1240,7 +1498,7 @@ mod tests {
     fn test_cache_miss() {
         let service = CompletionService::new();
 
-        let cached = service.get_cached("nonexistent_key");
+        let cached = service.get_cached("nonexistent_key", CacheHitKind::Exact);
         assert!(cached.is_none());
     }
 
@@ -1263,9 +1521,12 @@ mod tests {
             "preserve_test".to_string(),
             result.clone(),
             "test".to_string(),
+            None,
         );
 
-        let cached = service.get_cached("preserve_test").unwrap();
+        let cached = service
+            .get_cached("preserve_test", CacheHitKind::Exact)
+            .unwrap();
         assert_eq!(cached.suggestions.len(), 1);
         assert_eq!(cached.suggestions[0].text, "test suggestion");
         assert_eq!(cached.latency_ms, 150);
@@ -1278,15 +1539,25 @@ mod tests {
         let service = CompletionService::new();
 
         let result = CompletionResult::default();
-        service.set_cached("key1".to_string(), result.clone(), "text1".to_string());
-        service.set_cached("key2".to_string(), result.clone(), "text2".to_string());
-        service.set_cached("key3".to_string(), result, "text3".to_string());
+        service.set_cached(
+            "key1".to_string(),
+            result.clone(),
+            "text1".to_string(),
+            None,
+        );
+        service.set_cached(
+            "key2".to_string(),
+            result.clone(),
+            "text2".to_string(),
+            None,
+        );
+        service.set_cached("key3".to_string(), result, "text3".to_string(), None);
 
         service.clear_cache();
 
-        assert!(service.get_cached("key1").is_none());
-        assert!(service.get_cached("key2").is_none());
-        assert!(service.get_cached("key3").is_none());
+        assert!(service.get_cached("key1", CacheHitKind::Exact).is_none());
+        assert!(service.get_cached("key2", CacheHitKind::Exact).is_none());
+        assert!(service.get_cached("key3", CacheHitKind::Exact).is_none());
     }
 
     #[test]
@@ -1304,11 +1575,11 @@ mod tests {
                 model: format!("model_{}", i),
                 cached: false,
             };
-            service.set_cached(format!("key_{}", i), result, format!("text_{}", i));
+            service.set_cached(format!("key_{}", i), result, format!("text_{}", i), None);
         }
 
         for i in 0..10 {
-            let cached = service.get_cached(&format!("key_{}", i));
+            let cached = service.get_cached(&format!("key_{}", i), CacheHitKind::Exact);
             assert!(cached.is_some());
             assert_eq!(cached.unwrap().model, format!("model_{}", i));
         }
@@ -1328,7 +1599,12 @@ mod tests {
         // Add entries beyond capacity
         for i in 0..5 {
             let result = CompletionResult::default();
-            service.set_cached(format!("evict_key_{}", i), result, format!("text_{}", i));
+            service.set_cached(
+                format!("evict_key_{}", i),
+                result,
+                format!("text_{}", i),
+                None,
+            );
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
 
@@ -1350,8 +1626,9 @@ mod tests {
                     format!("thread_key_{}", i),
                     result,
                     format!("text_{}", i),
+                    None,
                 );
-                service_clone.get_cached(&format!("thread_key_{}", i))
+                service_clone.get_cached(&format!("thread_key_{}", i), CacheHitKind::Exact)
             });
             handles.push(handle);
         }
@@ -1373,9 +1650,11 @@ mod tests {
             cached: false,
         };
 
-        service.set_cached("flag_test".to_string(), result, "test".to_string());
+        service.set_cached("flag_test".to_string(), result, "test".to_string(), None);
 
-        let cached = service.get_cached("flag_test").unwrap();
+        let cached = service
+            .get_cached("flag_test", CacheHitKind::Exact)
+            .unwrap();
         assert!(
             cached.cached,
             "Cached flag should be true when retrieved from cache"
@@ -1388,17 +1667,20 @@ mod tests {
 
         let context = CompletionContext {
             text: "deterministic test".to_string(),
+            text_after_cursor: None,
+            cursor_offset: None,
             cursor_position: None,
             file_path: None,
             language: Some("rust".to_string()),
+            conversation_digest: None,
             ime_state: None,
             mode: None,
             surface: None,
         };
 
-        let key1 = service.compute_cache_key(&context);
-        let key2 = service.compute_cache_key(&context);
-        let key3 = service.compute_cache_key(&context);
+        let key1 = service.compute_cache_key(&context, &CompletionModelConfig::default());
+        let key2 = service.compute_cache_key(&context, &CompletionModelConfig::default());
+        let key3 = service.compute_cache_key(&context, &CompletionModelConfig::default());
 
         assert_eq!(key1, key2);
         assert_eq!(key2, key3);
@@ -1409,10 +1691,13 @@ mod tests {
         let service = CompletionService::new();
 
         let context = CompletionContext::default();
-        let key = service.compute_cache_key(&context);
+        let key = service.compute_cache_key(&context, &CompletionModelConfig::default());
 
-        // Key should be a hex string
-        assert!(key.chars().all(|c| c.is_ascii_hexdigit()));
+        assert!(key.starts_with("completion_v3_"));
+        assert!(key
+            .trim_start_matches("completion_v3_")
+            .chars()
+            .all(|c| c.is_ascii_hexdigit()));
     }
 
     #[test]
@@ -1478,10 +1763,11 @@ mod tests {
             "key_long".to_string(),
             result,
             "fn main() { print".to_string(),
+            Some("}".to_string()),
         );
 
         // Verify cache was set
-        let cached = service.get_cached("key_long");
+        let cached = service.get_cached("key_long", CacheHitKind::Exact);
         assert!(cached.is_some());
     }
 
@@ -1499,22 +1785,36 @@ mod tests {
         // Add entries
         for i in 0..3 {
             let result = CompletionResult::default();
-            service.set_cached(format!("lfu_key_{}", i), result, format!("text_{}", i));
+            service.set_cached(
+                format!("lfu_key_{}", i),
+                result,
+                format!("text_{}", i),
+                None,
+            );
         }
 
         // Access first entry multiple times to increase its access count
         for _ in 0..5 {
-            service.get_cached("lfu_key_0");
+            service.get_cached("lfu_key_0", CacheHitKind::Exact);
         }
 
         // Add new entry - should evict one of the less accessed entries
         let result = CompletionResult::default();
-        service.set_cached("lfu_key_new".to_string(), result, "new_text".to_string());
+        service.set_cached(
+            "lfu_key_new".to_string(),
+            result,
+            "new_text".to_string(),
+            None,
+        );
 
         // First entry should still exist (most accessed)
-        assert!(service.get_cached("lfu_key_0").is_some());
+        assert!(service
+            .get_cached("lfu_key_0", CacheHitKind::Exact)
+            .is_some());
 
         // New entry should exist
-        assert!(service.get_cached("lfu_key_new").is_some());
+        assert!(service
+            .get_cached("lfu_key_new", CacheHitKind::Exact)
+            .is_some());
     }
 }

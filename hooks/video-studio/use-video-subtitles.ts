@@ -73,6 +73,7 @@ export interface UseVideoSubtitlesReturn {
 
   // Current cue (for video playback sync)
   currentCue: SubtitleCue | null;
+  setPlaybackTime: (timeMs: number) => void;
 
   // Track management
   addTrack: (track: Omit<SubtitleTrackState, 'id'>) => string;
@@ -102,6 +103,11 @@ export interface UseVideoSubtitlesReturn {
   // Export
   exportTrack: (trackId: string, format: SubtitleFormat) => string;
   exportAllTracks: (format: SubtitleFormat) => Record<string, string>;
+  exportForVideo: (
+    trackId: string,
+    mode: 'burn-in' | 'sidecar' | 'both',
+    format?: SubtitleFormat
+  ) => { burnIn?: string; sidecar?: string };
 
   // Utilities
   searchCues: (query: string, trackId?: string) => SubtitleCue[];
@@ -145,6 +151,10 @@ export function useVideoSubtitles(options: UseVideoSubtitlesOptions = {}): UseVi
       null
     );
   }, [activeTrack, currentTime]);
+
+  const setPlaybackTime = useCallback((timeMs: number) => {
+    setCurrentTime(Math.max(0, timeMs));
+  }, []);
 
   // Dynamic imports
   const getSubtitleModule = useCallback(async () => {
@@ -670,6 +680,27 @@ export function useVideoSubtitles(options: UseVideoSubtitlesOptions = {}): UseVi
     [tracks, exportTrack]
   );
 
+  const exportForVideo = useCallback(
+    (
+      trackId: string,
+      mode: 'burn-in' | 'sidecar' | 'both',
+      format: SubtitleFormat = 'vtt'
+    ): { burnIn?: string; sidecar?: string } => {
+      const content = exportTrack(trackId, format);
+      if (!content) {
+        return {};
+      }
+      if (mode === 'burn-in') {
+        return { burnIn: content };
+      }
+      if (mode === 'sidecar') {
+        return { sidecar: content };
+      }
+      return { burnIn: content, sidecar: content };
+    },
+    [exportTrack]
+  );
+
   // Utilities
   const searchCues = useCallback(
     (query: string, trackId?: string): SubtitleCue[] => {
@@ -742,6 +773,7 @@ export function useVideoSubtitles(options: UseVideoSubtitlesOptions = {}): UseVi
     activeTrackId,
     activeTrack,
     currentCue,
+    setPlaybackTime,
 
     // Track management
     addTrack,
@@ -771,6 +803,7 @@ export function useVideoSubtitles(options: UseVideoSubtitlesOptions = {}): UseVi
     // Export
     exportTrack,
     exportAllTracks,
+    exportForVideo,
 
     // Utilities
     searchCues,

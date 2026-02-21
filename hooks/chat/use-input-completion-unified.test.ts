@@ -75,7 +75,11 @@ jest.mock('@/lib/logger', () => {
     warn: jest.fn(),
     error: jest.fn(),
     fatal: jest.fn(),
+    child: jest.fn(),
+    withContext: jest.fn(),
   };
+  mockLogger.child.mockImplementation(() => mockLogger);
+  mockLogger.withContext.mockImplementation(() => mockLogger);
   return {
     createLogger: jest.fn(() => mockLogger),
     logger: mockLogger,

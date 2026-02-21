@@ -15,10 +15,12 @@ const mockInfer = jest.fn().mockResolvedValue({
   duration: 50,
 });
 const mockDispose = jest.fn().mockResolvedValue(undefined);
+const mockSyncFromTransformersSettings = jest.fn();
 const mockGetTransformersManager = jest.fn().mockReturnValue({
   loadModel: mockLoadModel,
   infer: mockInfer,
   dispose: mockDispose,
+  syncFromTransformersSettings: mockSyncFromTransformersSettings,
 });
 
 jest.mock('@/lib/ai/transformers/transformers-manager', () => ({
@@ -30,6 +32,18 @@ jest.mock('@/lib/ai/transformers/transformers-manager', () => ({
 jest.mock('@/lib/ai/transformers', () => ({
   isWebGPUAvailable: () => false,
   isWebWorkerAvailable: () => true,
+  resolveTransformersRuntimeOptions: (settings: { cacheModels?: boolean; maxCachedModels?: number }) => ({
+    device: 'wasm',
+    dtype: 'q8',
+    cachePolicy: {
+      enabled: settings.cacheModels ?? true,
+      maxCachedModels: settings.maxCachedModels ?? 5,
+    },
+  }),
+  syncTransformersManagerRuntime: (manager: { syncFromTransformersSettings?: (settings: unknown) => void }, settings: unknown) => {
+    manager.syncFromTransformersSettings?.(settings);
+  },
+  mapTransformersProgressStatus: () => 'downloading',
   DEFAULT_TASK_MODELS: {
     'feature-extraction': 'Xenova/all-MiniLM-L6-v2',
     'text-classification': 'Xenova/distilbert-base-uncased-finetuned-sst-2-english',

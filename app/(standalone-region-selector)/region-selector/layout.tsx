@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ThemeProvider } from "@/components/providers/ui";
+import { StandaloneThemeSyncProvider } from "@/components/providers/ui";
 import { I18nProvider } from "@/lib/i18n";
 import "../../globals.css";
 
@@ -14,7 +14,7 @@ export default function RegionSelectorLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="dark">
+    <html lang="en" suppressHydrationWarning>
       <body 
         className="min-h-screen w-full overflow-hidden" 
         style={{ background: 'transparent' }}
@@ -26,15 +26,14 @@ export default function RegionSelectorLayout({
           - No padding or margin - covers entire screen
         */}
         <I18nProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            disableTransitionOnChange
+          <StandaloneThemeSyncProvider
+            allowBackgroundImage={false}
+            forceTransparent={true}
           >
             <main className="fixed inset-0 w-full h-full">
               {children}
             </main>
-          </ThemeProvider>
+          </StandaloneThemeSyncProvider>
         </I18nProvider>
       </body>
     </html>

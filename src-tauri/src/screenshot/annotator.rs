@@ -400,11 +400,11 @@ impl ScreenshotAnnotator {
             for py in (cy_i - ry_i).max(0)..(cy_i + ry_i + 1).min(self.image_height as i32) {
                 let dy = (py - cy_i) as f64;
                 // x^2/rx^2 + y^2/ry^2 = 1 => x = rx * sqrt(1 - y^2/ry^2)
-                let ratio = 1.0 - (dy * dy) / (ry as f64 * ry as f64);
+                let ratio = 1.0 - (dy * dy) / (ry * ry);
                 if ratio < 0.0 {
                     continue;
                 }
-                let half_width = (rx as f64 * ratio.sqrt()) as i32;
+                let half_width = (rx * ratio.sqrt()) as i32;
                 for px in
                     (cx_i - half_width).max(0)..(cx_i + half_width + 1).min(self.image_width as i32)
                 {
@@ -423,11 +423,10 @@ impl ScreenshotAnnotator {
                     let dx = (px - cx_i) as f64;
                     let dy = (py - cy_i) as f64;
                     // Normalized distance from ellipse boundary
-                    let dist =
-                        (dx * dx) / (rx as f64 * rx as f64) + (dy * dy) / (ry as f64 * ry as f64);
+                    let dist = (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry);
                     let dist_sqrt = dist.sqrt();
                     // Check if pixel is on the ellipse border (within stroke width)
-                    let half_stroke = stroke as f64 / (2.0 * rx.min(ry) as f64);
+                    let half_stroke = stroke as f64 / (2.0 * rx.min(ry));
                     if (dist_sqrt - 1.0).abs() <= half_stroke {
                         self.set_pixel(pixels, px as u32, py as u32, r, g, b, a);
                     }

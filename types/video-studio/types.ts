@@ -24,12 +24,118 @@ export interface VideoClip {
   playbackSpeed: number; // 0.25-4
   muted: boolean;
   locked: boolean;
-  effects: string[]; // Applied effect IDs
+  effects: Array<string | VideoEffectInstance>; // Legacy string[] is still supported
   transition?: {
     type: string;
     duration: number;
     params?: Record<string, unknown>;
   };
+}
+
+export interface VideoEffectKeyframe {
+  id: string;
+  time: number;
+  value: unknown;
+  interpolation?: 'linear' | 'bezier' | 'hold' | 'step';
+}
+
+export interface VideoEffectInstance {
+  id: string;
+  effectId: string;
+  enabled: boolean;
+  params: Record<string, unknown>;
+  keyframes?: Record<string, VideoEffectKeyframe[]>;
+}
+
+export interface VideoTransitionInstance {
+  id: string;
+  type: string;
+  duration: number;
+  params?: Record<string, unknown>;
+  fromClipId: string;
+  toClipId: string;
+}
+
+export interface TimelineMarker {
+  id: string;
+  time: number;
+  name?: string;
+  label?: string;
+  type?: 'marker' | 'chapter' | 'note' | 'todo';
+  description?: string;
+  completed?: boolean;
+  color?: string;
+}
+
+export interface TimelineLayer {
+  id: string;
+  name: string;
+  type: 'video' | 'image' | 'text' | 'overlay' | 'shape' | 'subtitle' | 'audio' | 'group';
+  visible: boolean;
+  locked: boolean;
+  opacity: number;
+  startTime: number;
+  duration: number;
+  zIndex: number;
+  payload?: Record<string, unknown>;
+}
+
+export interface SubtitleTrackBinding {
+  id: string;
+  trackId: string;
+  source?: string;
+  format?: 'srt' | 'vtt' | 'ass' | 'ssa';
+  burnIn?: boolean;
+  offsetMs?: number;
+}
+
+export interface AudioMixTrack {
+  id: string;
+  sourceTrackId?: string;
+  sourceClipId?: string;
+  volume: number;
+  muted: boolean;
+  pan?: number;
+  solo?: boolean;
+}
+
+export interface MediaProjectTimelineV2 {
+  version: 2;
+  duration: number;
+  tracks: VideoTrack[];
+  transitions: VideoTransitionInstance[];
+  markers: TimelineMarker[];
+  layers: TimelineLayer[];
+  subtitleBindings: SubtitleTrackBinding[];
+  audioMix: AudioMixTrack[];
+  exportDefaults?: {
+    format?: 'mp4' | 'webm' | 'gif';
+    resolution?: '480p' | '720p' | '1080p' | '4k';
+    fps?: number;
+    quality?: 'low' | 'medium' | 'high' | 'maximum';
+  };
+}
+
+export function isVideoEffectInstance(
+  value: string | VideoEffectInstance
+): value is VideoEffectInstance {
+  return typeof value !== 'string';
+}
+
+export function normalizeClipEffects(
+  effects: Array<string | VideoEffectInstance>
+): VideoEffectInstance[] {
+  return effects.map((effect, index) => {
+    if (typeof effect === 'string') {
+      return {
+        id: `legacy-${index}-${effect}`,
+        effectId: effect,
+        enabled: true,
+        params: {},
+      };
+    }
+    return effect;
+  });
 }
 
 export interface VideoTrack {

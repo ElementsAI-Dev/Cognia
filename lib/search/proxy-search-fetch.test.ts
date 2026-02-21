@@ -33,16 +33,16 @@ const originalEnv = process.env.NODE_ENV;
 
 function setNodeEnv(value: string) {
   // Use delete + assign pattern for reliable NODE_ENV override in Jest
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   delete (process.env as any).NODE_ENV;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   (process.env as any).NODE_ENV = value;
 }
 
 function restoreNodeEnv() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   delete (process.env as any).NODE_ENV;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   (process.env as any).NODE_ENV = originalEnv;
 }
 

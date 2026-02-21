@@ -32,6 +32,8 @@ export interface UseSystemSchedulerState {
   tasks: SystemTask[];
   /** Current pending confirmation */
   pendingConfirmation: TaskConfirmationRequest | null;
+  /** Pending confirmation queue */
+  pendingConfirmations: TaskConfirmationRequest[];
   /** Loading state */
   loading: boolean;
   /** Error message */
@@ -60,10 +62,10 @@ export interface UseSystemSchedulerActions {
   disableTask: (taskId: SystemTaskId) => Promise<boolean>;
   /** Run a task immediately */
   runTaskNow: (taskId: SystemTaskId) => Promise<TaskRunResult>;
-  /** Confirm pending operation (re-submits with confirmed=true) */
+  /** Confirm current pending operation */
   confirmPending: () => Promise<void>;
-  /** Confirm a specific task by ID */
-  confirmTask: (taskId: SystemTaskId) => Promise<SystemTask | null>;
+  /** Confirm a specific pending confirmation by ID */
+  confirmTask: (confirmationId: string) => Promise<SystemTask | null>;
   /** Cancel pending confirmation */
   cancelPending: () => void;
   /** Validate task input */
@@ -87,13 +89,22 @@ export function useSystemScheduler(): UseSystemSchedulerReturn {
   const [pendingConfirmation, setPendingConfirmation] = useState<TaskConfirmationRequest | null>(
     null
   );
-  const [pendingInput, setPendingInput] = useState<{
-    type: 'create' | 'update';
-    taskId?: SystemTaskId;
-    input: CreateSystemTaskInput;
-  } | null>(null);
+  const [pendingConfirmations, setPendingConfirmations] = useState<TaskConfirmationRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const syncPendingQueue = useCallback((queue: TaskConfirmationRequest[]) => {
+    const sorted = [...queue].sort((a, b) =>
+      (a.created_at || '').localeCompare(b.created_at || '')
+    );
+    setPendingConfirmations(sorted);
+    setPendingConfirmation(sorted[0] || null);
+  }, []);
+
+  const refreshPendingQueue = useCallback(async () => {
+    const queue = await systemScheduler.getPendingConfirmations();
+    syncPendingQueue(queue);
+  }, [syncPendingQueue]);
 
   // Initial load
   useEffect(() => {
@@ -110,23 +121,25 @@ export function useSystemScheduler(): UseSystemSchedulerReturn {
     setError(null);
 
     try {
-      const [caps, available, elevated, taskList] = await Promise.all([
+      const [caps, available, elevated, taskList, pendingQueue] = await Promise.all([
         systemScheduler.getSchedulerCapabilities(),
         systemScheduler.isSchedulerAvailable(),
         systemScheduler.isSchedulerElevated(),
         systemScheduler.listSystemTasks(),
+        systemScheduler.getPendingConfirmations(),
       ]);
 
       setCapabilities(caps);
       setIsAvailable(available);
       setIsElevated(elevated);
       setTasks(taskList);
+      syncPendingQueue(pendingQueue);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [syncPendingQueue]);
 
   const createTask = useCallback(
     async (
@@ -141,11 +154,9 @@ export function useSystemScheduler(): UseSystemSchedulerReturn {
 
         if (isTaskOperationSuccess(response)) {
           setTasks((prev) => [...prev, response.task]);
-          setPendingConfirmation(null);
-          setPendingInput(null);
+          await refresh();
         } else if (isConfirmationRequired(response)) {
-          setPendingConfirmation(response.confirmation);
-          setPendingInput({ type: 'create', input });
+          await refreshPendingQueue();
         } else if (isTaskOperationError(response)) {
           setError(response.message);
         }
@@ -159,7 +170,7 @@ export function useSystemScheduler(): UseSystemSchedulerReturn {
         setLoading(false);
       }
     },
-    []
+    [refresh, refreshPendingQueue]
   );
 
   const updateTask = useCallback(
@@ -178,11 +189,9 @@ export function useSystemScheduler(): UseSystemSchedulerReturn {
           setTasks((prev) =>
             prev.map((t) => (t.id === taskId ? response.task : t))
           );
-          setPendingConfirmation(null);
-          setPendingInput(null);
+          await refresh();
         } else if (isConfirmationRequired(response)) {
-          setPendingConfirmation(response.confirmation);
-          setPendingInput({ type: 'update', taskId, input });
+          await refreshPendingQueue();
         } else if (isTaskOperationError(response)) {
           setError(response.message);
         }
@@ -196,7 +205,7 @@ export function useSystemScheduler(): UseSystemSchedulerReturn {
         setLoading(false);
       }
     },
-    []
+    [refresh, refreshPendingQueue]
   );
 
   const deleteTask = useCallback(async (taskId: SystemTaskId): Promise<boolean> => {
@@ -291,38 +300,49 @@ export function useSystemScheduler(): UseSystemSchedulerReturn {
     }
   }, []);
 
-  const confirmPending = useCallback(async () => {
-    if (!pendingInput) return;
-
-    if (pendingInput.type === 'create') {
-      await createTask(pendingInput.input, true);
-    } else if (pendingInput.type === 'update' && pendingInput.taskId) {
-      await updateTask(pendingInput.taskId, pendingInput.input, true);
-    }
-  }, [pendingInput, createTask, updateTask]);
-
-  const confirmTask = useCallback(async (taskId: SystemTaskId): Promise<SystemTask | null> => {
+  const confirmTask = useCallback(async (confirmationId: string): Promise<SystemTask | null> => {
     try {
-      const result = await systemScheduler.confirmSystemTask(taskId);
+      setLoading(true);
+      const result = await systemScheduler.confirmSystemTask(confirmationId);
       if (result) {
-        setTasks((prev) => [...prev, result]);
-        setPendingConfirmation(null);
-        setPendingInput(null);
+        setTasks((prev) => {
+          const exists = prev.some((task) => task.id === result.id);
+          if (exists) {
+            return prev.map((task) => (task.id === result.id ? result : task));
+          }
+          return [...prev, result];
+        });
       }
+      await refresh();
       return result;
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       return null;
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [refresh]);
+
+  const confirmPending = useCallback(async () => {
+    const confirmationId = pendingConfirmation?.confirmation_id || pendingConfirmation?.task_id;
+    if (!confirmationId) return;
+    await confirmTask(confirmationId);
+  }, [confirmTask, pendingConfirmation]);
 
   const cancelPending = useCallback(() => {
-    if (pendingConfirmation?.task_id) {
-      systemScheduler.cancelTaskConfirmation(pendingConfirmation.task_id);
+    const confirmationId = pendingConfirmation?.confirmation_id || pendingConfirmation?.task_id;
+    if (!confirmationId) {
+      return;
     }
-    setPendingConfirmation(null);
-    setPendingInput(null);
-  }, [pendingConfirmation]);
+    void systemScheduler
+      .cancelTaskConfirmation(confirmationId)
+      .then(async () => {
+        await refreshPendingQueue();
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : String(err));
+      });
+  }, [pendingConfirmation, refreshPendingQueue]);
 
   const validateTask = useCallback(
     async (input: CreateSystemTaskInput): Promise<ValidationResult> => {
@@ -351,6 +371,7 @@ export function useSystemScheduler(): UseSystemSchedulerReturn {
     isElevated,
     tasks,
     pendingConfirmation,
+    pendingConfirmations,
     loading,
     error,
     // Actions

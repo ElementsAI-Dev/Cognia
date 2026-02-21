@@ -43,6 +43,17 @@ export interface PineconeIndexInfo {
 }
 
 let pineconeInstance: Pinecone | null = null;
+const PINECONE_DEFAULT_NAMESPACE = '__default__';
+
+function getNamespaceIndex(
+  index: Index<RecordMetadata>,
+  namespace?: string
+): Index<RecordMetadata> {
+  const resolved = namespace && namespace.trim().length > 0
+    ? namespace
+    : PINECONE_DEFAULT_NAMESPACE;
+  return index.namespace(resolved);
+}
 
 /**
  * Get or create Pinecone client instance
@@ -233,7 +244,7 @@ export async function upsertDocuments(
 
   // Pinecone recommends batching upserts in chunks of 100
   const batchSize = 100;
-  const ns = config.namespace ? index.namespace(config.namespace) : index;
+  const ns = getNamespaceIndex(index, config.namespace);
 
   for (let i = 0; i < vectors.length; i += batchSize) {
     const batch = vectors.slice(i, i + batchSize);
@@ -254,18 +265,30 @@ export async function queryPinecone(
     includeMetadata?: boolean;
   } = {}
 ): Promise<PineconeSearchResult[]> {
-  const { topK = 5, filter, includeMetadata = true } = options;
-
   const queryResult = await generateEmbedding(
     query,
     config.embeddingConfig,
     config.embeddingApiKey
   );
 
-  const ns = config.namespace ? index.namespace(config.namespace) : index;
+  return queryPineconeByEmbedding(index, queryResult.embedding, config, options);
+}
+
+export async function queryPineconeByEmbedding(
+  index: Index<RecordMetadata>,
+  embedding: number[],
+  config: PineconeConfig,
+  options: {
+    topK?: number;
+    filter?: Record<string, unknown>;
+    includeMetadata?: boolean;
+  } = {}
+): Promise<PineconeSearchResult[]> {
+  const { topK = 5, filter, includeMetadata = true } = options;
+  const ns = getNamespaceIndex(index, config.namespace);
 
   const results = await ns.query({
-    vector: queryResult.embedding,
+    vector: embedding,
     topK,
     filter,
     includeMetadata,
@@ -287,7 +310,7 @@ export async function deleteDocuments(
   ids: string[],
   namespace?: string
 ): Promise<void> {
-  const ns = namespace ? index.namespace(namespace) : index;
+  const ns = getNamespaceIndex(index, namespace);
   await ns.deleteMany(ids);
 }
 
@@ -298,7 +321,7 @@ export async function deleteAllDocuments(
   index: Index<RecordMetadata>,
   namespace?: string
 ): Promise<void> {
-  const ns = namespace ? index.namespace(namespace) : index;
+  const ns = getNamespaceIndex(index, namespace);
   await ns.deleteAll();
 }
 
@@ -310,7 +333,7 @@ export async function fetchDocuments(
   ids: string[],
   namespace?: string
 ): Promise<PineconeDocument[]> {
-  const ns = namespace ? index.namespace(namespace) : index;
+  const ns = getNamespaceIndex(index, namespace);
   const results = await ns.fetch(ids);
 
   return Object.entries(results.records || {}).map(([id, record]) => ({

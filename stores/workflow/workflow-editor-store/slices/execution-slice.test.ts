@@ -168,7 +168,7 @@ describe('execution-slice (loggers integration)', () => {
         await result.current.persistExecution();
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const { loggers } = require('@/lib/logger');
       expect(loggers.store.error).toHaveBeenCalledWith(
         'Failed to persist execution',
@@ -190,7 +190,7 @@ describe('execution-slice (loggers integration)', () => {
         await result.current.replayExecution('nonexistent-exec');
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const { loggers } = require('@/lib/logger');
       expect(loggers.store.error).toHaveBeenCalledWith(
         'Failed to replay execution',

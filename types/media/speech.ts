@@ -80,6 +80,8 @@ export interface SpeechSettings {
   ttsPitch: number; // 0 - 2
   ttsVolume: number; // 0 - 1
   ttsAutoPlay: boolean; // Auto-play AI responses
+  ttsCacheEnabled: boolean; // Cache generated TTS audio
+  ttsStreamingEnabled: boolean; // Enable streaming TTS when supported
 
   // OpenAI TTS settings
   openaiTtsVoice: OpenAITTSVoice;
@@ -138,6 +140,8 @@ export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = {
   ttsPitch: 1.0,
   ttsVolume: 1.0,
   ttsAutoPlay: false,
+  ttsCacheEnabled: true,
+  ttsStreamingEnabled: true,
 
   // OpenAI TTS defaults
   openaiTtsVoice: 'alloy',

@@ -33,6 +33,11 @@ import {
 import { AcpClientAdapter } from './acp-client';
 import { acpToolsToAgentTools } from './translators';
 import { createExternalAgentTraceBridge } from './agent-trace-bridge';
+import {
+  getUnsupportedProtocolReason,
+  isSupportedExternalAgentProtocol,
+} from './config-normalizer';
+import { isTauri } from '@/lib/utils';
 
 // ============================================================================
 // External Agent Manager
@@ -309,6 +314,22 @@ export class ExternalAgentManager {
       throw new Error(`Agent not found: ${agentId}`);
     }
 
+    if (!isSupportedExternalAgentProtocol(instance.config.protocol)) {
+      const reason = getUnsupportedProtocolReason(instance.config.protocol);
+      instance.connectionStatus = 'error';
+      instance.status = 'failed';
+      instance.lastError = reason;
+      throw new Error(reason);
+    }
+
+    if (instance.config.transport === 'stdio' && !isTauri()) {
+      const reason = 'stdio transport is only available in the desktop (Tauri) runtime.';
+      instance.connectionStatus = 'error';
+      instance.status = 'failed';
+      instance.lastError = reason;
+      throw new Error(reason);
+    }
+
     instance.connectionAttempts++;
     instance.lastConnectionAttempt = new Date();
     instance.connectionStatus = 'connecting';
@@ -362,24 +383,81 @@ export class ExternalAgentManager {
   // Session Management
   // ==========================================================================
 
-  private buildSessionOptions(options?: ExternalAgentExecutionOptions): SessionCreateOptions {
+  private buildSessionOptions(
+    instance: ExternalAgentInstance,
+    options?: ExternalAgentExecutionOptions
+  ): SessionCreateOptions {
     const custom = options?.context?.custom as Record<string, unknown> | undefined;
     const mcpServers = Array.isArray(custom?.mcpServers)
       ? (custom?.mcpServers as SessionCreateOptions['mcpServers'])
       : undefined;
+    const cwdCandidate =
+      options?.workingDirectory ||
+      (typeof custom?.workingDirectory === 'string' ? custom.workingDirectory : undefined) ||
+      (typeof custom?.cwd === 'string' ? custom.cwd : undefined) ||
+      instance.config.process?.cwd;
+
+    const metadataPayload = {
+      ...(options?.traceContext?.metadata || {}),
+      instructionEnvelope: options?.instructionEnvelope,
+    } as Record<string, unknown>;
+    const metadata =
+      Object.entries(metadataPayload).filter(([, value]) => value !== undefined).length > 0
+        ? metadataPayload
+        : undefined;
+
     return {
+      cwd: cwdCandidate,
       systemPrompt: options?.systemPrompt,
       context: options?.context as Record<string, unknown> | undefined,
+      instructionEnvelope: options?.instructionEnvelope,
       permissionMode: options?.permissionMode,
       timeout: options?.timeout,
       mcpServers,
+      metadata,
     };
+  }
+
+  private async resolveExecutionSession(
+    adapter: ProtocolAdapter,
+    instance: ExternalAgentInstance,
+    options?: ExternalAgentExecutionOptions
+  ): Promise<ExternalAgentSession> {
+    const preferredSessionId =
+      options?.sessionId ??
+      (typeof options?.context?.custom?.sessionId === 'string'
+        ? options.context.custom.sessionId
+        : undefined);
+    const sessionOptions = this.buildSessionOptions(instance, options);
+
+    let session = preferredSessionId
+      ? instance.sessions.get(preferredSessionId) ?? adapter.getSession?.(preferredSessionId)
+      : undefined;
+
+    if (!session && preferredSessionId && adapter.resumeSession) {
+      try {
+        session = await adapter.resumeSession(preferredSessionId, sessionOptions);
+      } catch {
+        session = undefined;
+      }
+    }
+
+    if (!session) {
+      session = await adapter.createSession(sessionOptions);
+    }
+
+    instance.sessions.set(session.id, session);
+    return session;
   }
 
   private resolveTraceSessionId(options: ExternalAgentExecutionOptions | undefined, acpSessionId: string): string {
     const traceSessionId = options?.traceContext?.sessionId;
     if (typeof traceSessionId === 'string' && traceSessionId.trim().length > 0) {
       return traceSessionId;
+    }
+
+    if (typeof options?.sessionId === 'string' && options.sessionId.trim().length > 0) {
+      return options.sessionId;
     }
 
     const legacySessionId = options?.context?.custom?.sessionId;
@@ -495,28 +573,12 @@ export class ExternalAgentManager {
     instance.stats.totalExecutions++;
     const startTime = Date.now();
 
-    // Create session if not provided
-    let session: ExternalAgentSession;
-    const existingSession = options?.context?.custom?.sessionId as string | undefined;
-
-    const sessionOptions = this.buildSessionOptions(options);
-
-    if (existingSession) {
-      const existing = instance.sessions.get(existingSession);
-      if (existing) {
-        session = existing;
-      } else {
-        session = await adapter.createSession(sessionOptions);
-      }
-    } else {
-      session = await adapter.createSession(sessionOptions);
-    }
+    const session = await this.resolveExecutionSession(adapter, instance, options);
 
     if (options?.permissionMode && adapter.setSessionMode && session.permissionMode !== options.permissionMode) {
       await adapter.setSessionMode(session.id, options.permissionMode);
     }
 
-    instance.sessions.set(session.id, session);
     const traceBridge = this.createTraceBridge(agentId, instance, session, options);
     await traceBridge.onStart(prompt);
 
@@ -567,6 +629,10 @@ export class ExternalAgentManager {
         instance.status = 'failed';
         instance.lastError = streamError ?? 'External agent execution failed';
       }
+      const latestSession = adapter.getSession?.(session.id);
+      if (latestSession) {
+        instance.sessions.set(latestSession.id, latestSession);
+      }
       instance.tools = adapter.tools ?? instance.tools;
     } catch (error) {
       instance.stats.failedExecutions++;
@@ -600,15 +666,12 @@ export class ExternalAgentManager {
     instance.stats.totalExecutions++;
     const startTime = Date.now();
 
-    // Create session
-    const sessionOptions = this.buildSessionOptions(options);
-    const session = await adapter.createSession(sessionOptions);
+    const session = await this.resolveExecutionSession(adapter, instance, options);
 
     if (options?.permissionMode && adapter.setSessionMode && session.permissionMode !== options.permissionMode) {
       await adapter.setSessionMode(session.id, options.permissionMode);
     }
 
-    instance.sessions.set(session.id, session);
     const traceBridge = this.createTraceBridge(agentId, instance, session, options);
     await traceBridge.onStart(prompt);
 
@@ -647,6 +710,10 @@ export class ExternalAgentManager {
 
       // Update stats
       instance.tools = adapter.tools ?? instance.tools;
+      const latestSession = adapter.getSession?.(result.sessionId || session.id);
+      if (latestSession) {
+        instance.sessions.set(latestSession.id, latestSession);
+      }
       if (result.tokenUsage) {
         instance.stats.totalTokensUsed += result.tokenUsage.totalTokens;
       }

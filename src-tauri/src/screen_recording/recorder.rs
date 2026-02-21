@@ -10,9 +10,9 @@ use super::{
 use crate::selection::{MouseEvent, MouseHook};
 use log::{debug, error, info, trace, warn};
 use parking_lot::RwLock;
+use std::io::{BufRead, BufReader};
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
-use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -1004,10 +1004,13 @@ impl ScreenRecorder {
                         let app_handle_for_stop = app_handle.clone();
                         tauri::async_runtime::spawn(async move {
                             if let Some(manager) = app_handle_for_stop
-                                .try_state::<crate::screen_recording::ScreenRecordingManager>()
-                            {
+                                .try_state::<crate::screen_recording::ScreenRecordingManager>(
+                            ) {
                                 if let Err(err) = manager.stop().await {
-                                    error!("[ScreenRecorder] Failed to auto-stop recording: {}", err);
+                                    error!(
+                                        "[ScreenRecorder] Failed to auto-stop recording: {}",
+                                        err
+                                    );
                                 }
                             }
                         });
@@ -1051,10 +1054,13 @@ impl ScreenRecorder {
                             paused_by_minimize = true;
                             info!("[ScreenRecorder] Auto-paused recording because main window minimized");
                         }
-                    } else if !minimized && paused_by_minimize && status == RecordingStatus::Paused {
+                    } else if !minimized && paused_by_minimize && status == RecordingStatus::Paused
+                    {
                         if manager.resume().is_ok() {
                             paused_by_minimize = false;
-                            info!("[ScreenRecorder] Auto-resumed recording after main window restore");
+                            info!(
+                                "[ScreenRecorder] Auto-resumed recording after main window restore"
+                            );
                         }
                     } else if status == RecordingStatus::Recording {
                         paused_by_minimize = false;
@@ -1071,7 +1077,10 @@ impl ScreenRecorder {
         };
 
         if let Err(err) = overlay.show() {
-            warn!("[ScreenRecorder] Failed to show click highlight overlay: {}", err);
+            warn!(
+                "[ScreenRecorder] Failed to show click highlight overlay: {}",
+                err
+            );
             return;
         }
 
@@ -1079,7 +1088,10 @@ impl ScreenRecorder {
         let hook = Arc::new(MouseHook::new());
         hook.set_event_sender(tx);
         if let Err(err) = hook.start() {
-            warn!("[ScreenRecorder] Failed to start click highlight mouse hook: {}", err);
+            warn!(
+                "[ScreenRecorder] Failed to start click highlight mouse hook: {}",
+                err
+            );
             let _ = overlay.hide();
             return;
         }
@@ -1226,31 +1238,7 @@ impl ScreenRecorder {
         );
 
         match config.codec.as_str() {
-            "h264" | _ if config.codec != "h265" && config.codec != "vp9" => {
-                if hw.nvidia {
-                    info!("[ScreenRecorder] Using NVENC hardware encoder");
-                    (
-                        "h264_nvenc".into(),
-                        vec![
-                            "-preset".into(),
-                            "p4".into(),
-                            "-tune".into(),
-                            "ll".into(),
-                            "-rc".into(),
-                            "vbr".into(),
-                        ],
-                    )
-                } else if hw.intel_qsv {
-                    info!("[ScreenRecorder] Using Intel QSV hardware encoder");
-                    ("h264_qsv".into(), vec!["-preset".into(), "veryfast".into()])
-                } else if hw.amd_amf {
-                    info!("[ScreenRecorder] Using AMD AMF hardware encoder");
-                    ("h264_amf".into(), vec!["-quality".into(), "speed".into()])
-                } else {
-                    debug!("[ScreenRecorder] No hardware encoder available, using libx264");
-                    ("libx264".into(), vec!["-preset".into(), "ultrafast".into()])
-                }
-            }
+            "h264" => Self::select_h264_encoder(&hw),
             "h265" => {
                 if hw.nvidia {
                     (
@@ -1277,7 +1265,33 @@ impl ScreenRecorder {
                     ],
                 )
             }
-            _ => Self::software_encoder_for_codec(&config.codec),
+            _ => Self::select_h264_encoder(&hw),
+        }
+    }
+
+    fn select_h264_encoder(hw: &ffmpeg::HardwareAcceleration) -> (String, Vec<String>) {
+        if hw.nvidia {
+            info!("[ScreenRecorder] Using NVENC hardware encoder");
+            (
+                "h264_nvenc".into(),
+                vec![
+                    "-preset".into(),
+                    "p4".into(),
+                    "-tune".into(),
+                    "ll".into(),
+                    "-rc".into(),
+                    "vbr".into(),
+                ],
+            )
+        } else if hw.intel_qsv {
+            info!("[ScreenRecorder] Using Intel QSV hardware encoder");
+            ("h264_qsv".into(), vec!["-preset".into(), "veryfast".into()])
+        } else if hw.amd_amf {
+            info!("[ScreenRecorder] Using AMD AMF hardware encoder");
+            ("h264_amf".into(), vec!["-quality".into(), "speed".into()])
+        } else {
+            debug!("[ScreenRecorder] No hardware encoder available, using libx264");
+            ("libx264".into(), vec!["-preset".into(), "ultrafast".into()])
         }
     }
 
@@ -1397,7 +1411,10 @@ impl ScreenRecorder {
         }
     }
 
-    fn build_video_input_args(config: &RecordingConfig, input: &RecordingVideoInput) -> Vec<String> {
+    fn build_video_input_args(
+        config: &RecordingConfig,
+        input: &RecordingVideoInput,
+    ) -> Vec<String> {
         let mut args = Vec::new();
         match input {
             RecordingVideoInput::Fullscreen {
@@ -1722,7 +1739,8 @@ impl ScreenRecorder {
             "No start time".to_string()
         })?;
         let end_time = chrono::Utc::now().timestamp_millis();
-        let duration_ms = ((end_time - start_time).max(0) as u64).saturating_sub(state.total_paused_ms);
+        let duration_ms =
+            ((end_time - start_time).max(0) as u64).saturating_sub(state.total_paused_ms);
 
         debug!(
             "[ScreenRecorder] Metadata: id={}, start={}, end={}, duration={}ms (paused: {}ms)",

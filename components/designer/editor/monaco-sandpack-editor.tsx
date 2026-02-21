@@ -83,8 +83,18 @@ import {
   type MonacoLspFeatureSupport,
   type MonacoLspStartResult,
 } from '@/lib/monaco/lsp/monaco-lsp-adapter';
-import { isTauriRuntime } from '@/lib/monaco/lsp/lsp-client';
-import type { LspSessionStatus } from '@/types/designer/lsp';
+import {
+  isTauriRuntime,
+  lspGetServerStatus,
+  lspListenInstallProgress,
+  lspListenServerStatusChanged,
+} from '@/lib/monaco/lsp/lsp-client';
+import type { LspProvider, LspSessionStatus } from '@/types/designer/lsp';
+import {
+  bindMonacoEditorContext,
+  type MonacoContextBinding,
+} from '@/lib/editor-workbench/monaco-context-binding';
+import { isEditorFeatureFlagEnabled } from '@/lib/editor-workbench/feature-flags';
 import type * as Monaco from 'monaco-editor';
 
 interface MonacoSandpackEditorProps {
@@ -218,10 +228,18 @@ const EMPTY_LSP_FEATURES: MonacoLspFeatureSupport = {
   completion: false,
   hover: false,
   definition: false,
+  references: false,
+  rename: false,
+  implementation: false,
+  typeDefinition: false,
+  signatureHelp: false,
+  documentHighlight: false,
   documentSymbols: false,
   codeActions: false,
   formatting: false,
   workspaceSymbols: false,
+  inlayHints: false,
+  semanticTokens: false,
 };
 
 function createDisconnectedLspStartResult(): MonacoLspStartResult {
@@ -245,12 +263,7 @@ function getModelRootUri(modelUri: string): string {
 }
 
 function isLspSupportedLanguage(monacoLanguage: string): boolean {
-  return (
-    monacoLanguage === 'typescript' ||
-    monacoLanguage === 'javascript' ||
-    monacoLanguage === 'typescriptreact' ||
-    monacoLanguage === 'javascriptreact'
-  );
+  return monacoLanguage !== 'plaintext';
 }
 
 function getLspLanguageId(monacoLanguage: string): string {
@@ -259,18 +272,28 @@ function getLspLanguageId(monacoLanguage: string): string {
   return monacoLanguage;
 }
 
+function normalizeLanguageForCompare(languageId: string): string {
+  if (languageId === 'typescriptreact' || languageId === 'tsx') return 'typescript';
+  if (languageId === 'javascriptreact' || languageId === 'jsx') return 'javascript';
+  if (languageId === 'jsonc') return 'json';
+  return languageId.toLowerCase();
+}
+
 function getDesignerLspEnabled(): boolean {
-  if (typeof window === 'undefined') return false;
-  const raw = localStorage.getItem('cognia-designer-lsp-enabled');
-  // Default enabled unless explicitly set to false.
-  return raw !== 'false';
+  return useSettingsStore.getState().editorSettings.lsp.enabled;
 }
 
 function getDesignerLspProtocolV2Enabled(): boolean {
-  if (typeof window === 'undefined') return true;
-  const raw = localStorage.getItem('cognia-designer-lsp-protocol-v2');
-  // Default enabled unless explicitly set to false.
-  return raw !== 'false';
+  return useSettingsStore.getState().editorSettings.lsp.protocolV2Enabled;
+}
+
+function getDesignerLspAutoInstallEnabled(): boolean {
+  return useSettingsStore.getState().editorSettings.lsp.autoInstall;
+}
+
+function getDesignerLspProviderOrder(): LspProvider[] {
+  const providerOrder = useSettingsStore.getState().editorSettings.lsp.providerOrder;
+  return providerOrder.length > 0 ? providerOrder : ['open_vsx', 'vs_marketplace'];
 }
 
 export function MonacoSandpackEditor({
@@ -305,16 +328,7 @@ export function MonacoSandpackEditor({
   });
   const [diagnostics, setDiagnostics] = useState<EditorDiagnostics>({ errors: 0, warnings: 0, info: 0 });
   const [eolSequence, setEolSequence] = useState<'LF' | 'CRLF'>('LF');
-  const [editorPrefs, setEditorPrefs] = useState<EditorPreferences>(() => {
-    // Load persisted preferences
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('cognia-editor-prefs');
-        if (saved) return { ...DEFAULT_PREFERENCES, ...JSON.parse(saved) };
-      } catch { /* ignore */ }
-    }
-    return DEFAULT_PREFERENCES;
-  });
+  const workbenchBindingRef = useRef<MonacoContextBinding | null>(null);
   const [showSettingsPopover, setShowSettingsPopover] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -323,24 +337,100 @@ export function MonacoSandpackEditor({
   const lspAdapterRef = useRef<MonacoLspAdapter | null>(null);
   const [lspStatus, setLspStatus] = useState<LspSessionStatus>('disabled');
   const [lspStatusDetail, setLspStatusDetail] = useState<string>('');
+  const [lspInstallPercent, setLspInstallPercent] = useState<number | null>(null);
 
   const code = useDesignerStore((state) => state.code);
   const setCode = useDesignerStore((state) => state.setCode);
   const parseCodeToElements = useDesignerStore((state) => state.parseCodeToElements);
 
   const theme = useSettingsStore((state) => state.theme);
+  const editorAppearanceSettings = useSettingsStore((state) => state.editorSettings.appearance);
+  const setEditorSettings = useSettingsStore((state) => state.setEditorSettings);
+  const editorPrefs = useMemo<EditorPreferences>(
+    () => ({
+      ...DEFAULT_PREFERENCES,
+      ...editorAppearanceSettings,
+    }),
+    [editorAppearanceSettings]
+  );
 
-  // Persist editor preferences
+  // Persist editor preferences to unified settings store.
   const updateEditorPref = useCallback(<K extends keyof EditorPreferences>(
     key: K,
     value: EditorPreferences[K]
   ) => {
-    setEditorPrefs(prev => {
-      const next = { ...prev, [key]: value };
-      try { localStorage.setItem('cognia-editor-prefs', JSON.stringify(next)); } catch { /* ignore */ }
-      return next;
+    setEditorSettings({
+      appearance: {
+        [key]: value,
+      } as Partial<typeof editorAppearanceSettings>,
     });
-  }, []);
+  }, [setEditorSettings]);
+
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    const activeLanguageId = getLspLanguageId(getMonacoLanguage(language));
+    let unlistenInstallProgress: (() => void) | null = null;
+    let unlistenServerStatus: (() => void) | null = null;
+
+    void lspListenInstallProgress((event) => {
+      if (event.languageId && event.languageId !== activeLanguageId) {
+        return;
+      }
+      if (event.status === 'downloading' || event.status === 'connecting' || event.status === 'verifying' || event.status === 'extracting') {
+        setLspStatus('installing');
+        setLspInstallPercent(Number.isFinite(event.percent) ? Math.max(0, Math.min(100, event.percent)) : null);
+        setLspStatusDetail(
+          event.status === 'downloading'
+            ? `Installing ${event.extensionId} (${Math.round(event.percent)}%)`
+            : `Installing ${event.extensionId} (${event.status})`
+        );
+      } else if (event.status === 'completed') {
+        setLspInstallPercent(null);
+        setLspStatusDetail(`Installed ${event.extensionId}`);
+      } else if (event.status === 'failed') {
+        setLspInstallPercent(null);
+        setLspStatus('fallback');
+        setLspStatusDetail(event.error ?? `Failed to install ${event.extensionId}`);
+      }
+    }).then((unlisten) => {
+      unlistenInstallProgress = unlisten;
+    }).catch(() => {
+      // ignore listener registration failures in non-tauri tests
+    });
+
+    void lspListenServerStatusChanged((event) => {
+      if (!event.languageId || event.languageId === 'unknown') return;
+      if (normalizeLanguageForCompare(event.languageId) !== normalizeLanguageForCompare(activeLanguageId)) {
+        return;
+      }
+
+      if (event.status === 'starting') {
+        setLspStatus('starting');
+      } else if (event.status === 'connected') {
+        setLspStatus('connected');
+        setLspInstallPercent(null);
+      } else if (event.status === 'error') {
+        setLspStatus('error');
+        setLspInstallPercent(null);
+      } else if (event.status === 'installed') {
+        setLspStatus('starting');
+      } else if (event.status === 'disconnected') {
+        setLspStatus('fallback');
+      }
+      if (event.reason) {
+        setLspStatusDetail(event.reason);
+      }
+    }).then((unlisten) => {
+      unlistenServerStatus = unlisten;
+    }).catch(() => {
+      // ignore listener registration failures in non-tauri tests
+    });
+
+    return () => {
+      unlistenInstallProgress?.();
+      unlistenServerStatus?.();
+    };
+  }, [language]);
 
   // Apply preferences to editor
   useEffect(() => {
@@ -553,16 +643,16 @@ export function MonacoSandpackEditor({
       if (!canUseTauriLsp) {
         if (!isLspSupportedLanguage(monacoLanguage)) {
           setLspStatus('disabled');
-          setLspStatusDetail('LSP currently supports TS/JS language family');
+          setLspStatusDetail(t('lspUnavailableForLanguage'));
         } else if (!isTauriRuntime()) {
           setLspStatus('fallback');
-          setLspStatusDetail('Web mode: using Monaco built-in language features');
+          setLspStatusDetail(t('lspWebFallback'));
         } else if (!getDesignerLspEnabled()) {
           setLspStatus('disabled');
-          setLspStatusDetail('LSP disabled by preference');
+          setLspStatusDetail(t('lspDisabledByPreference'));
         } else {
           setLspStatus('fallback');
-          setLspStatusDetail('Using Monaco built-in language features');
+          setLspStatusDetail(t('lspBuiltinFallback'));
         }
         return createDisconnectedLspStartResult();
       }
@@ -570,30 +660,51 @@ export function MonacoSandpackEditor({
       try {
         const model = editor.getModel();
         const rootUri = model ? getModelRootUri(model.uri.toString()) : 'file:///workspace';
+        const languageId = getLspLanguageId(monacoLanguage);
+        const serverStatus = await lspGetServerStatus(languageId).catch(() => null);
+
+        if (serverStatus && !serverStatus.supported) {
+          setLspStatus('disabled');
+          setLspStatusDetail(serverStatus.reason || t('lspNoServerProfile', { language: languageId }));
+          return createDisconnectedLspStartResult();
+        }
 
         setLspStatus('starting');
         setLspStatusDetail('');
+        setLspInstallPercent(null);
         lspAdapterRef.current = createMonacoLspAdapter({
           monaco,
           editor,
-          languageId: getLspLanguageId(monacoLanguage),
+          languageId,
           rootUri,
           protocolV2Enabled: getDesignerLspProtocolV2Enabled(),
+          extendedFeaturesEnabled: isEditorFeatureFlagEnabled('editor.lsp.extended'),
+          autoInstall: getDesignerLspAutoInstallEnabled(),
+          preferredProviders: getDesignerLspProviderOrder(),
+          allowFallback: true,
           onStatusChange: (status, detail) => {
             setLspStatus(status);
+            if (status !== 'installing') {
+              setLspInstallPercent(null);
+            }
             setLspStatusDetail(detail || '');
           },
         });
         return await lspAdapterRef.current.start();
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to start LSP';
-        setLspStatus('fallback');
+        setLspStatus(
+          message.startsWith('LSP_DEPENDENCY_MISSING') || message.startsWith('LSP_COMMAND_NOT_TRUSTED')
+            ? 'error'
+            : 'fallback'
+        );
+        setLspInstallPercent(null);
         setLspStatusDetail(message);
         lspAdapterRef.current = null;
         return createDisconnectedLspStartResult();
       }
     },
-    []
+    [t]
   );
 
   // Initialize Monaco editor with progress tracking
@@ -653,6 +764,20 @@ export function MonacoSandpackEditor({
       monacoEditorRef.current = editor;
       const lspStartResult = await startLspAdapterForLanguage(monaco, editor, monacoLanguage);
       registerLanguageFeatureProviders(monaco, monacoLanguage, lspStartResult);
+      if (isEditorFeatureFlagEnabled('editor.workbench.v2')) {
+        workbenchBindingRef.current?.dispose();
+        workbenchBindingRef.current = bindMonacoEditorContext({
+          contextId: 'designer',
+          label: 'Designer Editor',
+          languageId: monacoLanguage,
+          editor,
+          lspConnected: lspStartResult.connected,
+          lspFeatures: lspStartResult.features,
+          fallbackReason: lspStartResult.connected
+            ? undefined
+            : lspStatusDetail || 'Falling back to Monaco built-in providers',
+        });
+      }
 
       // Listen for content changes with auto-save
       editor.onDidChangeModelContent(() => {
@@ -906,7 +1031,7 @@ export function MonacoSandpackEditor({
       setIsLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, language, theme, readOnly, showLineNumbers, setCode, parseCodeToElements, onSave, onFormat, executeAction, updateStats, updateDiagnostics, t, startLspAdapterForLanguage, registerLanguageFeatureProviders, runWorkspaceSymbolSearch]);
+  }, [code, language, theme, readOnly, showLineNumbers, setCode, parseCodeToElements, onSave, onFormat, executeAction, updateStats, updateDiagnostics, t, startLspAdapterForLanguage, registerLanguageFeatureProviders, runWorkspaceSymbolSearch, lspStatusDetail]);
 
   // Initialize Monaco editor
   useEffect(() => {
@@ -921,6 +1046,8 @@ export function MonacoSandpackEditor({
 
     return () => {
       mounted = false;
+      workbenchBindingRef.current?.dispose();
+      workbenchBindingRef.current = null;
       void disposeLspAdapter();
       disposeLanguageFeatureProviders();
       // Dispose snippet providers
@@ -975,10 +1102,18 @@ export function MonacoSandpackEditor({
           await disposeLspAdapter();
           const lspStartResult = await startLspAdapterForLanguage(monaco, editor, nextMonacoLanguage);
           registerLanguageFeatureProviders(monaco, nextMonacoLanguage, lspStartResult);
+          workbenchBindingRef.current?.update({
+            languageId: nextMonacoLanguage,
+            lspConnected: lspStartResult.connected,
+            lspFeatures: lspStartResult.features,
+            fallbackReason: lspStartResult.connected
+              ? undefined
+              : lspStatusDetail || 'Falling back to Monaco built-in providers',
+          });
         })();
       }
     }
-  }, [language, disposeLspAdapter, startLspAdapterForLanguage, registerLanguageFeatureProviders]);
+  }, [language, disposeLspAdapter, startLspAdapterForLanguage, registerLanguageFeatureProviders, lspStatusDetail]);
 
   // Update readOnly state
   useEffect(() => {
@@ -1414,6 +1549,14 @@ export function MonacoSandpackEditor({
                               await disposeLspAdapter();
                               const lspStartResult = await startLspAdapterForLanguage(monaco, editor, id);
                               registerLanguageFeatureProviders(monaco, id, lspStartResult);
+                              workbenchBindingRef.current?.update({
+                                languageId: id,
+                                lspConnected: lspStartResult.connected,
+                                lspFeatures: lspStartResult.features,
+                                fallbackReason: lspStartResult.connected
+                                  ? undefined
+                                  : lspStatusDetail || 'Falling back to Monaco built-in providers',
+                              });
                             })();
                           }
                         }
@@ -1433,13 +1576,17 @@ export function MonacoSandpackEditor({
                   'px-1 py-0.5 rounded-sm',
                   lspStatus === 'connected' && 'text-emerald-600',
                   lspStatus === 'starting' && 'text-blue-500',
+                  lspStatus === 'installing' && 'text-indigo-500',
                   lspStatus === 'fallback' && 'text-amber-600',
                   lspStatus === 'error' && 'text-destructive',
                   lspStatus === 'disabled' && 'text-muted-foreground'
                 )}
-                title={lspStatusDetail || 'Language service status'}
+                title={lspStatusDetail || t('lspStatusTitle')}
               >
                 LSP: {lspStatus}
+                {lspStatus === 'installing' && typeof lspInstallPercent === 'number'
+                  ? ` ${Math.round(lspInstallPercent)}%`
+                  : ''}
               </span>
 
               <Separator orientation="vertical" className="h-3.5" />

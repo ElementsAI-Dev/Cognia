@@ -8,14 +8,110 @@ import type { Session, CreateSessionInput, UpdateSessionInput } from '@/types';
 import { nanoid } from 'nanoid';
 import { messageRepository } from './message-repository';
 
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+
+function serializeMetadataValue(value: unknown): unknown {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => serializeMetadataValue(item));
+  }
+  if (value && typeof value === 'object') {
+    const objectValue = value as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.entries(objectValue).map(([key, nestedValue]) => [key, serializeMetadataValue(nestedValue)])
+    );
+  }
+  return value;
+}
+
+function deserializeMetadataValue(value: unknown): unknown {
+  if (typeof value === 'string' && ISO_DATE_PATTERN.test(value)) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => deserializeMetadataValue(item));
+  }
+  if (value && typeof value === 'object') {
+    const objectValue = value as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.entries(objectValue).map(([key, nestedValue]) => [key, deserializeMetadataValue(nestedValue)])
+    );
+  }
+  return value;
+}
+
+function parseSessionMetadata(metadata: string | undefined): Partial<Session> {
+  if (!metadata) return {};
+  try {
+    const parsed = JSON.parse(metadata) as Record<string, unknown>;
+    return deserializeMetadataValue(parsed) as Partial<Session>;
+  } catch {
+    return {};
+  }
+}
+
+const SESSION_METADATA_KEYS: Array<keyof Session> = [
+  'agentModeId',
+  'externalAgentId',
+  'externalAgentSessionId',
+  'externalAgentInstructionHash',
+  'builtinPrompts',
+  'topP',
+  'frequencyPenalty',
+  'presencePenalty',
+  'webSearchEnabled',
+  'thinkingEnabled',
+  'streamingEnabled',
+  'presetId',
+  'virtualEnvId',
+  'virtualEnvPath',
+  'branches',
+  'activeBranchId',
+  'pinned',
+  'tags',
+  'isArchived',
+  'archivedAt',
+  'compressionOverrides',
+  'frozenSummary',
+  'carriedContext',
+  'historyContext',
+  'viewMode',
+  'flowCanvasState',
+  'goal',
+  'multiModelConfig',
+  'activeSkillIds',
+  'learningContext',
+];
+
+function buildSessionMetadata(session: Session): string | undefined {
+  const metadata: Record<string, unknown> = {};
+  for (const key of SESSION_METADATA_KEYS) {
+    const value = session[key];
+    if (value !== undefined) {
+      metadata[key] = serializeMetadataValue(value);
+    }
+  }
+  return Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : undefined;
+}
+
 // Convert DBSession to Session
-function toSession(dbSession: DBSession): Session {
+export function dbSessionToSession(dbSession: DBSession): Session {
+  const metadata = parseSessionMetadata(dbSession.metadata);
   return {
+    ...metadata,
     id: dbSession.id,
     title: dbSession.title,
     provider: dbSession.provider as Session['provider'],
     model: dbSession.model,
     mode: dbSession.mode as Session['mode'],
+    customIcon: dbSession.customIcon,
+    folderId: dbSession.folderId,
+    projectId: dbSession.projectId,
     systemPrompt: dbSession.systemPrompt,
     temperature: dbSession.temperature,
     maxTokens: dbSession.maxTokens,
@@ -29,18 +125,22 @@ function toSession(dbSession: DBSession): Session {
 }
 
 // Convert Session to DBSession
-function toDBSession(session: Session): DBSession {
+export function sessionToDbSession(session: Session): DBSession {
   return {
     id: session.id,
     title: session.title,
     provider: session.provider,
     model: session.model,
     mode: session.mode,
+    customIcon: session.customIcon,
+    folderId: session.folderId,
+    projectId: session.projectId,
     systemPrompt: session.systemPrompt,
     temperature: session.temperature,
     maxTokens: session.maxTokens,
     enableTools: session.enableTools,
     enableResearch: session.enableResearch,
+    metadata: buildSessionMetadata(session),
     messageCount: session.messageCount || 0,
     lastMessagePreview: session.lastMessagePreview,
     createdAt: session.createdAt,
@@ -58,7 +158,7 @@ export const sessionRepository = {
       .reverse()
       .toArray();
 
-    return sessions.map(toSession);
+    return sessions.map(dbSessionToSession);
   },
 
   /**
@@ -66,7 +166,7 @@ export const sessionRepository = {
    */
   async getById(id: string): Promise<Session | undefined> {
     const session = await db.sessions.get(id);
-    return session ? toSession(session) : undefined;
+    return session ? dbSessionToSession(session) : undefined;
   },
 
   /**
@@ -80,14 +180,22 @@ export const sessionRepository = {
       provider: input.provider || 'openai',
       model: input.model || 'gpt-4o',
       mode: input.mode || 'chat',
+      externalAgentId: input.externalAgentId,
+      externalAgentSessionId: input.externalAgentSessionId,
+      externalAgentInstructionHash: input.externalAgentInstructionHash,
       systemPrompt: input.systemPrompt,
+      projectId: input.projectId,
+      virtualEnvId: input.virtualEnvId,
+      carriedContext: input.carriedContext,
+      historyContext: input.historyContext,
+      learningContext: input.learningContext,
       messageCount: 0,
       createdAt: now,
       updatedAt: now,
     };
 
     await withRetry(async () => {
-      await db.sessions.add(toDBSession(session));
+      await db.sessions.add(sessionToDbSession(session));
     }, 'sessionRepository.create');
     return session;
   },
@@ -99,17 +207,17 @@ export const sessionRepository = {
     const existing = await db.sessions.get(id);
     if (!existing) return undefined;
 
-    const updateData: Partial<DBSession> = {
-      ...updates,
-      updatedAt: new Date(),
-    };
-
     await withRetry(async () => {
-      await db.sessions.update(id, updateData);
+      const mergedSession: Session = {
+        ...dbSessionToSession(existing),
+        ...updates,
+        updatedAt: new Date(),
+      };
+      await db.sessions.put(sessionToDbSession(mergedSession));
     }, 'sessionRepository.update');
 
     const updated = await db.sessions.get(id);
-    return updated ? toSession(updated) : undefined;
+    return updated ? dbSessionToSession(updated) : undefined;
   },
 
   /**
@@ -141,7 +249,7 @@ export const sessionRepository = {
 
     const now = new Date();
     const duplicate: Session = {
-      ...toSession(original),
+      ...dbSessionToSession(original),
       id: nanoid(),
       title: `${original.title} (copy)`,
       messageCount: 0,
@@ -151,7 +259,7 @@ export const sessionRepository = {
     };
 
     await withRetry(async () => {
-      await db.sessions.add(toDBSession(duplicate));
+      await db.sessions.add(sessionToDbSession(duplicate));
     }, 'sessionRepository.duplicate');
     return duplicate;
   },
@@ -165,7 +273,7 @@ export const sessionRepository = {
       .filter((session) => session.title.toLowerCase().includes(lowerQuery))
       .toArray();
 
-    return sessions.map(toSession);
+    return sessions.map(dbSessionToSession);
   },
 
   /**
@@ -194,7 +302,7 @@ export const sessionRepository = {
   async importAll(data: { sessions: Session[]; messages: unknown[] }): Promise<void> {
     await withRetry(async () => {
       // Import sessions
-      const dbSessions = data.sessions.map(toDBSession);
+      const dbSessions = data.sessions.map(sessionToDbSession);
       await db.sessions.bulkAdd(dbSessions);
 
       // Import messages
@@ -251,7 +359,7 @@ export const sessionRepository = {
               result.skipped++;
               continue;
             case 'replace':
-              await db.sessions.put(toDBSession(session));
+              await db.sessions.put(sessionToDbSession(session));
               result.replaced++;
               continue;
             case 'rename': {
@@ -260,14 +368,14 @@ export const sessionRepository = {
                 id: nanoid(),
                 title: `${session.title} (imported)`,
               };
-              await db.sessions.add(toDBSession(renamedSession));
+              await db.sessions.add(sessionToDbSession(renamedSession));
               result.imported++;
               continue;
             }
           }
         }
 
-        await db.sessions.add(toDBSession(session));
+        await db.sessions.add(sessionToDbSession(session));
         result.imported++;
       } catch (error) {
         result.errors.push({

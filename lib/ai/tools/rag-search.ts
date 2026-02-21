@@ -6,28 +6,28 @@
  */
 
 import { z } from 'zod';
-import { createRAGPipeline, type RAGPipelineConfig } from '@/lib/ai/rag';
-import type { EmbeddingProvider } from '@/lib/vector/embedding';
+import { getSharedRAGRuntime, type RAGRuntimeConfig } from '@/lib/ai/rag';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.ai;
 
 export const ragSearchInputSchema = z.object({
   query: z.string().describe('The search query to find relevant information'),
-  collectionName: z.string().describe('The name of the knowledge base collection to search'),
+  collectionName: z
+    .string()
+    .optional()
+    .describe('The name of the knowledge base collection to search'),
   topK: z
     .number()
     .min(1)
     .max(20)
     .optional()
-    .default(5)
     .describe('Maximum number of results to return'),
   threshold: z
     .number()
     .min(0)
     .max(1)
     .optional()
-    .default(0.5)
     .describe('Minimum similarity threshold (0-1)'),
 });
 
@@ -52,13 +52,8 @@ export interface RAGSearchResult {
 }
 
 export interface RAGSearchConfig {
-  embeddingProvider: EmbeddingProvider;
-  embeddingModel: string;
-  embeddingApiKey: string;
-  enableHybridSearch?: boolean;
-  enableReranking?: boolean;
-  enableQueryExpansion?: boolean;
-  enableCitations?: boolean;
+  runtimeConfig: RAGRuntimeConfig;
+  defaultCollectionName?: string;
 }
 
 /**
@@ -69,30 +64,15 @@ export async function executeRAGSearch(
   config: RAGSearchConfig
 ): Promise<RAGSearchResult> {
   try {
-    const pipelineConfig: RAGPipelineConfig = {
-      embeddingConfig: {
-        provider: config.embeddingProvider,
-        model: config.embeddingModel,
-      },
-      embeddingApiKey: config.embeddingApiKey,
-      hybridSearch: {
-        enabled: config.enableHybridSearch ?? false,
-      },
-      reranking: {
-        enabled: config.enableReranking ?? false,
-      },
-      queryExpansion: {
-        enabled: config.enableQueryExpansion ?? false,
-      },
-      topK: input.topK,
-      similarityThreshold: input.threshold,
-      citations: {
-        enabled: config.enableCitations ?? false,
-      },
+    const runtimeConfig: RAGRuntimeConfig = {
+      ...config.runtimeConfig,
+      topK: input.topK ?? config.runtimeConfig.topK,
+      similarityThreshold: input.threshold ?? config.runtimeConfig.similarityThreshold,
     };
-
-    const pipeline = createRAGPipeline(pipelineConfig);
-    const result = await pipeline.retrieve(input.collectionName, input.query);
+    const runtime = getSharedRAGRuntime('tool:rag-search', runtimeConfig);
+    const collectionName =
+      input.collectionName || config.defaultCollectionName || runtimeConfig.defaultCollectionName || 'default';
+    const result = await runtime.retrieve(collectionName, input.query);
 
     if (result.documents.length === 0) {
       return {

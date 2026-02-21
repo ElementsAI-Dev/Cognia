@@ -24,6 +24,8 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
@@ -46,9 +48,8 @@ import {
   AlertTitle,
 } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import { useSessionStore, useArtifactStore, useBackupStore } from '@/stores';
-import { db } from '@/lib/db';
-import { downloadExport, parseImportFile, importFullBackup } from '@/lib/storage';
+import { useSessionStore, useArtifactStore, useBackupStore, useProjectStore, useSummaryStore } from '@/stores';
+import { downloadExport, parseImportFile, importFullBackup, StorageManager } from '@/lib/storage';
 import { BatchExportDialog } from '@/components/export';
 import { ChatImportDialog } from '@/components/chat/dialogs';
 import { toast } from '@/components/ui/sonner';
@@ -56,6 +57,7 @@ import { resetOnboardingTour } from '@/components/onboarding';
 import { resetMcpPrivacyConsent, clearOptimizationHistory } from '@/lib/ai/prompts/mcp-prompt-optimizer';
 import { useStorageStats, useStorageCleanup } from '@/hooks/storage';
 import type { StorageCategory } from '@/lib/storage';
+import { unifiedPersistenceService } from '@/lib/storage/persistence/unified-persistence-service';
 import { StorageBreakdown } from './storage-breakdown';
 import { StorageHealthDisplay } from './storage-health';
 import { StorageCleanupDialog } from './storage-cleanup-dialog';
@@ -69,9 +71,14 @@ export function DataSettings() {
   const [isImporting, setIsImporting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [chatImportOpen, setChatImportOpen] = useState(false);
+  const [exportPassphrase, setExportPassphrase] = useState('');
+  const [importPassphrase, setImportPassphrase] = useState('');
+  const [importPassphraseDialogOpen, setImportPassphraseDialogOpen] = useState(false);
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
 
   const sessions = useSessionStore((state) => state.sessions);
   const clearAllSessions = useSessionStore((state) => state.clearAllSessions);
+  const setSummaryCurrentSession = useSummaryStore((state) => state.setCurrentSession);
 
   // Backup reminder
   const markBackupComplete = useBackupStore((state) => state.markBackupComplete);
@@ -129,6 +136,7 @@ export function DataSettings() {
         includeArtifacts: true,
         includeIndexedDB: true,
         includeChecksum: true,
+        passphrase: exportPassphrase.trim() || undefined,
       });
       markBackupComplete();
       toast.success(t('exportSuccess') || 'Export successful!');
@@ -140,43 +148,101 @@ export function DataSettings() {
     }
   };
 
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const refreshStoresAfterImport = useCallback(async () => {
+    const [persistedSessions, persistedProjects] = await Promise.all([
+      unifiedPersistenceService.sessions.list(),
+      unifiedPersistenceService.projects.list(),
+    ]);
 
-    setIsImporting(true);
-    try {
-      // Parse and validate import file
-      const { data, errors: parseErrors } = await parseImportFile(file);
-      
+    useSessionStore.setState((state) => {
+      const activeSessionId =
+        state.activeSessionId && persistedSessions.some((session) => session.id === state.activeSessionId)
+          ? state.activeSessionId
+          : persistedSessions[0]?.id ?? null;
+      return {
+        ...state,
+        sessions: persistedSessions,
+        activeSessionId,
+      };
+    });
+
+    useProjectStore.setState((state) => {
+      const activeProjectId =
+        state.activeProjectId && persistedProjects.some((project) => project.id === state.activeProjectId)
+          ? state.activeProjectId
+          : persistedProjects[0]?.id ?? null;
+      return {
+        ...state,
+        projects: persistedProjects,
+        activeProjectId,
+      };
+    });
+
+    const activeSessionId = useSessionStore.getState().activeSessionId;
+    setSummaryCurrentSession(activeSessionId);
+  }, [setSummaryCurrentSession]);
+
+  const runImportFlow = useCallback(
+    async (file: File, passphrase?: string) => {
+      const { data, errors: parseErrors } = await parseImportFile(file, passphrase);
+
       if (!data || parseErrors.length > 0) {
         throw new Error(parseErrors.join(', ') || 'Invalid export file');
       }
 
-      // Import using comprehensive import utility
       const result = await importFullBackup(data, {
         mergeStrategy: 'merge',
         generateNewIds: false,
         validateData: true,
       });
 
-      if (result.success) {
-        const summary = [
-          result.imported.sessions > 0 && `${result.imported.sessions} sessions`,
-          result.imported.artifacts > 0 && `${result.imported.artifacts} artifacts`,
-          result.imported.messages > 0 && `${result.imported.messages} messages`,
-          result.imported.settings && 'settings',
-        ].filter(Boolean).join(', ');
-        
-        toast.success(t('importSuccess') || `Import successful! Imported: ${summary}`);
-        refreshStats();
-      } else {
-        const errorMsg = result.errors.map(e => e.message).join(', ');
+      if (!result.success) {
+        const errorMsg = result.errors.map((entry) => entry.message).join(', ');
         throw new Error(errorMsg || 'Import failed');
       }
+
+      await refreshStoresAfterImport();
+
+      const summary = [
+        result.imported.sessions > 0 && `${result.imported.sessions} sessions`,
+        result.imported.artifacts > 0 && `${result.imported.artifacts} artifacts`,
+        result.imported.messages > 0 && `${result.imported.messages} messages`,
+        result.imported.settings && 'settings',
+      ].filter(Boolean).join(', ');
+
+      toast.success(t('importSuccess') || `Import successful! Imported: ${summary}`);
+      refreshStats();
+    },
+    [refreshStats, refreshStoresAfterImport, t]
+  );
+
+  const isEncryptedBackupFile = useCallback(async (file: File): Promise<boolean> => {
+    try {
+      const raw = JSON.parse(await file.text()) as { version?: string };
+      return raw.version === 'enc-v1';
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      await runImportFlow(file);
     } catch (error) {
-      console.error('Import failed:', error);
-      toast.error(t('importFailed') || `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const encryptedBackup = await isEncryptedBackupFile(file);
+      if (encryptedBackup) {
+        setPendingImportFile(file);
+        setImportPassphrase('');
+        setImportPassphraseDialogOpen(true);
+        toast.error(t('importPassphraseRequired') || 'Encrypted backup detected. Enter your backup passphrase to continue.');
+      } else {
+        console.error('Import failed:', error);
+        toast.error(t('importFailed') || `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     } finally {
       setIsImporting(false);
       // Reset file input
@@ -184,33 +250,38 @@ export function DataSettings() {
     }
   };
 
+  const handleRetryImportWithPassphrase = useCallback(async () => {
+    if (!pendingImportFile) {
+      return;
+    }
+
+    const trimmedPassphrase = importPassphrase.trim();
+    if (!trimmedPassphrase) {
+      toast.error(t('importPassphraseMissing') || 'Please enter a passphrase');
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      await runImportFlow(pendingImportFile, trimmedPassphrase);
+      setImportPassphraseDialogOpen(false);
+      setPendingImportFile(null);
+      setImportPassphrase('');
+    } catch (error) {
+      console.error('Import with passphrase failed:', error);
+      toast.error(t('importPassphraseRetryFailed') || 'Passphrase invalid or backup file is corrupted');
+    } finally {
+      setIsImporting(false);
+    }
+  }, [importPassphrase, pendingImportFile, runImportFlow, t]);
+
   const handleDeleteAllData = async () => {
     try {
       // Clear all stores
       clearAllSessions();
       useArtifactStore.getState().clearSessionData('');
 
-      // Clear all IndexedDB tables
-      await Promise.all([
-        db.sessions.clear(),
-        db.messages.clear(),
-        db.documents.clear(),
-        db.projects.clear(),
-        db.workflows.clear(),
-        db.workflowExecutions.clear(),
-        db.summaries.clear(),
-        db.knowledgeFiles.clear(),
-        db.agentTraces.clear(),
-        db.assets.clear(),
-        db.folders.clear(),
-        db.mcpServers.clear(),
-      ]);
-
-      // Clear all cognia-* localStorage keys
-      const keysToRemove = Object.keys(localStorage).filter(
-        (key) => key.startsWith('cognia-') || key === 'selection-toolbar-storage' || key === 'app-cache'
-      );
-      keysToRemove.forEach((key) => localStorage.removeItem(key));
+      await StorageManager.clearAllCogniaData();
 
       setDeleteDialogOpen(false);
       toast.success(t('deleteSuccess'));
@@ -422,6 +493,24 @@ export function DataSettings() {
                 />
               </div>
 
+              <div className="space-y-1 rounded-md border p-2">
+                <Label htmlFor="manual-backup-passphrase" className="text-xs">
+                  {t('optionalPassphraseLabel') || 'Optional manual passphrase'}
+                </Label>
+                <Input
+                  id="manual-backup-passphrase"
+                  type="password"
+                  value={exportPassphrase}
+                  onChange={(event) => setExportPassphrase(event.target.value)}
+                  placeholder={t('optionalPassphrasePlaceholder') || 'Leave empty to use the automatic backup key'}
+                  className="h-8 text-xs"
+                  autoComplete="off"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  {t('optionalPassphraseDesc') || 'Set a manual passphrase when you need cross-device restore.'}
+                </p>
+              </div>
+
               <Alert className="py-2">
                 <HardDrive className="h-3.5 w-3.5" />
                 <AlertTitle className="text-xs font-medium">{t('dataPrivacy')}</AlertTitle>
@@ -530,6 +619,52 @@ export function DataSettings() {
           </Card>
         </div>
       </div>
+
+      <Dialog
+        open={importPassphraseDialogOpen}
+        onOpenChange={(open) => {
+          setImportPassphraseDialogOpen(open);
+          if (!open) {
+            setPendingImportFile(null);
+            setImportPassphrase('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('importPassphraseTitle') || 'Enter backup passphrase'}</DialogTitle>
+            <DialogDescription>
+              {t('importPassphraseDesc') || 'This backup is encrypted. Enter the manual passphrase used when exporting it.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="import-backup-passphrase">
+              {t('importPassphraseLabel') || 'Backup passphrase'}
+            </Label>
+            <Input
+              id="import-backup-passphrase"
+              type="password"
+              autoComplete="off"
+              value={importPassphrase}
+              onChange={(event) => setImportPassphrase(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void handleRetryImportWithPassphrase();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportPassphraseDialogOpen(false)}>
+              {tCommon('cancel')}
+            </Button>
+            <Button onClick={() => void handleRetryImportWithPassphrase()} disabled={isImporting}>
+              {isImporting ? t('importing') : t('import')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -83,7 +83,7 @@ interface PluginPageContentProps {
 export function PluginPageContent({ className }: PluginPageContentProps) {
   const t = useTranslations('pluginSettings');
   const { plugins, enabledPlugins, errorPlugins, initialized } = usePlugins();
-  const { scanPlugins, enablePlugin, disablePlugin, uninstallPlugin } = usePluginStore();
+  const { scanPlugins } = usePluginStore();
   const pluginDirectory = usePluginStore((s) => s.pluginDirectory);
 
   // Marketplace store selectors
@@ -121,9 +121,21 @@ export function PluginPageContent({ className }: PluginPageContentProps) {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   // Stats
+  const runtimeStats = (() => {
+    try {
+      return getPluginManager().getRegistry().getStats();
+    } catch {
+      return null;
+    }
+  })();
+
   const totalTools = useMemo(
-    () => plugins.reduce((acc, p) => acc + (p.tools?.length || 0), 0),
-    [plugins]
+    () => runtimeStats?.tools ?? plugins.reduce((acc, p) => acc + (p.tools?.length || 0), 0),
+    [plugins, runtimeStats]
+  );
+  const totalCommands = useMemo(
+    () => runtimeStats?.commands ?? plugins.reduce((acc, p) => acc + (p.commands?.length || 0), 0),
+    [plugins, runtimeStats]
   );
   const healthScore = useMemo(
     () => errorPlugins.length === 0
@@ -225,30 +237,38 @@ export function PluginPageContent({ className }: PluginPageContentProps) {
   }, [handleRefresh, t]);
 
   const handleTogglePlugin = useCallback(async (plugin: Plugin) => {
-    try {
-      const manager = getPluginManager();
-      if (plugin.status === 'enabled') {
-        await manager.disablePlugin(plugin.manifest.id);
-      } else {
-        await manager.enablePlugin(plugin.manifest.id);
-      }
-    } catch {
-      if (plugin.status === 'enabled') {
-        await disablePlugin(plugin.manifest.id);
-      } else {
-        await enablePlugin(plugin.manifest.id);
-      }
+    const manager = getPluginManager();
+    if (plugin.status === 'enabled') {
+      await manager.disablePlugin(plugin.manifest.id);
+    } else {
+      await manager.enablePlugin(plugin.manifest.id);
     }
-  }, [enablePlugin, disablePlugin]);
+  }, []);
 
   const handleUninstallPlugin = useCallback(async (plugin: Plugin) => {
-    try {
-      const manager = getPluginManager();
-      await manager.uninstallPlugin(plugin.manifest.id);
-    } catch {
-      await uninstallPlugin(plugin.manifest.id);
+    await getPluginManager().uninstallPlugin(plugin.manifest.id);
+  }, []);
+
+  const handleBatchEnable = useCallback(async (pluginIds: string[]) => {
+    const manager = getPluginManager();
+    for (const pluginId of pluginIds) {
+      await manager.enablePlugin(pluginId, 'batch');
     }
-  }, [uninstallPlugin]);
+  }, []);
+
+  const handleBatchDisable = useCallback(async (pluginIds: string[]) => {
+    const manager = getPluginManager();
+    for (const pluginId of pluginIds) {
+      await manager.disablePlugin(pluginId, 'batch');
+    }
+  }, []);
+
+  const handleBatchUninstall = useCallback(async (pluginIds: string[]) => {
+    const manager = getPluginManager();
+    for (const pluginId of pluginIds) {
+      await manager.uninstallPlugin(pluginId);
+    }
+  }, []);
 
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
@@ -563,6 +583,8 @@ export function PluginPageContent({ className }: PluginPageContentProps) {
               enabledCount={enabledPlugins.length}
               errorCount={errorPlugins.length}
               totalTools={totalTools}
+              totalCommands={totalCommands}
+              runtimeActivePlugins={runtimeStats?.plugins}
               healthScore={healthScore}
             />
 
@@ -610,6 +632,9 @@ export function PluginPageContent({ className }: PluginPageContentProps) {
                   onToggle={handleTogglePlugin}
                   onConfigure={(p) => setConfigPlugin(p)}
                   onUninstall={handleUninstallPlugin}
+                  onBatchEnable={handleBatchEnable}
+                  onBatchDisable={handleBatchDisable}
+                  onBatchUninstall={handleBatchUninstall}
                   onViewDetails={(p) => {
                     setDetailPlugin(p);
                     setIsDetailOpen(true);

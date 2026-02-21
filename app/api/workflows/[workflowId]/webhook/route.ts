@@ -13,6 +13,46 @@ type WebhookBody = {
   definition?: WorkflowDefinition;
 };
 
+const WORKFLOW_WEBHOOK_SECRET_ENV_KEYS = [
+  'WORKFLOW_WEBHOOK_SECRET',
+  'COGNIA_WORKFLOW_WEBHOOK_SECRET',
+] as const;
+
+function normalizeSecret(secret: string | null | undefined): string | undefined {
+  if (typeof secret !== 'string') {
+    return undefined;
+  }
+  const trimmed = secret.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function resolveExpectedWebhookSecret(): string | undefined {
+  for (const key of WORKFLOW_WEBHOOK_SECRET_ENV_KEYS) {
+    const value = normalizeSecret(process.env[key]);
+    if (value) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function resolveProvidedWebhookSecret(
+  request: NextRequest,
+  body: WebhookBody
+): { secret?: string; mismatch: boolean } {
+  const headerSecret = normalizeSecret(request.headers.get('x-cognia-webhook-secret'));
+  const bodySecret = normalizeSecret(body.secret);
+
+  if (headerSecret && bodySecret && headerSecret !== bodySecret) {
+    return { mismatch: true };
+  }
+
+  return {
+    secret: headerSecret ?? bodySecret,
+    mismatch: false,
+  };
+}
+
 function getProviderApiKey(provider: ProviderName): string {
   switch (provider) {
     case 'anthropic':
@@ -57,8 +97,13 @@ async function runWebhookExecution(
   workflowId: string,
   body: WebhookBody
 ): Promise<NextResponse> {
-  const headerSecret = request.headers.get('x-cognia-webhook-secret') || undefined;
-  if (headerSecret && body.secret && headerSecret !== body.secret) {
+  const { secret: providedSecret, mismatch } = resolveProvidedWebhookSecret(request, body);
+  if (mismatch) {
+    return NextResponse.json({ error: 'Invalid webhook secret' }, { status: 401 });
+  }
+
+  const expectedSecret = resolveExpectedWebhookSecret();
+  if (expectedSecret && providedSecret !== expectedSecret) {
     return NextResponse.json({ error: 'Invalid webhook secret' }, { status: 401 });
   }
 

@@ -16,16 +16,24 @@ jest.mock('./lsp-client', () => ({
   lspCodeActions: jest.fn(),
   lspCompletion: jest.fn(),
   lspDefinition: jest.fn(),
+  lspDocumentHighlights: jest.fn(),
   lspDocumentSymbols: jest.fn(),
   lspExecuteCommand: jest.fn(),
   lspFormatDocument: jest.fn(),
   lspHover: jest.fn(),
+  lspImplementation: jest.fn(),
+  lspInlayHints: jest.fn(),
   lspListenDiagnostics: jest.fn(),
   lspOpenDocument: jest.fn(),
+  lspReferences: jest.fn(),
+  lspRename: jest.fn(),
   lspResolveCodeAction: jest.fn(),
+  lspSemanticTokensFull: jest.fn(),
+  lspSignatureHelp: jest.fn(),
   lspSeverityToMonaco: jest.fn((severity?: number) => (severity === 1 ? 8 : 2)),
   lspShutdownSession: jest.fn(),
   lspStartSession: jest.fn(),
+  lspTypeDefinition: jest.fn(),
   lspWorkspaceSymbols: jest.fn(),
 }));
 
@@ -39,15 +47,23 @@ import {
   lspCodeActions,
   lspCompletion,
   lspDefinition,
+  lspDocumentHighlights,
   lspDocumentSymbols,
   lspExecuteCommand,
   lspFormatDocument,
   lspHover,
+  lspImplementation,
+  lspInlayHints,
   lspListenDiagnostics,
   lspOpenDocument,
+  lspReferences,
+  lspRename,
   lspResolveCodeAction,
+  lspSemanticTokensFull,
+  lspSignatureHelp,
   lspShutdownSession,
   lspStartSession,
+  lspTypeDefinition,
   lspWorkspaceSymbols,
 } from './lsp-client';
 import type { LspPublishDiagnosticsEvent } from '@/types/designer/lsp';
@@ -61,6 +77,16 @@ describe('monaco-lsp-adapter', () => {
   const mockLspCompletion = lspCompletion as jest.MockedFunction<typeof lspCompletion>;
   const mockLspHover = lspHover as jest.MockedFunction<typeof lspHover>;
   const mockLspDefinition = lspDefinition as jest.MockedFunction<typeof lspDefinition>;
+  const mockLspReferences = lspReferences as jest.MockedFunction<typeof lspReferences>;
+  const mockLspRename = lspRename as jest.MockedFunction<typeof lspRename>;
+  const mockLspImplementation = lspImplementation as jest.MockedFunction<typeof lspImplementation>;
+  const mockLspTypeDefinition = lspTypeDefinition as jest.MockedFunction<typeof lspTypeDefinition>;
+  const mockLspSignatureHelp = lspSignatureHelp as jest.MockedFunction<typeof lspSignatureHelp>;
+  const mockLspDocumentHighlights =
+    lspDocumentHighlights as jest.MockedFunction<typeof lspDocumentHighlights>;
+  const mockLspInlayHints = lspInlayHints as jest.MockedFunction<typeof lspInlayHints>;
+  const mockLspSemanticTokensFull =
+    lspSemanticTokensFull as jest.MockedFunction<typeof lspSemanticTokensFull>;
   const mockLspDocumentSymbols = lspDocumentSymbols as jest.MockedFunction<typeof lspDocumentSymbols>;
   const mockLspExecuteCommand = lspExecuteCommand as jest.MockedFunction<typeof lspExecuteCommand>;
   const mockLspCodeActions = lspCodeActions as jest.MockedFunction<typeof lspCodeActions>;
@@ -101,18 +127,34 @@ describe('monaco-lsp-adapter', () => {
   const completionDisposable = { dispose: jest.fn() };
   const hoverDisposable = { dispose: jest.fn() };
   const definitionDisposable = { dispose: jest.fn() };
+  const referenceDisposable = { dispose: jest.fn() };
+  const renameDisposable = { dispose: jest.fn() };
+  const implementationDisposable = { dispose: jest.fn() };
+  const typeDefinitionDisposable = { dispose: jest.fn() };
+  const signatureDisposable = { dispose: jest.fn() };
+  const highlightDisposable = { dispose: jest.fn() };
   const symbolDisposable = { dispose: jest.fn() };
   const codeActionDisposable = { dispose: jest.fn() };
   const formatDisposable = { dispose: jest.fn() };
+  const inlayDisposable = { dispose: jest.fn() };
+  const semanticDisposable = { dispose: jest.fn() };
 
   const mockMonaco = {
     languages: {
       registerCompletionItemProvider: jest.fn(() => completionDisposable),
       registerHoverProvider: jest.fn(() => hoverDisposable),
       registerDefinitionProvider: jest.fn(() => definitionDisposable),
+      registerReferenceProvider: jest.fn(() => referenceDisposable),
+      registerRenameProvider: jest.fn(() => renameDisposable),
+      registerImplementationProvider: jest.fn(() => implementationDisposable),
+      registerTypeDefinitionProvider: jest.fn(() => typeDefinitionDisposable),
+      registerSignatureHelpProvider: jest.fn(() => signatureDisposable),
+      registerDocumentHighlightProvider: jest.fn(() => highlightDisposable),
       registerDocumentSymbolProvider: jest.fn(() => symbolDisposable),
       registerCodeActionProvider: jest.fn(() => codeActionDisposable),
       registerDocumentFormattingEditProvider: jest.fn(() => formatDisposable),
+      registerInlayHintsProvider: jest.fn(() => inlayDisposable),
+      registerDocumentSemanticTokensProvider: jest.fn(() => semanticDisposable),
       CompletionItemKind: {
         Text: 1,
         Method: 2,
@@ -142,6 +184,15 @@ describe('monaco-lsp-adapter', () => {
       },
       SymbolKind: {
         Variable: 13,
+      },
+      DocumentHighlightKind: {
+        Read: 1,
+        Write: 2,
+        Text: 3,
+      },
+      InlayHintKind: {
+        Type: 1,
+        Parameter: 2,
       },
     },
     editor: {
@@ -173,6 +224,16 @@ describe('monaco-lsp-adapter', () => {
         completionProvider: { triggerCharacters: ['.'] },
         hoverProvider: true,
         definitionProvider: true,
+        referencesProvider: true,
+        renameProvider: true,
+        implementationProvider: true,
+        typeDefinitionProvider: true,
+        signatureHelpProvider: { triggerCharacters: ['('], retriggerCharacters: [','] },
+        documentHighlightProvider: true,
+        semanticTokensProvider: {
+          legend: { tokenTypes: ['variable'], tokenModifiers: ['readonly'] },
+        },
+        inlayHintProvider: true,
         documentSymbolProvider: true,
         codeActionProvider: { codeActionKinds: ['quickfix'] },
         documentFormattingProvider: true,
@@ -194,6 +255,18 @@ describe('monaco-lsp-adapter', () => {
         },
       },
     ]);
+    mockLspReferences.mockResolvedValue([]);
+    mockLspRename.mockResolvedValue({ changes: {} });
+    mockLspImplementation.mockResolvedValue([]);
+    mockLspTypeDefinition.mockResolvedValue([]);
+    mockLspSignatureHelp.mockResolvedValue({
+      signatures: [{ label: 'fn(value: string)' }],
+      activeSignature: 0,
+      activeParameter: 0,
+    });
+    mockLspDocumentHighlights.mockResolvedValue([]);
+    mockLspInlayHints.mockResolvedValue([]);
+    mockLspSemanticTokensFull.mockResolvedValue({ data: [0, 0, 1, 0, 0] });
     mockLspDocumentSymbols.mockResolvedValue([]);
     mockLspExecuteCommand.mockResolvedValue(undefined);
     mockLspCodeActions.mockResolvedValue([]);
@@ -242,14 +315,25 @@ describe('monaco-lsp-adapter', () => {
       completion: true,
       hover: true,
       definition: true,
+      references: true,
+      rename: true,
+      implementation: true,
+      typeDefinition: true,
+      signatureHelp: true,
+      documentHighlight: true,
       documentSymbols: true,
       codeActions: true,
       formatting: true,
       workspaceSymbols: true,
+      inlayHints: true,
+      semanticTokens: true,
     });
     expect(mockLspStartSession).toHaveBeenCalledWith({
       language: 'typescript',
       rootUri: 'file:///workspace',
+      autoInstall: true,
+      preferredProviders: undefined,
+      allowFallback: true,
     });
     expect(mockLspOpenDocument).toHaveBeenCalledWith('session-1', {
       uri: 'file:///workspace/index.tsx',
@@ -260,9 +344,17 @@ describe('monaco-lsp-adapter', () => {
     expect(mockMonaco.languages.registerCompletionItemProvider).toHaveBeenCalled();
     expect(mockMonaco.languages.registerHoverProvider).toHaveBeenCalled();
     expect(mockMonaco.languages.registerDefinitionProvider).toHaveBeenCalled();
+    expect(mockMonaco.languages.registerReferenceProvider).toHaveBeenCalled();
+    expect(mockMonaco.languages.registerRenameProvider).toHaveBeenCalled();
+    expect(mockMonaco.languages.registerImplementationProvider).toHaveBeenCalled();
+    expect(mockMonaco.languages.registerTypeDefinitionProvider).toHaveBeenCalled();
+    expect(mockMonaco.languages.registerSignatureHelpProvider).toHaveBeenCalled();
+    expect(mockMonaco.languages.registerDocumentHighlightProvider).toHaveBeenCalled();
     expect(mockMonaco.languages.registerDocumentSymbolProvider).toHaveBeenCalled();
     expect(mockMonaco.languages.registerCodeActionProvider).toHaveBeenCalled();
     expect(mockMonaco.languages.registerDocumentFormattingEditProvider).toHaveBeenCalled();
+    expect(mockMonaco.languages.registerInlayHintsProvider).toHaveBeenCalled();
+    expect(mockMonaco.languages.registerDocumentSemanticTokensProvider).toHaveBeenCalled();
     expect(onStatusChange).toHaveBeenLastCalledWith('connected', undefined);
 
     expect(modelChangeHandler).toBeTruthy();
@@ -366,17 +458,33 @@ describe('monaco-lsp-adapter', () => {
       completion: true,
       hover: false,
       definition: false,
+      references: false,
+      rename: false,
+      implementation: false,
+      typeDefinition: false,
+      signatureHelp: false,
+      documentHighlight: false,
       documentSymbols: false,
       codeActions: false,
       formatting: false,
       workspaceSymbols: false,
+      inlayHints: false,
+      semanticTokens: false,
     });
     expect(mockMonaco.languages.registerCompletionItemProvider).toHaveBeenCalledTimes(1);
     expect(mockMonaco.languages.registerHoverProvider).not.toHaveBeenCalled();
     expect(mockMonaco.languages.registerDefinitionProvider).not.toHaveBeenCalled();
+    expect(mockMonaco.languages.registerReferenceProvider).not.toHaveBeenCalled();
+    expect(mockMonaco.languages.registerRenameProvider).not.toHaveBeenCalled();
+    expect(mockMonaco.languages.registerImplementationProvider).not.toHaveBeenCalled();
+    expect(mockMonaco.languages.registerTypeDefinitionProvider).not.toHaveBeenCalled();
+    expect(mockMonaco.languages.registerSignatureHelpProvider).not.toHaveBeenCalled();
+    expect(mockMonaco.languages.registerDocumentHighlightProvider).not.toHaveBeenCalled();
     expect(mockMonaco.languages.registerDocumentSymbolProvider).not.toHaveBeenCalled();
     expect(mockMonaco.languages.registerCodeActionProvider).not.toHaveBeenCalled();
     expect(mockMonaco.languages.registerDocumentFormattingEditProvider).not.toHaveBeenCalled();
+    expect(mockMonaco.languages.registerInlayHintsProvider).not.toHaveBeenCalled();
+    expect(mockMonaco.languages.registerDocumentSemanticTokensProvider).not.toHaveBeenCalled();
   });
 
   it('queries workspace symbols only when capability is available', async () => {
@@ -424,6 +532,34 @@ describe('monaco-lsp-adapter', () => {
     });
     await noWorkspaceAdapter.start();
     await expect(noWorkspaceAdapter.workspaceSymbols('x')).resolves.toEqual([]);
+  });
+
+  it('can disable extended providers through feature flag option', async () => {
+    const adapter = createMonacoLspAdapter({
+      monaco: mockMonaco,
+      editor: mockEditor as unknown as Monaco.editor.IStandaloneCodeEditor,
+      languageId: 'typescript',
+      extendedFeaturesEnabled: false,
+    });
+
+    const result = await adapter.start();
+
+    expect(result.features.references).toBe(false);
+    expect(result.features.rename).toBe(false);
+    expect(result.features.implementation).toBe(false);
+    expect(result.features.typeDefinition).toBe(false);
+    expect(result.features.signatureHelp).toBe(false);
+    expect(result.features.documentHighlight).toBe(false);
+    expect(result.features.inlayHints).toBe(false);
+    expect(result.features.semanticTokens).toBe(false);
+    expect(mockMonaco.languages.registerReferenceProvider).not.toHaveBeenCalled();
+    expect(mockMonaco.languages.registerRenameProvider).not.toHaveBeenCalled();
+    expect(mockMonaco.languages.registerImplementationProvider).not.toHaveBeenCalled();
+    expect(mockMonaco.languages.registerTypeDefinitionProvider).not.toHaveBeenCalled();
+    expect(mockMonaco.languages.registerSignatureHelpProvider).not.toHaveBeenCalled();
+    expect(mockMonaco.languages.registerDocumentHighlightProvider).not.toHaveBeenCalled();
+    expect(mockMonaco.languages.registerInlayHintsProvider).not.toHaveBeenCalled();
+    expect(mockMonaco.languages.registerDocumentSemanticTokensProvider).not.toHaveBeenCalled();
   });
 
   it('falls back to full document sync when protocol v2 is disabled', async () => {

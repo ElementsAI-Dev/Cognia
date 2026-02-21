@@ -9,7 +9,7 @@ import { JupyterRenderer } from './jupyter-renderer';
 // Mock modules with ESM imports that Jest can't handle
 jest.mock('@/components/chat/renderers/code-block', () => ({
   CodeBlock: ({ code }: { code: string }) => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     const React = require('react');
     return React.createElement('pre', { 'data-testid': 'code-block' }, code);
   },
@@ -17,7 +17,7 @@ jest.mock('@/components/chat/renderers/code-block', () => ({
 
 jest.mock('@/components/chat/utils', () => ({
   MarkdownRenderer: ({ content }: { content: string }) => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     const React = require('react');
     return React.createElement('div', { 'data-testid': 'markdown' }, content);
   },
@@ -25,7 +25,7 @@ jest.mock('@/components/chat/utils', () => ({
 
 jest.mock('@/components/chat/renderers/math-block', () => ({
   MathBlock: ({ content }: { content: string }) => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     const React = require('react');
     return React.createElement('span', { 'data-testid': 'math-block' }, content);
   },

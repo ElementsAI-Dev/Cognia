@@ -12,7 +12,7 @@
  * - Non-Tauri environment fallbacks
  */
 
-/* eslint-disable @typescript-eslint/no-require-imports */
+ 
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useSkillSeekers } from './use-skill-seekers';
 

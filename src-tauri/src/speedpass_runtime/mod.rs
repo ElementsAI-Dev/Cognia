@@ -15,9 +15,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
-pub use storage::{
-    SpeedPassRuntimeStorage, SpeedPassRuntimeStoredSnapshot,
-};
+pub use storage::{SpeedPassRuntimeStorage, SpeedPassRuntimeStoredSnapshot};
 
 const DEFAULT_SPEEDPASS_USER_ID: &str = "local-user";
 static TOKEN_REGEX: Lazy<Regex> = Lazy::new(|| {
@@ -55,7 +53,9 @@ fn normalize_user_id(user_id: Option<&str>) -> String {
 }
 
 fn file_extension_from_name(file_name: &str) -> Option<&str> {
-    Path::new(file_name).extension().and_then(|value| value.to_str())
+    Path::new(file_name)
+        .extension()
+        .and_then(|value| value.to_str())
 }
 
 fn looks_like_pdf(extension: Option<&str>, mime_type: Option<&str>) -> bool {
@@ -71,11 +71,9 @@ async fn extract_pdf_content(pdf_path: &str) -> Result<String, String> {
     let conversion =
         crate::commands::academic::academic_extract_pdf_content(pdf_path.to_string(), None).await?;
     if !conversion.success {
-        return Err(
-            conversion
-                .error
-                .unwrap_or_else(|| "Failed to extract textbook pdf content".to_string()),
-        );
+        return Err(conversion
+            .error
+            .unwrap_or_else(|| "Failed to extract textbook pdf content".to_string()));
     }
     Ok(conversion.markdown)
 }
@@ -164,7 +162,8 @@ fn calculate_match_score(
         score += 0.52;
     }
 
-    let kp_tokens = tokenize(format!("{} {}", knowledge_point.title, knowledge_point.content).as_str());
+    let kp_tokens =
+        tokenize(format!("{} {}", knowledge_point.title, knowledge_point.content).as_str());
     if !note_tokens.is_empty() && !kp_tokens.is_empty() {
         let overlap = note_tokens
             .iter()
@@ -225,13 +224,11 @@ fn is_example_source(source_type: Option<&str>) -> bool {
 
 fn truncate_text(input: &str, max_chars: usize) -> String {
     let mut output = String::new();
-    let mut count = 0usize;
-    for character in input.chars() {
+    for (count, character) in input.chars().enumerate() {
         if count >= max_chars {
             break;
         }
         output.push(character);
-        count += 1;
     }
     output
 }
@@ -252,8 +249,7 @@ mod tests {
         let state = SpeedPassRuntimeState::default();
         let temp_dir = tempfile::TempDir::new().expect("temp directory should be created");
         let text_path = temp_dir.path().join("chapter1.txt");
-        std::fs::write(&text_path, "高等数学第一章")
-            .expect("textbook test file should be written");
+        std::fs::write(&text_path, "高等数学第一章").expect("textbook test file should be written");
 
         let by_path = state
             .extract_textbook_content(ExtractTextbookRequest {
@@ -568,7 +564,10 @@ impl SpeedPassRuntimeState {
         }
     }
 
-    pub fn load_snapshot(&self, user_id: Option<String>) -> Result<Option<SpeedPassRuntimeSnapshot>, String> {
+    pub fn load_snapshot(
+        &self,
+        user_id: Option<String>,
+    ) -> Result<Option<SpeedPassRuntimeSnapshot>, String> {
         let normalized_user_id = normalize_user_id(user_id.as_deref());
         self.storage
             .load_snapshot(&normalized_user_id)
@@ -597,7 +596,10 @@ impl SpeedPassRuntimeState {
     ) -> Result<SpeedPassRuntimeSnapshot, String> {
         let normalized_user_id = normalize_user_id(request.user_id.as_deref());
         let legacy = request.legacy;
-        let migration_key = format!("legacy-localstorage-v{}:{normalized_user_id}", legacy.version);
+        let migration_key = format!(
+            "legacy-localstorage-v{}:{normalized_user_id}",
+            legacy.version
+        );
 
         if self
             .storage
@@ -699,7 +701,10 @@ impl SpeedPassRuntimeState {
                 .decode(file_bytes_base64)
                 .map_err(|error| format!("Failed to decode textbook base64 bytes: {error}"))?;
             let is_pdf = looks_like_pdf(
-                request.file_name.as_deref().and_then(file_extension_from_name),
+                request
+                    .file_name
+                    .as_deref()
+                    .and_then(file_extension_from_name),
                 request.mime_type.as_deref(),
             );
             if is_pdf {
@@ -741,8 +746,8 @@ impl SpeedPassRuntimeState {
             .map_err(|error| error.to_string())?
             .ok_or_else(|| "No SpeedPass snapshot found for user".to_string())?;
 
-        let payload =
-            serde_json::from_value::<SnapshotPayload>(snapshot.snapshot.clone()).unwrap_or_default();
+        let payload = serde_json::from_value::<SnapshotPayload>(snapshot.snapshot.clone())
+            .unwrap_or_default();
         let textbook_id = request.textbook_id.trim();
         if textbook_id.is_empty() {
             return Err("textbookId is required".to_string());
@@ -850,10 +855,12 @@ impl SpeedPassRuntimeState {
             let related_examples = questions
                 .iter()
                 .filter(|question| {
-                    question
-                        .knowledge_point_ids
-                        .iter()
-                        .any(|knowledge_point_id| knowledge_point_id == &matched.id)
+                    (question.chapter_id.is_none()
+                        || question.chapter_id.as_ref() == Some(&matched.chapter_id))
+                        && question
+                            .knowledge_point_ids
+                            .iter()
+                            .any(|knowledge_point_id| knowledge_point_id == &matched.id)
                         && is_example_source(question.source_type.as_deref())
                 })
                 .take(5)
@@ -876,10 +883,12 @@ impl SpeedPassRuntimeState {
             let related_exercises = questions
                 .iter()
                 .filter(|question| {
-                    question
-                        .knowledge_point_ids
-                        .iter()
-                        .any(|knowledge_point_id| knowledge_point_id == &matched.id)
+                    (question.chapter_id.is_none()
+                        || question.chapter_id.as_ref() == Some(&matched.chapter_id))
+                        && question
+                            .knowledge_point_ids
+                            .iter()
+                            .any(|knowledge_point_id| knowledge_point_id == &matched.id)
                         && !is_example_source(question.source_type.as_deref())
                 })
                 .take(8)
@@ -905,7 +914,8 @@ impl SpeedPassRuntimeState {
 
             let page_range = chapter
                 .and_then(|chapter_value| {
-                    if let (Some(start), Some(end)) = (chapter_value.page_start, chapter_value.page_end)
+                    if let (Some(start), Some(end)) =
+                        (chapter_value.page_start, chapter_value.page_end)
                     {
                         Some(format!("P{start}-P{end}"))
                     } else {

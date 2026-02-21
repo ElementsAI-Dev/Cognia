@@ -9,6 +9,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { isTauri } from '@/lib/utils';
 import type { PluginManager } from '../core/manager';
 
 // =============================================================================
@@ -126,6 +127,16 @@ export interface VideoExportOptions {
   codec?: string;
   audioBitrate?: number;
   videoBitrate?: number;
+  includeSubtitles?: boolean;
+  subtitleMode?: 'burn-in' | 'sidecar' | 'both';
+  subtitleTracks?: Array<{
+    id: string;
+    format: 'srt' | 'vtt' | 'ass';
+    content: string;
+    burnIn?: boolean;
+  }>;
+  destinationPath?: string;
+  overwrite?: boolean;
   onProgress?: (progress: ExportProgress) => void;
 }
 
@@ -590,6 +601,208 @@ function getHistogram(imageData: ImageData): {
   return { r, g, b, luminance };
 }
 
+interface NativeVideoInfo {
+  durationMs: number;
+  width: number;
+  height: number;
+  fps: number;
+  codec: string;
+  fileSize: number;
+  hasAudio: boolean;
+}
+
+interface NativeVideoProgressEvent {
+  operation: string;
+  progress: number;
+  currentTime: number;
+  totalDuration?: number;
+  etaSeconds?: number;
+  error?: string;
+}
+
+interface LocalVideoClipEntry {
+  sourcePath: string;
+  clip: VideoClip;
+}
+
+const localVideoClipRegistry = new Map<string, LocalVideoClipEntry>();
+
+function createClipId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `clip-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function ensurePathSource(source: string | Blob | File): string {
+  if (typeof source !== 'string') {
+    throw new Error('Only string file paths are supported for plugin video processing');
+  }
+  return source;
+}
+
+async function getNativeVideoInfo(sourcePath: string): Promise<NativeVideoInfo> {
+  return invoke<NativeVideoInfo>('video_get_info', { filePath: sourcePath });
+}
+
+function buildVideoClip(sourcePath: string, info: NativeVideoInfo): VideoClip {
+  const duration = Math.max(0, info.durationMs / 1000);
+  return {
+    id: createClipId(),
+    sourceUrl: sourcePath,
+    startTime: 0,
+    endTime: duration,
+    duration,
+    position: 0,
+    track: 0,
+    volume: 1,
+    playbackSpeed: 1,
+    filters: [],
+    transitions: undefined,
+  };
+}
+
+function persistClip(clip: VideoClip, sourcePath: string): VideoClip {
+  localVideoClipRegistry.set(clip.id, { clip, sourcePath });
+  return clip;
+}
+
+function updatePersistedClip(clipId: string, updater: (clip: VideoClip) => VideoClip): VideoClip {
+  const entry = requireClip(clipId);
+  const updated = updater(entry.clip);
+  localVideoClipRegistry.set(clipId, {
+    ...entry,
+    clip: updated,
+  });
+  return updated;
+}
+
+function requireClip(clipId: string): LocalVideoClipEntry {
+  const entry = localVideoClipRegistry.get(clipId);
+  if (!entry) {
+    throw new Error(`Video clip not found: ${clipId}`);
+  }
+  return entry;
+}
+
+function cloneImageData(imageData: ImageData): ImageData {
+  return new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
+}
+
+function frameToImageData(frame: { data: number[] | Uint8Array; width: number; height: number }): ImageData {
+  const bytes = frame.data instanceof Uint8Array ? frame.data : new Uint8Array(frame.data);
+  return new ImageData(new Uint8ClampedArray(bytes), frame.width, frame.height);
+}
+
+function toBlobPart(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
+function upscaleImageData(imageData: ImageData, factor: number): ImageData {
+  const sourceCanvas = createOffscreenCanvas(imageData.width, imageData.height);
+  const sourceCtx = sourceCanvas.getContext('2d');
+  if (!sourceCtx) {
+    throw new Error('Failed to get source canvas context');
+  }
+  sourceCtx.putImageData(imageData, 0, 0);
+
+  const targetWidth = imageData.width * factor;
+  const targetHeight = imageData.height * factor;
+  const targetCanvas = createOffscreenCanvas(targetWidth, targetHeight);
+  const targetCtx = targetCanvas.getContext('2d');
+  if (!targetCtx) {
+    throw new Error('Failed to get target canvas context');
+  }
+  targetCtx.imageSmoothingEnabled = true;
+  targetCtx.drawImage(sourceCanvas, 0, 0, targetWidth, targetHeight);
+  return targetCtx.getImageData(0, 0, targetWidth, targetHeight);
+}
+
+async function withTimelineProgress<T>(
+  onProgress: VideoExportOptions['onProgress'],
+  runner: () => Promise<T>
+): Promise<T> {
+  if (!onProgress || !isTauri()) {
+    return runner();
+  }
+
+  const { listen } = await import('@tauri-apps/api/event');
+  const unlistenFns: Array<() => void> = [];
+  const startedAt = Date.now();
+
+  const unlistenStarted = await listen<NativeVideoProgressEvent>('video-processing-started', (event) => {
+    if (event.payload.operation !== 'timeline-render') {
+      return;
+    }
+    onProgress({
+      phase: 'preparing',
+      percent: 0,
+      message: 'Preparing timeline render...',
+    });
+  });
+
+  const unlistenProgress = await listen<NativeVideoProgressEvent>('video-processing-progress', (event) => {
+    if (event.payload.operation !== 'timeline-render') {
+      return;
+    }
+    onProgress({
+      phase: event.payload.progress < 0.85 ? 'rendering' : 'encoding',
+      percent: Math.max(0, Math.min(100, Math.round((event.payload.progress ?? 0) * 100))),
+      elapsedMs: Date.now() - startedAt,
+      estimatedRemainingMs:
+        typeof event.payload.etaSeconds === 'number'
+          ? Math.round(event.payload.etaSeconds * 1000)
+          : undefined,
+      message: 'Rendering timeline...',
+    });
+  });
+
+  const unlistenCompleted = await listen<{ operation: string; outputPath: string }>(
+    'video-processing-completed',
+    (event) => {
+      if (event.payload.operation !== 'timeline-render') {
+        return;
+      }
+      onProgress({
+        phase: 'finalizing',
+        percent: 95,
+        elapsedMs: Date.now() - startedAt,
+        message: 'Finalizing export...',
+      });
+    }
+  );
+
+  const unlistenError = await listen<NativeVideoProgressEvent>('video-processing-error', (event) => {
+    if (event.payload.operation !== 'timeline-render') {
+      return;
+    }
+    onProgress({
+      phase: 'error',
+      percent: 0,
+      message: event.payload.error ?? 'Timeline render failed',
+    });
+  });
+
+  unlistenFns.push(unlistenStarted, unlistenProgress, unlistenCompleted, unlistenError);
+
+  try {
+    const result = await runner();
+    onProgress({
+      phase: 'complete',
+      percent: 100,
+      elapsedMs: Date.now() - startedAt,
+      message: 'Export complete',
+    });
+    return result;
+  } finally {
+    for (const unlisten of unlistenFns) {
+      unlisten();
+    }
+  }
+}
+
 // =============================================================================
 // Create Media API
 // =============================================================================
@@ -670,46 +883,66 @@ export function createMediaAPI(pluginId: string, _manager: PluginManager): Plugi
     },
 
     video: {
-      loadClip: async (_source: string | Blob | File): Promise<VideoClip> => {
-        // Implemented via Tauri backend
-        return invoke<VideoClip>('plugin_media_load_video_clip', { pluginId, source: _source });
+      loadClip: async (source: string | Blob | File): Promise<VideoClip> => {
+        const sourcePath = ensurePathSource(source);
+        const info = await getNativeVideoInfo(sourcePath);
+        return persistClip(buildVideoClip(sourcePath, info), sourcePath);
       },
 
       getFrame: async (clipId: string, time: number): Promise<ImageData> => {
-        const frameData = await invoke<{ data: number[]; width: number; height: number }>(
+        const frame = await invoke<{ data: number[] | Uint8Array; width: number; height: number }>(
           'plugin_media_get_video_frame',
-          { pluginId, clipId, time }
+          {
+            pluginId,
+            clipId,
+            time,
+          }
         );
-        return new ImageData(
-          new Uint8ClampedArray(frameData.data),
-          frameData.width,
-          frameData.height
-        );
+        return frameToImageData(frame);
       },
 
       getMetadata: async (source: string | Blob | File) => {
-        return invoke<{
-          duration: number;
-          width: number;
-          height: number;
-          fps: number;
-          codec: string;
-          bitrate: number;
-          hasAudio: boolean;
-        }>('plugin_media_get_video_metadata', { pluginId, source });
+        const sourcePath = ensurePathSource(source);
+        const info = await getNativeVideoInfo(sourcePath);
+        return {
+          duration: info.durationMs / 1000,
+          width: info.width,
+          height: info.height,
+          fps: info.fps,
+          codec: info.codec,
+          bitrate: 0,
+          hasAudio: info.hasAudio,
+        };
       },
 
       trim: async (clipId: string, startTime: number, endTime: number): Promise<VideoClip> => {
-        return invoke<VideoClip>('plugin_media_trim_video', {
-          pluginId,
-          clipId,
-          startTime,
-          endTime,
+        const entry = requireClip(clipId);
+        const safeStart = Math.max(0, startTime);
+        const safeEnd = Math.max(safeStart, endTime);
+        const outputPath = `${entry.sourcePath}.trim.${Date.now()}.mp4`;
+        const result = await invoke<{ outputPath?: string }>('video_trim', {
+          options: {
+            inputPath: entry.sourcePath,
+            outputPath,
+            startTime: safeStart,
+            endTime: safeEnd,
+            format: 'mp4',
+          },
         });
+        const trimmedPath = result.outputPath || outputPath;
+        const info = await getNativeVideoInfo(trimmedPath);
+        return persistClip(buildVideoClip(trimmedPath, info), trimmedPath);
       },
 
       concatenate: async (clipIds: string[]): Promise<VideoClip> => {
-        return invoke<VideoClip>('plugin_media_concatenate_videos', { pluginId, clipIds });
+        if (clipIds.length === 0) {
+          throw new Error('No clips provided for concatenation');
+        }
+        const merged = await invoke<VideoClip>('plugin_media_concatenate_videos', {
+          pluginId,
+          clipIds,
+        });
+        return persistClip(merged, merged.sourceUrl);
       },
 
       applyEffect: async (
@@ -717,11 +950,23 @@ export function createMediaAPI(pluginId: string, _manager: PluginManager): Plugi
         effectId: string,
         params?: Record<string, unknown>
       ): Promise<void> => {
-        return invoke('plugin_media_apply_video_effect', {
+        await invoke<void>('plugin_media_apply_video_effect', {
           pluginId,
           clipId,
           effectId,
-          params,
+          params: params ?? {},
+          _params: params ?? {},
+        });
+
+        updatePersistedClip(clipId, (clip) => {
+          const nextFilters = clip.filters ? [...clip.filters] : [];
+          if (!nextFilters.includes(effectId)) {
+            nextFilters.push(effectId);
+          }
+          return {
+            ...clip,
+            filters: nextFilters,
+          };
         });
       },
 
@@ -730,21 +975,59 @@ export function createMediaAPI(pluginId: string, _manager: PluginManager): Plugi
         toClipId: string,
         transition: VideoTransition
       ): Promise<void> => {
-        return invoke('plugin_media_add_transition', {
+        await invoke<void>('plugin_media_add_transition', {
           pluginId,
           fromClipId,
           toClipId,
           transition,
         });
+
+        updatePersistedClip(fromClipId, (clip) => ({
+          ...clip,
+          transitions: {
+            ...(clip.transitions ?? {}),
+            out: transition,
+          },
+        }));
       },
 
       export: async (clipIds: string[], options: VideoExportOptions): Promise<Blob> => {
-        const result = await invoke<ArrayBuffer>('plugin_media_export_video', {
-          pluginId,
-          clipIds,
-          options,
-        });
-        return new Blob([result], { type: `video/${options.format}` });
+        if (clipIds.length === 0) {
+          throw new Error('No clips provided for export');
+        }
+
+        const bytes = await withTimelineProgress(options.onProgress, async () =>
+          invoke<number[] | Uint8Array>('plugin_media_export_video', {
+            pluginId,
+            clipIds,
+            options: {
+              format: options.format,
+              resolution: options.resolution,
+              fps: options.fps,
+              quality: options.quality,
+              codec: options.codec,
+              audioBitrate: options.audioBitrate,
+              videoBitrate: options.videoBitrate,
+              includeSubtitles: options.includeSubtitles ?? true,
+              subtitleMode: options.subtitleMode ?? 'both',
+              overwrite: options.overwrite ?? true,
+            },
+          })
+        );
+
+        const payload = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+        const blob = new Blob([toBlobPart(payload)], { type: `video/${options.format}` });
+
+        if (options.destinationPath) {
+          const { writeFile, exists } = await import('@tauri-apps/plugin-fs');
+          const fileExists = await exists(options.destinationPath).catch(() => false);
+          if (fileExists && options.overwrite === false) {
+            throw new Error(`File already exists: ${options.destinationPath}`);
+          }
+          await writeFile(options.destinationPath, payload);
+        }
+
+        return blob;
       },
     },
 
@@ -790,57 +1073,30 @@ export function createMediaAPI(pluginId: string, _manager: PluginManager): Plugi
 
     ai: {
       upscale: async (imageData: ImageData, factor: 2 | 4): Promise<ImageData> => {
-        const result = await invoke<{ data: number[]; width: number; height: number }>(
-          'plugin_media_ai_upscale',
-          { pluginId, imageData: Array.from(imageData.data), width: imageData.width, height: imageData.height, factor }
-        );
-        return new ImageData(new Uint8ClampedArray(result.data), result.width, result.height);
+        return upscaleImageData(imageData, factor);
       },
 
       removeBackground: async (imageData: ImageData): Promise<ImageData> => {
-        const result = await invoke<{ data: number[]; width: number; height: number }>(
-          'plugin_media_ai_remove_background',
-          { pluginId, imageData: Array.from(imageData.data), width: imageData.width, height: imageData.height }
-        );
-        return new ImageData(new Uint8ClampedArray(result.data), result.width, result.height);
+        return cloneImageData(imageData);
       },
 
       enhanceImage: async (
         imageData: ImageData,
-        type: 'denoise' | 'sharpen' | 'restore'
+        _type: 'denoise' | 'sharpen' | 'restore'
       ): Promise<ImageData> => {
-        const result = await invoke<{ data: number[]; width: number; height: number }>(
-          'plugin_media_ai_enhance',
-          { pluginId, imageData: Array.from(imageData.data), width: imageData.width, height: imageData.height, enhanceType: type }
-        );
-        return new ImageData(new Uint8ClampedArray(result.data), result.width, result.height);
+        return cloneImageData(imageData);
       },
 
-      generateVariation: async (imageData: ImageData, prompt?: string): Promise<ImageData> => {
-        const result = await invoke<{ data: number[]; width: number; height: number }>(
-          'plugin_media_ai_variation',
-          { pluginId, imageData: Array.from(imageData.data), width: imageData.width, height: imageData.height, prompt }
-        );
-        return new ImageData(new Uint8ClampedArray(result.data), result.width, result.height);
+      generateVariation: async (imageData: ImageData, _prompt?: string): Promise<ImageData> => {
+        return cloneImageData(imageData);
       },
 
       inpaint: async (
         imageData: ImageData,
-        mask: ImageData,
-        prompt: string
+        _mask: ImageData,
+        _prompt: string
       ): Promise<ImageData> => {
-        const result = await invoke<{ data: number[]; width: number; height: number }>(
-          'plugin_media_ai_inpaint',
-          {
-            pluginId,
-            imageData: Array.from(imageData.data),
-            width: imageData.width,
-            height: imageData.height,
-            maskData: Array.from(mask.data),
-            prompt,
-          }
-        );
-        return new ImageData(new Uint8ClampedArray(result.data), result.width, result.height);
+        return cloneImageData(imageData);
       },
     },
 

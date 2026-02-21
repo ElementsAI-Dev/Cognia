@@ -419,7 +419,8 @@ export function generateSimpleSummary(messages: UIMessage[]): string {
  */
 export function createSummaryMessage(
   compressedMessages: UIMessage[],
-  summaryText?: string
+  summaryText?: string,
+  frozenSummaryDecision?: 'reused' | 'regenerated'
 ): UIMessage {
   const summary = summaryText || generateSimpleSummary(compressedMessages);
   const now = new Date();
@@ -436,6 +437,7 @@ export function createSummaryMessage(
       originalTokenCount: compressedMessages.reduce((sum, m) => sum + countTokens(m.content), 0),
       compressedAt: now,
       strategyUsed: 'summary',
+      ...(frozenSummaryDecision ? { frozenSummaryDecision } : {}),
     },
   };
 }
@@ -681,7 +683,7 @@ export async function applyRecursiveCompression(
   }
 
   // Build result
-  const summaryMessage = createSummaryMessage(olderMessages, finalSummary);
+        const summaryMessage = createSummaryMessage(olderMessages, finalSummary, 'regenerated');
   const filteredMessages = [...systemMessages, summaryMessage, ...recentMessages];
 
   return {
@@ -830,7 +832,11 @@ export async function compressMessages(
           }
 
           // Insert summary message at the beginning (after system messages)
-          const summaryMessage = createSummaryMessage(result.messagesToSummarize, summaryText);
+          const summaryMessage = createSummaryMessage(
+            result.messagesToSummarize,
+            summaryText,
+            'regenerated'
+          );
           const systemMessages = filteredMessages.filter(m => m.role === 'system');
           const nonSystemFiltered = filteredMessages.filter(m => m.role !== 'system');
           filteredMessages = [...systemMessages, summaryMessage, ...nonSystemFiltered];
@@ -942,7 +948,11 @@ function filterMessagesForContextSync(
         }
 
         // Generate new summary (will be frozen by the caller if prefix stability is active)
-        const summaryMessage = createSummaryMessage(result.messagesToSummarize);
+        const summaryMessage = createSummaryMessage(
+          result.messagesToSummarize,
+          undefined,
+          'regenerated'
+        );
         const systemMessages = result.filteredMessages.filter(m => m.role === 'system');
         const nonSystemFiltered = result.filteredMessages.filter(m => m.role !== 'system');
         return [...systemMessages, summaryMessage, ...nonSystemFiltered];
@@ -1113,6 +1123,7 @@ export function createSummaryMessageFromFrozen(
       originalTokenCount: frozenSummary.originalTokenCount,
       compressedAt: frozenSummary.frozenAt,
       strategyUsed: 'hybrid',
+      frozenSummaryDecision: 'reused',
     },
   };
 }

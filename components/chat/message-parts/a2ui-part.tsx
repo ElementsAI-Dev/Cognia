@@ -31,13 +31,21 @@ export function A2UIPart({
 
   // Process part content via unified A2UI integration.
   useEffect(() => {
+    const enqueueStateUpdate = (updater: () => void) => {
+      queueMicrotask(updater);
+    };
+
     if (part.content) {
       const messageIdentity = _messageId ?? part.surfaceId;
       const processedSurfaceId = processMessage(part.content, messageIdentity);
-      setResolvedSurfaceId(processedSurfaceId ?? part.surfaceId);
+      enqueueStateUpdate(() => {
+        setResolvedSurfaceId(processedSurfaceId ?? part.surfaceId);
+      });
       return;
     }
-    setResolvedSurfaceId(part.surfaceId);
+    enqueueStateUpdate(() => {
+      setResolvedSurfaceId(part.surfaceId);
+    });
   }, [_messageId, part.content, part.surfaceId, processMessage]);
 
   // Get the surface

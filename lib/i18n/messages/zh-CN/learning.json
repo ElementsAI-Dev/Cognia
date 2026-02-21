@@ -182,6 +182,211 @@
         "markedReviewed": "已标记为已复习",
         "markReviewed": "标记已复习"
       },
+      "panel": {
+        "submodeTitle": "速通模式学习面板",
+        "submodeSwitcher": "速通模式",
+        "dailyStudy": "今日速通 · 连续学习 {days} 天",
+        "quickPanelTitle": "速通快捷操作",
+        "recommendedModeAndTarget": "推荐模式：{mode} · 今日目标：{targetMinutes} 分钟",
+        "modeLabels": {
+          "extreme": "极速模式",
+          "speed": "速成模式",
+          "comprehensive": "全面模式"
+        },
+        "todayProgress": "今日学习进度",
+        "actions": {
+          "continueTutorial": "继续教程",
+          "startQuiz": "开始测验",
+          "openWorkspace": "打开速通工作台"
+        },
+        "messages": {
+          "continueTutorial": "继续我的速通教程",
+          "startQuiz": "开始速通练习测验",
+          "openWorkspace": "打开速通工作台并查看我的计划"
+        },
+        "textbookCount": "教材数量",
+        "currentTutorial": "当前教程",
+        "noTutorial": "暂无进行中的教程"
+      },
+      "modeSelector": {
+        "title": "选择速通学习模式",
+        "description": "根据你的时间和目标，选择最适合的学习模式。",
+        "descriptionWithTextbook": "为《{textbookName}》选择最适合的学习模式。",
+        "availableTimeLabel": "可用时间（分钟）",
+        "availableTimePlaceholder": "例如：120",
+        "freeTextLabel": "学习目标描述",
+        "freeTextPlaceholder": "例如：我明天下午考试，只有 2 小时复习",
+        "smartRecommendation": "智能推荐",
+        "scoreRecommendation": "按分数目标推荐",
+        "recommendedBadge": "推荐",
+        "knowledgeCoverage": "预计覆盖 {count} 个知识点（约 {coveragePercent}%）",
+        "cancel": "取消",
+        "selectMode": "请选择模式",
+        "startMode": "开始{modeName}",
+        "urgency": {
+          "todayTitle": "考试就在今天",
+          "tomorrowTitle": "考试就在明天",
+          "description": "建议优先选择极速模式，先确保高频考点与必考题型。"
+        },
+        "modes": {
+          "extreme": {
+            "title": "极速模式",
+            "description": "临考突击，快速过关",
+            "duration": "1-2小时",
+            "targetScore": "60-70分",
+            "features": {
+              "primary": "核心公式速记",
+              "secondary": "高频考点精讲",
+              "practice": "必考题型训练"
+            }
+          },
+          "speed": {
+            "title": "速成模式",
+            "description": "重点突破，中等目标",
+            "duration": "2-4小时",
+            "targetScore": "70-85分",
+            "features": {
+              "primary": "重点知识梳理",
+              "secondary": "典型例题详解",
+              "practice": "中高频考点覆盖"
+            }
+          },
+          "comprehensive": {
+            "title": "全面模式",
+            "description": "系统学习，追求高分",
+            "duration": "6-12小时",
+            "targetScore": "85-100分",
+            "features": {
+              "primary": "全部知识点覆盖",
+              "secondary": "深度理解讲解",
+              "practice": "拓展延伸训练"
+            }
+          }
+        }
+      },
+      "tutorialDetail": {
+        "loading": "正在加载教程...",
+        "missingTutorialId": "缺少教程 ID，已返回速通首页。",
+        "tutorialNotFound": "未找到对应教程，已返回速通首页。",
+        "chapterToc": "章节目录",
+        "chapterIndex": "第 {index} 节",
+        "selectChapterHint": "请选择左侧章节开始学习。",
+        "progressLabel": "学习进度",
+        "progressDescription": "已完成 {completed} / {total} 节",
+        "remainingMinutes": "预计剩余 {minutes} 分钟",
+        "jumpToSuggested": "跳转到推荐章节",
+        "previousSection": "上一节",
+        "nextSection": "下一节",
+        "completeSection": "完成本节学习",
+        "completed": "已完成",
+        "completeTutorial": "完成教程",
+        "tutorialCompleted": "教程已完成，做得很棒！",
+        "timeSpentDescription": "本次学习用时：{duration}",
+        "sectionCompleted": "本节已完成",
+        "completedItems": "已完成 {completedItems} / {totalItems}",
+        "quickSummary": "速记总结",
+        "keyPoints": "核心知识点",
+        "mustKnowFormulas": "必背公式",
+        "examples": "典型例题",
+        "knowledgePointIndex": "知识点 {index}",
+        "pageRange": "页码：{range}",
+        "pageNumber": "第 {page} 页",
+        "commonMistakes": "常见错误",
+        "memoryTips": "记忆技巧",
+        "difficulty": {
+          "easy": "简单",
+          "medium": "中等",
+          "hard": "困难"
+        },
+        "importance": {
+          "critical": "核心",
+          "important": "重点",
+          "supplementary": "补充"
+        },
+        "modeBadge": {
+          "extreme": "极速模式",
+          "speed": "速成模式",
+          "comprehensive": "全面模式"
+        },
+        "duration": {
+          "minutesOnly": "{minutes}分钟",
+          "hoursOnly": "{hours}小时",
+          "hoursMinutes": "{hours}小时{minutes}分钟"
+        }
+      },
+      "uploader": {
+        "card": {
+          "title": "上传教材",
+          "description": "上传 PDF 或文本文件，系统将自动提取知识点。"
+        },
+        "errors": {
+          "unsupportedFileFormat": {
+            "title": "不支持的文件格式",
+            "description": "请上传 PDF、TXT 或 Markdown 文件。"
+          },
+          "missingTextbookName": "请填写教材名称。",
+          "processingFailed": "教材处理失败",
+          "retry": "请稍后重试。"
+        },
+        "defaults": {
+          "unknownAuthor": "未知作者",
+          "unknownPublisher": "未知出版社"
+        },
+        "progress": {
+          "fileReadReady": "文件读取完成，准备解析..."
+        },
+        "success": {
+          "parsedTitle": "教材解析完成",
+          "parsedDescription": "成功提取 {count} 个知识点。"
+        },
+        "processing": {
+          "inProgress": "正在处理...",
+          "stage": {
+            "parsing": "解析教材内容中...",
+            "extractingChapters": "提取章节结构中...",
+            "extractingKnowledgePoints": "提取知识点中...",
+            "extractingQuestions": "提取例题习题中..."
+          }
+        },
+        "errorState": {
+          "title": "处理失败",
+          "retry": "重试"
+        },
+        "uploadZone": {
+          "dragDrop": "拖放文件到此处",
+          "clickToSelect": "或点击选择文件",
+          "supportedFormats": "支持 PDF、TXT、Markdown 格式",
+          "selectFile": "选择文件"
+        },
+        "metadataDialog": {
+          "title": "教材信息",
+          "description": "填写教材的基本信息，帮助系统更好地解析内容。",
+          "cancel": "取消",
+          "submit": "开始解析"
+        },
+        "fields": {
+          "name": {
+            "label": "教材名称",
+            "placeholder": "例如：高等数学（上册）"
+          },
+          "author": {
+            "label": "作者",
+            "placeholder": "例如：同济大学"
+          },
+          "publisher": {
+            "label": "出版社",
+            "placeholder": "例如：高等教育出版社"
+          },
+          "edition": {
+            "label": "版次",
+            "placeholder": "例如：第七版"
+          },
+          "isbn": {
+            "label": "ISBN（可选）",
+            "placeholder": "例如：978-7-04-037988-6"
+          }
+        }
+      },
       "library": {
         "title": "我的教材",
         "subtitle": "共 {count} 本教材",
@@ -484,6 +689,26 @@
     }
   },
   "learning": {
+    "loading": {
+      "default": "正在加载学习内容...",
+      "flashcard": "正在准备闪卡...",
+      "flashcardDeck": "正在准备闪卡组...",
+      "quiz": "正在准备测验...",
+      "quizQuestion": "正在准备题目...",
+      "reviewSession": "正在准备复习会话...",
+      "progressSummary": "正在准备学习进度总结...",
+      "conceptExplanation": "正在准备概念讲解...",
+      "stepGuide": "正在准备步骤指南...",
+      "conceptMap": "正在准备概念图...",
+      "animation": "正在准备动画..."
+    },
+    "error": {
+      "default": "无法加载该学习工具结果。"
+    },
+    "concept": {
+      "relatedConcepts": "相关概念",
+      "quickReview": "快速复习"
+    },
     "visualization": {
       "title": "概念可视化",
       "legend": "图例",

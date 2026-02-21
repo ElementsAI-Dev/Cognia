@@ -276,6 +276,11 @@ describe('Permission API', () => {
         'export:project',
         'theme:read',
         'theme:write',
+        'media:image:read',
+        'media:image:write',
+        'media:video:read',
+        'media:video:write',
+        'media:video:export',
         'extension:ui',
         'notification:show',
       ];

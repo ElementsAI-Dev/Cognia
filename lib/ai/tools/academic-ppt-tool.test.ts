@@ -82,16 +82,16 @@ describe('academic-ppt-tool', () => {
   });
 
   describe('executePaperToPPTOutline', () => {
-    it('should generate outline successfully', () => {
-      const result = executePaperToPPTOutline(mockInput);
+    it('should generate outline successfully', async () => {
+      const result = await executePaperToPPTOutline(mockInput);
       
       expect(result.success).toBe(true);
       expect(result.outline).toBeDefined();
       expect(Array.isArray(result.outline)).toBe(true);
     });
 
-    it('should include default academic sections', () => {
-      const result = executePaperToPPTOutline(mockInput);
+    it('should include default academic sections', async () => {
+      const result = await executePaperToPPTOutline(mockInput);
       
       expect(result.success).toBe(true);
       expect(result.outline).toBeDefined();
@@ -103,35 +103,35 @@ describe('academic-ppt-tool', () => {
       expect(sections).toContain('conclusion');
     });
 
-    it('should include speaker notes when enabled', () => {
-      const result = executePaperToPPTOutline(mockInput);
+    it('should include speaker notes when enabled', async () => {
+      const result = await executePaperToPPTOutline(mockInput);
       
       expect(result.success).toBe(true);
       const itemsWithNotes = result.outline!.filter(item => item.speakerNotes);
       expect(itemsWithNotes.length).toBeGreaterThan(0);
     });
 
-    it('should mark image needs for appropriate sections', () => {
-      const result = executePaperToPPTOutline(mockInput);
+    it('should mark image needs for appropriate sections', async () => {
+      const result = await executePaperToPPTOutline(mockInput);
       
       expect(result.success).toBe(true);
       const itemsWithImages = result.outline!.filter(item => item.imageNeeded);
       expect(itemsWithImages.length).toBeGreaterThan(0);
     });
 
-    it('should use custom sections when provided', () => {
+    it('should use custom sections when provided', async () => {
       const customInput = {
         ...mockInput,
         includeSections: ['title', 'abstract', 'conclusion', 'qa'] as ('title' | 'abstract' | 'conclusion' | 'qa')[],
       };
-      const result = executePaperToPPTOutline(customInput);
+      const result = await executePaperToPPTOutline(customInput);
       
       expect(result.success).toBe(true);
       expect(result.outline).toHaveLength(4);
     });
 
-    it('should use paper title for title slide', () => {
-      const result = executePaperToPPTOutline(mockInput);
+    it('should use paper title for title slide', async () => {
+      const result = await executePaperToPPTOutline(mockInput);
       
       expect(result.success).toBe(true);
       const titleSlide = result.outline!.find(item => item.section === 'title');
@@ -140,16 +140,16 @@ describe('academic-ppt-tool', () => {
   });
 
   describe('executePaperToPPT', () => {
-    it('should generate full presentation successfully', () => {
-      const result = executePaperToPPT(mockInput);
+    it('should generate full presentation successfully', async () => {
+      const result = await executePaperToPPT(mockInput);
       
       expect(result.success).toBe(true);
       expect(result.presentation).toBeDefined();
       expect(result.outline).toBeDefined();
     });
 
-    it('should create presentation with correct metadata', () => {
-      const result = executePaperToPPT(mockInput);
+    it('should create presentation with correct metadata', async () => {
+      const result = await executePaperToPPT(mockInput);
       
       expect(result.success).toBe(true);
       expect(result.presentation?.title).toBe(mockPaper.title);
@@ -157,22 +157,22 @@ describe('academic-ppt-tool', () => {
       expect(result.presentation?.metadata?.source).toBe('academic-paper');
     });
 
-    it('should create slides matching outline', () => {
-      const result = executePaperToPPT(mockInput);
+    it('should create slides matching outline', async () => {
+      const result = await executePaperToPPT(mockInput);
       
       expect(result.success).toBe(true);
       expect(result.presentation?.slides.length).toBe(result.outline?.length);
     });
 
-    it('should apply academic theme', () => {
-      const result = executePaperToPPT(mockInput);
+    it('should apply academic theme', async () => {
+      const result = await executePaperToPPT(mockInput);
       
       expect(result.success).toBe(true);
       expect(result.presentation?.theme.id).toBe('academic');
     });
 
-    it('should include speaker notes in slides', () => {
-      const result = executePaperToPPT(mockInput);
+    it('should include speaker notes in slides', async () => {
+      const result = await executePaperToPPT(mockInput);
       
       expect(result.success).toBe(true);
       const slidesWithNotes = result.presentation?.slides.filter(s => s.notes);
@@ -220,18 +220,18 @@ describe('academic-ppt-tool', () => {
   });
 
   describe('different presentation styles', () => {
-    it('should generate conference style presentation', () => {
+    it('should generate conference style presentation', async () => {
       const input = { ...mockInput, style: 'conference' as const };
-      const result = executePaperToPPTOutline(input);
+      const result = await executePaperToPPTOutline(input);
       
       expect(result.success).toBe(true);
       const sections = result.outline!.map(item => item.section);
       expect(sections).toContain('experiments');
     });
 
-    it('should generate thesis-defense style presentation', () => {
+    it('should generate thesis-defense style presentation', async () => {
       const input = { ...mockInput, style: 'thesis-defense' as const };
-      const result = executePaperToPPTOutline(input);
+      const result = await executePaperToPPTOutline(input);
       
       expect(result.success).toBe(true);
       const sections = result.outline!.map(item => item.section);
@@ -240,9 +240,9 @@ describe('academic-ppt-tool', () => {
       expect(sections).toContain('future-work');
     });
 
-    it('should generate journal-club style presentation', () => {
+    it('should generate journal-club style presentation', async () => {
       const input = { ...mockInput, style: 'journal-club' as const };
-      const result = executePaperToPPTOutline(input);
+      const result = await executePaperToPPTOutline(input);
       
       expect(result.success).toBe(true);
       const sections = result.outline!.map(item => item.section);
@@ -251,9 +251,9 @@ describe('academic-ppt-tool', () => {
   });
 
   describe('language support', () => {
-    it('should generate Chinese titles when language is zh', () => {
+    it('should generate Chinese titles when language is zh', async () => {
       const input = { ...mockInput, language: 'zh' };
-      const result = executePaperToPPTOutline(input);
+      const result = await executePaperToPPTOutline(input);
       
       expect(result.success).toBe(true);
       // Title slide should still use paper title

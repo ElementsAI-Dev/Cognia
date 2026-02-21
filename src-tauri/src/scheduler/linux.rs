@@ -5,6 +5,7 @@
 #![cfg(target_os = "linux")]
 
 use async_trait::async_trait;
+use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -15,7 +16,7 @@ use super::error::{Result, SchedulerError};
 use super::service::{generate_task_name, now_iso, SystemScheduler, TASK_PREFIX};
 use super::types::{
     CreateSystemTaskInput, RunLevel, SchedulerCapabilities, SystemTask, SystemTaskAction,
-    SystemTaskId, SystemTaskStatus, SystemTaskTrigger, TaskRunResult,
+    SystemTaskId, SystemTaskStatus, SystemTaskTrigger, TaskMetadataState, TaskRunResult,
 };
 
 /// Linux systemd scheduler implementation
@@ -350,6 +351,181 @@ Description=Timer for Cognia Task: {}
             .unwrap_or_else(|_| "/usr/bin/cognia".to_string())
     }
 
+    fn parse_unit_value(content: &str, key: &str) -> Option<String> {
+        for line in content.lines() {
+            let line = line.trim();
+            if line.starts_with('#') {
+                continue;
+            }
+            if let Some(rest) = line.strip_prefix(&format!("{key}=")) {
+                return Some(rest.trim().trim_matches('"').to_string());
+            }
+        }
+        None
+    }
+
+    fn parse_duration_seconds(raw: &str) -> Option<u64> {
+        let value = raw.trim().to_ascii_lowercase();
+        if value.is_empty() {
+            return None;
+        }
+        if let Ok(seconds) = value.parse::<u64>() {
+            return Some(seconds);
+        }
+
+        let regex = Regex::new(r"^(\d+)([a-z]+)$").ok()?;
+        let captures = regex.captures(&value)?;
+        let num = captures.get(1)?.as_str().parse::<u64>().ok()?;
+        let unit = captures.get(2)?.as_str();
+        match unit {
+            "s" | "sec" | "secs" | "second" | "seconds" => Some(num),
+            "m" | "min" | "mins" | "minute" | "minutes" => Some(num * 60),
+            "h" | "hr" | "hour" | "hours" => Some(num * 3600),
+            "d" | "day" | "days" => Some(num * 24 * 3600),
+            _ => None,
+        }
+    }
+
+    fn parse_oncalendar_to_trigger(value: &str) -> Option<SystemTaskTrigger> {
+        let trimmed = value.trim();
+        if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(trimmed, "%Y-%m-%d %H:%M:%S") {
+            return Some(SystemTaskTrigger::Once {
+                run_at: format!("{}Z", dt.format("%Y-%m-%dT%H:%M:%S")),
+            });
+        }
+
+        let regex = Regex::new(r"(\d{1,2}):(\d{1,2}):00").ok()?;
+        let captures = regex.captures(trimmed)?;
+        let hour = captures.get(1)?.as_str().parse::<u32>().ok()?;
+        let minute = captures.get(2)?.as_str().parse::<u32>().ok()?;
+        let dow = if trimmed.starts_with("Mon")
+            || trimmed.starts_with("Tue")
+            || trimmed.starts_with("Wed")
+            || trimmed.starts_with("Thu")
+            || trimmed.starts_with("Fri")
+            || trimmed.starts_with("Sat")
+            || trimmed.starts_with("Sun")
+        {
+            let day = trimmed
+                .split_whitespace()
+                .next()
+                .unwrap_or("*")
+                .replace("..", "-")
+                .replace("Sun", "0")
+                .replace("Mon", "1")
+                .replace("Tue", "2")
+                .replace("Wed", "3")
+                .replace("Thu", "4")
+                .replace("Fri", "5")
+                .replace("Sat", "6");
+            day
+        } else {
+            "*".to_string()
+        };
+
+        Some(SystemTaskTrigger::Cron {
+            expression: format!("{minute} {hour} * * {dow}"),
+            timezone: Some("UTC".to_string()),
+        })
+    }
+
+    fn parse_trigger_from_units(timer_content: &str) -> Option<SystemTaskTrigger> {
+        if let Some(value) = Self::parse_unit_value(timer_content, "OnUnitActiveSec")
+            .and_then(|v| Self::parse_duration_seconds(&v))
+        {
+            return Some(SystemTaskTrigger::Interval { seconds: value });
+        }
+
+        if let Some(value) = Self::parse_unit_value(timer_content, "OnBootSec")
+            .and_then(|v| Self::parse_duration_seconds(&v))
+        {
+            return Some(SystemTaskTrigger::OnBoot {
+                delay_seconds: value,
+            });
+        }
+
+        let on_calendar = Self::parse_unit_value(timer_content, "OnCalendar")?;
+        Self::parse_oncalendar_to_trigger(&on_calendar)
+    }
+
+    fn arg_value(args: &[String], key: &str) -> Option<String> {
+        args.iter()
+            .position(|arg| arg == key)
+            .and_then(|index| args.get(index + 1).cloned())
+    }
+
+    fn parse_service_env(service_content: &str) -> HashMap<String, String> {
+        let mut env = HashMap::new();
+        for line in service_content.lines() {
+            let line = line.trim();
+            if let Some(value) = line.strip_prefix("Environment=") {
+                let value = value.trim().trim_matches('"');
+                if let Some((key, val)) = value.split_once('=') {
+                    env.insert(key.to_string(), val.to_string());
+                }
+            }
+        }
+        env
+    }
+
+    fn parse_action_from_service(service_content: &str) -> Option<SystemTaskAction> {
+        let exec = Self::parse_unit_value(service_content, "ExecStart")?;
+        let mut parts = exec
+            .split_whitespace()
+            .map(|item| item.trim_matches('\'').trim_matches('"').to_string())
+            .collect::<Vec<_>>();
+        if parts.is_empty() {
+            return None;
+        }
+
+        let command = parts.remove(0);
+        let args = parts;
+        let working_dir = Self::parse_unit_value(service_content, "WorkingDirectory");
+        let env = Self::parse_service_env(service_content);
+
+        if args.iter().any(|arg| arg == "execute-script") {
+            let language =
+                Self::arg_value(&args, "--language").unwrap_or_else(|| "unknown".to_string());
+            let timeout_secs = Self::arg_value(&args, "--timeout")
+                .and_then(|v| v.parse::<u64>().ok())
+                .unwrap_or(300);
+            let memory_mb = Self::arg_value(&args, "--memory")
+                .and_then(|v| v.parse::<u64>().ok())
+                .unwrap_or(512);
+            let use_sandbox = args.iter().any(|arg| arg == "--sandbox");
+            let code_b64 = Self::arg_value(&args, "--code-b64").unwrap_or_default();
+            let code = if code_b64.is_empty() {
+                String::new()
+            } else {
+                base64::Engine::decode(
+                    &base64::engine::general_purpose::STANDARD,
+                    code_b64.as_bytes(),
+                )
+                .ok()
+                .and_then(|bytes| String::from_utf8(bytes).ok())
+                .unwrap_or_default()
+            };
+
+            return Some(SystemTaskAction::ExecuteScript {
+                language,
+                code,
+                working_dir,
+                args: vec![],
+                env,
+                timeout_secs,
+                memory_mb,
+                use_sandbox,
+            });
+        }
+
+        Some(SystemTaskAction::RunCommand {
+            command,
+            args,
+            working_dir,
+            env,
+        })
+    }
+
     /// Run systemctl command
     fn systemctl(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
         Command::new("systemctl").arg("--user").args(args).output()
@@ -437,6 +613,7 @@ impl SystemScheduler for LinuxScheduler {
             last_run_at: None,
             next_run_at: None,
             last_result: None,
+            metadata_state: TaskMetadataState::Full,
         };
 
         task.requires_admin = task.check_requires_admin();
@@ -513,6 +690,7 @@ impl SystemScheduler for LinuxScheduler {
 
     async fn get_task(&self, id: &str) -> Result<Option<SystemTask>> {
         let timer_name = Self::timer_name(id);
+        let service_name = Self::service_name(id);
 
         if !self.unit_exists(&timer_name) {
             return Ok(None);
@@ -526,17 +704,28 @@ impl SystemScheduler for LinuxScheduler {
             SystemTaskStatus::Disabled
         };
 
+        let timer_content = fs::read_to_string(self.user_dir.join(&timer_name)).unwrap_or_default();
+        let service_content =
+            fs::read_to_string(self.user_dir.join(&service_name)).unwrap_or_default();
+        let parsed_trigger = Self::parse_trigger_from_units(&timer_content);
+        let parsed_action = Self::parse_action_from_service(&service_content);
+        let metadata_state = if parsed_trigger.is_some() && parsed_action.is_some() {
+            TaskMetadataState::Full
+        } else {
+            TaskMetadataState::Degraded
+        };
+
         Ok(Some(SystemTask {
-            id: id.clone(),
+            id: id.to_string(),
             name: id.trim_start_matches(TASK_PREFIX).to_string(),
             description: None,
-            trigger: SystemTaskTrigger::Interval { seconds: 0 },
-            action: SystemTaskAction::RunCommand {
+            trigger: parsed_trigger.unwrap_or(SystemTaskTrigger::Interval { seconds: 0 }),
+            action: parsed_action.unwrap_or(SystemTaskAction::RunCommand {
                 command: String::new(),
                 args: vec![],
                 working_dir: None,
                 env: HashMap::new(),
-            },
+            }),
             run_level: RunLevel::User,
             status,
             requires_admin: false,
@@ -546,6 +735,7 @@ impl SystemScheduler for LinuxScheduler {
             last_run_at: None,
             next_run_at: None,
             last_result: None,
+            metadata_state,
         }))
     }
 
@@ -619,5 +809,32 @@ impl SystemScheduler for LinuxScheduler {
 
     fn is_elevated(&self) -> bool {
         unsafe { libc::geteuid() == 0 }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_systemd_units_for_trigger_and_action() {
+        let timer = r#"
+[Timer]
+OnUnitActiveSec=120s
+"#;
+        let service = r#"
+[Service]
+ExecStart=/bin/echo hello world
+WorkingDirectory=/tmp
+"#;
+
+        let trigger = LinuxScheduler::parse_trigger_from_units(timer).expect("trigger");
+        let action = LinuxScheduler::parse_action_from_service(service).expect("action");
+
+        assert!(matches!(
+            trigger,
+            SystemTaskTrigger::Interval { seconds: 120 }
+        ));
+        assert!(matches!(action, SystemTaskAction::RunCommand { .. }));
     }
 }

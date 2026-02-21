@@ -464,6 +464,7 @@ function VirtualizedLogList({
   handleSelectLog: (log: StructuredLogEntry) => void;
   t: ReturnType<typeof useTranslations>;
 }) {
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: filteredLogs.length,
     getScrollElement: () => scrollRef.current,

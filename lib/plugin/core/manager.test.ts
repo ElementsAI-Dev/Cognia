@@ -26,7 +26,18 @@ jest.mock('@/lib/plugin/security/permission-guard', () => ({
   getPermissionGuard: jest.fn(),
 }));
 
+jest.mock('@/lib/chat/slash-command-registry', () => ({
+  getCommand: jest.fn(),
+  registerCommand: jest.fn(),
+  unregisterCommand: jest.fn(),
+}));
+
 import { usePluginStore } from '@/stores/plugin';
+import {
+  getCommand as getSlashCommand,
+  registerCommand as registerSlashCommand,
+  unregisterCommand as unregisterSlashCommand,
+} from '@/lib/chat/slash-command-registry';
 
 describe('PluginManager', () => {
   const mockInvoke = invoke as jest.MockedFunction<typeof invoke>;
@@ -41,7 +52,11 @@ describe('PluginManager', () => {
   const mockGuard = {
     registerPlugin: jest.fn(),
     unregisterPlugin: jest.fn(),
+    revokeAll: jest.fn(),
   };
+  const mockGetSlashCommand = getSlashCommand as jest.MockedFunction<typeof getSlashCommand>;
+  const mockRegisterSlashCommand = registerSlashCommand as jest.MockedFunction<typeof registerSlashCommand>;
+  const mockUnregisterSlashCommand = unregisterSlashCommand as jest.MockedFunction<typeof unregisterSlashCommand>;
 
   const createManifest = (id: string): PluginManifest => ({
     id,
@@ -60,6 +75,11 @@ describe('PluginManager', () => {
     mockVerifier.verify.mockResolvedValue({ valid: true });
     mockGuard.registerPlugin.mockReset();
     mockGuard.unregisterPlugin.mockReset();
+    mockGuard.revokeAll.mockReset();
+    mockGetSlashCommand.mockReset();
+    mockGetSlashCommand.mockReturnValue(undefined);
+    mockRegisterSlashCommand.mockReset();
+    mockUnregisterSlashCommand.mockReset();
     (getPluginSignatureVerifier as jest.Mock).mockReturnValue(mockVerifier);
     (getPermissionGuard as jest.Mock).mockReturnValue(mockGuard);
   });
@@ -309,7 +329,352 @@ describe('PluginManager', () => {
         pluginPath: '/plugins/to-remove',
       });
 
-      expect(store.uninstallPlugin).toHaveBeenCalledWith('to-remove', { skipFileRemoval: true });
+      expect(store.uninstallPlugin).toHaveBeenCalledWith('to-remove', {
+        skipFileRemoval: true,
+        viaManager: false,
+      });
+    });
+  });
+
+  describe('disablePlugin', () => {
+    it('should call plugin deactivate and unregister contributions', async () => {
+      const manifest = {
+        ...createManifest('to-disable'),
+        permissions: ['network:fetch'],
+      };
+      const store = {
+        plugins: {
+          'to-disable': {
+            manifest,
+            status: 'enabled',
+            source: 'local',
+            path: '/plugins/to-disable',
+            config: {},
+            tools: [
+              {
+                name: 'tool-a',
+                pluginId: 'to-disable',
+                definition: { name: 'tool-a', description: 'Tool A', parametersSchema: {} },
+                execute: jest.fn(),
+              },
+            ],
+            components: [
+              {
+                type: 'component-a',
+                pluginId: 'to-disable',
+                component: () => null,
+                metadata: { type: 'component-a', name: 'Component A' },
+              },
+            ],
+            modes: [
+              {
+                id: 'to-disable:mode-a',
+                type: 'custom',
+                name: 'Mode A',
+                description: 'Mode A',
+                icon: 'bot',
+                tools: [],
+              },
+            ],
+            commands: [
+              {
+                id: 'to-disable.command-a',
+                name: 'Command A',
+                execute: jest.fn(),
+              },
+            ],
+          },
+        } as Record<string, Plugin>,
+        disablePlugin: jest.fn(async (pluginId: string) => {
+          const plugin = store.plugins[pluginId];
+          store.plugins[pluginId] = { ...plugin, status: 'disabled' } as Plugin;
+        }),
+        unregisterPluginTool: jest.fn(),
+        unregisterPluginComponent: jest.fn(),
+        unregisterPluginMode: jest.fn(),
+        unregisterPluginCommand: jest.fn(),
+      };
+
+      mockGetState.mockReturnValue(store);
+      mockInvoke.mockResolvedValue(undefined);
+
+      const manager = new PluginManager({ pluginDirectory: '/plugins' });
+      const deactivate = jest.fn(async () => undefined);
+      (manager as unknown as {
+        loader: { loadedModules: Map<string, { definition: { deactivate: () => Promise<void> } }> };
+      }).loader.loadedModules.set('to-disable', {
+        definition: { deactivate },
+      });
+
+      await manager.disablePlugin('to-disable');
+
+      expect(store.disablePlugin).toHaveBeenCalledWith('to-disable', { viaManager: false });
+      expect(store.unregisterPluginTool).toHaveBeenCalledWith('to-disable', 'tool-a');
+      expect(store.unregisterPluginComponent).toHaveBeenCalledWith('to-disable', 'component-a');
+      expect(store.unregisterPluginMode).toHaveBeenCalledWith('to-disable', 'to-disable:mode-a');
+      expect(store.unregisterPluginCommand).toHaveBeenCalledWith('to-disable', 'to-disable.command-a');
+      expect(deactivate).toHaveBeenCalled();
+      expect(mockGuard.revokeAll).toHaveBeenCalledWith('to-disable');
+    });
+  });
+
+  describe('handleActivationEvent', () => {
+    it('should activate plugin when command activation event matches', async () => {
+      const pluginA: Plugin = {
+        manifest: {
+          ...createManifest('event-plugin'),
+          activationEvents: ['onCommand:test-command'],
+        },
+        status: 'installed',
+        source: 'local',
+        path: '/plugins/event-plugin',
+        config: {},
+      };
+      const pluginB: Plugin = {
+        manifest: {
+          ...createManifest('other-plugin'),
+          activationEvents: ['onCommand:other-command'],
+        },
+        status: 'installed',
+        source: 'local',
+        path: '/plugins/other-plugin',
+        config: {},
+      };
+
+      mockGetState.mockReturnValue({
+        plugins: {
+          'event-plugin': pluginA,
+          'other-plugin': pluginB,
+        },
+      });
+
+      const manager = new PluginManager({ pluginDirectory: '/plugins' });
+      const enableSpy = jest
+        .spyOn(manager, 'enablePlugin')
+        .mockResolvedValue(undefined);
+
+      await manager.handleActivationEvent('onCommand:test-command');
+
+      expect(enableSpy).toHaveBeenCalledWith('event-plugin', 'activation:onCommand:test-command');
+      expect(enableSpy).not.toHaveBeenCalledWith('other-plugin', expect.any(String));
+    });
+
+    it('should activate plugin when wildcard command activation event matches', async () => {
+      const wildcardPlugin: Plugin = {
+        manifest: {
+          ...createManifest('wildcard-plugin'),
+          activationEvents: ['onCommand:git-tools.*'],
+        },
+        status: 'installed',
+        source: 'local',
+        path: '/plugins/wildcard-plugin',
+        config: {},
+      };
+
+      mockGetState.mockReturnValue({
+        plugins: {
+          'wildcard-plugin': wildcardPlugin,
+        },
+      });
+
+      const manager = new PluginManager({ pluginDirectory: '/plugins' });
+      const enableSpy = jest.spyOn(manager, 'enablePlugin').mockResolvedValue(undefined);
+
+      await manager.handleActivationEvent('onCommand:git-tools.status');
+
+      expect(enableSpy).toHaveBeenCalledWith(
+        'wildcard-plugin',
+        'activation:onCommand:git-tools.status'
+      );
+    });
+
+    it('should activate plugin on startup event when activateOnStartup=true', async () => {
+      const startupPlugin: Plugin = {
+        manifest: {
+          ...createManifest('startup-plugin'),
+          activateOnStartup: true,
+        },
+        status: 'installed',
+        source: 'local',
+        path: '/plugins/startup-plugin',
+        config: {},
+      };
+
+      mockGetState.mockReturnValue({
+        plugins: {
+          'startup-plugin': startupPlugin,
+        },
+      });
+
+      const manager = new PluginManager({ pluginDirectory: '/plugins' });
+      const enableSpy = jest.spyOn(manager, 'enablePlugin').mockResolvedValue(undefined);
+
+      await manager.handleActivationEvent('startup');
+
+      expect(enableSpy).toHaveBeenCalledWith('startup-plugin', 'activation:startup');
+    });
+
+    it('should activate plugin for legacy onAgentTool activation events', async () => {
+      const legacyToolPlugin: Plugin = {
+        manifest: {
+          ...createManifest('legacy-tool-plugin'),
+          activationEvents: ['onAgentTool:docker_*'],
+        },
+        status: 'installed',
+        source: 'local',
+        path: '/plugins/legacy-tool-plugin',
+        config: {},
+      };
+
+      mockGetState.mockReturnValue({
+        plugins: {
+          'legacy-tool-plugin': legacyToolPlugin,
+        },
+      });
+
+      const manager = new PluginManager({ pluginDirectory: '/plugins' });
+      const enableSpy = jest.spyOn(manager, 'enablePlugin').mockResolvedValue(undefined);
+
+      await manager.handleActivationEvent('onTool:docker_ps');
+
+      expect(enableSpy).toHaveBeenCalledWith(
+        'legacy-tool-plugin',
+        'activation:onTool:docker_ps'
+      );
+    });
+  });
+
+  describe('plugin slash command integration', () => {
+    const createCommandPlugin = (status: Plugin['status'] = 'loaded'): Plugin => ({
+      manifest: {
+        ...createManifest('cmd-plugin'),
+        capabilities: ['commands'],
+        commands: [
+          {
+            id: 'cmd-plugin.run',
+            name: 'Run Command',
+            description: 'Execute plugin command',
+            aliases: ['cmd-run', 'cmd-alias'],
+          },
+        ],
+      },
+      status,
+      source: 'local',
+      path: '/plugins/cmd-plugin',
+      config: {},
+    });
+
+    it('should register slash commands when plugin is enabled', async () => {
+      const store = {
+        plugins: {
+          'cmd-plugin': createCommandPlugin('loaded'),
+        } as Record<string, Plugin>,
+        enablePlugin: jest.fn(async (pluginId: string) => {
+          const plugin = store.plugins[pluginId];
+          store.plugins[pluginId] = { ...plugin, status: 'enabled' };
+        }),
+        registerPluginCommand: jest.fn(),
+      };
+
+      mockGetState.mockReturnValue(store);
+      const manager = new PluginManager({ pluginDirectory: '/plugins' });
+      (manager as unknown as { contexts: Map<string, unknown> }).contexts.set('cmd-plugin', {});
+      (manager as unknown as { loader: { isLoaded: (pluginId: string) => boolean } }).loader.isLoaded =
+        jest.fn(() => true);
+
+      await manager.enablePlugin('cmd-plugin');
+
+      expect(store.enablePlugin).toHaveBeenCalledWith('cmd-plugin', { viaManager: false });
+      expect(store.registerPluginCommand).toHaveBeenCalledWith(
+        'cmd-plugin',
+        expect.objectContaining({ id: 'cmd-plugin.cmd-plugin.run' })
+      );
+      expect(mockRegisterSlashCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'cmd-plugin.cmd-plugin.run',
+          source: 'plugin',
+          command: 'cmd-plugin.run',
+          aliases: ['cmd-run', 'cmd-alias'],
+          pluginMeta: {
+            source: 'plugin',
+            pluginId: 'cmd-plugin',
+            commandId: 'cmd-plugin.run',
+          },
+        })
+      );
+    });
+
+    it('should unregister slash commands when plugin is disabled', async () => {
+      const store = {
+        plugins: {
+          'cmd-plugin': {
+            ...createCommandPlugin('enabled'),
+            commands: [
+              {
+                id: 'cmd-plugin.cmd-plugin.run',
+                name: 'Run Command',
+                execute: jest.fn(),
+              },
+            ],
+          },
+        } as Record<string, Plugin>,
+        disablePlugin: jest.fn(async (pluginId: string) => {
+          const plugin = store.plugins[pluginId];
+          store.plugins[pluginId] = { ...plugin, status: 'disabled' };
+        }),
+        unregisterPluginCommand: jest.fn(),
+      };
+
+      mockGetState.mockReturnValue(store);
+      const manager = new PluginManager({ pluginDirectory: '/plugins' });
+      (manager as unknown as {
+        registeredSlashCommandsByPlugin: Map<string, string[]>;
+      }).registeredSlashCommandsByPlugin.set('cmd-plugin', ['cmd-plugin.run']);
+
+      await manager.disablePlugin('cmd-plugin');
+
+      expect(store.disablePlugin).toHaveBeenCalledWith('cmd-plugin', { viaManager: false });
+      expect(mockUnregisterSlashCommand).toHaveBeenCalledWith('cmd-plugin.run');
+    });
+
+    it('should skip conflicting slash alias while registering non-conflicting aliases', async () => {
+      const store = {
+        plugins: {
+          'cmd-plugin': createCommandPlugin('loaded'),
+        } as Record<string, Plugin>,
+        enablePlugin: jest.fn(async (pluginId: string) => {
+          const plugin = store.plugins[pluginId];
+          store.plugins[pluginId] = { ...plugin, status: 'enabled' };
+        }),
+        registerPluginCommand: jest.fn(),
+      };
+
+      mockGetState.mockReturnValue(store);
+      mockGetSlashCommand.mockImplementation((name: string) =>
+        name === 'cmd-alias'
+          ? ({
+              id: 'existing',
+              command: 'existing',
+              description: 'existing',
+              category: 'custom',
+              handler: async () => ({ success: true }),
+            } as never)
+          : undefined
+      );
+
+      const manager = new PluginManager({ pluginDirectory: '/plugins' });
+      (manager as unknown as { contexts: Map<string, unknown> }).contexts.set('cmd-plugin', {});
+      (manager as unknown as { loader: { isLoaded: (pluginId: string) => boolean } }).loader.isLoaded =
+        jest.fn(() => true);
+
+      await manager.enablePlugin('cmd-plugin');
+
+      expect(mockRegisterSlashCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command: 'cmd-plugin.run',
+          aliases: ['cmd-run'],
+        })
+      );
     });
   });
 });

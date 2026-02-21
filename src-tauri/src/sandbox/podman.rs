@@ -37,7 +37,11 @@ impl PodmanRuntime {
             .take(16)
             .collect::<String>()
             .to_lowercase();
-        let suffix = if suffix.is_empty() { "run".to_string() } else { suffix };
+        let suffix = if suffix.is_empty() {
+            "run".to_string()
+        } else {
+            suffix
+        };
         format!("cognia-sandbox-{}", suffix)
     }
 
@@ -475,7 +479,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
         let work_dir = PathBuf::from("/tmp/test");
 
@@ -501,7 +505,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: true,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
         let work_dir = PathBuf::from("/tmp/test");
 
@@ -527,7 +531,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
         let work_dir = PathBuf::from("/tmp/test");
 
@@ -551,7 +555,7 @@ mod tests {
             cpu_limit_percent: 75,
             network_enabled: false,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
         let work_dir = PathBuf::from("/tmp/test");
 
@@ -575,7 +579,7 @@ mod tests {
             cpu_limit_percent: 25,
             network_enabled: false,
             max_output_size: 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
         let work_dir = PathBuf::from("/tmp/test");
 
@@ -667,7 +671,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
 
         let result = runtime
@@ -698,7 +702,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
 
         let result = runtime
@@ -727,7 +731,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
 
         let result = runtime
@@ -763,7 +767,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
 
         let result = runtime

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ThemeProvider } from "@/components/providers/ui";
+import { StandaloneThemeSyncProvider } from "@/components/providers/ui";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/lib/i18n";
 import "../../globals.css";
@@ -27,14 +27,9 @@ export default function AssistantBubbleLayout({
         }}
       >
         <I18nProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem={false}
-            disableTransitionOnChange
-          >
+          <StandaloneThemeSyncProvider allowBackgroundImage={true}>
             <TooltipProvider delayDuration={0}>{children}</TooltipProvider>
-          </ThemeProvider>
+          </StandaloneThemeSyncProvider>
         </I18nProvider>
       </body>
     </html>

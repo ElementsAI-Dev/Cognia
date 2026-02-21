@@ -13,24 +13,30 @@ import type { RAGSearchConfig } from './rag-search';
 
 // Mock RAG module
 jest.mock('@/lib/ai/rag', () => ({
-  createRAGPipeline: jest.fn(),
+  getSharedRAGRuntime: jest.fn(),
 }));
 
-import { createRAGPipeline } from '@/lib/ai/rag';
+import { getSharedRAGRuntime } from '@/lib/ai/rag';
 
-const mockCreateRAGPipeline = createRAGPipeline as jest.Mock;
+const mockGetSharedRAGRuntime = getSharedRAGRuntime as jest.Mock;
 const mockRetrieve = jest.fn();
 
 describe('executeRAGSearch', () => {
   const mockConfig: RAGSearchConfig = {
-    embeddingProvider: 'openai',
-    embeddingModel: 'text-embedding-3-small',
-    embeddingApiKey: 'test-key',
+    runtimeConfig: {
+      vectorStore: {
+        provider: 'chroma',
+        embeddingConfig: { provider: 'openai', model: 'text-embedding-3-small' },
+        embeddingApiKey: 'test-key',
+        native: {},
+      },
+    },
+    defaultCollectionName: 'default',
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockCreateRAGPipeline.mockReturnValue({
+    mockGetSharedRAGRuntime.mockReturnValue({
       retrieve: mockRetrieve,
     });
   });
@@ -113,7 +119,8 @@ describe('executeRAGSearch', () => {
 
     await executeRAGSearch(input, mockConfig);
 
-    expect(mockCreateRAGPipeline).toHaveBeenCalledWith(
+    expect(mockGetSharedRAGRuntime).toHaveBeenCalledWith(
+      'tool:rag-search',
       expect.objectContaining({ topK: 10 })
     );
   });
@@ -138,7 +145,8 @@ describe('executeRAGSearch', () => {
 
     await executeRAGSearch(input, mockConfig);
 
-    expect(mockCreateRAGPipeline).toHaveBeenCalledWith(
+    expect(mockGetSharedRAGRuntime).toHaveBeenCalledWith(
+      'tool:rag-search',
       expect.objectContaining({ similarityThreshold: 0.7 })
     );
   });
@@ -245,7 +253,7 @@ describe('ragSearchInputSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('uses default values', () => {
+  it('keeps optional topK/threshold undefined when omitted', () => {
     const result = ragSearchInputSchema.safeParse({
       query: 'test',
       collectionName: 'collection',
@@ -253,9 +261,16 @@ describe('ragSearchInputSchema', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.topK).toBe(5);
-      expect(result.data.threshold).toBe(0.5);
+      expect(result.data.topK).toBeUndefined();
+      expect(result.data.threshold).toBeUndefined();
     }
+  });
+
+  it('allows missing collection name', () => {
+    const result = ragSearchInputSchema.safeParse({
+      query: 'test',
+    });
+    expect(result.success).toBe(true);
   });
 
   it('validates topK range', () => {
@@ -304,7 +319,7 @@ describe('ragSearchInputSchema', () => {
     expect(valid.success).toBe(true);
   });
 
-  it('requires query and collectionName', () => {
+  it('requires query only and allows collectionName omission', () => {
     const noQuery = ragSearchInputSchema.safeParse({
       collectionName: 'collection',
     });
@@ -313,7 +328,7 @@ describe('ragSearchInputSchema', () => {
     const noCollection = ragSearchInputSchema.safeParse({
       query: 'test',
     });
-    expect(noCollection.success).toBe(false);
+    expect(noCollection.success).toBe(true);
   });
 });
 

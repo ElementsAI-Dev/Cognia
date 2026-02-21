@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { useSpeedPassStore } from '@/stores/learning/speedpass-store';
@@ -56,8 +56,11 @@ import {
 export default function TutorialDetailClient() {
   const params = useParams();
   const router = useRouter();
-  const _t = useTranslations('learningMode.speedpass');
-  const tutorialId = params.id as string;
+  const searchParams = useSearchParams();
+  const tTutorial = useTranslations('learningMode.speedpass.tutorialDetail');
+  const routeParamId = typeof params.id === 'string' ? params.id : undefined;
+  const queryTutorialId = searchParams.get('id') || undefined;
+  const tutorialId = queryTutorialId || routeParamId || '';
 
   const store = useSpeedPassStore();
   const tutorial = store.tutorials[tutorialId] as SpeedLearningTutorial | undefined;
@@ -85,6 +88,9 @@ export default function TutorialDetailClient() {
 
   // Initialize: start time + study session on mount
   useEffect(() => {
+    if (!tutorialId) {
+      return;
+    }
     startTimeRef.current = Date.now();
 
     if (tutorialId && store.tutorials[tutorialId]) {
@@ -107,11 +113,16 @@ export default function TutorialDetailClient() {
 
   // Handle missing tutorial
   useEffect(() => {
+    if (!tutorialId) {
+      toast.error(tTutorial('missingTutorialId'));
+      router.push('/speedpass');
+      return;
+    }
     if (!tutorial) {
-      toast.error('教程不存在');
+      toast.error(tTutorial('tutorialNotFound'));
       router.push('/speedpass');
     }
-  }, [tutorial, router]);
+  }, [tutorialId, tutorial, router, tTutorial]);
 
   // Get completed sections from store (derived, no effect needed)
   const storeCompletedSections = useMemo(() => {
@@ -202,8 +213,10 @@ export default function TutorialDetailClient() {
     // Move to next section if available
     if (currentSectionIndex < tutorial.sections.length - 1) {
       setCurrentSectionIndex(currentSectionIndex + 1);
-      toast.success('知识点已完成', {
-        description: `进度: ${Math.round(((completedSections.size + 1) / tutorial.sections.length) * 100)}%`,
+      toast.success(tTutorial('sectionCompleted'), {
+        description: tTutorial('progressDescription', {
+          progress: Math.round(((completedSections.size + 1) / tutorial.sections.length) * 100),
+        }),
       });
     } else {
       // All sections done — mark tutorial complete
@@ -216,11 +229,22 @@ export default function TutorialDetailClient() {
       }
 
       const timeSpent = Date.now() - startTimeRef.current;
-      toast.success('恭喜完成教程！', {
-        description: `用时: ${formatDuration(timeSpent)}`,
+      toast.success(tTutorial('tutorialCompleted'), {
+        description: tTutorial('timeSpentDescription', {
+          duration: formatDuration(timeSpent, (key, values) => tTutorial(key, values)),
+        }),
       });
     }
-  }, [currentSection, currentSectionIndex, tutorial, completedSections.size, store, tutorialId, extremeEngine]);
+  }, [
+    currentSection,
+    currentSectionIndex,
+    tutorial,
+    completedSections.size,
+    store,
+    tutorialId,
+    extremeEngine,
+    tTutorial,
+  ]);
 
   // Handle navigation
   const handlePrevSection = useCallback(() => {
@@ -245,7 +269,7 @@ export default function TutorialDetailClient() {
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="mt-4 text-muted-foreground">加载中...</p>
+          <p className="mt-4 text-muted-foreground">{tTutorial('loading')}</p>
         </div>
       </div>
     );
@@ -275,11 +299,11 @@ export default function TutorialDetailClient() {
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <p className="text-sm text-muted-foreground">学习进度</p>
+              <p className="text-sm text-muted-foreground">{tTutorial('progressLabel')}</p>
               <p className="font-semibold">{progress}%</p>
               {estimatedRemainingMinutes > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  剩余约 {estimatedRemainingMinutes} 分钟
+                  {tTutorial('remainingMinutes', { minutes: estimatedRemainingMinutes })}
                 </p>
               )}
             </div>
@@ -303,7 +327,10 @@ export default function TutorialDetailClient() {
                 {formatCountdown(remainingTimeMs)}
               </span>
               <span className="text-muted-foreground">
-                {extremeOverview.completedItems}/{extremeOverview.totalItems} 项完成
+                {tTutorial('completedItems', {
+                  completed: extremeOverview.completedItems,
+                  total: extremeOverview.totalItems,
+                })}
               </span>
             </div>
             <span className={cn(
@@ -322,7 +349,7 @@ export default function TutorialDetailClient() {
         <div className="w-64 border-r">
           <ScrollArea className="h-full">
             <div className="p-4">
-              <h3 className="mb-4 font-semibold">章节目录</h3>
+              <h3 className="mb-4 font-semibold">{tTutorial('chapterToc')}</h3>
               <div className="space-y-1">
                 {optimizedSections.map((section, sectionIndex) => (
                   <button
@@ -350,7 +377,10 @@ export default function TutorialDetailClient() {
                         {sectionIndex + 1}
                       </div>
                     )}
-                    <span className="truncate">{section.textbookLocation?.section || `章节 ${sectionIndex + 1}`}</span>
+                    <span className="truncate">
+                      {section.textbookLocation?.section ||
+                        tTutorial('chapterIndex', { index: sectionIndex + 1 })}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -372,7 +402,7 @@ export default function TutorialDetailClient() {
               ) : (
                 <div className="flex flex-col items-center justify-center py-12">
                   <BookOpen className="h-16 w-16 text-muted-foreground/50" />
-                  <p className="mt-4 text-lg text-muted-foreground">选择一个章节开始学习</p>
+                  <p className="mt-4 text-lg text-muted-foreground">{tTutorial('selectChapterHint')}</p>
                 </div>
               )}
             </div>
@@ -385,7 +415,7 @@ export default function TutorialDetailClient() {
         <div className="flex items-center justify-between">
           <Button variant="outline" onClick={handlePrevSection} disabled={currentSectionIndex === 0}>
             <ChevronLeft className="mr-2 h-4 w-4" />
-            上一节
+            {tTutorial('previousSection')}
           </Button>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
@@ -401,18 +431,18 @@ export default function TutorialDetailClient() {
                   if (idx >= 0) setCurrentSectionIndex(idx);
                 }}
               >
-                跳转推荐
+                {tTutorial('jumpToSuggested')}
               </Button>
             )}
           </div>
           {currentSectionIndex === optimizedSections.length - 1 ? (
             <Button onClick={handleCompleteSection} disabled={allCompletedSections.has(currentSection?.id || '')}>
               <CheckCircle2 className="mr-2 h-4 w-4" />
-              完成教程
+              {tTutorial('completeTutorial')}
             </Button>
           ) : (
             <Button onClick={handleNextSection}>
-              下一节
+              {tTutorial('nextSection')}
               <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           )}
@@ -434,9 +464,15 @@ interface SectionViewerProps {
 }
 
 function SectionViewer({ section, mode, isCompleted, onComplete }: SectionViewerProps) {
-  const sectionTitle = section.textbookLocation?.section || `知识点 ${section.orderIndex + 1}`;
-  const importanceLabel = section.importanceLevel === 'critical' ? '核心' :
-    section.importanceLevel === 'important' ? '重要' : '补充';
+  const tTutorial = useTranslations('learningMode.speedpass.tutorialDetail');
+  const sectionTitle =
+    section.textbookLocation?.section || tTutorial('knowledgePointIndex', { index: section.orderIndex + 1 });
+  const importanceLabel =
+    section.importanceLevel === 'critical'
+      ? tTutorial('importance.critical')
+      : section.importanceLevel === 'important'
+        ? tTutorial('importance.important')
+        : tTutorial('importance.supplementary');
   const importanceColor = section.importanceLevel === 'critical' ? 'text-red-500' :
     section.importanceLevel === 'important' ? 'text-orange-500' : 'text-gray-500';
 
@@ -450,7 +486,7 @@ function SectionViewer({ section, mode, isCompleted, onComplete }: SectionViewer
           {isCompleted && (
             <Badge variant="secondary" className="bg-green-100 text-green-700">
               <CheckCircle2 className="mr-1 h-3 w-3" />
-              已完成
+              {tTutorial('completed')}
             </Badge>
           )}
         </div>
@@ -461,7 +497,7 @@ function SectionViewer({ section, mode, isCompleted, onComplete }: SectionViewer
           </span>
           <span className="flex items-center gap-1">
             <Target className="h-4 w-4" />
-            第 {section.textbookLocation?.pageRange} 页
+            {tTutorial('pageRange', { range: section.textbookLocation?.pageRange || '-' })}
           </span>
         </div>
       </div>
@@ -472,7 +508,7 @@ function SectionViewer({ section, mode, isCompleted, onComplete }: SectionViewer
       <div className="space-y-4">
         <h3 className="flex items-center gap-2 font-semibold">
           <Lightbulb className="h-5 w-5 text-amber-500" />
-          速学概要
+          {tTutorial('quickSummary')}
         </h3>
         <Card>
           <CardContent className="pt-4">
@@ -486,7 +522,7 @@ function SectionViewer({ section, mode, isCompleted, onComplete }: SectionViewer
         <div className="space-y-4">
           <h3 className="flex items-center gap-2 font-semibold">
             <Target className="h-5 w-5 text-blue-500" />
-            核心要点
+            {tTutorial('keyPoints')}
           </h3>
           <ul className="space-y-2">
             {section.keyPoints.map((point, idx) => (
@@ -504,7 +540,7 @@ function SectionViewer({ section, mode, isCompleted, onComplete }: SectionViewer
         <div className="space-y-4">
           <h3 className="flex items-center gap-2 font-semibold">
             <Zap className="h-5 w-5 text-amber-500" />
-            必记公式
+            {tTutorial('mustKnowFormulas')}
           </h3>
           <div className="grid gap-3">
             {section.mustKnowFormulas.map((formula, idx) => (
@@ -526,7 +562,7 @@ function SectionViewer({ section, mode, isCompleted, onComplete }: SectionViewer
         <div className="space-y-4">
           <h3 className="flex items-center gap-2 font-semibold">
             <Brain className="h-5 w-5 text-purple-500" />
-            例题讲解
+            {tTutorial('examples')}
           </h3>
           <div className="grid gap-3">
             {section.examples.map((example, idx) => (
@@ -535,10 +571,16 @@ function SectionViewer({ section, mode, isCompleted, onComplete }: SectionViewer
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{example.title}</span>
                     <Badge variant="outline">
-                      {example.difficulty === 'easy' ? '简单' : example.difficulty === 'medium' ? '中等' : '困难'}
+                      {example.difficulty === 'easy'
+                        ? tTutorial('difficulty.easy')
+                        : example.difficulty === 'medium'
+                          ? tTutorial('difficulty.medium')
+                          : tTutorial('difficulty.hard')}
                     </Badge>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">第 {example.pageNumber} 页</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {tTutorial('pageNumber', { page: example.pageNumber })}
+                  </p>
                 </CardContent>
               </Card>
             ))}
@@ -551,7 +593,7 @@ function SectionViewer({ section, mode, isCompleted, onComplete }: SectionViewer
         <div className="space-y-4">
           <h3 className="flex items-center gap-2 font-semibold text-red-500">
             <Clock className="h-5 w-5" />
-            常见错误
+            {tTutorial('commonMistakes')}
           </h3>
           <ul className="space-y-2">
             {section.commonMistakes.map((mistake, idx) => (
@@ -569,7 +611,7 @@ function SectionViewer({ section, mode, isCompleted, onComplete }: SectionViewer
         <div className="space-y-4">
           <h3 className="flex items-center gap-2 font-semibold text-blue-500">
             <Lightbulb className="h-5 w-5" />
-            记忆技巧
+            {tTutorial('memoryTips')}
           </h3>
           <ul className="space-y-2">
             {section.memoryTips.map((tip, idx) => (
@@ -587,7 +629,7 @@ function SectionViewer({ section, mode, isCompleted, onComplete }: SectionViewer
         <div className="flex justify-center pt-4">
           <Button size="lg" onClick={onComplete}>
             <CheckCircle2 className="mr-2 h-5 w-5" />
-            完成本节学习
+            {tTutorial('completeSection')}
           </Button>
         </div>
       )}
@@ -600,10 +642,11 @@ function SectionViewer({ section, mode, isCompleted, onComplete }: SectionViewer
 // ============================================================================
 
 function ModeBadge({ mode }: { mode: SpeedLearningMode }) {
+  const tMode = useTranslations('learningMode.speedpass.tutorialDetail.modeBadge');
   const config = {
-    extreme: { icon: Zap, label: '极速模式', color: 'text-red-500 bg-red-100' },
-    speed: { icon: Play, label: '速成模式', color: 'text-orange-500 bg-orange-100' },
-    comprehensive: { icon: GraduationCap, label: '全面模式', color: 'text-blue-500 bg-blue-100' },
+    extreme: { icon: Zap, label: tMode('extreme'), color: 'text-red-500 bg-red-100' },
+    speed: { icon: Play, label: tMode('speed'), color: 'text-orange-500 bg-orange-100' },
+    comprehensive: { icon: GraduationCap, label: tMode('comprehensive'), color: 'text-blue-500 bg-blue-100' },
   };
 
   const { icon: Icon, label, color } = config[mode];
@@ -620,12 +663,19 @@ function ModeBadge({ mode }: { mode: SpeedLearningMode }) {
 // Utility Functions
 // ============================================================================
 
-function formatDuration(ms: number): string {
+function formatDuration(
+  ms: number,
+  translate: (key: string, values?: Record<string, string | number>) => string
+): string {
   const minutes = Math.floor(ms / 60000);
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
 
-  if (hours === 0) return `${minutes}分钟`;
-  if (remainingMinutes === 0) return `${hours}小时`;
-  return `${hours}小时${remainingMinutes}分钟`;
+  if (hours === 0) {
+    return translate('duration.minutesOnly', { minutes });
+  }
+  if (remainingMinutes === 0) {
+    return translate('duration.hoursOnly', { hours });
+  }
+  return translate('duration.hoursMinutes', { hours, minutes: remainingMinutes });
 }

@@ -197,6 +197,15 @@ export interface SessionCreateOptions {
   permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk';
   /** Context to pass to the agent */
   context?: Record<string, unknown>;
+  /** Structured instruction payload for protocol-specific metadata bridging */
+  instructionEnvelope?: {
+    hash: string;
+    developerInstructions: string;
+    customInstructions?: string;
+    skillsSummary?: string;
+    sourceFlags?: Record<string, boolean>;
+    projectContextSummary?: string;
+  };
   /** System prompt override */
   systemPrompt?: string;
   /** Session timeout (ms) */

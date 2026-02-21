@@ -47,7 +47,7 @@ export const DEFAULT_ACADEMIC_PROVIDERS: Record<AcademicProviderType, AcademicPr
     providerId: 'arxiv',
     name: 'arXiv',
     description: 'Open-access archive for scholarly articles in physics, mathematics, CS, and more',
-    baseUrl: 'http://export.arxiv.org/api',
+    baseUrl: 'https://export.arxiv.org/api',
     enabled: true,
     rateLimit: { requestsPerSecond: 0.33 }, // 3 second delay recommended
     features: {
@@ -143,7 +143,7 @@ export const DEFAULT_ACADEMIC_PROVIDERS: Record<AcademicProviderType, AcademicPr
     providerId: 'openreview',
     name: 'OpenReview',
     description: 'Open peer review platform for scientific papers',
-    baseUrl: 'https://api.openreview.net',
+    baseUrl: 'https://api2.openreview.net',
     enabled: true,
     rateLimit: { requestsPerSecond: 5 },
     features: {

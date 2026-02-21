@@ -21,6 +21,10 @@ import {
 import { createMcpToolsFromStore } from '../tools/mcp-tools';
 import { createRAGSearchTool, buildRAGConfigFromSettings } from './agent-tools';
 import {
+  embeddingProviderRequiresApiKey,
+  type EmbeddingProvider,
+} from '@/lib/vector/embedding';
+import {
   DEFAULT_BACKGROUND_AGENT_CONFIG,
   serializeBackgroundAgent,
   deserializeBackgroundAgent,
@@ -507,12 +511,18 @@ export class BackgroundAgentManager {
     }
 
     // Add RAG tool if enabled
-    if (agent.config.enableRAG && this.vectorSettingsProvider && this.apiKeyProvider) {
+    if (agent.config.enableRAG && this.vectorSettingsProvider) {
       const vectorSettings = this.vectorSettingsProvider();
-      const apiKey = this.apiKeyProvider(vectorSettings.embeddingProvider);
-      
-      if (apiKey) {
-        const ragConfig = buildRAGConfigFromSettings(vectorSettings, apiKey);
+      const embeddingProvider = vectorSettings.embeddingProvider as EmbeddingProvider;
+      const apiKey = this.apiKeyProvider?.(embeddingProvider) || '';
+
+      if (!embeddingProviderRequiresApiKey(embeddingProvider) || apiKey) {
+        const ragConfig = buildRAGConfigFromSettings(vectorSettings as {
+          mode: 'embedded' | 'server';
+          serverUrl: string;
+          embeddingProvider: EmbeddingProvider;
+          embeddingModel: string;
+        }, apiKey || '');
         const ragTool = createRAGSearchTool(ragConfig);
         tools[ragTool.name] = ragTool;
       }

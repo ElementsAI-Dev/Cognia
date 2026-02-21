@@ -590,6 +590,137 @@ describe('ExternalAgentManager', () => {
   });
 
   describe('agent trace bridge integration', () => {
+    it('should pass cwd, instruction envelope and metadata to createSession options', async () => {
+      const manager = ExternalAgentManager.getInstance({ healthCheckInterval: 0 });
+      const session = {
+        id: 'acp-session-meta-1',
+        agentId: 'agent-1',
+        status: 'active',
+        permissionMode: 'default',
+        capabilities: {},
+        tools: [],
+        messages: [],
+        createdAt: new Date(),
+        lastActivityAt: new Date(),
+      };
+      const adapter = {
+        isConnected: jest.fn().mockReturnValue(true),
+        createSession: jest.fn().mockResolvedValue(session),
+        execute: jest.fn().mockResolvedValue({
+          success: true,
+          sessionId: session.id,
+          finalResponse: 'ok',
+          messages: [],
+          steps: [],
+          toolCalls: [],
+          duration: 5,
+        }),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+      };
+      const instance = buildInstance('agent-1');
+      const internal = manager as unknown as {
+        adapters: Map<string, typeof adapter>;
+        instances: Map<string, typeof instance>;
+      };
+      internal.adapters.set('agent-1', adapter);
+      internal.instances.set('agent-1', instance);
+
+      await manager.execute('agent-1', 'session options', {
+        workingDirectory: '/workspace/project',
+        instructionEnvelope: {
+          hash: 'hash-1',
+          developerInstructions: 'dev instructions',
+          customInstructions: 'custom instructions',
+        },
+        context: {
+          custom: {
+            cwd: '/workspace/cwd',
+            mcpServers: [
+              {
+                name: 'filesystem',
+                command: 'npx',
+                args: ['-y', '@modelcontextprotocol/server-filesystem'],
+              },
+            ],
+          },
+        },
+        traceContext: {
+          sessionId: 'trace-session',
+          turnId: 'turn-1',
+          metadata: { feature: 'chat' },
+        },
+      });
+
+      expect(adapter.createSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cwd: '/workspace/project',
+          instructionEnvelope: expect.objectContaining({
+            hash: 'hash-1',
+            developerInstructions: 'dev instructions',
+          }),
+          mcpServers: expect.arrayContaining([
+            expect.objectContaining({
+              name: 'filesystem',
+            }),
+          ]),
+          metadata: expect.objectContaining({
+            feature: 'chat',
+            instructionEnvelope: expect.objectContaining({
+              hash: 'hash-1',
+            }),
+          }),
+        })
+      );
+    });
+
+    it('should fallback to agent process.cwd when execution cwd is not provided', async () => {
+      const manager = ExternalAgentManager.getInstance({ healthCheckInterval: 0 });
+      const session = {
+        id: 'acp-session-cwd-fallback',
+        agentId: 'agent-1',
+        status: 'active',
+        permissionMode: 'default',
+        capabilities: {},
+        tools: [],
+        messages: [],
+        createdAt: new Date(),
+        lastActivityAt: new Date(),
+      };
+      const adapter = {
+        isConnected: jest.fn().mockReturnValue(true),
+        createSession: jest.fn().mockResolvedValue(session),
+        execute: jest.fn().mockResolvedValue({
+          success: true,
+          sessionId: session.id,
+          finalResponse: 'ok',
+          messages: [],
+          steps: [],
+          toolCalls: [],
+          duration: 5,
+        }),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+      };
+      const instance = buildInstance('agent-1');
+      instance.config.process = {
+        command: 'codex',
+        cwd: '/agent/process/cwd',
+      };
+      const internal = manager as unknown as {
+        adapters: Map<string, typeof adapter>;
+        instances: Map<string, typeof instance>;
+      };
+      internal.adapters.set('agent-1', adapter);
+      internal.instances.set('agent-1', instance);
+
+      await manager.execute('agent-1', 'cwd fallback');
+
+      expect(adapter.createSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cwd: '/agent/process/cwd',
+        })
+      );
+    });
+
     it('should route execute events through trace bridge and prefer traceContext sessionId', async () => {
       const manager = ExternalAgentManager.getInstance({ healthCheckInterval: 0 });
       const session = {

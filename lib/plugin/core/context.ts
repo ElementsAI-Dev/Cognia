@@ -76,6 +76,7 @@ import {
   createAIProviderAPI,
   createExtensionAPI,
   createPermissionAPI,
+  createMediaAPI,
 } from '../api';
 import { createIPCAPI } from '../messaging/ipc';
 import { createEventAPI } from '../messaging/message-bus';
@@ -158,6 +159,7 @@ export function createFullPluginContext(
     i18n: createI18nAPI(pluginId),
     canvas: createCanvasAPI(pluginId),
     artifact: createArtifactAPI(pluginId),
+    media: createMediaAPI(pluginId, manager),
     notifications: createNotificationCenterAPI(pluginId),
     ai: createAIProviderAPI(pluginId),
     extensions: createExtensionAPI(pluginId),
@@ -485,13 +487,26 @@ function createAgentAPI(pluginId: string, manager: PluginManager): PluginAgentAP
     },
 
     executeAgent: async (config: Record<string, unknown>) => {
-      // Would integrate with agent execution system
-      return invoke('agent_execute', { config });
+      const prompt = typeof config.prompt === 'string' ? config.prompt : '';
+      if (!prompt) {
+        throw new Error('agent.execute requires config.prompt');
+      }
+
+      const { executeAgent } = await import('@/lib/ai/agent/agent-executor');
+      const { prompt: _ignored, ...agentConfig } = config;
+
+      return executeAgent(prompt, agentConfig as unknown as Parameters<typeof executeAgent>[1]);
     },
 
     cancelAgent: (agentId: string) => {
-      // Would integrate with agent execution system
-      invoke('agent_cancel', { agentId }).catch((e) => loggers.agent.error('Failed to cancel agent:', e));
+      void import('@/lib/ai/agent/background-agent-manager')
+        .then(({ getBackgroundAgentManager }) => {
+          const cancelled = getBackgroundAgentManager().cancelAgent(agentId);
+          if (!cancelled) {
+            loggers.agent.warn(`No active background agent to cancel: ${agentId}`);
+          }
+        })
+        .catch((e) => loggers.agent.error('Failed to cancel agent:', e));
     },
   };
 }

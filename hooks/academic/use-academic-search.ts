@@ -32,6 +32,8 @@ type SupportedAcademicProvider =
   | 'core'
   | 'openalex'
   | 'dblp'
+  | 'unpaywall'
+  | 'openreview'
   | 'huggingface-papers';
 
 export interface UseAcademicSearchOptions {

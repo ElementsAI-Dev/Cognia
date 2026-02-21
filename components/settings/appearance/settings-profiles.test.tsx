@@ -29,7 +29,11 @@ jest.mock('lucide-react', () => ({
 // Mock settings store
 const mockSetTheme = jest.fn();
 const mockSetColorTheme = jest.fn();
-const mockCreateCustomTheme = jest.fn();
+let createdThemeCounter = 0;
+const mockCreateCustomTheme = jest.fn(() => {
+  createdThemeCounter += 1;
+  return `created-theme-${createdThemeCounter}`;
+});
 const mockDeleteCustomTheme = jest.fn();
 const mockSetActiveCustomTheme = jest.fn();
 const mockSetBackgroundSettings = jest.fn();
@@ -282,6 +286,7 @@ global.URL.revokeObjectURL = mockRevokeObjectURL;
 describe('SettingsProfiles', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    createdThemeCounter = 0;
     mockProfiles = [];
     mockActiveProfileId = null;
     mockCreateObjectURL.mockClear();
@@ -552,14 +557,33 @@ describe('SettingsProfiles', () => {
       expect(mockSetActiveProfile).toHaveBeenCalledWith('profile-1');
     });
 
-    it('calls setActiveCustomTheme when profile has activeCustomThemeId', () => {
-      mockProfiles = [createMockProfile({ activeCustomThemeId: 'custom-theme-1' })];
+    it('maps profile active custom theme id to newly created theme id', () => {
+      mockProfiles = [
+        createMockProfile({
+          activeCustomThemeId: 'custom-theme-1',
+          customThemes: [
+            {
+              id: 'custom-theme-1',
+              name: 'Mapped Theme',
+              colors: {
+                primary: '#111111',
+                secondary: '#222222',
+                accent: '#333333',
+                background: '#ffffff',
+                foreground: '#000000',
+                muted: '#cccccc',
+              },
+              isDark: false,
+            },
+          ],
+        }),
+      ];
       render(<SettingsProfiles />);
       
       const loadButton = screen.getByText('load');
       fireEvent.click(loadButton);
       
-      expect(mockSetActiveCustomTheme).toHaveBeenCalledWith('custom-theme-1');
+      expect(mockSetActiveCustomTheme).toHaveBeenCalledWith('created-theme-1');
     });
 
     it('syncs custom themes when loading profile', () => {

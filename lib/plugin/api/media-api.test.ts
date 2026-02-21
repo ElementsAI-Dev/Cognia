@@ -3,11 +3,30 @@
  */
 
 import {
+  createMediaAPI,
   getMediaRegistry,
   type ImageFilterDefinition,
   type VideoEffectDefinition,
   type VideoTransitionDefinition,
 } from './media-api';
+import { invoke } from '@tauri-apps/api/core';
+
+jest.mock('@tauri-apps/api/core', () => ({
+  invoke: jest.fn(),
+}));
+
+jest.mock('@tauri-apps/api/event', () => ({
+  listen: jest.fn(async () => () => undefined),
+}));
+
+jest.mock('@tauri-apps/plugin-fs', () => ({
+  writeFile: jest.fn(async () => undefined),
+  exists: jest.fn(async () => false),
+}));
+
+jest.mock('@/lib/utils', () => ({
+  isTauri: jest.fn(() => true),
+}));
 
 describe('Media Registry', () => {
   const testPluginId = 'test-plugin';
@@ -244,6 +263,89 @@ describe('Media Registry', () => {
 
       expect(retrieved).toBeDefined();
       expect(retrieved?.name).toBe('Persistent Filter');
+    });
+  });
+
+  describe('Video API implementation', () => {
+    beforeEach(() => {
+      (invoke as jest.Mock).mockImplementation(async (command: string) => {
+        if (command === 'video_get_info') {
+          return {
+            durationMs: 12_000,
+            width: 1920,
+            height: 1080,
+            fps: 30,
+            codec: 'h264',
+            fileSize: 1024,
+            hasAudio: true,
+          };
+        }
+        if (command === 'plugin_media_get_video_frame') {
+          return {
+            data: new Uint8Array(4 * 2 * 2),
+            width: 2,
+            height: 2,
+          };
+        }
+        if (command === 'plugin_media_concatenate_videos') {
+          return {
+            id: 'merged',
+            sourceUrl: '/tmp/merged.mp4',
+            startTime: 0,
+            endTime: 12,
+            duration: 12,
+            position: 0,
+            track: 0,
+            filters: [],
+          };
+        }
+        if (command === 'plugin_media_export_video') {
+          return new Uint8Array([1, 2, 3, 4]);
+        }
+        return undefined;
+      });
+    });
+
+    it('should provide a real frame extraction path', async () => {
+      const api = createMediaAPI(testPluginId, {} as never);
+      const imageData = await api.video.getFrame('clip-id', 1.5);
+      expect(imageData).toBeInstanceOf(ImageData);
+      expect(imageData.width).toBe(2);
+      expect(invoke).toHaveBeenCalledWith(
+        'plugin_media_get_video_frame',
+        expect.objectContaining({ clipId: 'clip-id', time: 1.5 })
+      );
+    });
+
+    it('should concatenate clips without throwing NOT_SUPPORTED', async () => {
+      const api = createMediaAPI(testPluginId, {} as never);
+      const clip = await api.video.concatenate(['clip-1', 'clip-2']);
+      expect(clip.id).toBe('merged');
+      expect(invoke).toHaveBeenCalledWith(
+        'plugin_media_concatenate_videos',
+        expect.objectContaining({ clipIds: ['clip-1', 'clip-2'] })
+      );
+    });
+
+    it('should apply effect and transition without throwing', async () => {
+      const api = createMediaAPI(testPluginId, {} as never);
+      const loaded = await api.video.loadClip('/tmp/source.mp4');
+      await expect(api.video.applyEffect(loaded.id, 'brightness-contrast', { brightness: 12 })).resolves.toBeUndefined();
+      await expect(
+        api.video.addTransition(loaded.id, 'clip-2', { type: 'fade', duration: 1 })
+      ).resolves.toBeUndefined();
+    });
+
+    it('should export video to blob', async () => {
+      const api = createMediaAPI(testPluginId, {} as never);
+      const blob = await api.video.export(['clip-1'], {
+        format: 'mp4',
+        resolution: '1080p',
+        fps: 30,
+        quality: 'high',
+      });
+      expect(blob).toBeInstanceOf(Blob);
+      expect(blob.size).toBe(4);
     });
   });
 });

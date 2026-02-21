@@ -23,8 +23,16 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { useTransformersStore } from '@/stores/ai/transformers-store';
-import { isWebGPUAvailable, isWebWorkerAvailable, RECOMMENDED_MODELS } from '@/lib/ai/transformers';
+import {
+  isWebGPUAvailable,
+  isWebWorkerAvailable,
+  RECOMMENDED_MODELS,
+  resolveTransformersRuntimeOptions,
+  syncTransformersManagerRuntime,
+  mapTransformersProgressStatus,
+} from '@/lib/ai/transformers';
 import type { TransformersDtype, TransformersTask } from '@/types/transformers';
+import { buildTransformersModelCacheKey } from '@/types/transformers';
 
 /**
  * Map task ID to i18n key
@@ -57,10 +65,11 @@ export function TransformersSettings({ className }: { className?: string }) {
     setModelStatus,
     removeModel,
     clearAllModels,
+    syncModelsFromStatus,
   } = useTransformersStore();
 
   const webWorkerAvailable = isWebWorkerAvailable();
-  const [loadingModelId, setLoadingModelId] = useState<string | null>(null);
+  const [loadingModelKey, setLoadingModelKey] = useState<string | null>(null);
 
   useEffect(() => {
     setWebGPUAvailable(isWebGPUAvailable());
@@ -74,46 +83,89 @@ export function TransformersSettings({ className }: { className?: string }) {
     return key ? t(key) : task;
   }, [t]);
 
-  const getModelStatus = useCallback((modelId: string) => {
-    return models.find((m) => m.modelId === modelId);
+  const getModelStatus = useCallback((task: TransformersTask, modelId: string) => {
+    return models.find((m) => m.cacheKey === buildTransformersModelCacheKey(task, modelId));
   }, [models]);
 
   const handleLoadModel = useCallback(async (task: TransformersTask, modelId: string) => {
-    if (loadingModelId) return;
-    setLoadingModelId(modelId);
-    setModelStatus(modelId, task, 'downloading', 0);
+    const modelKey = buildTransformersModelCacheKey(task, modelId);
+    if (loadingModelKey) return;
+
+    setLoadingModelKey(modelKey);
+    setModelStatus(task, modelId, 'downloading', 0);
 
     try {
       const { getTransformersManager } = await import('@/lib/ai/transformers/transformers-manager');
       const manager = getTransformersManager();
-      const resolvedDevice = settings.preferWebGPU && isWebGPUAvailable() ? 'webgpu' : 'wasm';
+      syncTransformersManagerRuntime(manager, settings);
+      const runtime = resolveTransformersRuntimeOptions(settings);
 
       await manager.loadModel(task, modelId, {
-        device: resolvedDevice,
-        dtype: settings.defaultDtype,
+        device: runtime.device,
+        dtype: runtime.dtype,
+        cachePolicy: runtime.cachePolicy,
         onProgress: (p) => {
-          setModelStatus(modelId, task, p.status === 'ready' ? 'ready' : 'downloading', p.progress);
+          setModelStatus(task, modelId, mapTransformersProgressStatus(p.status), p.progress, p.error);
         },
       });
-      setModelStatus(modelId, task, 'ready', 100);
+      setModelStatus(task, modelId, 'ready', 100);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      setModelStatus(modelId, task, 'error', 0, message);
+      setModelStatus(task, modelId, 'error', 0, message);
     } finally {
-      setLoadingModelId(null);
+      setLoadingModelKey(null);
     }
-  }, [loadingModelId, settings.preferWebGPU, settings.defaultDtype, setModelStatus]);
+  }, [loadingModelKey, setModelStatus, settings]);
 
   const handleUnloadModel = useCallback(async (task: TransformersTask, modelId: string) => {
     try {
       const { getTransformersManager } = await import('@/lib/ai/transformers/transformers-manager');
       const manager = getTransformersManager();
+      syncTransformersManagerRuntime(manager, settings);
       await manager.dispose(task, modelId);
-      removeModel(modelId);
+      removeModel(task, modelId);
     } catch (err) {
       console.error('Failed to unload model:', err);
     }
-  }, [removeModel]);
+  }, [removeModel, settings]);
+
+  const handleClearAll = useCallback(async () => {
+    try {
+      const { getTransformersManager } = await import('@/lib/ai/transformers/transformers-manager');
+      const manager = getTransformersManager();
+      syncTransformersManagerRuntime(manager, settings);
+      await manager.disposeAll();
+    } catch (err) {
+      console.error('Failed to dispose all models:', err);
+    } finally {
+      clearAllModels();
+    }
+  }, [clearAllModels, settings]);
+
+  useEffect(() => {
+    if (!settings.enabled) {
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getTransformersManager } = await import('@/lib/ai/transformers/transformers-manager');
+        const manager = getTransformersManager();
+        syncTransformersManagerRuntime(manager, settings);
+        const status = await manager.getStatus();
+        if (!cancelled) {
+          syncModelsFromStatus(status);
+        }
+      } catch (err) {
+        console.error('Failed to sync transformers runtime status:', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [settings, syncModelsFromStatus]);
 
   return (
     <div className={cn('space-y-6', className)}>
@@ -232,7 +284,7 @@ export function TransformersSettings({ className }: { className?: string }) {
               </CardHeader>
               <CardContent className="space-y-3">
                 {downloadingModels.map((model) => (
-                  <div key={model.modelId} className="space-y-1.5">
+                  <div key={model.cacheKey} className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-mono text-xs truncate max-w-[200px]">{model.modelId}</span>
                       <span className="text-muted-foreground text-xs">{Math.round(model.progress)}%</span>
@@ -256,12 +308,12 @@ export function TransformersSettings({ className }: { className?: string }) {
                   </Badge>
                 </div>
                 {loadedModels.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearAllModels}
-                    className="text-xs text-destructive hover:text-destructive"
-                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearAll}
+                      className="text-xs text-destructive hover:text-destructive"
+                    >
                     <Trash2 className="h-3.5 w-3.5 mr-1" />
                     {t('clearAll')}
                   </Button>
@@ -277,7 +329,7 @@ export function TransformersSettings({ className }: { className?: string }) {
                 <div className="space-y-2">
                   {loadedModels.map((model) => (
                     <div
-                      key={model.modelId}
+                      key={model.cacheKey}
                       className="flex items-center justify-between p-2 rounded-md bg-muted/50"
                     >
                       <div className="flex-1 min-w-0">
@@ -325,11 +377,11 @@ export function TransformersSettings({ className }: { className?: string }) {
                         </h4>
                         <div className="space-y-1.5">
                           {taskModels.map((model) => {
-                            const status = getModelStatus(model.modelId);
+                            const status = getModelStatus(task, model.modelId);
                             const isReady = status?.status === 'ready';
                             const isDownloading = status?.status === 'downloading' || status?.status === 'loading';
                             const isError = status?.status === 'error';
-                            const isCurrentlyLoading = loadingModelId === model.modelId;
+                            const isCurrentlyLoading = loadingModelKey === buildTransformersModelCacheKey(task, model.modelId);
 
                             return (
                               <div

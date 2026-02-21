@@ -6,7 +6,7 @@ import { render, screen, act } from '@testing-library/react';
 import type { Artifact } from '@/types';
 
 jest.mock('recharts', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   const ReactModule = require('react');
   const Mock = ({ children }: { children?: React.ReactNode }) =>
     ReactModule.createElement('div', null, children);
@@ -63,7 +63,7 @@ jest.mock('@/components/ui/button', () => ({
   ),
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const { ArtifactPreview } = require('./artifact-preview');
 
 describe('ArtifactPreview', () => {

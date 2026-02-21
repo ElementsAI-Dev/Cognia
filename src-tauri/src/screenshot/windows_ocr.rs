@@ -1034,4 +1034,3 @@ mod tests {
         assert_eq!(result.lines.len(), deserialized.lines.len());
     }
 }
-

@@ -24,7 +24,16 @@ export interface SkillRepo {
   owner: string;
   name: string;
   branch: string;
+  sourcePath?: string | null;
   enabled: boolean;
+}
+
+export interface AddSkillRepoInput {
+  repoUrl?: string;
+  owner?: string;
+  name?: string;
+  branch?: string;
+  sourcePath?: string;
 }
 
 /**
@@ -100,12 +109,14 @@ export async function listSkillRepos(): Promise<SkillRepo[]> {
 /**
  * Add a skill repository
  */
-export async function addSkillRepo(
-  owner: string,
-  name: string,
-  branch?: string
-): Promise<void> {
-  return invoke('skill_add_repo', { owner, name, branch });
+export async function addSkillRepo(input: AddSkillRepoInput): Promise<void> {
+  return invoke('skill_add_repo', {
+    repoUrl: input.repoUrl,
+    owner: input.owner,
+    name: input.name,
+    branch: input.branch,
+    sourcePath: input.sourcePath,
+  });
 }
 
 /**

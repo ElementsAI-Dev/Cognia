@@ -2,11 +2,11 @@
 //!
 //! Commands for gathering context about the user's current activity.
 
+use crate::commands::media::ocr::OcrState;
 use crate::context::{
     AppContext, BrowserContext, ContextManager, EditorContext, FileContext, FullContext,
     ScreenContent, UiElement, WindowInfo,
 };
-use crate::commands::media::ocr::OcrState;
 use crate::screenshot::ocr_provider::DocumentHint;
 use crate::screenshot::{OcrOptions, OcrProviderType, ScreenshotCapture, UnifiedOcrResult};
 use log::warn;
@@ -28,7 +28,9 @@ async fn extract_ocr_result(
     let manager = ocr_state.manager.read().clone();
 
     let ocr_result = if let Some(provider) = provider {
-        manager.extract_text(Some(provider), image_data, &options).await
+        manager
+            .extract_text(Some(provider), image_data, &options)
+            .await
     } else {
         manager
             .extract_text_with_fallback(
@@ -42,7 +44,10 @@ async fn extract_ocr_result(
     match ocr_result {
         Ok(result) => Some(result),
         Err(error) => {
-            warn!("Screen OCR failed, continuing with UIA-only analysis: {}", error);
+            warn!(
+                "Screen OCR failed, continuing with UIA-only analysis: {}",
+                error
+            );
             None
         }
     }
@@ -211,7 +216,8 @@ pub async fn context_capture_and_analyze_active_window(
     let capture = ScreenshotCapture::new();
     let screenshot = capture.capture_active_window()?;
 
-    let ocr_result = extract_ocr_result(&ocr_state, &screenshot.image_data, language, provider).await;
+    let ocr_result =
+        extract_ocr_result(&ocr_state, &screenshot.image_data, language, provider).await;
     manager.get_screen_analyzer().analyze_with_ocr_result(
         screenshot.metadata.width,
         screenshot.metadata.height,

@@ -6,6 +6,7 @@
  */
 
 import dynamic from 'next/dynamic';
+import { useEffect, useRef } from 'react';
 import {
   Copy,
   Download,
@@ -54,6 +55,12 @@ import {
 } from '@/lib/artifacts';
 import { getArtifactTypeIcon } from './artifact-icons';
 import { useArtifactPanelState } from '@/hooks/artifacts';
+import { useSettingsStore } from '@/stores';
+import {
+  bindMonacoEditorContext,
+  type MonacoContextBinding,
+} from '@/lib/editor-workbench/monaco-context-binding';
+import { isEditorFeatureFlagEnabled } from '@/lib/editor-workbench/feature-flags';
 
 // Use centralized language mapping
 function getShikiLanguage(lang?: string): BundledLanguage {
@@ -61,6 +68,8 @@ function getShikiLanguage(lang?: string): BundledLanguage {
 }
 
 export function ArtifactPanel() {
+  const workbenchBindingRef = useRef<MonacoContextBinding | null>(null);
+  const globalEditorSettings = useSettingsStore((state) => state.editorSettings);
   const {
     t,
     tCommon,
@@ -94,6 +103,29 @@ export function ArtifactPanel() {
     handleDownload,
     handleRevealInExplorer,
   } = useArtifactPanelState();
+
+  useEffect(() => {
+    return () => {
+      workbenchBindingRef.current?.dispose();
+      workbenchBindingRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (viewMode !== 'edit') {
+      workbenchBindingRef.current?.dispose();
+      workbenchBindingRef.current = null;
+    }
+  }, [viewMode]);
+
+  useEffect(() => {
+    if (!activeArtifact) {
+      return;
+    }
+    workbenchBindingRef.current?.update({
+      languageId: getMonacoLanguage(activeArtifact.language || 'plaintext'),
+    });
+  }, [activeArtifact]);
 
   return (
     <Sheet
@@ -227,6 +259,19 @@ export function ArtifactPanel() {
                   theme={getMonacoTheme(theme)}
                   value={editContent}
                   onChange={handleEditorChange}
+                  onMount={(editor) => {
+                    if (!isEditorFeatureFlagEnabled('editor.workbench.v2')) {
+                      return;
+                    }
+                    workbenchBindingRef.current?.dispose();
+                    workbenchBindingRef.current = bindMonacoEditorContext({
+                      contextId: 'artifact',
+                      label: 'Artifact Editor',
+                      languageId: getMonacoLanguage(activeArtifact.language || 'plaintext'),
+                      editor,
+                      fallbackReason: 'Using Monaco built-in providers',
+                    });
+                  }}
                   options={createEditorOptions('code', {
                     minimap: { enabled: isFullscreen },
                     wordWrap: 'on',
@@ -237,6 +282,8 @@ export function ArtifactPanel() {
                       indentation: true,
                       bracketPairs: true,
                     },
+                  }, {
+                    editorSettings: globalEditorSettings,
                   })}
                 />
               ) : viewMode === 'code' || !isPreviewable ? (

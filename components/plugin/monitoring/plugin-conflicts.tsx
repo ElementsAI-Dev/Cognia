@@ -9,6 +9,7 @@ import { useTranslations } from 'next-intl';
 import { usePluginStore } from '@/stores/plugin';
 import {
   getConflictDetector,
+  getPluginManager,
   type PluginConflict,
 } from '@/lib/plugin';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,7 +47,7 @@ export function PluginConflicts({
   autoDetect = true,
 }: PluginConflictsProps) {
   const t = useTranslations('pluginConflicts');
-  const { plugins, getEnabledPlugins, disablePlugin } = usePluginStore();
+  const { plugins, getEnabledPlugins } = usePluginStore();
   const [conflicts, setConflicts] = useState<PluginConflict[]>([]);
   const [isDetecting, setIsDetecting] = useState(false);
 
@@ -130,7 +131,7 @@ export function PluginConflicts({
     if (conflict.autoResolvable && conflict.plugins.length > 0) {
       try {
         // Disable the first plugin in the conflict list as a resolution
-        await disablePlugin(conflict.plugins[0]);
+        await getPluginManager().disablePlugin(conflict.plugins[0]);
         detectConflicts();
       } catch (error) {
         console.error('Failed to resolve conflict:', error);

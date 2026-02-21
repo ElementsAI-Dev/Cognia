@@ -2,9 +2,10 @@
 
 import dynamic from 'next/dynamic';
 import { AlertTriangle, Play, Settings2 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useTheme } from '@/components/providers/ui/theme-provider';
+import { useSettingsStore } from '@/stores';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,11 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { createEditorOptions, getMonacoLanguage, getMonacoTheme } from '@/lib/monaco';
+import {
+  bindMonacoEditorContext,
+  type MonacoContextBinding,
+} from '@/lib/editor-workbench/monaco-context-binding';
+import { isEditorFeatureFlagEnabled } from '@/lib/editor-workbench/feature-flags';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,
@@ -53,12 +59,27 @@ export function ScriptTaskEditor({
 }: ScriptTaskEditorProps) {
   const t = useTranslations('scheduler');
   const { theme } = useTheme();
+  const globalEditorSettings = useSettingsStore((state) => state.editorSettings);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const workbenchBindingRef = useRef<MonacoContextBinding | null>(null);
   const [validation, setValidation] = useState<{
     valid: boolean;
     errors: string[];
     warnings: string[];
   } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      workbenchBindingRef.current?.dispose();
+      workbenchBindingRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    workbenchBindingRef.current?.update({
+      languageId: getMonacoLanguage(value.language || 'python'),
+    });
+  }, [value.language]);
 
   const handleLanguageChange = useCallback(
     (language: string) => {
@@ -139,6 +160,19 @@ export function ScriptTaskEditor({
             theme={getMonacoTheme(theme)}
             value={value.code}
             onChange={(v) => handleCodeChange(v || '')}
+            onMount={(editor) => {
+              if (!isEditorFeatureFlagEnabled('editor.workbench.v2')) {
+                return;
+              }
+              workbenchBindingRef.current?.dispose();
+              workbenchBindingRef.current = bindMonacoEditorContext({
+                contextId: 'scheduler',
+                label: 'Scheduler Script Editor',
+                languageId: getMonacoLanguage(value.language || 'python'),
+                editor,
+                fallbackReason: 'Using Monaco built-in providers',
+              });
+            }}
             options={createEditorOptions('code', {
               readOnly: disabled,
               minimap: { enabled: false },
@@ -148,6 +182,8 @@ export function ScriptTaskEditor({
               folding: false,
               renderLineHighlight: 'line',
               placeholder: getScriptTemplate(value.language || 'python'),
+            }, {
+              editorSettings: globalEditorSettings,
             })}
           />
         </div>

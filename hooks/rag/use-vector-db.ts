@@ -2,7 +2,7 @@
 
 /**
  * useVectorDB - Hook for vector database operations
- * Provides easy access to ChromaDB functionality
+ * Provides unified access to all supported vector providers
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -31,6 +31,7 @@ import {
   generateEmbeddings,
   type EmbeddingModelConfig,
   type EmbeddingProvider,
+  resolveEmbeddingApiKey,
 } from '@/lib/vector/embedding';
 
 export interface UseVectorDBOptions {
@@ -114,7 +115,10 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
 
   // Get API key for embeddings
   const getApiKey = useCallback((): string => {
-    return providerSettings[embeddingProvider]?.apiKey || '';
+    return resolveEmbeddingApiKey(
+      embeddingProvider,
+      providerSettings as Record<string, { apiKey?: string }>
+    );
   }, [embeddingProvider, providerSettings]);
 
   // Get embedding config
@@ -140,6 +144,9 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
       qdrantApiKey: settings.qdrantApiKey,
       milvusAddress: settings.milvusAddress,
       milvusToken: settings.milvusToken,
+      milvusUsername: settings.milvusUsername,
+      milvusPassword: settings.milvusPassword,
+      milvusSsl: settings.milvusSsl,
       native: {},
     };
   }, [vectorStore.settings, getEmbeddingConfig, getApiKey]);
@@ -614,9 +621,16 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
         if (!store.searchDocumentsWithTotal) {
           // Fallback: use regular search
           const results = await store.searchDocuments(collectionName, query, options);
+          const total = store.countDocuments
+            ? await store.countDocuments(collectionName, {
+              filter: options.filter,
+              filters: options.filters,
+              filterMode: options.filterMode,
+            }).catch(() => results.length)
+            : results.length;
           return {
             results,
-            total: results.length,
+            total,
             offset: options.offset || 0,
             limit: options.limit || options.topK || 5,
           };

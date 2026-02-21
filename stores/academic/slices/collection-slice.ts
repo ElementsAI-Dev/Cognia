@@ -3,7 +3,7 @@
  * Collection CRUD and paper-collection associations
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { academicRuntimeInvoke } from '@/lib/native/academic-runtime';
 import type { PaperCollection } from '@/types/academic';
 import type { AcademicSliceCreator } from '../types';
 
@@ -28,7 +28,7 @@ export const createCollectionSlice: AcademicSliceCreator<CollectionActions> = (s
     createCollection: async (name, description, color) => {
       set({ isLoading: true, error: null });
       try {
-        const collection = await invoke<PaperCollection>('academic_create_collection', {
+        const collection = await academicRuntimeInvoke<PaperCollection>('academic_create_collection', {
           name,
           description,
           color,
@@ -53,7 +53,7 @@ export const createCollectionSlice: AcademicSliceCreator<CollectionActions> = (s
     updateCollection: async (collectionId, updates) => {
       set({ isLoading: true, error: null });
       try {
-        const updated = await invoke<PaperCollection>('academic_update_collection', {
+        const updated = await academicRuntimeInvoke<PaperCollection>('academic_update_collection', {
           collectionId,
           updates,
         });
@@ -74,7 +74,7 @@ export const createCollectionSlice: AcademicSliceCreator<CollectionActions> = (s
     deleteCollection: async (collectionId) => {
       set({ isLoading: true, error: null });
       try {
-        await invoke('academic_delete_collection', { collectionId });
+        await academicRuntimeInvoke('academic_delete_collection', { collectionId });
 
         set((state) => {
           const collections = { ...state.library.collections };
@@ -92,7 +92,7 @@ export const createCollectionSlice: AcademicSliceCreator<CollectionActions> = (s
 
     addToCollection: async (paperId, collectionId) => {
       try {
-        await invoke('academic_add_paper_to_collection', { paperId, collectionId });
+        await academicRuntimeInvoke('academic_add_paper_to_collection', { paperId, collectionId });
         await get().refreshLibrary();
         await get().refreshCollections();
       } catch (error) {
@@ -103,7 +103,7 @@ export const createCollectionSlice: AcademicSliceCreator<CollectionActions> = (s
 
     removeFromCollection: async (paperId, collectionId) => {
       try {
-        await invoke('academic_remove_paper_from_collection', { paperId, collectionId });
+        await academicRuntimeInvoke('academic_remove_paper_from_collection', { paperId, collectionId });
         await get().refreshLibrary();
         await get().refreshCollections();
       } catch (error) {
@@ -114,7 +114,7 @@ export const createCollectionSlice: AcademicSliceCreator<CollectionActions> = (s
 
     refreshCollections: async () => {
       try {
-        const collections = await invoke<PaperCollection[]>('academic_get_collections');
+        const collections = await academicRuntimeInvoke<PaperCollection[]>('academic_get_collections');
 
         const collectionsMap: Record<string, PaperCollection> = {};
         for (const collection of collections) {

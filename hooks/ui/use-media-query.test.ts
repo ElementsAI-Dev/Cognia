@@ -118,7 +118,7 @@ describe('useMediaQuery', () => {
       const originalWindow = global.window;
 
       // Temporarily remove window
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       delete (global as any).window;
 
       // Note: This test is limited because JSDOM provides window

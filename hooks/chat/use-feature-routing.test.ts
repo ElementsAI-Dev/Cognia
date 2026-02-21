@@ -25,6 +25,19 @@ jest.mock('@/lib/ai/routing', () => ({
   buildFeatureNavigationUrl: jest.fn(),
 }));
 
+jest.mock('@/lib/learning/speedpass', () => ({
+  detectSpeedLearningMode: jest.fn(() => ({
+    detected: true,
+    recommendedMode: 'speed',
+    confidence: 0.8,
+    reason: 'mock',
+    reasonZh: 'mock',
+    detectedTime: 120,
+    detectedUrgencyDays: 1,
+    alternatives: [],
+  })),
+}));
+
 import { useSettingsStore } from '@/stores';
 import { 
   detectFeatureIntent, 
@@ -32,6 +45,7 @@ import {
   mightTriggerFeatureRouting, 
   buildFeatureNavigationUrl
 } from '@/lib/ai/routing';
+import { detectSpeedLearningMode } from '@/lib/learning/speedpass';
 
 // Mock implementations
 const mockPush = jest.fn();
@@ -42,6 +56,7 @@ const mockDetectFeatureIntent = detectFeatureIntent as jest.Mock;
 const mockDetectFeatureIntentRuleBased = detectFeatureIntentRuleBased as jest.Mock;
 const mockMightTriggerFeatureRouting = mightTriggerFeatureRouting as jest.Mock;
 const mockBuildFeatureNavigationUrl = buildFeatureNavigationUrl as jest.Mock;
+const mockDetectSpeedLearningMode = detectSpeedLearningMode as jest.Mock;
 
 // Test data
 const mockFeatureRoute: FeatureRoute = {
@@ -74,6 +89,14 @@ const mockDetectionResult: FeatureRouteResult = {
   reason: 'Detected design intent',
   reasonZh: '检测到设计意图',
   alternatives: []
+};
+
+const mockSpeedPassRoute: FeatureRoute = {
+  ...mockFeatureRoute,
+  id: 'speedpass',
+  name: 'SpeedPass Learning',
+  nameZh: '速过学习',
+  path: '/speedpass',
 };
 
 const defaultSettings: FeatureRoutingSettings = {
@@ -120,6 +143,16 @@ describe('useFeatureRouting', () => {
       alternatives: []
     });
     mockBuildFeatureNavigationUrl.mockReturnValue('/designer?message=test');
+    mockDetectSpeedLearningMode.mockReturnValue({
+      detected: true,
+      recommendedMode: 'speed',
+      confidence: 0.8,
+      reason: 'mock',
+      reasonZh: 'mock',
+      detectedTime: 120,
+      detectedUrgencyDays: 1,
+      alternatives: [],
+    });
   });
 
   afterEach(() => {
@@ -321,6 +354,27 @@ describe('useFeatureRouting', () => {
       expect(onNavigate).toHaveBeenCalledWith(mockFeatureRoute, '/designer?message=test');
       expect(result.current.hasPendingSuggestion).toBe(false);
     });
+
+    it('should auto-navigate for speedpass even when global auto-navigate is disabled', async () => {
+      const onNavigate = jest.fn();
+      mockDetectFeatureIntent.mockResolvedValue({
+        ...mockDetectionResult,
+        feature: mockSpeedPassRoute,
+        confidence: 0.8,
+      });
+      mockBuildFeatureNavigationUrl.mockReturnValue('/speedpass?ctx=test');
+
+      const { result } = renderHook(() => useFeatureRouting({ onNavigate }));
+
+      await act(async () => {
+        await result.current.checkFeatureIntent('明天考试，帮我速通高数');
+      });
+
+      expect(mockPush).toHaveBeenCalledWith('/speedpass?ctx=test');
+      expect(onNavigate).toHaveBeenCalledWith(mockSpeedPassRoute, '/speedpass?ctx=test');
+      expect(result.current.hasPendingSuggestion).toBe(false);
+      expect(result.current.pendingFeature).toBeNull();
+    });
   });
 
   describe('confirmNavigation', () => {
@@ -504,7 +558,7 @@ describe('useFeatureRouting', () => {
   });
 
   describe('LLM configuration', () => {
-    it('should return undefined for rule-based mode', () => {
+    it('should return undefined for rule-based mode', async () => {
       mockUseSettingsStore.mockImplementation((selector) => {
         const state = {
           featureRoutingSettings: { ...defaultSettings, routingMode: 'rule-based' },
@@ -516,8 +570,8 @@ describe('useFeatureRouting', () => {
       
       const { result } = renderHook(() => useFeatureRouting());
       
-      act(() => {
-        result.current.checkFeatureIntent('test');
+      await act(async () => {
+        await result.current.checkFeatureIntent('test');
       });
       
       expect(mockDetectFeatureIntent).toHaveBeenCalledWith(
@@ -527,7 +581,7 @@ describe('useFeatureRouting', () => {
       );
     });
 
-    it('should return undefined when no API key', () => {
+    it('should return undefined when no API key', async () => {
       mockUseSettingsStore.mockImplementation((selector) => {
         const state = {
           featureRoutingSettings: { ...defaultSettings, routingMode: 'llm-based' },
@@ -539,8 +593,8 @@ describe('useFeatureRouting', () => {
       
       const { result } = renderHook(() => useFeatureRouting());
       
-      act(() => {
-        result.current.checkFeatureIntent('test');
+      await act(async () => {
+        await result.current.checkFeatureIntent('test');
       });
       
       expect(mockDetectFeatureIntent).toHaveBeenCalledWith(
@@ -550,7 +604,7 @@ describe('useFeatureRouting', () => {
       );
     });
 
-    it('should return LLM config when API key is available', () => {
+    it('should return LLM config when API key is available', async () => {
       mockUseSettingsStore.mockImplementation((selector) => {
         const state = {
           featureRoutingSettings: { ...defaultSettings, routingMode: 'llm-based' },
@@ -562,8 +616,8 @@ describe('useFeatureRouting', () => {
       
       const { result } = renderHook(() => useFeatureRouting());
       
-      act(() => {
-        result.current.checkFeatureIntent('test');
+      await act(async () => {
+        await result.current.checkFeatureIntent('test');
       });
       
       expect(mockDetectFeatureIntent).toHaveBeenCalledWith(

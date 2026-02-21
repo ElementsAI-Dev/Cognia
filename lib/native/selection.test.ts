@@ -728,10 +728,9 @@ describe('Selection - Toolbar Config (New APIs)', () => {
   });
 
   describe('setToolbarTheme', () => {
-    it('should call invoke with theme', async () => {
-      mockInvoke.mockResolvedValue(undefined);
+    it('should persist theme locally', async () => {
       await setToolbarTheme('glass');
-      expect(mockInvoke).toHaveBeenCalledWith('selection_set_theme', { theme: 'glass' });
+      expect(localStorage.getItem('selection:toolbar-theme')).toBe('glass');
     });
   });
 });

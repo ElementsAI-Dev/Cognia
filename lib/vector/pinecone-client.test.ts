@@ -403,7 +403,7 @@ describe('upsertDocuments', () => {
 
     await upsertDocuments(index, documents, configWithoutNamespace);
 
-    // Should use the index directly, not a namespace
+    expect(mockIndex.namespace).toHaveBeenCalledWith('__default__');
     expect(mockIndex.upsert).toHaveBeenCalled();
   });
 });
@@ -505,6 +505,7 @@ describe('deleteAllDocuments', () => {
 
     await deleteAllDocuments(index);
 
+    expect(mockIndex.namespace).toHaveBeenCalledWith('__default__');
     expect(mockIndex.deleteAll).toHaveBeenCalled();
   });
 
@@ -531,6 +532,7 @@ describe('fetchDocuments', () => {
 
     const documents = await fetchDocuments(index, ['doc1']);
 
+    expect(mockIndex.namespace).toHaveBeenCalledWith('__default__');
     expect(mockIndex.fetch).toHaveBeenCalledWith(['doc1']);
     expect(documents).toHaveLength(1);
     expect(documents[0].id).toBe('doc1');

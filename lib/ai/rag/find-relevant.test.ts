@@ -76,7 +76,7 @@ const createMockDocuments = (): DocumentWithEmbedding[] => [
   },
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockEmbeddingModel: any = {
   specificationVersion: 'v1',
   provider: 'test',

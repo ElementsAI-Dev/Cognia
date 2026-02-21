@@ -40,6 +40,10 @@ import {
   type AgentTool,
 } from '@/lib/ai/agent';
 import { createSkillTools } from '@/lib/skills/executor';
+import {
+  isEmbeddingProviderConfigured,
+  resolveEmbeddingApiKey,
+} from '@/lib/vector/embedding';
 
 export interface UseUnifiedToolsOptions {
   /** Enable built-in tools */
@@ -210,17 +214,25 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
     // Remove existing RAG tool
     registry.unregister('rag_search');
 
-    // Get API key for embedding provider
-    const embeddingApiKey =
-      providerSettings[vectorSettings.embeddingProvider as keyof typeof providerSettings]?.apiKey;
-    if (embeddingApiKey) {
-      const ragConfig = buildRAGConfigFromSettings(vectorSettings, embeddingApiKey);
-      const ragTool = createRAGSearchTool(ragConfig);
-      registry.register(ragTool, {
-        source: 'builtin',
-        category: 'search',
-      });
+    if (
+      !isEmbeddingProviderConfigured(
+        vectorSettings.embeddingProvider,
+        providerSettings as Record<string, { apiKey?: string }>
+      )
+    ) {
+      return;
     }
+
+    const embeddingApiKey = resolveEmbeddingApiKey(
+      vectorSettings.embeddingProvider,
+      providerSettings as Record<string, { apiKey?: string }>
+    );
+    const ragConfig = buildRAGConfigFromSettings(vectorSettings, embeddingApiKey);
+    const ragTool = createRAGSearchTool(ragConfig);
+    registry.register(ragTool, {
+      source: 'builtin',
+      category: 'search',
+    });
   }, [enableRAG, vectorSettings, providerSettings, registry]);
 
   // Sync custom tools

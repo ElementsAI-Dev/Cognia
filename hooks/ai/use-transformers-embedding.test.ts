@@ -30,6 +30,7 @@ const mockLoadModel = jest.fn().mockResolvedValue({
 });
 
 const mockDispose = jest.fn().mockResolvedValue(undefined);
+const mockSyncFromTransformersSettings = jest.fn();
 
 jest.mock('@/lib/ai/transformers/transformers-manager', () => ({
   getTransformersManager: () => ({
@@ -37,6 +38,7 @@ jest.mock('@/lib/ai/transformers/transformers-manager', () => ({
     generateEmbeddings: mockGenerateEmbeddings,
     loadModel: mockLoadModel,
     dispose: mockDispose,
+    syncFromTransformersSettings: mockSyncFromTransformersSettings,
   }),
   isWebGPUAvailable: () => false,
   isWebWorkerAvailable: () => true,
@@ -45,6 +47,18 @@ jest.mock('@/lib/ai/transformers/transformers-manager', () => ({
 jest.mock('@/lib/ai/transformers', () => ({
   isWebGPUAvailable: () => false,
   isWebWorkerAvailable: () => true,
+  resolveTransformersRuntimeOptions: (settings: { cacheModels?: boolean; maxCachedModels?: number }) => ({
+    device: 'wasm',
+    dtype: 'q8',
+    cachePolicy: {
+      enabled: settings.cacheModels ?? true,
+      maxCachedModels: settings.maxCachedModels ?? 5,
+    },
+  }),
+  syncTransformersManagerRuntime: (manager: { syncFromTransformersSettings?: (settings: unknown) => void }, settings: unknown) => {
+    manager.syncFromTransformersSettings?.(settings);
+  },
+  mapTransformersProgressStatus: () => 'downloading',
   TRANSFORMERS_EMBEDDING_MODELS: {
     'Xenova/all-MiniLM-L6-v2': { dimensions: 384, sizeInMB: 23 },
     'Xenova/bge-small-en-v1.5': { dimensions: 384, sizeInMB: 33 },
@@ -147,9 +161,9 @@ describe('useTransformersEmbedding', () => {
           dtype: 'q8',
         })
       );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((embeddingResult as any).embedding).toHaveLength(384);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((embeddingResult as any).dimension).toBe(384);
     });
   });
@@ -183,7 +197,7 @@ describe('useTransformersEmbedding', () => {
           dtype: 'q8',
         })
       );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((batchResult as any).embeddings).toHaveLength(2);
     });
   });
@@ -250,7 +264,7 @@ describe('useTransformersEmbedding', () => {
         secondResult = await result.current.embed('test again');
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((secondResult as any).embedding).toHaveLength(384);
       expect(result.current.error).toBeNull();
     });

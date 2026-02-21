@@ -8,6 +8,7 @@ import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import type { PluginTool, Plugin } from '@/types/plugin';
 import { trackPluginEvent } from '../utils/analytics';
 import { loggers } from '../core/logger';
+import { getPluginManager } from '@/lib/plugin/core/manager';
 
 // =============================================================================
 // Types
@@ -114,8 +115,17 @@ export class PluginAgentBridge {
     name: string,
     params: Record<string, unknown>
   ): Promise<{ success: boolean; result?: unknown; error?: string }> {
-    const tool = this.getTool(name);
+    let tool = this.getTool(name);
     
+    if (!tool) {
+      try {
+        await getPluginManager().handleActivationEvent(`onTool:${name}`);
+        tool = this.getTool(name);
+      } catch {
+        // Plugin manager may not be initialized yet.
+      }
+    }
+
     if (!tool) {
       return { success: false, error: `Tool not found: ${name}` };
     }

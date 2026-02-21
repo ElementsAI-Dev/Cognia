@@ -33,7 +33,7 @@ jest.mock('@/components/providers/ui/theme-provider', () => ({
 }));
 
 jest.mock('@/lib/monaco', () => ({
-  createEditorOptions: jest.fn(() => ({})),
+  createEditorOptions: jest.fn((_preset: string, overrides: Record<string, unknown> = {}) => overrides),
   getMonacoLanguage: jest.fn((lang: string) => lang),
   getMonacoTheme: jest.fn(() => 'vs-dark'),
 }));
@@ -122,5 +122,24 @@ describe('SystemTaskForm', () => {
 
     expect(screen.getByDisplayValue('Existing System Task')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Existing description')).toBeInTheDocument();
+  });
+
+  it('locks workflow script action in read-only mode', () => {
+    const initialValues: Partial<CreateSystemTaskInput> = {
+      name: 'Workflow Trigger Task',
+      trigger: { type: 'cron', expression: '0 9 * * *', timezone: 'UTC' },
+      action: {
+        type: 'execute_script',
+        language: 'workflow',
+        code: '{"workflowId":"wf-1"}',
+      },
+      run_level: 'user',
+    };
+
+    render(<SystemTaskForm {...defaultProps} initialValues={initialValues} />);
+
+    expect(screen.getByText('workflowScriptReadOnlyTitle')).toBeInTheDocument();
+    expect(screen.getByText('workflowScriptReadOnlyDescription')).toBeInTheDocument();
+    expect(screen.getByTestId('monaco-editor')).toBeDisabled();
   });
 });

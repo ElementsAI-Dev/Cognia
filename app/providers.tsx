@@ -22,14 +22,13 @@ import { useSettingsStore } from '@/stores';
 import { useSelectionStore } from '@/stores/context';
 import { I18nProvider } from '@/lib/i18n';
 import {
-  THEME_PRESETS,
-  applyThemeColors,
-  removeCustomThemeColors,
+  applyResolvedThemeToDocument,
+  resolveActiveThemeColors,
   applyBackgroundSettings,
   applyUICustomization,
   removeBackgroundSettings,
+  isBackgroundRenderable,
 } from '@/lib/themes';
-import type { ColorThemePreset as _ColorThemePreset } from '@/lib/themes';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { CommandPalette } from '@/components/layout/overlays/command-palette';
 import { Toaster } from '@/components/ui/sonner';
@@ -52,6 +51,7 @@ import {
   SkillSyncInitializer,
   ContextSyncInitializer,
   SpeedPassRuntimeInitializer,
+  ExternalAgentInitializer,
 } from '@/components/providers';
 import { ObservabilityInitializer } from '@/components/observability';
 import { LocaleInitializer, AgentTraceInitializer } from '@/components/providers/initializers';
@@ -280,102 +280,24 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.classList.add(nextResolved);
   }, [theme, mounted]);
 
-  const applyDerivedThemeVariables = useCallback(
-    (colors: {
-      primary: string;
-      primaryForeground: string;
-      accent: string;
-      accentForeground: string;
-      ring: string;
-    }) => {
-      const root = window.document.documentElement;
-      root.style.setProperty('--sidebar-primary', colors.primary);
-      root.style.setProperty('--sidebar-primary-foreground', colors.primaryForeground);
-      root.style.setProperty('--sidebar-accent', colors.accent);
-      root.style.setProperty('--sidebar-accent-foreground', colors.accentForeground);
-      root.style.setProperty('--sidebar-ring', colors.ring);
-    },
-    []
-  );
-
   // Handle color theme (presets and custom)
   useEffect(() => {
     if (!mounted) return;
 
     const root = window.document.documentElement;
-
-    const isDark = resolvedTheme === 'dark';
-
-    // Remove all theme classes first
-    const themeClasses = Object.keys(THEME_PRESETS).map((t) => `theme-${t}`);
-    root.classList.remove(...themeClasses);
-
-    // Check if using a custom theme
-    if (activeCustomThemeId) {
-      const customTheme = customThemes.find((t) => t.id === activeCustomThemeId);
-      if (customTheme) {
-        // Apply custom theme colors as CSS variables
-        const colors = {
-          primary: customTheme.colors.primary,
-          primaryForeground: isDark ? 'oklch(0.15 0.02 0)' : 'oklch(0.985 0.002 0)',
-          secondary: customTheme.colors.secondary,
-          secondaryForeground: isDark ? 'oklch(0.95 0.01 0)' : 'oklch(0.25 0.01 0)',
-          accent: customTheme.colors.accent,
-          accentForeground: isDark ? 'oklch(0.95 0.01 0)' : 'oklch(0.25 0.01 0)',
-          background: customTheme.colors.background,
-          foreground: customTheme.colors.foreground,
-          muted: customTheme.colors.muted,
-          mutedForeground: isDark ? 'oklch(0.7 0.01 0)' : 'oklch(0.5 0.01 0)',
-          card: customTheme.colors.background,
-          cardForeground: customTheme.colors.foreground,
-          border: isDark ? 'oklch(0.3 0.02 0)' : 'oklch(0.9 0.02 0)',
-          ring: customTheme.colors.primary,
-          destructive: isDark ? 'oklch(0.65 0.2 27)' : 'oklch(0.55 0.2 27)',
-          destructiveForeground: isDark ? 'oklch(0.15 0.02 27)' : 'oklch(0.985 0.002 27)',
-        };
-        applyThemeColors(colors);
-
-        // Keep popovers/inputs consistent with cards/borders
-        root.style.setProperty('--popover', colors.card);
-        root.style.setProperty('--popover-foreground', colors.cardForeground);
-        root.style.setProperty('--input', colors.border);
-        applyDerivedThemeVariables({
-          primary: colors.primary,
-          primaryForeground: colors.primaryForeground,
-          accent: colors.accent,
-          accentForeground: colors.accentForeground,
-          ring: colors.ring,
-        });
-        return;
-      }
-    }
-
-    // Preset themes: apply full token set via CSS variables
-    if (colorTheme === 'default') {
-      removeCustomThemeColors();
-      return;
-    }
-
-    const preset = THEME_PRESETS[colorTheme];
-    const presetColors = isDark ? preset.dark : preset.light;
-    applyThemeColors(presetColors);
-    root.style.setProperty('--popover', presetColors.card);
-    root.style.setProperty('--popover-foreground', presetColors.cardForeground);
-    root.style.setProperty('--input', presetColors.border);
-    applyDerivedThemeVariables({
-      primary: presetColors.primary,
-      primaryForeground: presetColors.primaryForeground,
-      accent: presetColors.accent,
-      accentForeground: presetColors.accentForeground,
-      ring: presetColors.ring,
+    const resolved = resolveActiveThemeColors({
+      colorTheme,
+      resolvedTheme,
+      activeCustomThemeId,
+      customThemes,
     });
+    applyResolvedThemeToDocument(resolved, root);
   }, [
     colorTheme,
     activeCustomThemeId,
     customThemes,
     mounted,
     resolvedTheme,
-    applyDerivedThemeVariables,
   ]);
 
   // Listen for system theme changes
@@ -500,16 +422,34 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Apply background settings
   useEffect(() => {
     if (!mounted) return;
+    const root = typeof window !== 'undefined' ? document.documentElement : null;
 
     if (backgroundSettings.mode !== 'single') {
       removeBackgroundSettings();
+      if (isBackgroundRenderable(backgroundSettings)) {
+        root?.classList.add('has-bg-image');
+        root?.classList.add('has-bg-renderer');
+      } else {
+        root?.classList.remove('has-bg-image');
+        root?.classList.remove('has-bg-renderer');
+      }
       return;
     }
 
+    root?.classList.remove('has-bg-renderer');
+
     const effectiveSettings =
-      backgroundSettings.source === 'local' && resolvedLocalBgUrl
-        ? { ...backgroundSettings, imageUrl: resolvedLocalBgUrl }
+      backgroundSettings.source === 'local'
+        ? resolvedLocalBgUrl
+          ? { ...backgroundSettings, imageUrl: resolvedLocalBgUrl }
+          : { ...backgroundSettings, imageUrl: '', localAssetId: null }
         : backgroundSettings;
+
+    if (!isBackgroundRenderable(effectiveSettings)) {
+      removeBackgroundSettings();
+      root?.classList.remove('has-bg-image');
+      return;
+    }
 
     applyBackgroundSettings(effectiveSettings);
   }, [backgroundSettings, mounted, resolvedLocalBgUrl]);
@@ -860,6 +800,7 @@ export function Providers({ children }: ProvidersProps) {
                         <SkillSyncInitializer />
                         <ContextSyncInitializer />
                         <SpeedPassRuntimeInitializer />
+                        <ExternalAgentInitializer />
                         <ObservabilityInitializer />
                         <SchedulerInitializer />
                         <AgentTraceInitializer />

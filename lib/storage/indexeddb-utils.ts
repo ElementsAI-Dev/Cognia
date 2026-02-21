@@ -48,6 +48,9 @@ export async function getCogniaDBStats(): Promise<DatabaseStats> {
     { name: 'workflowExecutions', avgSize: 4096 },
     { name: 'summaries', avgSize: 1024 },
     { name: 'agentTraces', avgSize: 4096 },
+    { name: 'checkpoints', avgSize: 2048 },
+    { name: 'contextFiles', avgSize: 4096 },
+    { name: 'videoProjects', avgSize: 4096 },
     { name: 'assets', avgSize: 8192 },
     { name: 'folders', avgSize: 256 },
   ];
@@ -295,6 +298,10 @@ export async function exportAllData(): Promise<{
   summaries: unknown[];
   knowledgeFiles: unknown[];
   agentTraces: unknown[];
+  checkpoints: unknown[];
+  contextFiles: unknown[];
+  videoProjects: unknown[];
+  assets: unknown[];
   folders: unknown[];
   mcpServers: unknown[];
   exportedAt: string;
@@ -309,6 +316,10 @@ export async function exportAllData(): Promise<{
     summaries,
     knowledgeFiles,
     agentTraces,
+    checkpoints,
+    contextFiles,
+    videoProjects,
+    assets,
     folders,
     mcpServers,
   ] = await Promise.all([
@@ -321,6 +332,10 @@ export async function exportAllData(): Promise<{
     db.summaries.toArray(),
     db.knowledgeFiles.toArray(),
     db.agentTraces.toArray(),
+    db.checkpoints.toArray(),
+    db.contextFiles.toArray(),
+    db.videoProjects.toArray(),
+    db.assets.toArray(),
     db.folders.toArray(),
     db.mcpServers.toArray(),
   ]);
@@ -335,6 +350,10 @@ export async function exportAllData(): Promise<{
     summaries,
     knowledgeFiles,
     agentTraces,
+    checkpoints,
+    contextFiles,
+    videoProjects,
+    assets,
     folders,
     mcpServers,
     exportedAt: new Date().toISOString(),
@@ -355,6 +374,10 @@ export async function importAllData(
     summaries?: unknown[];
     knowledgeFiles?: unknown[];
     agentTraces?: unknown[];
+    checkpoints?: unknown[];
+    contextFiles?: unknown[];
+    videoProjects?: unknown[];
+    assets?: unknown[];
     folders?: unknown[];
     mcpServers?: unknown[];
   },
@@ -375,6 +398,10 @@ export async function importAllData(
         db.summaries.clear(),
         db.knowledgeFiles.clear(),
         db.agentTraces.clear(),
+        db.checkpoints.clear(),
+        db.contextFiles.clear(),
+        db.videoProjects.clear(),
+        db.assets.clear(),
         db.folders.clear(),
         db.mcpServers.clear(),
       ]);
@@ -390,6 +417,10 @@ export async function importAllData(
       { key: 'summaries', items: data.summaries, table: db.summaries as never },
       { key: 'knowledgeFiles', items: data.knowledgeFiles, table: db.knowledgeFiles as never },
       { key: 'agentTraces', items: data.agentTraces, table: db.agentTraces as never },
+      { key: 'checkpoints', items: data.checkpoints, table: db.checkpoints as never },
+      { key: 'contextFiles', items: data.contextFiles, table: db.contextFiles as never },
+      { key: 'videoProjects', items: data.videoProjects, table: db.videoProjects as never },
+      { key: 'assets', items: data.assets, table: db.assets as never },
       { key: 'folders', items: data.folders, table: db.folders as never },
       { key: 'mcpServers', items: data.mcpServers, table: db.mcpServers as never },
     ];

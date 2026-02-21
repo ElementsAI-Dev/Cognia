@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { EdgeSpeechTTS } from '@lobehub/tts';
+import { jsonTtsError } from '../_utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,52 +16,42 @@ export async function POST(request: NextRequest) {
       voice = 'en-US-JennyNeural',
       rate = '+0%',
       pitch = '+0Hz',
+      volume = '+0%',
     } = body;
 
     // Validate input
     if (!text || typeof text !== 'string') {
-      return NextResponse.json(
-        { error: 'Text is required' },
-        { status: 400 }
-      );
+      return jsonTtsError('edge', 'Text is required', 400, 'validation_error');
     }
 
     // Validate text length
     if (text.length > 10000) {
-      return NextResponse.json(
-        { error: 'Text exceeds maximum length of 10000 characters' },
-        { status: 400 }
-      );
+      return jsonTtsError('edge', 'Text exceeds maximum length of 10000 characters', 400, 'text_too_long');
     }
 
     // Parse rate and pitch to numeric values for lobehub/tts
     const rateValue = parseRateValue(rate);
     const pitchValue = parsePitchValue(pitch);
+    const volumeValue = parseVolumeValue(volume);
 
     // Generate audio using @lobehub/tts EdgeSpeechTTS
     const tts = new EdgeSpeechTTS();
     
-    // Note: @lobehub/tts EdgeSpeechTTS only supports voice option
-    // Rate and pitch are controlled via SSML which the library handles internally
     const payload = await tts.create({
       input: text,
       options: {
         voice,
+        rate: rateValue,
+        pitch: pitchValue,
+        volume: volumeValue,
       },
-    });
-    
-    // Log rate/pitch for debugging (not used by library directly)
-    void rateValue;
-    void pitchValue;
+    } as unknown as Parameters<typeof tts.create>[0]);
 
     // Get audio as ArrayBuffer
     const audioBuffer = await payload.arrayBuffer();
 
     if (!audioBuffer || audioBuffer.byteLength === 0) {
-      return NextResponse.json(
-        { error: 'Failed to generate audio' },
-        { status: 500 }
-      );
+      return jsonTtsError('edge', 'Failed to generate audio', 500, 'empty_audio', true);
     }
 
     return new NextResponse(audioBuffer, {
@@ -72,9 +63,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Edge TTS error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate speech' },
-      { status: 500 }
+    return jsonTtsError(
+      'edge',
+      error instanceof Error ? error.message : 'Failed to generate speech',
+      500,
+      'internal_error',
+      true
     );
   }
 }
@@ -100,4 +94,15 @@ function parsePitchValue(pitch: string): number {
   const hz = parseInt(match[1], 10);
   // Convert Hz to a multiplier (approximate)
   return 1.0 + (hz / 50);
+}
+
+/**
+ * Parse volume string (e.g., '+10%', '-20%') to numeric value
+ * Default volume is 1.0 (0%)
+ */
+function parseVolumeValue(volume: string): number {
+  const match = volume.match(/([+-]?\d+)/);
+  if (!match) return 1.0;
+  const percent = parseInt(match[1], 10);
+  return Math.max(0, 1.0 + (percent / 100));
 }

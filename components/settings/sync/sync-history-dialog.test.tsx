@@ -13,6 +13,7 @@ jest.mock('next-intl', () => ({
 // Mock sync store
 const mockListBackups = jest.fn();
 const mockDeleteBackup = jest.fn();
+const mockRestoreBackup = jest.fn();
 
 const mockSyncHistoryStoreState = {
   syncHistory: [
@@ -62,20 +63,26 @@ jest.mock('@/stores/sync', () => ({
     ...mockSyncHistoryStoreState,
     listBackups: mockListBackups,
     deleteBackup: mockDeleteBackup,
+    restoreBackup: mockRestoreBackup,
   }),
 }));
 
 // Mock UI components - Dialog always shows content for testing
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, size, variant, className }: React.ButtonHTMLAttributes<HTMLButtonElement> & { size?: string; variant?: string }) => (
-    <button onClick={onClick} disabled={disabled} data-size={size} data-variant={variant} className={className}>
+  Button: ({ children, onClick, disabled, size, variant, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { size?: string; variant?: string }) => (
+    <button onClick={onClick} disabled={disabled} data-size={size} data-variant={variant} className={className} {...props}>
       {children}
     </button>
   ),
 }));
 
 jest.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog">{children}</div>,
+  Dialog: ({ children, onOpenChange }: { children: React.ReactNode; onOpenChange?: (open: boolean) => void }) => {
+    React.useEffect(() => {
+      onOpenChange?.(true);
+    }, [onOpenChange]);
+    return <div data-testid="dialog">{children}</div>;
+  },
   DialogContent: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-content">{children}</div>,
   DialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -118,6 +125,7 @@ describe('SyncHistoryDialog', () => {
     jest.clearAllMocks();
     resetSyncHistoryMockState();
     mockListBackups.mockResolvedValue([]);
+    mockRestoreBackup.mockResolvedValue(true);
   });
 
   it('renders without crashing', () => {
@@ -209,11 +217,14 @@ describe('SyncHistoryDialog backup list', () => {
     jest.clearAllMocks();
     resetSyncHistoryMockState();
     mockListBackups.mockResolvedValue([]);
+    mockRestoreBackup.mockResolvedValue(true);
   });
 
-  it('displays refresh button for backups', () => {
+  it('displays refresh button for backups', async () => {
     render(<SyncHistoryDialog />);
-    expect(screen.getByText('refresh')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('refresh')).toBeInTheDocument();
+    });
   });
 
   it('listBackups is available in the store', () => {
@@ -226,6 +237,33 @@ describe('SyncHistoryDialog backup list', () => {
     render(<SyncHistoryDialog />);
     await waitFor(() => {
       expect(screen.getByText('noBackups')).toBeInTheDocument();
+    });
+  });
+
+  it('triggers restore action for selected backup', async () => {
+    mockListBackups.mockResolvedValue([
+      {
+        id: 'backup-1',
+        filename: 'backup-1.json',
+        createdAt: '2025-01-01T00:00:00Z',
+        size: 1024,
+        deviceId: 'device-1',
+        deviceName: 'Device',
+        checksum: 'checksum',
+      },
+    ]);
+
+    render(<SyncHistoryDialog />);
+
+    await waitFor(() => {
+      expect(screen.getByText('backup-1.json')).toBeInTheDocument();
+    });
+
+    const restoreButton = screen.getByLabelText('restore');
+    restoreButton.click();
+
+    await waitFor(() => {
+      expect(mockRestoreBackup).toHaveBeenCalledWith('backup-1');
     });
   });
 });

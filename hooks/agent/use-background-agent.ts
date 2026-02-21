@@ -14,6 +14,7 @@ import { useSessionStore } from '@/stores/chat';
 import { useSkillStore } from '@/stores/skills';
 import { useMcpStore } from '@/stores/mcp';
 import { useVectorStore } from '@/stores/data';
+import { resolveEmbeddingApiKey } from '@/lib/vector/embedding';
 import {
   BackgroundAgentManager,
   getBackgroundAgentManager,
@@ -137,8 +138,10 @@ export function useBackgroundAgent(
       mcp: () => ({ servers: mcpServers, callTool: mcpCallTool }),
       vectorSettings: () => vectorSettings,
       apiKey: (provider: string) => {
-        const settings = providerSettings[provider as keyof typeof providerSettings];
-        return settings?.apiKey || '';
+        return resolveEmbeddingApiKey(
+          provider as import('@/lib/vector/embedding').EmbeddingProvider,
+          providerSettings as Record<string, { apiKey?: string }>
+        );
       },
     });
   }, [skills, activeSkillIds, mcpServers, mcpCallTool, vectorSettings, providerSettings]);

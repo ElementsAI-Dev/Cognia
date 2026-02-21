@@ -1,7 +1,8 @@
 import { nanoid } from 'nanoid';
 import { getPluginLifecycleHooks } from '@/lib/plugin';
-import { messageRepository, agentTraceRepository, db } from '@/lib/db';
+import { agentTraceRepository } from '@/lib/db';
 import { loggers } from '@/lib/logger';
+import { unifiedPersistenceService } from '@/lib/storage/persistence/unified-persistence-service';
 import type {
   SliceCreator,
   CoreSliceState,
@@ -82,6 +83,9 @@ export const createCoreSlice: SliceCreator<CoreSliceActions> = (set, get) => ({
       provider: input.provider || DEFAULT_PROVIDER,
       model: input.model || DEFAULT_MODEL,
       mode: input.mode || DEFAULT_MODE,
+      externalAgentId: input.externalAgentId,
+      externalAgentSessionId: input.externalAgentSessionId,
+      externalAgentInstructionHash: input.externalAgentInstructionHash,
       systemPrompt: input.systemPrompt,
       projectId: input.projectId,
       virtualEnvId: input.virtualEnvId,
@@ -94,6 +98,9 @@ export const createCoreSlice: SliceCreator<CoreSliceActions> = (set, get) => ({
       sessions: [session, ...state.sessions],
       activeSessionId: session.id,
     }));
+    void unifiedPersistenceService.sessions.upsert(session).catch((error) =>
+      loggers.chat.error('Failed to persist created session', error as Error)
+    );
 
     getPluginLifecycleHooks().dispatchOnSessionCreate(session.id);
 
@@ -101,11 +108,14 @@ export const createCoreSlice: SliceCreator<CoreSliceActions> = (set, get) => ({
   },
 
   deleteSession: (id) => {
-    messageRepository.deleteBySessionId(id).catch((err) =>
+    unifiedPersistenceService.messages.removeBySession(id).catch((err) =>
       loggers.chat.error('Failed to delete messages for session', err as Error)
     );
-    db.summaries.where('sessionId').equals(id).delete().catch((err) =>
+    unifiedPersistenceService.summaries.removeBySession(id).catch((err) =>
       loggers.chat.error('Failed to delete summaries for session', err as Error)
+    );
+    unifiedPersistenceService.sessions.remove(id).catch((err) =>
+      loggers.chat.error('Failed to delete persisted session', err as Error)
     );
     agentTraceRepository.deleteBySessionId(id).catch((err) =>
       loggers.chat.error('Failed to delete agent traces for session', err as Error)
@@ -122,7 +132,7 @@ export const createCoreSlice: SliceCreator<CoreSliceActions> = (set, get) => ({
     });
   },
 
-  updateSession: (id, updates) =>
+  updateSession: (id, updates) => {
     set((state) => {
       const existing = state.sessions.find((s) => s.id === id);
 
@@ -156,7 +166,15 @@ export const createCoreSlice: SliceCreator<CoreSliceActions> = (set, get) => ({
           s.id === id ? { ...s, ...updates, updatedAt: new Date() } : s
         ),
       };
-    }),
+    });
+
+    const updated = get().sessions.find((session) => session.id === id);
+    if (updated) {
+      void unifiedPersistenceService.sessions.upsert(updated).catch((error) =>
+        loggers.chat.error('Failed to persist updated session', error as Error)
+      );
+    }
+  },
 
   setActiveSession: (id) =>
     set((state) => {
@@ -185,15 +203,25 @@ export const createCoreSlice: SliceCreator<CoreSliceActions> = (set, get) => ({
       sessions: [duplicate, ...state.sessions],
       activeSessionId: duplicate.id,
     }));
+    void unifiedPersistenceService.sessions.upsert(duplicate).catch((error) =>
+      loggers.chat.error('Failed to persist duplicated session', error as Error)
+    );
     return duplicate;
   },
 
   togglePinSession: (id) =>
-    set((state) => ({
-      sessions: state.sessions.map((s) =>
+    set((state) => {
+      const sessions = state.sessions.map((s) =>
         s.id === id ? { ...s, pinned: !s.pinned, updatedAt: new Date() } : s
-      ),
-    })),
+      );
+      const updated = sessions.find((session) => session.id === id);
+      if (updated) {
+        void unifiedPersistenceService.sessions.upsert(updated).catch((error) =>
+          loggers.chat.error('Failed to persist pinned session', error as Error)
+        );
+      }
+      return { sessions };
+    }),
 
   deleteAllSessions: () => {
     const { sessions } = get();
@@ -202,13 +230,16 @@ export const createCoreSlice: SliceCreator<CoreSliceActions> = (set, get) => ({
     }
 
     for (const session of sessions) {
-      messageRepository.deleteBySessionId(session.id).catch((err) =>
+      unifiedPersistenceService.messages.removeBySession(session.id).catch((err: unknown) =>
         loggers.chat.error('Failed to delete messages for session', err as Error)
       );
-      db.summaries.where('sessionId').equals(session.id).delete().catch((err) =>
+      unifiedPersistenceService.summaries.removeBySession(session.id).catch((err: unknown) =>
         loggers.chat.error('Failed to delete summaries for session', err as Error)
       );
-      agentTraceRepository.deleteBySessionId(session.id).catch((err) =>
+      unifiedPersistenceService.sessions.remove(session.id).catch((err: unknown) =>
+        loggers.chat.error('Failed to delete persisted session', err as Error)
+      );
+      agentTraceRepository.deleteBySessionId(session.id).catch((err: unknown) =>
         loggers.chat.error('Failed to delete agent traces for session', err as Error)
       );
     }
@@ -217,8 +248,12 @@ export const createCoreSlice: SliceCreator<CoreSliceActions> = (set, get) => ({
   },
 
   clearAllSessions: () => set({ sessions: [], activeSessionId: null }),
-  importSessions: (sessions) =>
-    set((state) => ({ sessions: [...sessions, ...state.sessions] })),
+  importSessions: (sessions) => {
+    set((state) => ({ sessions: [...sessions, ...state.sessions] }));
+    void unifiedPersistenceService.sessions.bulkUpsert(sessions).catch((error) =>
+      loggers.chat.error('Failed to persist imported sessions', error as Error)
+    );
+  },
   getSession: (id) => get().sessions.find((s) => s.id === id),
   getActiveSession: () => {
     const { sessions, activeSessionId } = get();
@@ -242,11 +277,18 @@ export const createCoreSlice: SliceCreator<CoreSliceActions> = (set, get) => ({
     }),
 
   setFrozenSummary: (sessionId, summary) =>
-    set((state) => ({
-      sessions: state.sessions.map((s) =>
+    set((state) => {
+      const sessions = state.sessions.map((s) =>
         s.id === sessionId ? { ...s, frozenSummary: summary, updatedAt: new Date() } : s
-      ),
-    })),
+      );
+      const updated = sessions.find((session) => session.id === sessionId);
+      if (updated) {
+        void unifiedPersistenceService.sessions.upsert(updated).catch((error) =>
+          loggers.chat.error('Failed to persist frozen summary', error as Error)
+        );
+      }
+      return { sessions };
+    }),
 
   getFrozenSummary: (sessionId) => {
     const session = get().sessions.find((s) => s.id === sessionId);
@@ -254,8 +296,8 @@ export const createCoreSlice: SliceCreator<CoreSliceActions> = (set, get) => ({
   },
 
   setSessionEnvironment: (sessionId, envId, envPath) =>
-    set((state) => ({
-      sessions: state.sessions.map((s) =>
+    set((state) => {
+      const sessions = state.sessions.map((s) =>
         s.id === sessionId
           ? {
               ...s,
@@ -264,8 +306,15 @@ export const createCoreSlice: SliceCreator<CoreSliceActions> = (set, get) => ({
               updatedAt: new Date(),
             }
           : s
-      ),
-    })),
+      );
+      const updated = sessions.find((session) => session.id === sessionId);
+      if (updated) {
+        void unifiedPersistenceService.sessions.upsert(updated).catch((error) =>
+          loggers.chat.error('Failed to persist session environment', error as Error)
+        );
+      }
+      return { sessions };
+    }),
 
   getSessionEnvironment: (sessionId) => {
     const session = get().sessions.find((s) => s.id === sessionId);
@@ -276,11 +325,18 @@ export const createCoreSlice: SliceCreator<CoreSliceActions> = (set, get) => ({
   },
 
   clearSessionEnvironment: (sessionId) =>
-    set((state) => ({
-      sessions: state.sessions.map((s) =>
+    set((state) => {
+      const sessions = state.sessions.map((s) =>
         s.id === sessionId
           ? { ...s, virtualEnvId: undefined, virtualEnvPath: undefined, updatedAt: new Date() }
           : s
-      ),
-    })),
+      );
+      const updated = sessions.find((session) => session.id === sessionId);
+      if (updated) {
+        void unifiedPersistenceService.sessions.upsert(updated).catch((error) =>
+          loggers.chat.error('Failed to persist cleared session environment', error as Error)
+        );
+      }
+      return { sessions };
+    }),
 });

@@ -130,7 +130,7 @@ export function ChatMessageItem({
   }, [message.content]);
 
   // TTS hook for multi-provider text-to-speech
-  const { speak, stop: stopTTS, isPlaying: isSpeaking, isLoading: isTTSLoading } = useTTS();
+  const { speak, stop: stopTTS, isPlaying: isSpeaking, isLoading: isTTSLoading } = useTTS({ source: 'chat' });
   const ttsTooltip = isTTSLoading ? 'Loading...' : isSpeaking ? 'Stop speaking' : 'Read aloud';
 
   /**

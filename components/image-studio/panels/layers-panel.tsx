@@ -58,7 +58,7 @@ import {
   Merge,
 } from 'lucide-react';
 
-import type { ImageAdjustments, TextLayerConfig, DrawingShapeConfig, LayerType, BlendMode, Layer } from '@/types';
+import type { LayerType, BlendMode, Layer } from '@/types';
 
 export type { Layer };
 

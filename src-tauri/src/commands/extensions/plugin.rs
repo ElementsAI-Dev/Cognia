@@ -2,20 +2,20 @@
 //!
 //! Tauri commands for plugin management.
 
+use once_cell::sync::Lazy;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use serde_json::{json, Value};
+use std::sync::Mutex;
 use tauri::{Manager, State};
 use tokio::sync::RwLock;
-use once_cell::sync::Lazy;
-use std::sync::Mutex;
 
 use crate::plugin::{
     api_gateway, PluginApiBatchInvokeRequest, PluginApiBatchInvokeResponse, PluginApiInvokeRequest,
     PluginApiInvokeResponse, PluginCapabilityDescriptor, PluginInstallOptions, PluginManager,
-    PluginPermissionMutationRequest, PluginScanResult, PluginState, PythonPluginInfo,
-    PythonRuntimeInfo, PythonToolRegistration, TableSchema,
+    PluginPermissionMutationRequest, PluginRuntimeSnapshotEntry, PluginScanResult, PluginState,
+    PythonPluginInfo, PythonRuntimeInfo, PythonToolRegistration, TableSchema,
 };
 
 /// Plugin manager state
@@ -222,6 +222,15 @@ pub async fn plugin_get_all(
 ) -> Result<Vec<PluginState>, String> {
     let manager = state.0.read().await;
     Ok(manager.get_all_plugins().await)
+}
+
+/// Get aggregated plugin runtime snapshot (state + permissions)
+#[tauri::command]
+pub async fn plugin_runtime_snapshot(
+    state: State<'_, PluginManagerState>,
+) -> Result<Vec<PluginRuntimeSnapshotEntry>, String> {
+    let manager = state.0.read().await;
+    Ok(manager.get_runtime_snapshot().await)
 }
 
 /// Get Python runtime info
@@ -654,8 +663,14 @@ pub async fn plugin_clipboard_read_text(
     state: State<'_, PluginManagerState>,
     plugin_id: String,
 ) -> Result<String, String> {
-    let data = invoke_legacy_api(&app_handle, &state, plugin_id, "clipboard:readText", json!({}))
-        .await?;
+    let data = invoke_legacy_api(
+        &app_handle,
+        &state,
+        plugin_id,
+        "clipboard:readText",
+        json!({}),
+    )
+    .await?;
     serde_json::from_value(data).map_err(|error| error.to_string())
 }
 
@@ -683,8 +698,14 @@ pub async fn plugin_clipboard_read_image(
     state: State<'_, PluginManagerState>,
     plugin_id: String,
 ) -> Result<Option<Vec<u8>>, String> {
-    let data =
-        invoke_legacy_api(&app_handle, &state, plugin_id, "clipboard:readImage", json!({})).await?;
+    let data = invoke_legacy_api(
+        &app_handle,
+        &state,
+        plugin_id,
+        "clipboard:readImage",
+        json!({}),
+    )
+    .await?;
     if data.is_null() {
         return Ok(None);
     }
@@ -717,8 +738,14 @@ pub async fn plugin_clipboard_has_text(
     state: State<'_, PluginManagerState>,
     plugin_id: String,
 ) -> Result<bool, String> {
-    let data =
-        invoke_legacy_api(&app_handle, &state, plugin_id, "clipboard:hasText", json!({})).await?;
+    let data = invoke_legacy_api(
+        &app_handle,
+        &state,
+        plugin_id,
+        "clipboard:hasText",
+        json!({}),
+    )
+    .await?;
     serde_json::from_value(data).map_err(|error| error.to_string())
 }
 
@@ -728,8 +755,14 @@ pub async fn plugin_clipboard_has_image(
     state: State<'_, PluginManagerState>,
     plugin_id: String,
 ) -> Result<bool, String> {
-    let data =
-        invoke_legacy_api(&app_handle, &state, plugin_id, "clipboard:hasImage", json!({})).await?;
+    let data = invoke_legacy_api(
+        &app_handle,
+        &state,
+        plugin_id,
+        "clipboard:hasImage",
+        json!({}),
+    )
+    .await?;
     serde_json::from_value(data).map_err(|error| error.to_string())
 }
 
@@ -926,11 +959,7 @@ pub async fn plugin_db_tx_query(
     sql: String,
     params: Option<Vec<Value>>,
 ) -> Result<serde_json::Value, String> {
-    let plugin_id = tx_id
-        .split(':')
-        .next()
-        .unwrap_or("__tx__")
-        .to_string();
+    let plugin_id = tx_id.split(':').next().unwrap_or("__tx__").to_string();
     invoke_legacy_api(
         &app_handle,
         &state,
@@ -949,11 +978,7 @@ pub async fn plugin_db_tx_execute(
     sql: String,
     params: Option<Vec<Value>>,
 ) -> Result<serde_json::Value, String> {
-    let plugin_id = tx_id
-        .split(':')
-        .next()
-        .unwrap_or("__tx__")
-        .to_string();
+    let plugin_id = tx_id.split(':').next().unwrap_or("__tx__").to_string();
     invoke_legacy_api(
         &app_handle,
         &state,
@@ -970,11 +995,7 @@ pub async fn plugin_db_commit(
     state: State<'_, PluginManagerState>,
     tx_id: String,
 ) -> Result<(), String> {
-    let plugin_id = tx_id
-        .split(':')
-        .next()
-        .unwrap_or("__tx__")
-        .to_string();
+    let plugin_id = tx_id.split(':').next().unwrap_or("__tx__").to_string();
     invoke_legacy_api(
         &app_handle,
         &state,
@@ -992,11 +1013,7 @@ pub async fn plugin_db_rollback(
     state: State<'_, PluginManagerState>,
     tx_id: String,
 ) -> Result<(), String> {
-    let plugin_id = tx_id
-        .split(':')
-        .next()
-        .unwrap_or("__tx__")
-        .to_string();
+    let plugin_id = tx_id.split(':').next().unwrap_or("__tx__").to_string();
     invoke_legacy_api(
         &app_handle,
         &state,
@@ -1223,7 +1240,10 @@ pub async fn plugin_window_focus(
 }
 
 #[tauri::command]
-pub async fn plugin_window_minimize(app_handle: tauri::AppHandle, window_id: String) -> Result<(), String> {
+pub async fn plugin_window_minimize(
+    app_handle: tauri::AppHandle,
+    window_id: String,
+) -> Result<(), String> {
     let window = app_handle
         .get_webview_window(&window_id)
         .ok_or_else(|| format!("Window not found: {window_id}"))?;
@@ -1231,7 +1251,10 @@ pub async fn plugin_window_minimize(app_handle: tauri::AppHandle, window_id: Str
 }
 
 #[tauri::command]
-pub async fn plugin_window_maximize(app_handle: tauri::AppHandle, window_id: String) -> Result<(), String> {
+pub async fn plugin_window_maximize(
+    app_handle: tauri::AppHandle,
+    window_id: String,
+) -> Result<(), String> {
     let window = app_handle
         .get_webview_window(&window_id)
         .ok_or_else(|| format!("Window not found: {window_id}"))?;
@@ -1258,7 +1281,9 @@ pub async fn plugin_window_set_always_on_top(
     let window = app_handle
         .get_webview_window(&window_id)
         .ok_or_else(|| format!("Window not found: {window_id}"))?;
-    window.set_always_on_top(flag).map_err(|error| error.to_string())
+    window
+        .set_always_on_top(flag)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -1292,10 +1317,7 @@ pub async fn plugin_shortcut_register(
 }
 
 #[tauri::command]
-pub async fn plugin_shortcut_unregister(
-    plugin_id: String,
-    shortcut: String,
-) -> Result<(), String> {
+pub async fn plugin_shortcut_unregister(plugin_id: String, shortcut: String) -> Result<(), String> {
     Err(format!(
         "NOT_SUPPORTED: shortcut unregister is not available in gateway v2 yet (pluginId={plugin_id}, shortcut={shortcut})"
     ))
@@ -1400,7 +1422,10 @@ pub async fn plugin_secrets_has(
 }
 
 #[tauri::command]
-pub async fn plugin_load(state: State<'_, PluginManagerState>, plugin_id: String) -> Result<(), String> {
+pub async fn plugin_load(
+    state: State<'_, PluginManagerState>,
+    plugin_id: String,
+) -> Result<(), String> {
     let manager = state.0.read().await;
     manager
         .set_plugin_status(&plugin_id, crate::plugin::PluginStatus::Loaded)
@@ -1409,7 +1434,10 @@ pub async fn plugin_load(state: State<'_, PluginManagerState>, plugin_id: String
 }
 
 #[tauri::command]
-pub async fn plugin_unload(state: State<'_, PluginManagerState>, plugin_id: String) -> Result<(), String> {
+pub async fn plugin_unload(
+    state: State<'_, PluginManagerState>,
+    plugin_id: String,
+) -> Result<(), String> {
     let manager = state.0.read().await;
     manager
         .set_plugin_status(&plugin_id, crate::plugin::PluginStatus::Installed)
@@ -1418,7 +1446,10 @@ pub async fn plugin_unload(state: State<'_, PluginManagerState>, plugin_id: Stri
 }
 
 #[tauri::command]
-pub async fn plugin_enable(state: State<'_, PluginManagerState>, plugin_id: String) -> Result<(), String> {
+pub async fn plugin_enable(
+    state: State<'_, PluginManagerState>,
+    plugin_id: String,
+) -> Result<(), String> {
     let manager = state.0.read().await;
     manager
         .set_plugin_status(&plugin_id, crate::plugin::PluginStatus::Enabled)
@@ -1427,7 +1458,10 @@ pub async fn plugin_enable(state: State<'_, PluginManagerState>, plugin_id: Stri
 }
 
 #[tauri::command]
-pub async fn plugin_disable(state: State<'_, PluginManagerState>, plugin_id: String) -> Result<(), String> {
+pub async fn plugin_disable(
+    state: State<'_, PluginManagerState>,
+    plugin_id: String,
+) -> Result<(), String> {
     let manager = state.0.read().await;
     manager
         .set_plugin_status(&plugin_id, crate::plugin::PluginStatus::Disabled)
@@ -1436,7 +1470,10 @@ pub async fn plugin_disable(state: State<'_, PluginManagerState>, plugin_id: Str
 }
 
 #[tauri::command]
-pub async fn plugin_reload(state: State<'_, PluginManagerState>, plugin_id: String) -> Result<(), String> {
+pub async fn plugin_reload(
+    state: State<'_, PluginManagerState>,
+    plugin_id: String,
+) -> Result<(), String> {
     let manager = state.0.read().await;
     manager
         .set_plugin_status(&plugin_id, crate::plugin::PluginStatus::Loaded)
@@ -1538,17 +1575,26 @@ pub async fn plugin_backup_delete(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn plugin_backup_save_index(path: String, content: serde_json::Value) -> Result<(), String> {
+pub async fn plugin_backup_save_index(
+    path: String,
+    content: serde_json::Value,
+) -> Result<(), String> {
     let target = PathBuf::from(path);
     if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
-    std::fs::write(target, serde_json::to_string_pretty(&content).map_err(|error| error.to_string())?)
-        .map_err(|error| error.to_string())
+    std::fs::write(
+        target,
+        serde_json::to_string_pretty(&content).map_err(|error| error.to_string())?,
+    )
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub async fn plugin_install_update(plugin_id: String, version: Option<String>) -> Result<(), String> {
+pub async fn plugin_install_update(
+    plugin_id: String,
+    version: Option<String>,
+) -> Result<(), String> {
     Err(format!(
         "NOT_SUPPORTED: plugin update install is not available in gateway v2 yet (pluginId={plugin_id}, version={})",
         version.unwrap_or_else(|| "latest".to_string())

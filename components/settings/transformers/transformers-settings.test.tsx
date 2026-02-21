@@ -2,7 +2,7 @@
  * TransformersSettings component tests
  */
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { TransformersSettings } from './transformers-settings';
 import { useTransformersStore } from '@/stores/ai/transformers-store';
 
@@ -15,6 +15,18 @@ jest.mock('next-intl', () => ({
 jest.mock('@/lib/ai/transformers', () => ({
   isWebGPUAvailable: () => false,
   isWebWorkerAvailable: () => true,
+  resolveTransformersRuntimeOptions: (settings: { cacheModels?: boolean; maxCachedModels?: number }) => ({
+    device: 'wasm',
+    dtype: 'q8',
+    cachePolicy: {
+      enabled: settings.cacheModels ?? true,
+      maxCachedModels: settings.maxCachedModels ?? 5,
+    },
+  }),
+  syncTransformersManagerRuntime: (manager: { syncFromTransformersSettings?: (settings: unknown) => void }, settings: unknown) => {
+    manager.syncFromTransformersSettings?.(settings);
+  },
+  mapTransformersProgressStatus: () => 'downloading',
   RECOMMENDED_MODELS: {
     'feature-extraction': [
       {
@@ -43,10 +55,38 @@ jest.mock('@/lib/ai/transformers', () => ({
 // Mock transformers-manager
 const mockLoadModel = jest.fn().mockResolvedValue({ task: 'feature-extraction', modelId: 'Xenova/all-MiniLM-L6-v2', duration: 100 });
 const mockDispose = jest.fn().mockResolvedValue(undefined);
+const mockDisposeAll = jest.fn().mockResolvedValue(undefined);
+const mockSyncFromSettings = jest.fn();
+const mockGetStatus = jest.fn(async () => {
+  const readyModels = useTransformersStore
+    .getState()
+    .models.filter((model) => model.status === 'ready')
+    .map((model) => ({
+      cacheKey: model.cacheKey,
+      task: model.task,
+      modelId: model.modelId,
+      loadedAt: model.loadedAt || Date.now(),
+      lastUsedAt: model.lastUsedAt || Date.now(),
+      hitCount: model.hitCount || 0,
+    }));
+
+  return {
+    loadedModels: readyModels,
+    count: readyModels.length,
+    cache: {
+      enabled: true,
+      maxCachedModels: 5,
+      currentCachedModels: readyModels.length,
+    },
+  };
+});
 jest.mock('@/lib/ai/transformers/transformers-manager', () => ({
   getTransformersManager: () => ({
     loadModel: mockLoadModel,
     dispose: mockDispose,
+    disposeAll: mockDisposeAll,
+    getStatus: mockGetStatus,
+    syncFromTransformersSettings: mockSyncFromSettings,
   }),
 }));
 
@@ -112,7 +152,7 @@ describe('TransformersSettings', () => {
     beforeEach(() => {
       const store = useTransformersStore.getState();
       store.updateSettings({ enabled: true });
-      store.setModelStatus('Xenova/all-MiniLM-L6-v2', 'feature-extraction', 'ready', 100);
+      store.setModelStatus('feature-extraction', 'Xenova/all-MiniLM-L6-v2', 'ready', 100);
     });
 
     it('shows loaded model with unload button', () => {
@@ -127,10 +167,13 @@ describe('TransformersSettings', () => {
       expect(screen.getByText('clearAll')).toBeInTheDocument();
     });
 
-    it('clears all models on clearAll click', () => {
+    it('clears all models on clearAll click', async () => {
       render(<TransformersSettings />);
       fireEvent.click(screen.getByText('clearAll'));
-      expect(useTransformersStore.getState().models).toHaveLength(0);
+      await waitFor(() => {
+        expect(useTransformersStore.getState().models).toHaveLength(0);
+      });
+      expect(mockDisposeAll).toHaveBeenCalled();
     });
 
     it('shows ready badge in available models', () => {
@@ -143,7 +186,7 @@ describe('TransformersSettings', () => {
     beforeEach(() => {
       const store = useTransformersStore.getState();
       store.updateSettings({ enabled: true });
-      store.setModelStatus('Xenova/distilbert-sst-2', 'text-classification', 'downloading', 50);
+      store.setModelStatus('text-classification', 'Xenova/distilbert-sst-2', 'downloading', 50);
     });
 
     it('shows downloading section', () => {
@@ -158,7 +201,7 @@ describe('TransformersSettings', () => {
     beforeEach(() => {
       const store = useTransformersStore.getState();
       store.updateSettings({ enabled: true });
-      store.setModelStatus('Xenova/all-MiniLM-L6-v2', 'feature-extraction', 'error', 0, 'Network error');
+      store.setModelStatus('feature-extraction', 'Xenova/all-MiniLM-L6-v2', 'error', 0, 'Network error');
     });
 
     it('shows error badge and message', () => {

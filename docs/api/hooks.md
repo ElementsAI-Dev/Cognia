@@ -491,9 +491,9 @@ const handleCreateBranch = async (branchPointMessageId: string) => {
 
 ## useVectorDB
 
-**Location**: `hooks/use-vector-db.ts`
+**Location**: `hooks/rag/use-vector-db.ts`
 
-Vector database operations for RAG (Retrieval Augmented Generation) functionality with ChromaDB integration.
+Vector database operations for RAG (Retrieval Augmented Generation) functionality with unified provider support (`native`, `chroma`, `pinecone`, `qdrant`, `milvus`, `weaviate`).
 
 ### TypeScript Interface
 
@@ -522,12 +522,15 @@ interface UseVectorDBReturn {
   addDocument: (content: string, metadata?: Record<string, string | number | boolean>) => Promise<string>;
   addDocumentBatch: (documents: DocumentInput[]) => Promise<string[]>;
   removeDocuments: (ids: string[]) => Promise<void>;
+  removeAllDocuments: () => Promise<number>;
 
   // Search operations
   search: (query: string, topK?: number) => Promise<VectorSearchResult[]>;
   searchWithThreshold: (query: string, threshold: number, topK?: number) => Promise<VectorSearchResult[]>;
   searchWithOptions: (query: string, options?: SearchOptions) => Promise<VectorSearchResult[]>;
+  searchWithTotal: (query: string, options?: SearchOptions) => Promise<SearchResponse>;
   searchWithFilters: (query: string, filters: PayloadFilter[], options?: SearchOptions) => Promise<VectorSearchResult[]>;
+  scrollDocuments: (options?: ScrollOptions) => Promise<ScrollResponse>;
   peek: (topK?: number) => Promise<VectorSearchResult[]>;
 
   // Embedding operations
@@ -540,10 +543,22 @@ interface UseVectorDBReturn {
 }
 ```
 
+### Provider Capability Matrix
+
+| Capability | native | chroma | pinecone | qdrant | milvus | weaviate |
+| --- | --- | --- | --- | --- | --- | --- |
+| Text search (`search`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Embedding search (`searchByEmbedding`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Search + total (`searchWithTotal`) | ✅ | ✅ | ✅* | ✅ | ✅ | ✅ |
+| Scroll (`scrollDocuments`) | ✅ | ✅ | ✅* | ✅ | ✅ | ✅ |
+| Count (`getDocumentCount`) | ✅ | ✅ | ✅* | ✅ | ✅ | ✅ |
+
+\* Pinecone totals/scroll are best-effort and rely on namespace stats + paged query behavior.
+
 ### Usage Example
 
 ```typescript
-import { useVectorDB } from '@/hooks/use-vector-db';
+import { useVectorDB } from '@/hooks/rag/use-vector-db';
 
 function KnowledgeBase() {
   const vectorDB = useVectorDB({

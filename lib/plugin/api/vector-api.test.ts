@@ -39,6 +39,14 @@ jest.mock('@/lib/vector', () => ({
     listCollections: jest.fn(async () => {
       return Array.from(mockCollections.values()).map(c => ({ name: c.name }));
     }),
+    getCollectionInfo: jest.fn(async (name) => {
+      const col = mockCollections.get(name);
+      return {
+        name,
+        documentCount: col ? col.documents.size : 0,
+        dimension: 1536,
+      };
+    }),
     addDocuments: jest.fn(async (collection, docs) => {
       const col = mockCollections.get(collection);
       if (col) {
@@ -69,6 +77,15 @@ jest.mock('@/lib/vector', () => ({
         { id: 'doc-2', content: 'Result 2', metadata: {}, score: 0.85 },
       ];
     }),
+    searchByEmbedding: jest.fn(async (_collection, _embedding, _options) => {
+      return [
+        { id: 'doc-1', content: 'Result 1', metadata: {}, score: 0.91 },
+      ];
+    }),
+    countDocuments: jest.fn(async (collection) => {
+      const col = mockCollections.get(collection);
+      return col ? col.documents.size : 0;
+    }),
     deleteAllDocuments: jest.fn(async (collection) => {
       const col = mockCollections.get(collection);
       if (col) {
@@ -79,13 +96,20 @@ jest.mock('@/lib/vector', () => ({
 }));
 
 jest.mock('@/lib/vector/embedding', () => ({
+  DEFAULT_EMBEDDING_MODELS: {
+    openai: { provider: 'openai', model: 'text-embedding-3-small', dimensions: 1536 },
+    google: { provider: 'google', model: 'text-embedding-004', dimensions: 768 },
+    cohere: { provider: 'cohere', model: 'embed-english-v3.0', dimensions: 1024 },
+    mistral: { provider: 'mistral', model: 'mistral-embed', dimensions: 1024 },
+    transformersjs: { provider: 'transformersjs', model: 'Xenova/all-MiniLM-L6-v2', dimensions: 384 },
+  },
   generateEmbedding: jest.fn(async (_text, _config, _apiKey) => ({
     embedding: [0.1, 0.2, 0.3, 0.4, 0.5],
   })),
   generateEmbeddings: jest.fn(async (texts, _config, _apiKey) => ({
     embeddings: texts.map(() => [0.1, 0.2, 0.3, 0.4, 0.5]),
   })),
-  getEmbeddingApiKey: jest.fn((_provider: string, providerSettings: Record<string, { apiKey?: string }>) => {
+  resolveEmbeddingApiKey: jest.fn((_provider: string, providerSettings: Record<string, { apiKey?: string }>) => {
     return providerSettings?.openai?.apiKey || '';
   }),
 }));
@@ -283,8 +307,8 @@ describe('Vector API', () => {
         { topK: 5 }
       );
 
-      // Implementation returns empty array as per the source code
       expect(Array.isArray(results)).toBe(true);
+      expect(results.length).toBeGreaterThan(0);
     });
   });
 
@@ -312,11 +336,12 @@ describe('Vector API', () => {
   describe('Collection utilities', () => {
     it('should get document count', async () => {
       const api = createVectorAPI(testPluginId);
+      await api.createCollection('any-collection');
+      await api.addDocuments('any-collection', [{ content: 'Count me' }]);
 
       const count = await api.getDocumentCount('any-collection');
 
-      // Implementation returns 0 as per source
-      expect(typeof count).toBe('number');
+      expect(count).toBe(1);
     });
 
     it('should clear collection', async () => {

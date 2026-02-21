@@ -2,7 +2,7 @@
  * BackgroundSettings component tests
  */
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BackgroundSettings } from './background-settings';
 import { DEFAULT_BACKGROUND_SETTINGS, BACKGROUND_PRESETS } from '@/lib/themes';
 
@@ -189,6 +189,25 @@ describe('BackgroundSettings', () => {
     expect(mockSetBackgroundSettings).toBeDefined();
     expect(mockSetBackgroundSource).toBeDefined();
     expect(mockSetBackgroundEnabled).toBeDefined();
+  });
+
+  it('rejects unsafe URL protocols', async () => {
+    mockBackgroundSettings = {
+      ...DEFAULT_BACKGROUND_SETTINGS,
+      enabled: true,
+      source: 'url',
+      imageUrl: 'https://example.com/current.jpg',
+    };
+    render(<BackgroundSettings />);
+
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: 'http://example.com/unsafe.jpg' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /apply/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/not allowed/i)).toBeInTheDocument();
+    });
   });
 
   it('shows image controls when background is enabled', () => {

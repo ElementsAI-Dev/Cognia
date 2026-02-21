@@ -178,23 +178,23 @@ export async function runSystemTaskNow(taskId: SystemTaskId): Promise<TaskRunRes
 /**
  * Confirm a pending task operation
  */
-export async function confirmSystemTask(taskId: SystemTaskId): Promise<SystemTask | null> {
+export async function confirmSystemTask(confirmationId: SystemTaskId): Promise<SystemTask | null> {
   if (!isTauri()) {
     return null;
   }
 
-  return invoke<SystemTask | null>('scheduler_confirm_task', { taskId });
+  return invoke<SystemTask | null>('scheduler_confirm_task', { confirmationId });
 }
 
 /**
  * Cancel a pending confirmation
  */
-export async function cancelTaskConfirmation(taskId: SystemTaskId): Promise<boolean> {
+export async function cancelTaskConfirmation(confirmationId: SystemTaskId): Promise<boolean> {
   if (!isTauri()) {
     return false;
   }
 
-  return invoke<boolean>('scheduler_cancel_confirmation', { taskId });
+  return invoke<boolean>('scheduler_cancel_confirmation', { confirmationId });
 }
 
 /**

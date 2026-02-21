@@ -5,70 +5,105 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import SchedulerPage from './page';
 
+const mockConfirmPending = jest.fn();
+const createSchedulerState = () => ({
+  tasks: [],
+  executions: [],
+  statistics: {
+    totalTasks: 0,
+    activeTasks: 0,
+    pausedTasks: 0,
+    upcomingExecutions: 0,
+    successfulExecutions: 0,
+    failedExecutions: 0,
+    totalExecutions: 0,
+    averageDuration: 0,
+  },
+  selectedTask: null,
+  isLoading: false,
+  isInitialized: true,
+  createTask: jest.fn(),
+  updateTask: jest.fn(),
+  deleteTask: jest.fn(),
+  pauseTask: jest.fn(),
+  resumeTask: jest.fn(),
+  runTaskNow: jest.fn(),
+  selectTask: jest.fn(),
+  refresh: jest.fn(),
+  activeTasks: [],
+  pausedTasks: [],
+  upcomingTasks: [],
+  recentExecutions: [],
+  schedulerStatus: 'idle',
+  filter: {},
+  setFilter: jest.fn(),
+  clearFilter: jest.fn(),
+  loadRecentExecutions: jest.fn(),
+  loadUpcomingTasks: jest.fn(),
+  cleanupOldExecutions: jest.fn().mockResolvedValue(0),
+  getActivePluginCount: jest.fn().mockReturnValue(0),
+  cancelPluginExecution: jest.fn(),
+  isPluginExecutionActive: jest.fn().mockReturnValue(false),
+  bulkPause: jest.fn(),
+  bulkResume: jest.fn(),
+  bulkDelete: jest.fn(),
+});
+const mockUseScheduler = jest.fn(() => createSchedulerState());
+
+const createSystemSchedulerState = () => ({
+  capabilities: { can_elevate: false },
+  isAvailable: false,
+  isElevated: false,
+  tasks: [],
+  pendingConfirmation: null as { confirmation_id: string } | null,
+  loading: false,
+  error: null,
+  refresh: jest.fn(),
+  createTask: jest.fn(),
+  updateTask: jest.fn(),
+  deleteTask: jest.fn(),
+  enableTask: jest.fn(),
+  disableTask: jest.fn(),
+  runTaskNow: jest.fn(),
+  confirmPending: mockConfirmPending,
+  cancelPending: jest.fn(),
+  validateTask: jest.fn().mockResolvedValue({
+    valid: true,
+    errors: [],
+    warnings: [],
+    risk_level: 'low',
+    requires_admin: false,
+  }),
+  requestElevation: jest.fn(),
+  clearError: jest.fn(),
+});
+const mockUseSystemScheduler = jest.fn(() => createSystemSchedulerState());
+
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
 jest.mock('@/hooks/scheduler', () => ({
-  useScheduler: () => ({
-    tasks: [],
-    executions: [],
-    statistics: {
-      totalTasks: 0,
-      activeTasks: 0,
-      pausedTasks: 0,
-      upcomingExecutions: 0,
-      successfulExecutions: 0,
-      failedExecutions: 0,
-      totalExecutions: 0,
-      averageDuration: 0,
-    },
-    selectedTask: null,
-    isLoading: false,
-    isInitialized: true,
-    createTask: jest.fn(),
-    updateTask: jest.fn(),
-    deleteTask: jest.fn(),
-    pauseTask: jest.fn(),
-    resumeTask: jest.fn(),
-    runTaskNow: jest.fn(),
-    selectTask: jest.fn(),
-    refresh: jest.fn(),
-    activeTasks: [],
-    pausedTasks: [],
-    upcomingTasks: [],
-    recentExecutions: [],
-    schedulerStatus: 'idle',
-    filter: {},
-    setFilter: jest.fn(),
-    clearFilter: jest.fn(),
-    loadRecentExecutions: jest.fn(),
-    loadUpcomingTasks: jest.fn(),
-    cleanupOldExecutions: jest.fn().mockResolvedValue(0),
-    getActivePluginCount: jest.fn().mockReturnValue(0),
-    cancelPluginExecution: jest.fn(),
-    isPluginExecutionActive: jest.fn().mockReturnValue(false),
-  }),
-  useSystemScheduler: () => ({
-    capabilities: { can_elevate: false },
-    isAvailable: false,
-    isElevated: false,
-    tasks: [],
-    pendingConfirmation: null,
-    loading: false,
-    error: null,
-    refresh: jest.fn(),
-    createTask: jest.fn(),
-    updateTask: jest.fn(),
-    deleteTask: jest.fn(),
-    enableTask: jest.fn(),
-    disableTask: jest.fn(),
-    runTaskNow: jest.fn(),
-    confirmPending: jest.fn(),
-    cancelPending: jest.fn(),
-    requestElevation: jest.fn(),
-    clearError: jest.fn(),
-  }),
+  useScheduler: () => mockUseScheduler(),
+  useSystemScheduler: () => mockUseSystemScheduler(),
+}));
+
+jest.mock('./scheduler-dialogs', () => ({
+  SchedulerDialogs: ({
+    pendingConfirmation,
+    onConfirmPending,
+  }: {
+    pendingConfirmation: unknown;
+    onConfirmPending: () => void;
+  }) => (
+    <div>
+      {pendingConfirmation ? (
+        <button type="button" onClick={onConfirmPending}>
+          confirm-pending
+        </button>
+      ) : null}
+    </div>
+  ),
 }));
 
 jest.mock('@/components/scheduler', () => ({
@@ -163,7 +198,17 @@ jest.mock('@/components/ui/tooltip', () => ({
 
 
 describe('SchedulerPage', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseScheduler.mockImplementation(() => createSchedulerState());
+    mockUseSystemScheduler.mockImplementation(() => createSystemSchedulerState());
+  });
+
   it('renders app and system tabs', () => {
+    mockUseSystemScheduler.mockReturnValue({
+      ...createSystemSchedulerState(),
+      pendingConfirmation: null,
+    });
     render(<SchedulerPage />);
 
     expect(screen.getByText('appScheduler')).toBeInTheDocument();
@@ -171,9 +216,49 @@ describe('SchedulerPage', () => {
   });
 
   it('shows unavailable message when system tab is selected', () => {
+    mockUseSystemScheduler.mockReturnValue({
+      ...createSystemSchedulerState(),
+      isAvailable: false,
+      pendingConfirmation: null,
+    });
     render(<SchedulerPage />);
 
     fireEvent.click(screen.getByText('systemScheduler'));
     expect(screen.getByText('systemSchedulerUnavailable')).toBeInTheDocument();
+  });
+
+  it('routes pending confirmation action to confirmPending', () => {
+    mockUseSystemScheduler.mockReturnValue({
+      capabilities: { can_elevate: false },
+      isAvailable: true,
+      isElevated: false,
+      tasks: [],
+      pendingConfirmation: { confirmation_id: 'confirm-1' },
+      loading: false,
+      error: null,
+      refresh: jest.fn(),
+      createTask: jest.fn(),
+      updateTask: jest.fn(),
+      deleteTask: jest.fn(),
+      enableTask: jest.fn(),
+      disableTask: jest.fn(),
+      runTaskNow: jest.fn(),
+      confirmPending: mockConfirmPending,
+      cancelPending: jest.fn(),
+      validateTask: jest.fn().mockResolvedValue({
+        valid: true,
+        errors: [],
+        warnings: [],
+        risk_level: 'low',
+        requires_admin: false,
+      }),
+      requestElevation: jest.fn(),
+      clearError: jest.fn(),
+    });
+
+    render(<SchedulerPage />);
+    fireEvent.click(screen.getByText('confirm-pending'));
+
+    expect(mockConfirmPending).toHaveBeenCalledTimes(1);
   });
 });

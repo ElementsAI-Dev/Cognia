@@ -47,7 +47,7 @@ import {
   ExternalLink, 
   Clock,
 } from 'lucide-react';
-import type { CredibilityLevel, SourceVerification } from '@/types/search';
+import type { SourceVerification } from '@/types/search';
 import { credibilityConfig } from './credibility-utils';
 
 export interface WebSource {

@@ -4,6 +4,8 @@
 
 import type {
   SyncProvider,
+  SyncProviderType,
+  SyncState,
   SyncData,
   SyncResult,
   SyncProgress,
@@ -12,6 +14,10 @@ import type {
   BackupInfo,
   SyncDataContent,
 } from '@/types/sync';
+import type { Project } from '@/types';
+import type { DBFolder, DBMessage } from '@/lib/db';
+import type { BackupPackageV3 } from '@/lib/storage/persistence/types';
+import type { PersistedChatMessage } from '@/lib/storage/persistence/types';
 import { WebDAVProvider } from './providers/webdav-provider';
 import { GitHubProvider } from './providers/github-provider';
 import { GoogleDriveProvider } from './providers/googledrive-provider';
@@ -24,6 +30,56 @@ const log = loggers.app;
 
 /** Current sync data schema version */
 const SYNC_DATA_VERSION = '1.1';
+
+function toSyncMessage(message: PersistedChatMessage): DBMessage {
+  return {
+    id: message.id,
+    sessionId: message.sessionId,
+    branchId: message.branchId,
+    role: message.role,
+    content: message.content,
+    parts: message.parts ? JSON.stringify(message.parts) : undefined,
+    model: message.model,
+    provider: message.provider,
+    tokens: message.tokens ? JSON.stringify(message.tokens) : undefined,
+    attachments: message.attachments ? JSON.stringify(message.attachments) : undefined,
+    sources: message.sources ? JSON.stringify(message.sources) : undefined,
+    error: message.error,
+    createdAt: message.createdAt,
+    isEdited: message.isEdited,
+    editHistory: message.editHistory ? JSON.stringify(message.editHistory) : undefined,
+    originalContent: message.originalContent,
+    isBookmarked: message.isBookmarked,
+    bookmarkedAt: message.bookmarkedAt,
+    reaction: message.reaction,
+    reactions: message.reactions ? JSON.stringify(message.reactions) : undefined,
+  };
+}
+
+function fromSyncMessage(message: DBMessage): PersistedChatMessage {
+  return {
+    id: message.id,
+    sessionId: message.sessionId,
+    branchId: message.branchId,
+    role: message.role as PersistedChatMessage['role'],
+    content: message.content,
+    parts: message.parts ? JSON.parse(message.parts) : undefined,
+    model: message.model,
+    provider: message.provider,
+    tokens: message.tokens ? JSON.parse(message.tokens) : undefined,
+    attachments: message.attachments ? JSON.parse(message.attachments) : undefined,
+    sources: message.sources ? JSON.parse(message.sources) : undefined,
+    error: message.error,
+    createdAt: message.createdAt,
+    isEdited: message.isEdited,
+    editHistory: message.editHistory ? JSON.parse(message.editHistory) : undefined,
+    originalContent: message.originalContent,
+    isBookmarked: message.isBookmarked,
+    bookmarkedAt: message.bookmarkedAt,
+    reaction: message.reaction as PersistedChatMessage['reaction'],
+    reactions: message.reactions ? JSON.parse(message.reactions) : undefined,
+  };
+}
 
 /**
  * Migrate sync data from older versions to the current version
@@ -54,6 +110,7 @@ function migrateSyncData(data: SyncData): SyncData {
  */
 class SyncManager {
   private provider: SyncProvider | null = null;
+  private providerType: SyncProviderType | null = null;
   private isSyncing = false;
   private abortController: AbortController | null = null;
 
@@ -65,6 +122,7 @@ class SyncManager {
     const config = useSyncStore.getState().webdavConfig;
     
     this.provider = new WebDAVProvider(config, password);
+    this.providerType = 'webdav';
   }
 
   /**
@@ -75,6 +133,7 @@ class SyncManager {
     const config = useSyncStore.getState().githubConfig;
     
     this.provider = new GitHubProvider(config, token);
+    this.providerType = 'github';
   }
 
   /**
@@ -119,6 +178,102 @@ class SyncManager {
     }
 
     this.provider = new GoogleDriveProvider(config, token);
+    this.providerType = 'googledrive';
+  }
+
+  private resolveProviderType(stateProvider: SyncProviderType | null): SyncProviderType | null {
+    return this.providerType || stateProvider;
+  }
+
+  private getConfigByProvider(
+    provider: SyncProviderType | null,
+    state: SyncState
+  ) {
+    if (provider === 'webdav') return state.webdavConfig;
+    if (provider === 'github') return state.githubConfig;
+    if (provider === 'googledrive') return state.googleDriveConfig;
+    return null;
+  }
+
+  async ensureProviderInitialized(
+    provider: SyncProviderType | null
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!provider) {
+      return { success: false, error: 'No sync provider configured' };
+    }
+
+    if (this.provider && this.providerType === provider) {
+      return { success: true };
+    }
+
+    try {
+      if (provider === 'webdav') {
+        const { getWebDAVPassword } = await import('./credential-storage');
+        const password = await getWebDAVPassword();
+        if (!password) {
+          return { success: false, error: 'No WebDAV credential configured' };
+        }
+        await this.initWebDAV(password);
+      } else if (provider === 'github') {
+        const { getGitHubToken } = await import('./credential-storage');
+        const token = await getGitHubToken();
+        if (!token) {
+          return { success: false, error: 'No GitHub credential configured' };
+        }
+        await this.initGitHub(token);
+      } else if (provider === 'googledrive') {
+        const { getGoogleAccessToken } = await import('./credential-storage');
+        const token = await getGoogleAccessToken();
+        if (!token) {
+          return { success: false, error: 'No Google Drive credential configured' };
+        }
+        await this.initGoogleDrive(token);
+      }
+
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  async runBackupUploadForProvider(provider: SyncProviderType): Promise<{ success: boolean; error?: string }> {
+    const { useSyncStore } = await import('@/stores/sync');
+    const state = useSyncStore.getState();
+    const previousProvider = state.activeProvider;
+
+    try {
+      state.setActiveProvider(provider);
+
+      const initialized = await this.ensureProviderInitialized(provider);
+      if (!initialized.success) {
+        return initialized;
+      }
+
+      const result = await this.sync('upload');
+      return { success: result.success, error: result.error };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    } finally {
+      useSyncStore.getState().setActiveProvider(previousProvider);
+      if (previousProvider) {
+        const restored = await this.ensureProviderInitialized(previousProvider);
+        if (!restored.success) {
+          log.warn('Failed to restore previous sync provider after backup upload', {
+            previousProvider,
+            error: restored.error,
+          });
+          await this.disconnect();
+        }
+      } else {
+        await this.disconnect();
+      }
+    }
   }
 
   /**
@@ -276,12 +431,9 @@ class SyncManager {
 
     const { useSyncStore } = await import('@/stores/sync');
     const state = useSyncStore.getState();
-    const config =
-      state.activeProvider === 'webdav'
-        ? state.webdavConfig
-        : state.activeProvider === 'github'
-          ? state.githubConfig
-          : state.googleDriveConfig;
+    const providerType = this.resolveProviderType(state.activeProvider);
+    const config = this.getConfigByProvider(providerType, state);
+    if (!config) return;
 
     const maxBackups = config.maxBackups;
     if (!maxBackups || maxBackups <= 0) return;
@@ -429,15 +581,12 @@ class SyncManager {
 
     // Get sync store for conflict resolution strategy
     const { useSyncStore } = await import('@/stores/sync');
-    const { webdavConfig, githubConfig, googleDriveConfig, activeProvider } =
-      useSyncStore.getState();
-    
-    const config =
-      activeProvider === 'webdav'
-        ? webdavConfig
-        : activeProvider === 'github'
-          ? githubConfig
-          : googleDriveConfig;
+    const state = useSyncStore.getState();
+    const providerType = this.resolveProviderType(state.activeProvider);
+    const config = this.getConfigByProvider(providerType, state);
+    if (!config) {
+      return this.createErrorResult('bidirectional', 'No sync provider configuration');
+    }
     const resolution = config.conflictResolution;
 
     // Compare timestamps
@@ -489,14 +638,13 @@ class SyncManager {
     const { useSyncStore } = await import('@/stores/sync');
     const state = useSyncStore.getState();
     const { deviceId, deviceName } = state;
+    const providerType = this.resolveProviderType(state.activeProvider);
 
     // Determine which data types to sync
-    const activeConfig =
-      state.activeProvider === 'webdav'
-        ? state.webdavConfig
-        : state.activeProvider === 'github'
-          ? state.githubConfig
-          : state.googleDriveConfig;
+    const activeConfig = this.getConfigByProvider(providerType, state);
+    if (!activeConfig) {
+      throw new Error('No sync provider configuration available');
+    }
     const syncTypes = activeConfig.syncDataTypes;
     const shouldSync = (type: string) =>
       syncTypes.length === 0 || syncTypes.includes(type as never);
@@ -509,19 +657,18 @@ class SyncManager {
       includeIndexedDB: shouldSync('messages') || shouldSync('folders') || shouldSync('projects'),
       includeChecksum: false, // We'll generate our own
     });
+    const payload = backup.payload;
 
     const dataContent: SyncDataContent = {};
 
-    if (shouldSync('settings')) dataContent.settings = backup.settings;
-    if (shouldSync('sessions')) dataContent.sessions = backup.sessions;
-    if (shouldSync('artifacts')) dataContent.artifacts = backup.artifacts;
+    if (shouldSync('settings')) dataContent.settings = payload.settings;
+    if (shouldSync('sessions')) dataContent.sessions = payload.sessions;
+    if (shouldSync('artifacts')) dataContent.artifacts = payload.artifacts;
 
     // Add IndexedDB data if available
-    if (backup.indexedDB) {
-      if (shouldSync('messages')) dataContent.messages = backup.indexedDB.messages;
-      if (shouldSync('folders')) dataContent.folders = backup.indexedDB.sessions;
-      if (shouldSync('projects')) dataContent.projects = backup.indexedDB.projects;
-    }
+    if (shouldSync('messages')) dataContent.messages = payload.messages.map(toSyncMessage);
+    if (shouldSync('folders')) dataContent.folders = payload.folders;
+    if (shouldSync('projects')) dataContent.projects = payload.projects;
 
     const syncData: SyncData = {
       version: SYNC_DATA_VERSION,
@@ -545,18 +692,28 @@ class SyncManager {
    * Import remote data into local storage
    */
   private async importRemoteData(remoteData: SyncData): Promise<void> {
-    // Convert SyncData to ExportData format for import
-    const exportData = {
-      version: remoteData.version,
-      exportedAt: remoteData.syncedAt,
-      sessions: remoteData.data.sessions,
-      settings: remoteData.data.settings,
-      artifacts: remoteData.data.artifacts,
-      indexedDB: {
-        messages: remoteData.data.messages,
-        sessions: remoteData.data.folders as never[],
-        projects: remoteData.data.projects as never[],
-        documents: [],
+    const exportData: BackupPackageV3 = {
+      version: '3.0',
+      manifest: {
+        version: '3.0',
+        schemaVersion: 3,
+        traceId: globalThis.crypto?.randomUUID?.() || `sync-${Date.now()}`,
+        exportedAt: remoteData.syncedAt,
+        backend: 'web-dexie',
+        integrity: {
+          algorithm: 'SHA-256',
+          checksum: '',
+        },
+      },
+      payload: {
+        sessions: remoteData.data.sessions || [],
+        messages: (remoteData.data.messages || []).map(fromSyncMessage),
+        projects: (remoteData.data.projects as Project[]) || [],
+        knowledgeFiles: [],
+        summaries: [],
+        settings: remoteData.data.settings,
+        artifacts: remoteData.data.artifacts,
+        folders: remoteData.data.folders as DBFolder[] | undefined,
       },
     };
 
@@ -630,6 +787,7 @@ class SyncManager {
     if (this.provider) {
       await this.provider.disconnect();
       this.provider = null;
+      this.providerType = null;
     }
   }
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ThemeProvider } from "@/components/providers/ui";
+import { StandaloneThemeSyncProvider } from "@/components/providers/ui";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/lib/i18n";
 import "../../globals.css";
@@ -15,7 +15,7 @@ export default function SelectionToolbarLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="dark">
+    <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen w-full overflow-hidden bg-transparent" style={{ background: 'transparent' }}>
         {/* 
           Selection toolbar window layout:
@@ -25,17 +25,16 @@ export default function SelectionToolbarLayout({
           - Scrollable in debug mode where window is larger
         */}
         <I18nProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            disableTransitionOnChange
+          <StandaloneThemeSyncProvider
+            allowBackgroundImage={false}
+            forceTransparent={true}
           >
             <TooltipProvider delayDuration={0}>
               <main className="flex min-h-screen w-full items-start justify-center p-3">
                 {children}
               </main>
             </TooltipProvider>
-          </ThemeProvider>
+          </StandaloneThemeSyncProvider>
         </I18nProvider>
       </body>
     </html>

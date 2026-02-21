@@ -30,6 +30,7 @@ import {
   type CollectionInfo,
 } from '@/lib/ai/rag/collection-manager';
 import { useRAGProgress, type RAGProgress, type RAGOperationStats } from './use-rag-progress';
+import { resolveEmbeddingApiKey } from '@/lib/vector/embedding';
 
 export interface UseRAGPipelineOptions {
   collectionName?: string;
@@ -94,8 +95,8 @@ export interface UseRAGPipelineReturn {
   retrieve: (query: string) => Promise<RAGPipelineContext>;
 
   // Collection management (persistent)
-  clearCollection: () => void;
-  getCollectionStats: () => { documentCount: number; exists: boolean };
+  clearCollection: () => Promise<void>;
+  getCollectionStats: () => Promise<{ documentCount: number; exists: boolean }>;
   listCollections: () => Promise<CollectionInfo[]>;
   deleteCollection: (name: string) => Promise<void>;
 
@@ -162,20 +163,10 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
 
   // Get API key
   const getApiKey = useCallback((): string => {
-    const provider = vectorSettings.embeddingProvider;
-    if (provider === 'openai') {
-      return providerSettings.openai?.apiKey || '';
-    }
-    if (provider === 'google') {
-      return providerSettings.google?.apiKey || '';
-    }
-    if (provider === 'cohere') {
-      return providerSettings.cohere?.apiKey || '';
-    }
-    if (provider === 'mistral') {
-      return providerSettings.mistral?.apiKey || '';
-    }
-    return providerSettings.openai?.apiKey || '';
+    return resolveEmbeddingApiKey(
+      vectorSettings.embeddingProvider,
+      providerSettings as Record<string, { apiKey?: string }>
+    );
   }, [vectorSettings.embeddingProvider, providerSettings]);
 
   // Build pipeline config
@@ -186,6 +177,26 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
         model: vectorSettings.embeddingModel,
       },
       embeddingApiKey: getApiKey(),
+      vectorStoreConfig: {
+        provider: vectorSettings.provider,
+        embeddingConfig: {
+          provider: vectorSettings.embeddingProvider,
+          model: vectorSettings.embeddingModel,
+        },
+        embeddingApiKey: getApiKey(),
+        chromaMode: vectorSettings.mode,
+        chromaServerUrl: vectorSettings.serverUrl,
+        pineconeApiKey: vectorSettings.pineconeApiKey,
+        pineconeIndexName: vectorSettings.pineconeIndexName,
+        pineconeNamespace: vectorSettings.pineconeNamespace,
+        weaviateUrl: vectorSettings.weaviateUrl,
+        weaviateApiKey: vectorSettings.weaviateApiKey,
+        qdrantUrl: vectorSettings.qdrantUrl,
+        qdrantApiKey: vectorSettings.qdrantApiKey,
+        milvusAddress: vectorSettings.milvusAddress,
+        milvusToken: vectorSettings.milvusToken,
+        native: {},
+      },
       hybridSearch: {
         enabled: enableHybridSearch,
         vectorWeight,
@@ -395,9 +406,9 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
   );
 
   // Clear collection
-  const clearCollection = useCallback(() => {
+  const clearCollection = useCallback(async () => {
     const pipeline = getPipeline();
-    pipeline.clearCollection(collectionName);
+    await pipeline.clearCollection(collectionName);
     // Also clear in persistent storage
     if (collectionManagerRef.current) {
       collectionManagerRef.current.deleteCollection(collectionName).catch(() => {});
@@ -405,7 +416,7 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
   }, [collectionName, getPipeline]);
 
   // Get collection stats
-  const getCollectionStats = useCallback(() => {
+  const getCollectionStats = useCallback(async () => {
     const pipeline = getPipeline();
     return pipeline.getCollectionStats(collectionName);
   }, [collectionName, getPipeline]);
@@ -421,7 +432,7 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
   // Delete a collection (from persistent storage)
   const deleteCollection = useCallback(async (name: string): Promise<void> => {
     const pipeline = getPipeline();
-    pipeline.clearCollection(name);
+    await pipeline.clearCollection(name);
     if (collectionManagerRef.current) {
       await collectionManagerRef.current.deleteCollection(name);
     }

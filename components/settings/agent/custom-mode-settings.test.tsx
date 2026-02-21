@@ -15,7 +15,7 @@ import type { CustomModeConfig } from '@/stores/agent/custom-mode-store';
 // Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: (namespace: string) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const translations: Record<string, Record<string, any>> = {
       customMode: {
         createMode: 'Create Mode',
@@ -70,7 +70,7 @@ jest.mock('next-intl', () => ({
         deleteConfirmDesc: 'Are you sure you want to delete this mode?',
       },
     };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     return (key: string, params?: any) => {
       const value = translations[namespace]?.[key];
       if (typeof value === 'function') {

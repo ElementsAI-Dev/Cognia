@@ -50,6 +50,9 @@ import {
 } from '@/stores';
 import { toast } from '@/components/ui/sonner';
 import type { ChatMode } from '@/types';
+import { getActiveEditorCommandGroup, routeEditorCommand } from '@/lib/editor-workbench/editor-command-router';
+import { subscribeEditorContextRegistry } from '@/lib/editor-workbench/editor-context-registry';
+import { isEditorFeatureFlagEnabled } from '@/lib/editor-workbench/feature-flags';
 
 interface CommandPaletteProps {
   onOpenChange?: (open: boolean) => void;
@@ -68,6 +71,7 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
 
   const theme = useSettingsStore((state) => state.theme);
   const setTheme = useSettingsStore((state) => state.setTheme);
+  const editorPaletteSettings = useSettingsStore((state) => state.editorSettings.palette);
 
   const openModal = useUIStore((state) => state.openModal);
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
@@ -78,6 +82,7 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
 
   const messages = useChatStore((state) => state.messages);
   const clearMessages = useChatStore((state) => state.clearMessages);
+  const [editorRegistryRevision, setEditorRegistryRevision] = useState(0);
 
   // Handle open state change
   const handleOpenChange = useCallback(
@@ -100,6 +105,12 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
     document.addEventListener('keydown', down);
     return () => document.removeEventListener('keydown', down);
   }, [open, handleOpenChange]);
+
+  useEffect(() => {
+    return subscribeEditorContextRegistry(() => {
+      setEditorRegistryRevision((revision) => revision + 1);
+    });
+  }, []);
 
   // Navigation actions
   const handleNavigate = useCallback(
@@ -181,6 +192,18 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
     handleOpenChange(false);
   }, [activeSessionId, messages.length, clearMessages, handleOpenChange, t]);
 
+  const handleEditorCommand = useCallback(
+    async (commandId: string) => {
+      const executed = await routeEditorCommand(commandId);
+      if (!executed) {
+        toast.error(t('editorCommandFailed') || 'Editor command is unavailable');
+        return;
+      }
+      handleOpenChange(false);
+    },
+    [handleOpenChange, t]
+  );
+
   // Copy chat to clipboard
   const handleCopyChat = useCallback(async () => {
     if (messages.length > 0) {
@@ -202,6 +225,17 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 5);
   }, [sessions]);
+
+  const activeEditorCommandGroup = useMemo(() => {
+    if (!editorPaletteSettings.showContextCommands) {
+      return null;
+    }
+    if (!isEditorFeatureFlagEnabled('editor.palette.contextCommands')) {
+      return null;
+    }
+    void editorRegistryRevision;
+    return getActiveEditorCommandGroup();
+  }, [editorPaletteSettings.showContextCommands, editorRegistryRevision]);
 
   return (
     <CommandDialog open={open} onOpenChange={handleOpenChange}>
@@ -271,6 +305,32 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
         </CommandGroup>
 
         <CommandSeparator />
+
+        {activeEditorCommandGroup && activeEditorCommandGroup.commands.length > 0 && (
+          <>
+            <CommandGroup
+              heading={
+                editorPaletteSettings.groupByContext
+                  ? `${t('editorActive')}: ${activeEditorCommandGroup.contextLabel}`
+                  : t('editorCommands')
+              }
+            >
+              {activeEditorCommandGroup.commands.map((command) => (
+                <CommandItem
+                  key={command.id}
+                  onSelect={() => {
+                    void handleEditorCommand(command.id);
+                  }}
+                >
+                  <Code className="mr-2 h-4 w-4" />
+                  <span>{command.title}</span>
+                  {command.shortcut && <CommandShortcut>{command.shortcut}</CommandShortcut>}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            <CommandSeparator />
+          </>
+        )}
 
         {/* Recent Sessions */}
         {recentSessions.length > 0 && (

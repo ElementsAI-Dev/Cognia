@@ -82,10 +82,31 @@ export function TaskConfirmationDialog({
             <div className="space-y-4">
               {/* Task name */}
               <div className="flex items-center justify-between rounded-lg border p-3">
-                <span className="text-sm font-medium">{confirmation.details.task_name}</span>
-                <Badge variant={isCritical ? 'destructive' : isHighRisk ? 'secondary' : 'outline'}>
-                  {riskInfo.labelZh} / {riskInfo.label}
-                </Badge>
+                <div className="space-y-1">
+                  <span className="text-sm font-medium">{confirmation.details.task_name}</span>
+                  {(confirmation.target_task_id || confirmation.task_id) && (
+                    <div className="text-muted-foreground text-[11px] font-mono">
+                      {confirmation.target_task_id || confirmation.task_id}
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge variant={isCritical ? 'destructive' : isHighRisk ? 'secondary' : 'outline'}>
+                    {riskInfo.labelZh} / {riskInfo.label}
+                  </Badge>
+                  <span className="text-muted-foreground text-[10px] font-mono">
+                    {confirmation.confirmation_id}
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-muted-foreground grid grid-cols-2 gap-2 text-[11px]">
+                <div>
+                  {t('createdAt') || 'Created'}: {new Date(confirmation.created_at).toLocaleString()}
+                </div>
+                <div className="text-right">
+                  {t('expiresAt') || 'Expires'}: {new Date(confirmation.expires_at).toLocaleString()}
+                </div>
               </div>
 
               {/* Action summary */}

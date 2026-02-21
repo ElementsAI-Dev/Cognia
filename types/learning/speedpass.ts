@@ -756,7 +756,7 @@ export interface CreateTextbookInput {
 
 export interface StartSpeedLearningInput {
   userId?: string;
-  courseId: string;
+  courseId?: string;
   textbookId: string;
   mode: SpeedLearningMode;
   teacherKeyPoints?: TeacherKeyPointInput;
@@ -807,11 +807,177 @@ export interface SpeedPassState {
     status: TextbookParseStatus;
     progress: number;
   };
+
+  // Event statements
+  eventStatements?: Record<string, SpeedPassEventStatement>;
 }
 
 // ============================================================================
 // Runtime DTOs (Frontend <-> Rust)
 // ============================================================================
+
+export type SpeedPassEventVerb =
+  | 'initialized'
+  | 'experienced'
+  | 'answered'
+  | 'completed'
+  | 'failed'
+  | 'mastered';
+
+export interface SpeedPassEventStatement {
+  id: string;
+  timestamp: string;
+  storedAt: string;
+  actor: {
+    id: string;
+    name?: string;
+  };
+  verb: SpeedPassEventVerb;
+  object: {
+    id: string;
+    type:
+      | 'textbook'
+      | 'tutorial'
+      | 'quiz'
+      | 'question'
+      | 'session'
+      | 'wrong-question'
+      | 'settings'
+      | 'system';
+    name?: string;
+  };
+  result?: {
+    success?: boolean;
+    response?: string;
+    durationMs?: number;
+    score?: {
+      scaled?: number;
+      raw?: number;
+      min?: number;
+      max?: number;
+    };
+    extensions?: Record<string, unknown>;
+  };
+  context?: {
+    platform: 'web' | 'tauri';
+    textbookId?: string;
+    tutorialId?: string;
+    quizId?: string;
+    questionId?: string;
+    sessionId?: string;
+    mode?: SpeedLearningMode;
+    extensions?: Record<string, unknown>;
+  };
+}
+
+export interface XApiActor {
+  objectType: 'Agent';
+  name?: string;
+  account?: {
+    homePage: string;
+    name: string;
+  };
+  mbox?: string;
+}
+
+export interface XApiVerb {
+  id: string;
+  display: Record<string, string>;
+}
+
+export interface XApiActivityObject {
+  objectType: 'Activity';
+  id: string;
+  definition?: {
+    name?: Record<string, string>;
+    description?: Record<string, string>;
+    type?: string;
+    extensions?: Record<string, unknown>;
+  };
+}
+
+export interface XApiScore {
+  scaled?: number;
+  raw?: number;
+  min?: number;
+  max?: number;
+}
+
+export interface XApiResult {
+  success?: boolean;
+  response?: string;
+  duration?: string;
+  completion?: boolean;
+  score?: XApiScore;
+  extensions?: Record<string, unknown>;
+}
+
+export interface XApiContext {
+  platform?: string;
+  contextActivities?: {
+    parent?: XApiActivityObject[];
+    grouping?: XApiActivityObject[];
+    category?: XApiActivityObject[];
+  };
+  extensions?: Record<string, unknown>;
+}
+
+export interface XApiStatement {
+  id: string;
+  timestamp: string;
+  actor: XApiActor;
+  verb: XApiVerb;
+  object: XApiActivityObject;
+  result?: XApiResult;
+  context?: XApiContext;
+  stored?: string;
+}
+
+export interface XApiImportResult {
+  importedStatements: SpeedPassEventStatement[];
+  errors: string[];
+  warnings: string[];
+}
+
+export interface QTILikeChoiceOption {
+  identifier: string;
+  content: string;
+}
+
+export interface QTILikeItem {
+  identifier: string;
+  title: string;
+  type: QuestionType;
+  prompt: string;
+  choices?: QTILikeChoiceOption[];
+  correctResponse: string[];
+  metadata: {
+    sourceQuestionId: string;
+    textbookId: string;
+    chapterId: string;
+    difficulty: number;
+    knowledgePointIds: string[];
+  };
+}
+
+export interface QTI3ItemExport {
+  identifier: string;
+  title: string;
+  xml: string;
+  metadata: QTILikeItem['metadata'];
+}
+
+export interface QTI3PackageExport {
+  manifestXml: string;
+  items: QTI3ItemExport[];
+  zipBase64: string;
+}
+
+export interface QTI3ImportResult {
+  questions: TextbookQuestion[];
+  errors: string[];
+  warnings: string[];
+}
 
 export interface SpeedPassPersistedState {
   academicProfile: UserAcademicProfile | null;
@@ -826,6 +992,7 @@ export interface SpeedPassPersistedState {
   quizzes: Record<string, Quiz>;
   wrongQuestions: Record<string, WrongQuestionRecord>;
   studyReports: StudyReport[];
+  eventStatements: Record<string, SpeedPassEventStatement>;
   globalStats: {
     totalStudyTimeMs: number;
     sessionsCompleted: number;
@@ -850,6 +1017,7 @@ export interface SpeedPassPersistedState {
 }
 
 export const DEFAULT_SPEEDPASS_USER_ID = 'local-user';
+export const DEFAULT_SPEEDPASS_COURSE_ID = 'unassigned';
 
 export interface SpeedPassRuntimeSnapshot {
   userId: string;

@@ -8,6 +8,7 @@ use std::collections::HashMap;
 // ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaperAuthor {
     pub name: String,
     pub author_id: Option<String>,
@@ -17,6 +18,7 @@ pub struct PaperAuthor {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaperCitation {
     pub paper_id: String,
     pub title: String,
@@ -28,6 +30,7 @@ pub struct PaperCitation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaperReference {
     pub paper_id: String,
     pub title: String,
@@ -39,6 +42,7 @@ pub struct PaperReference {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct PaperMetadata {
     pub doi: Option<String>,
     pub arxiv_id: Option<String>,
@@ -52,6 +56,7 @@ pub struct PaperMetadata {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaperUrl {
     pub url: String,
     #[serde(rename = "type")]
@@ -61,6 +66,7 @@ pub struct PaperUrl {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Paper {
     pub id: String,
     pub provider_id: String,
@@ -147,6 +153,7 @@ impl Paper {
 // ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LibraryPaper {
     #[serde(flatten)]
     pub paper: Paper,
@@ -212,29 +219,45 @@ impl LibraryPaper {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct PaperUpdate {
+    #[serde(alias = "reading_status")]
     pub reading_status: Option<String>,
     pub priority: Option<String>,
+    #[serde(alias = "reading_progress")]
     pub reading_progress: Option<i32>,
+    #[serde(alias = "user_rating")]
     pub user_rating: Option<i32>,
+    #[serde(alias = "user_notes")]
     pub user_notes: Option<String>,
     pub tags: Option<Vec<String>>,
+    #[serde(alias = "ai_summary")]
     pub ai_summary: Option<String>,
+    #[serde(alias = "ai_key_insights")]
     pub ai_key_insights: Option<Vec<String>>,
+    #[serde(alias = "ai_related_topics")]
     pub ai_related_topics: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct LibraryFilter {
     pub query: Option<String>,
+    #[serde(alias = "reading_status")]
     pub reading_status: Option<String>,
     pub priority: Option<String>,
+    #[serde(alias = "collection_id")]
     pub collection_id: Option<String>,
     pub tags: Option<Vec<String>>,
+    #[serde(alias = "year_from")]
     pub year_from: Option<i32>,
+    #[serde(alias = "year_to")]
     pub year_to: Option<i32>,
+    #[serde(alias = "has_pdf")]
     pub has_pdf: Option<bool>,
+    #[serde(alias = "sort_by")]
     pub sort_by: Option<String>,
+    #[serde(alias = "sort_order")]
     pub sort_order: Option<String>,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
@@ -245,6 +268,7 @@ pub struct LibraryFilter {
 // ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaperCollection {
     pub id: String,
     pub name: String,
@@ -285,13 +309,17 @@ impl PaperCollection {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct CollectionUpdate {
     pub name: Option<String>,
     pub description: Option<String>,
     pub color: Option<String>,
     pub icon: Option<String>,
+    #[serde(alias = "parent_id")]
     pub parent_id: Option<String>,
+    #[serde(alias = "is_smart_collection")]
     pub is_smart_collection: Option<bool>,
+    #[serde(alias = "smart_filter")]
     pub smart_filter: Option<LibraryFilter>,
 }
 
@@ -300,6 +328,7 @@ pub struct CollectionUpdate {
 // ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaperAnnotation {
     pub id: String,
     pub paper_id: String,
@@ -314,6 +343,7 @@ pub struct PaperAnnotation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AnnotationPosition {
     pub x: f64,
     pub y: f64,
@@ -322,16 +352,19 @@ pub struct AnnotationPosition {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateAnnotation {
     #[serde(rename = "type")]
     pub annotation_type: String,
     pub content: String,
+    #[serde(alias = "page_number")]
     pub page_number: Option<i32>,
     pub position: Option<AnnotationPosition>,
     pub color: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct AnnotationUpdate {
     pub content: Option<String>,
     pub color: Option<String>,
@@ -342,21 +375,32 @@ pub struct AnnotationUpdate {
 // ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SearchOptions {
     pub query: Option<String>,
     pub authors: Option<Vec<String>>,
+    #[serde(alias = "year_from")]
     pub year_from: Option<i32>,
+    #[serde(alias = "year_to")]
     pub year_to: Option<i32>,
     pub venues: Option<Vec<String>>,
     pub categories: Option<Vec<String>>,
+    #[serde(alias = "fields_of_study")]
     pub fields_of_study: Option<Vec<String>>,
+    #[serde(alias = "open_access_only")]
     pub open_access_only: Option<bool>,
+    #[serde(alias = "has_full_text")]
     pub has_full_text: Option<bool>,
+    #[serde(alias = "has_pdf")]
     pub has_pdf: Option<bool>,
+    #[serde(alias = "min_citations")]
     pub min_citations: Option<i32>,
+    #[serde(alias = "max_citations")]
     pub max_citations: Option<i32>,
     pub providers: Vec<String>,
+    #[serde(alias = "sort_by")]
     pub sort_by: String,
+    #[serde(alias = "sort_order")]
     pub sort_order: String,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
@@ -387,6 +431,7 @@ impl Default for SearchOptions {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SearchResult {
     pub papers: Vec<Paper>,
     pub total_results: i32,
@@ -397,6 +442,7 @@ pub struct SearchResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProviderSearchResult {
     pub count: usize,
     pub success: bool,
@@ -404,10 +450,19 @@ pub struct ProviderSearchResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderDegradedInfo {
+    pub reason: String,
+    pub retriable: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AggregatedSearchResult {
     pub papers: Vec<Paper>,
     pub total_results: usize,
     pub provider_results: HashMap<String, ProviderSearchResult>,
+    pub degraded_providers: HashMap<String, ProviderDegradedInfo>,
     pub search_time_ms: u64,
 }
 
@@ -416,6 +471,7 @@ pub struct AggregatedSearchResult {
 // ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProviderInfo {
     pub id: String,
     pub name: String,
@@ -428,6 +484,7 @@ pub struct ProviderInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProviderFeatures {
     pub search: bool,
     pub full_text: bool,
@@ -442,14 +499,20 @@ pub struct ProviderFeatures {
 // ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct ImportOptions {
+    #[serde(alias = "merge_strategy")]
     pub merge_strategy: String, // skip, replace, merge
+    #[serde(alias = "import_annotations")]
     pub import_annotations: Option<bool>,
+    #[serde(alias = "import_notes")]
     pub import_notes: Option<bool>,
+    #[serde(alias = "target_collection")]
     pub target_collection: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ImportResult {
     pub imported: i32,
     pub skipped: i32,
@@ -458,13 +521,18 @@ pub struct ImportResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct ExportOptions {
+    #[serde(alias = "include_annotations")]
     pub include_annotations: Option<bool>,
+    #[serde(alias = "include_notes")]
     pub include_notes: Option<bool>,
+    #[serde(alias = "include_ai_analysis")]
     pub include_ai_analysis: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExportResult {
     pub success: bool,
     pub data: String,
@@ -477,6 +545,7 @@ pub struct ExportResult {
 // ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AcademicStatistics {
     pub total_papers: i32,
     pub total_collections: i32,
@@ -501,18 +570,21 @@ pub struct AcademicStatistics {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AuthorCount {
     pub name: String,
     pub count: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VenueCount {
     pub name: String,
     pub count: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KeywordCount {
     pub keyword: String,
     pub count: i32,
@@ -546,6 +618,7 @@ impl Default for AcademicStatistics {
 // ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KnowledgeMapLocation {
     pub file_path: String,
     pub start_line: i32,
@@ -555,6 +628,7 @@ pub struct KnowledgeMapLocation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KnowledgeMapTrace {
     pub id: String,
     pub title: String,
@@ -565,6 +639,7 @@ pub struct KnowledgeMapTrace {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KnowledgeMap {
     pub id: String,
     pub title: String,
@@ -579,6 +654,7 @@ pub struct KnowledgeMap {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MindMapNode {
     pub id: String,
     pub label: String,
@@ -592,6 +668,7 @@ pub struct MindMapNode {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MindMapEdge {
     pub id: String,
     pub source: String,
@@ -601,6 +678,7 @@ pub struct MindMapEdge {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MindMapData {
     pub id: String,
     pub title: String,
@@ -614,6 +692,7 @@ pub struct MindMapData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KnowledgeMapGenerationRequest {
     pub content: String,
     pub title: Option<String>,
@@ -622,22 +701,36 @@ pub struct KnowledgeMapGenerationRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MindMapGenerationRequest {
+    #[serde(alias = "knowledge_map_id")]
     pub knowledge_map_id: Option<String>,
     pub content: Option<String>,
     pub title: Option<String>,
     pub layout: Option<String>,
+    #[serde(alias = "max_depth")]
     pub max_depth: Option<i32>,
     pub theme: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PDFConversionOptions {
+    #[serde(
+        alias = "extract_images",
+        alias = "preserve_images",
+        alias = "preserveImages"
+    )]
     pub extract_images: bool,
+    #[serde(alias = "extract_tables")]
     pub extract_tables: bool,
+    #[serde(alias = "extract_equations")]
     pub extract_equations: bool,
+    #[serde(alias = "ocr_enabled", alias = "ocrEnabled")]
     pub ocr_enabled: bool,
+    #[serde(alias = "generate_knowledge_map", alias = "generateKnowledgeMap")]
     pub generate_knowledge_map: bool,
+    #[serde(alias = "generate_mind_map", alias = "generateMindMap")]
     pub generate_mind_map: bool,
 }
 
@@ -655,6 +748,7 @@ impl Default for PDFConversionOptions {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PDFConversionResult {
     pub success: bool,
     pub markdown: String,
@@ -667,6 +761,7 @@ pub struct PDFConversionResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExtractedImage {
     pub id: String,
     pub page_number: i32,
@@ -677,6 +772,7 @@ pub struct ExtractedImage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExtractedTable {
     pub id: String,
     pub page_number: i32,
@@ -687,6 +783,7 @@ pub struct ExtractedTable {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExtractedEquation {
     pub id: String,
     pub page_number: i32,

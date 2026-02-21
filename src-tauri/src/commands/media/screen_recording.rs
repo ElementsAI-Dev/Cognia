@@ -5,8 +5,9 @@ use crate::screen_recording::{
     FFmpegInstallGuide, HardwareAcceleration, MonitorInfo, RecordingConfig, RecordingHistoryEntry,
     RecordingMetadata, RecordingRegion, RecordingStats, RecordingStatus, RecordingToolbar,
     RecordingToolbarConfig, RecordingToolbarState, ScreenRecordingManager, SnapEdge, StorageConfig,
-    StorageFile, StorageFileType, StorageStats, ToolbarPosition, VideoConvertOptions, VideoInfo,
-    VideoProcessingResult, VideoProcessor, VideoTrimOptions,
+    StorageFile, StorageFileType, StorageStats, TimelineRenderOptions, TimelineRenderPlan,
+    TimelineRenderer, ToolbarPosition, VideoConvertOptions, VideoInfo, VideoProcessingResult,
+    VideoProcessor, VideoTrimOptions,
 };
 use tauri::State;
 
@@ -259,6 +260,25 @@ pub async fn video_get_info(file_path: String) -> Result<VideoInfo, String> {
     VideoProcessor::get_video_info(&file_path)
 }
 
+/// Render and export a video timeline
+#[tauri::command]
+pub async fn video_render_timeline(
+    plan: TimelineRenderPlan,
+    options: TimelineRenderOptions,
+) -> Result<VideoProcessingResult, String> {
+    TimelineRenderer::render(&plan, &options)
+}
+
+/// Render and export a video timeline with progress events
+#[tauri::command]
+pub async fn video_render_timeline_with_progress(
+    app_handle: tauri::AppHandle,
+    plan: TimelineRenderPlan,
+    options: TimelineRenderOptions,
+) -> Result<VideoProcessingResult, String> {
+    TimelineRenderer::render_with_progress(&plan, &options, &app_handle)
+}
+
 /// Generate video thumbnail
 #[tauri::command]
 pub async fn video_generate_thumbnail(
@@ -295,6 +315,12 @@ pub async fn video_check_encoding_support() -> Result<EncodingSupport, String> {
 #[tauri::command]
 pub async fn video_cancel_processing() -> Result<bool, String> {
     Ok(VideoProcessor::cancel_processing())
+}
+
+/// Check if video processing is currently active.
+#[tauri::command]
+pub async fn video_is_processing() -> Result<bool, String> {
+    Ok(VideoProcessor::is_processing())
 }
 
 // ==================== FFmpeg Commands ====================

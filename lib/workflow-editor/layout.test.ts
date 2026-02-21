@@ -8,7 +8,7 @@
 
 // Both dagre-d3-es/src/graphlib/index.js and dagre-d3-es/src/dagre/index.js
 // are mapped to __mocks__/dagre-d3-es.js by moduleNameMapper.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const dagreMock = require('dagre-d3-es');
 const mockedLayout = dagreMock.layout as jest.Mock;
 

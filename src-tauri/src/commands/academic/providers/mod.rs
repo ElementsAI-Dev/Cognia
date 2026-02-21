@@ -5,7 +5,9 @@
 pub mod arxiv;
 pub mod core;
 pub mod dblp;
+pub mod huggingface_papers;
 pub mod openalex;
+pub mod openreview;
 pub mod semantic_scholar;
 pub mod unpaywall;
 

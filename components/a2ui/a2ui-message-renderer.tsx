@@ -101,12 +101,18 @@ export function A2UIMessageRenderer({
 
   // Process A2UI content through the shared integration entry.
   useEffect(() => {
+    const enqueueStateUpdate = (updater: () => void) => {
+      queueMicrotask(updater);
+    };
+
     if (!hasA2UI) {
-      setProcessedSurfaceId(null);
+      enqueueStateUpdate(() => setProcessedSurfaceId(null));
       return;
     }
 
-    setProcessedSurfaceId(processMessage(content, messageId));
+    enqueueStateUpdate(() => {
+      setProcessedSurfaceId(processMessage(content, messageId));
+    });
   }, [content, hasA2UI, messageId, processMessage]);
 
   const surfaceId = processedSurfaceId ?? `msg-${messageId}`;

@@ -12,8 +12,13 @@ import { useContext as useSystemContext } from '@/hooks/context';
 import type { ProviderName } from '@/types/provider';
 import type { Skill } from '@/types/system/skill';
 import {
+  isEmbeddingProviderConfigured,
+  resolveEmbeddingApiKey,
+} from '@/lib/vector/embedding';
+import {
   executeAgent,
   executeAgentLoop,
+  createAgentLoopCancellationToken,
   executeContextAwareAgent,
   createAgent,
   createMcpToolsFromStore,
@@ -261,11 +266,18 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   // Build RAG config from vector store settings
   const ragConfig = useMemo(() => {
     if (!enableRAG) return undefined;
-    // Get API key for embedding provider
-    const embeddingApiKey =
-      providerSettings[vectorSettings.embeddingProvider as keyof typeof providerSettings]?.apiKey ||
-      '';
-    if (!embeddingApiKey) return undefined;
+    if (
+      !isEmbeddingProviderConfigured(
+        vectorSettings.embeddingProvider,
+        providerSettings as Record<string, { apiKey?: string }>
+      )
+    ) {
+      return undefined;
+    }
+    const embeddingApiKey = resolveEmbeddingApiKey(
+      vectorSettings.embeddingProvider,
+      providerSettings as Record<string, { apiKey?: string }>
+    );
     return buildRAGConfigFromSettings(vectorSettings, embeddingApiKey);
   }, [enableRAG, vectorSettings, providerSettings]);
 
@@ -299,6 +311,8 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   const [registeredTools, setRegisteredTools] = useState<Record<string, AgentTool>>(initialTools);
 
   const abortRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const planningCancellationRef = useRef<ReturnType<typeof createAgentLoopCancellationToken> | null>(null);
 
   // Get API key for current provider
   const getApiKey = useCallback((): string => {
@@ -423,6 +437,8 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
       setResult(null);
       setToolCalls([]);
       abortRef.current = false;
+      planningCancellationRef.current = createAgentLoopCancellationToken();
+      abortControllerRef.current = new AbortController();
 
       try {
         const config = buildConfig();
@@ -442,6 +458,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
             enableContextFiles: enableContextAware,
             injectContextTools: enableCtxTools,
             maxInlineOutputSize: options.maxInlineOutputSize ?? 4000,
+            abortSignal: abortControllerRef.current.signal,
             onToolOutputPersisted: (ref) => {
               log.debug('Tool output persisted', { path: ref.path, sizeSummary: ref.sizeSummary });
             },
@@ -463,6 +480,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
             provider: defaultProvider,
             model: defaultModel,
             apiKey: getApiKey(),
+            abortSignal: abortControllerRef.current.signal,
           });
         }
 
@@ -483,6 +501,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
           error: message,
         };
       } finally {
+        abortControllerRef.current = null;
         setIsRunning(false);
       }
     },
@@ -507,6 +526,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
       setResult(null);
       setToolCalls([]);
       abortRef.current = false;
+      planningCancellationRef.current = createAgentLoopCancellationToken();
 
       try {
         const loopResult = await executeAgentLoop(task, {
@@ -517,6 +537,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
           maxStepsPerTask: Math.ceil(maxSteps / 3),
           maxTotalSteps: maxSteps,
           planningEnabled: enablePlanning,
+          cancellationToken: planningCancellationRef.current ?? undefined,
           onTaskStart: (_agentTask) => {
             setCurrentStep((prev) => prev + 1);
           },
@@ -544,6 +565,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
           error: message,
         };
       } finally {
+        planningCancellationRef.current = null;
         setIsRunning(false);
       }
     },
@@ -595,6 +617,10 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   // Stop execution
   const stop = useCallback(() => {
     abortRef.current = true;
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    planningCancellationRef.current?.cancel();
+    planningCancellationRef.current = null;
     setIsRunning(false);
   }, []);
 
@@ -624,6 +650,8 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     setResult(null);
     setToolCalls([]);
     abortRef.current = false;
+    abortControllerRef.current = null;
+    planningCancellationRef.current = null;
   }, []);
 
   // Get last response

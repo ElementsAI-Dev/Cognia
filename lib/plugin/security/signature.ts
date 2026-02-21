@@ -57,6 +57,18 @@ export interface SignatureConfig {
   cacheVerifications: boolean;
 }
 
+const USER_PUBLISHERS_STORAGE_KEY = 'plugin:security:user-publishers';
+const OFFICIAL_TRUSTED_PUBLISHERS: TrustedPublisher[] = [
+  {
+    id: 'cognia-official',
+    name: 'Cognia Official',
+    publicKey: '',
+    trustLevel: 'official',
+    addedAt: new Date('2024-01-01T00:00:00.000Z'),
+    domains: ['cognia.app'],
+  },
+];
+
 // =============================================================================
 // Signature Verifier
 // =============================================================================
@@ -87,17 +99,16 @@ export class PluginSignatureVerifier {
 
   private async loadTrustedPublishers(): Promise<void> {
     try {
-      // Load official trusted publishers
-      const officials = await invoke<TrustedPublisher[]>('plugin_get_official_publishers');
-      for (const publisher of officials) {
+      this.trustedPublishers.clear();
+
+      for (const publisher of OFFICIAL_TRUSTED_PUBLISHERS) {
         this.trustedPublishers.set(publisher.id, {
           ...publisher,
           addedAt: new Date(publisher.addedAt),
         });
       }
 
-      // Load user-added trusted publishers
-      const userPublishers = await invoke<TrustedPublisher[]>('plugin_get_user_publishers');
+      const userPublishers = this.readUserPublishersFromStorage();
       for (const publisher of userPublishers) {
         this.trustedPublishers.set(publisher.id, {
           ...publisher,
@@ -123,10 +134,7 @@ export class PluginSignatureVerifier {
     const warnings: string[] = [];
 
     try {
-      // Read signature file
-      const signatureData = await invoke<PluginSignature | null>('plugin_read_signature', {
-        pluginPath,
-      });
+      const signatureData = await this.readSignatureFile(pluginPath);
 
       if (!signatureData) {
         if (this.config.requireSignatures) {
@@ -282,14 +290,13 @@ export class PluginSignatureVerifier {
     };
 
     this.trustedPublishers.set(publisher.id, fullPublisher);
-
-    await invoke('plugin_add_trusted_publisher', { publisher: fullPublisher });
+    this.persistUserPublishersToStorage();
     this.clearCache();
   }
 
   async removeTrustedPublisher(publisherId: string): Promise<void> {
     this.trustedPublishers.delete(publisherId);
-    await invoke('plugin_remove_trusted_publisher', { publisherId });
+    this.persistUserPublishersToStorage();
     this.clearCache();
   }
 
@@ -364,6 +371,75 @@ export class PluginSignatureVerifier {
 
   getConfig(): SignatureConfig {
     return { ...this.config };
+  }
+
+  private readUserPublishersFromStorage(): TrustedPublisher[] {
+    try {
+      if (typeof localStorage === 'undefined') {
+        return [];
+      }
+      const raw = localStorage.getItem(USER_PUBLISHERS_STORAGE_KEY);
+      if (!raw) {
+        return [];
+      }
+      const parsed = JSON.parse(raw) as Array<
+        Omit<TrustedPublisher, 'addedAt'> & { addedAt: string | Date }
+      >;
+      return parsed.map((publisher) => ({
+        ...publisher,
+        addedAt: new Date(publisher.addedAt),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  private persistUserPublishersToStorage(): void {
+    try {
+      if (typeof localStorage === 'undefined') {
+        return;
+      }
+      const officialIds = new Set(OFFICIAL_TRUSTED_PUBLISHERS.map((publisher) => publisher.id));
+      const userPublishers = Array.from(this.trustedPublishers.values())
+        .filter((publisher) => !officialIds.has(publisher.id))
+        .map((publisher) => ({
+          ...publisher,
+          addedAt: publisher.addedAt.toISOString(),
+        }));
+      localStorage.setItem(USER_PUBLISHERS_STORAGE_KEY, JSON.stringify(userPublishers));
+    } catch {
+      // Ignore local persistence failures.
+    }
+  }
+
+  private async readSignatureFile(pluginPath: string): Promise<PluginSignature | null> {
+    const candidates = ['signature.json', 'plugin-signature.json'].map((fileName) => {
+      const normalizedPath = pluginPath.replace(/[/\\]+$/, '');
+      return `${normalizedPath}/${fileName}`;
+    });
+
+    try {
+      const { readTextFile } = await import('@tauri-apps/plugin-fs');
+      for (const path of candidates) {
+        try {
+          const raw = await readTextFile(path);
+          const parsed = JSON.parse(raw) as Omit<PluginSignature, 'signedAt' | 'expiresAt'> & {
+            signedAt: string | Date;
+            expiresAt?: string | Date;
+          };
+          return {
+            ...parsed,
+            signedAt: new Date(parsed.signedAt),
+            expiresAt: parsed.expiresAt ? new Date(parsed.expiresAt) : undefined,
+          };
+        } catch {
+          // Try next candidate path.
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 }
 

@@ -82,6 +82,12 @@ jest.mock('@/stores', () => ({
     const state = {
       theme: 'system',
       setTheme: mockSetTheme,
+      editorSettings: {
+        palette: {
+          showContextCommands: true,
+          groupByContext: true,
+        },
+      },
     };
     return selector(state);
   },
@@ -107,6 +113,19 @@ jest.mock('@/stores', () => ({
     };
     return selector(state);
   },
+}));
+
+jest.mock('@/lib/editor-workbench/editor-command-router', () => ({
+  getActiveEditorCommandGroup: jest.fn(() => null),
+  routeEditorCommand: jest.fn(async () => true),
+}));
+
+jest.mock('@/lib/editor-workbench/editor-context-registry', () => ({
+  subscribeEditorContextRegistry: jest.fn(() => () => {}),
+}));
+
+jest.mock('@/lib/editor-workbench/feature-flags', () => ({
+  isEditorFeatureFlagEnabled: jest.fn(() => true),
 }));
 
 // Mock sonner toast

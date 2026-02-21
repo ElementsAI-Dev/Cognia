@@ -77,6 +77,7 @@ import {
 } from '@/components/ui/empty';
 import { useExternalAgentStore } from '@/stores/agent/external-agent-store';
 import { useExternalAgent } from '@/hooks/agent/use-external-agent';
+import { getExternalAgentExecutionBlockReason } from '@/lib/ai/agent/external/config-normalizer';
 import type {
   ExternalAgentConnectionStatus,
   CreateExternalAgentInput,
@@ -254,6 +255,8 @@ function AgentEditorDialog({
                 <SelectItem value="acp">ACP (Agent Client Protocol)</SelectItem>
                 <SelectItem value="a2a" disabled>A2A (Coming Soon)</SelectItem>
                 <SelectItem value="http" disabled>HTTP (Coming Soon)</SelectItem>
+                <SelectItem value="websocket" disabled>WebSocket (Coming Soon)</SelectItem>
+                <SelectItem value="custom" disabled>Custom (Coming Soon)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -390,6 +393,7 @@ export function ExternalAgentSettings() {
   // Store
   const {
     getAllAgents,
+    getAgent,
     getConnectionStatus,
     addAgent,
     updateAgent,
@@ -402,6 +406,8 @@ export function ExternalAgentSettings() {
     setAutoConnectOnStartup,
     showConnectionNotifications,
     setShowConnectionNotifications,
+    chatFailurePolicy,
+    setChatFailurePolicy,
   } = useExternalAgentStore();
 
   // Hook for connection management
@@ -451,6 +457,14 @@ export function ExternalAgentSettings() {
 
   const handleConnect = useCallback(async (agentId: string) => {
     try {
+      const agent = getAgent(agentId);
+      if (!agent) {
+        throw new Error('Agent not found');
+      }
+      const blockedReason = getExternalAgentExecutionBlockReason(agent);
+      if (blockedReason) {
+        throw new Error(blockedReason);
+      }
       await connect(agentId);
       toast.success(t('connected'));
     } catch (error) {
@@ -458,7 +472,7 @@ export function ExternalAgentSettings() {
         description: (error as Error).message,
       });
     }
-  }, [connect, t]);
+  }, [connect, t, getAgent]);
 
   const handleDisconnect = useCallback(async (agentId: string) => {
     try {
@@ -562,6 +576,31 @@ export function ExternalAgentSettings() {
               </SelectContent>
             </Select>
           </div>
+
+          <Separator />
+
+          {/* External Failure Policy */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>{t('chatFailurePolicy')}</Label>
+              <p className="text-sm text-muted-foreground">
+                {t('chatFailurePolicyDesc')}
+              </p>
+            </div>
+            <Select
+              value={chatFailurePolicy}
+              onValueChange={(value) => setChatFailurePolicy(value as 'fallback' | 'strict')}
+              disabled={!enabled}
+            >
+              <SelectTrigger className="w-[220px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fallback">{t('chatFailurePolicyFallback')}</SelectItem>
+                <SelectItem value="strict">{t('chatFailurePolicyStrict')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 
@@ -603,6 +642,7 @@ export function ExternalAgentSettings() {
                   const status = getConnectionStatus(agent.id);
                   const isExpanded = expandedAgents.has(agent.id);
                   const isConnected = status === 'connected';
+                  const executionBlockedReason = getExternalAgentExecutionBlockReason(agent);
 
                   return (
                     <Collapsible
@@ -623,10 +663,20 @@ export function ExternalAgentSettings() {
                                 <Badge variant="secondary" className="text-xs">
                                   {agent.transport}
                                 </Badge>
+                                {executionBlockedReason && (
+                                  <Badge variant="destructive" className="text-xs">
+                                    Coming Soon
+                                  </Badge>
+                                )}
                               </div>
                               {agent.description && (
                                 <p className="text-sm text-muted-foreground">
                                   {agent.description}
+                                </p>
+                              )}
+                              {executionBlockedReason && (
+                                <p className="text-xs text-amber-600 dark:text-amber-400">
+                                  {executionBlockedReason}
                                 </p>
                               )}
                             </div>
@@ -646,7 +696,7 @@ export function ExternalAgentSettings() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleConnect(agent.id)}
-                                disabled={isConnecting(agent.id)}
+                                disabled={isConnecting(agent.id) || !!executionBlockedReason}
                               >
                                 {isConnecting(agent.id) ? (
                                   <Loader2 className="h-4 w-4 mr-1 animate-spin" />

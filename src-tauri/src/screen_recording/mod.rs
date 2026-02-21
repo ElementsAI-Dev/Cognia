@@ -7,26 +7,28 @@
 //! - Audio capture (system and microphone)
 //! - Video trimming and export
 
+pub mod click_highlight;
 pub mod error;
 pub mod ffmpeg;
-pub mod click_highlight;
 mod history;
 pub mod progress;
 mod recorder;
 pub mod storage;
+pub mod timeline_renderer;
 pub mod toolbar;
 mod video_processor;
 pub mod window_snap;
 
+pub use click_highlight::RecordingClickOverlay;
 pub use error::RecordingError;
 pub use ffmpeg::{FFmpegInfo, FFmpegInstallGuide, HardwareAcceleration};
-pub use click_highlight::RecordingClickOverlay;
 pub use history::{RecordingHistory, RecordingHistoryEntry};
 pub use recorder::ScreenRecorder;
 pub use storage::{
     AggregatedStorageStatus, CleanupResult, StorageConfig, StorageFile, StorageFileType,
     StorageManager, StorageStats,
 };
+pub use timeline_renderer::{TimelineRenderOptions, TimelineRenderPlan, TimelineRenderer};
 pub use toolbar::{
     RecordingToolbar, RecordingToolbarConfig, RecordingToolbarState, ToolbarPosition,
 };
@@ -829,11 +831,13 @@ mod tests {
 
     #[test]
     fn test_recording_config_hardware_acceleration_fields() {
-        let mut config = RecordingConfig::default();
-        config.use_hardware_acceleration = false;
-        config.preferred_encoder = Some("h264_nvenc".to_string());
-        config.system_audio_device = Some("Stereo Mix".to_string());
-        config.microphone_device = Some("USB Microphone".to_string());
+        let config = RecordingConfig {
+            use_hardware_acceleration: false,
+            preferred_encoder: Some("h264_nvenc".to_string()),
+            system_audio_device: Some("Stereo Mix".to_string()),
+            microphone_device: Some("USB Microphone".to_string()),
+            ..RecordingConfig::default()
+        };
 
         assert!(!config.use_hardware_acceleration);
         assert_eq!(config.preferred_encoder.as_deref(), Some("h264_nvenc"));

@@ -316,22 +316,11 @@ mod tests {
     // ============================================================================
 
     #[test]
-    fn test_constants_have_reasonable_values() {
-        // Channel capacity should be positive
-        assert!(SSE_CHANNEL_CAPACITY > 0);
-        assert!(SSE_CHANNEL_CAPACITY <= 1000); // Not too large
-
-        // Timeout should be reasonable
-        assert!(HTTP_TIMEOUT_SECS >= 5);
-        assert!(HTTP_TIMEOUT_SECS <= 120);
-
-        // Connection wait should be reasonable
-        assert!(CONNECTION_WAIT_MS >= 50);
-        assert!(CONNECTION_WAIT_MS <= 1000);
-
-        // Log truncation length should be reasonable
-        assert!(LOG_MAX_MESSAGE_LEN >= 100);
-        assert!(LOG_MAX_MESSAGE_LEN <= 10000);
+    fn test_log_truncation_respects_configured_max() {
+        let input = "x".repeat(LOG_MAX_MESSAGE_LEN + 32);
+        let truncated = truncate_for_log(&input);
+        assert!(truncated.len() <= LOG_MAX_MESSAGE_LEN + 3);
+        assert!(truncated.ends_with("..."));
     }
 
     // ============================================================================

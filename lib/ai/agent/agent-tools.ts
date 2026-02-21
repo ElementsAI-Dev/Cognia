@@ -25,9 +25,10 @@ import {
   type BulkWebScraperInput,
   type SearchAndScrapeInput,
 } from '../tools';
-import type { RAGConfig } from '../rag';
+import { createRAGRuntimeConfigFromVectorSettings, type RAGRuntimeConfig } from '../rag';
 import type { RAGSearchConfig } from '../tools/rag-search';
 import type { Skill } from '@/types/system/skill';
+import type { EmbeddingProvider } from '@/lib/vector/embedding';
 import { shellToolSystemPrompt as shellToolSystemPromptText } from '../tools/shell-tool';
 import { fileToolSystemPrompt, fileToolPromptSnippet } from '../tools/file-tool';
 import { documentToolSystemPrompt, documentToolPromptSnippet } from '../tools/document-tool';
@@ -85,7 +86,7 @@ export interface AgentToolsConfig {
   enableArtifactTools?: boolean;
   /** Enable Memory tools (memory_store, memory_recall, memory_search, memory_forget, etc.) */
   enableMemoryTools?: boolean;
-  ragConfig?: RAGConfig;
+  ragConfig?: RAGRuntimeConfig;
   customTools?: Record<string, AgentTool>;
   activeSkills?: Skill[];
   /** MCP servers for tool integration */
@@ -213,32 +214,40 @@ export function createSearchAndScrapeTool(config?: { apiKey?: string; provider?:
  */
 export function buildRAGConfigFromSettings(
   vectorSettings: {
+    provider?: 'chroma' | 'native' | 'pinecone' | 'qdrant' | 'milvus' | 'weaviate';
     mode: 'embedded' | 'server';
     serverUrl: string;
-    embeddingProvider: string;
+    embeddingProvider: EmbeddingProvider;
     embeddingModel: string;
+    pineconeApiKey?: string;
+    pineconeIndexName?: string;
+    pineconeNamespace?: string;
+    weaviateUrl?: string;
+    weaviateApiKey?: string;
+    qdrantUrl?: string;
+    qdrantApiKey?: string;
+    milvusAddress?: string;
+    milvusToken?: string;
+    defaultCollectionName?: string;
+    ragTopK?: number;
+    ragSimilarityThreshold?: number;
+    ragMaxContextLength?: number;
+    enableHybridSearch?: boolean;
+    vectorWeight?: number;
+    keywordWeight?: number;
+    enableReranking?: boolean;
+    enableQueryExpansion?: boolean;
+    enableCitations?: boolean;
+    citationStyle?: 'simple' | 'apa' | 'mla' | 'chicago' | 'harvard' | 'ieee';
   },
   apiKey: string
-): RAGConfig {
-  return {
-    chromaConfig: {
-      mode: vectorSettings.mode,
-      serverUrl: vectorSettings.serverUrl,
-      embeddingConfig: {
-        provider: vectorSettings.embeddingProvider as 'openai' | 'google' | 'cohere' | 'mistral',
-        model: vectorSettings.embeddingModel,
-      },
-      apiKey,
-    },
-    topK: 5,
-    similarityThreshold: 0.5,
-    maxContextLength: 4000,
-  };
+): RAGRuntimeConfig {
+  return createRAGRuntimeConfigFromVectorSettings(vectorSettings, apiKey);
 }
 
 export interface RAGSearchToolOptions {
   /** RAG configuration for embeddings and vector store */
-  ragConfig?: RAGConfig;
+  ragConfig?: RAGRuntimeConfig;
   /** Available collection names for the agent to choose from */
   availableCollections?: string[];
   /** Default collection name to use if not specified */
@@ -249,7 +258,7 @@ export interface RAGSearchToolOptions {
  * Create RAG search tool for agent (uses real implementation from registry)
  * Enhanced version that includes available collections in the description
  */
-export function createRAGSearchTool(ragConfig?: RAGConfig, options?: Omit<RAGSearchToolOptions, 'ragConfig'>): AgentTool {
+export function createRAGSearchTool(ragConfig?: RAGRuntimeConfig, options?: Omit<RAGSearchToolOptions, 'ragConfig'>): AgentTool {
   const { availableCollections = [], defaultCollectionName = 'default' } = options || {};
   
   // Build dynamic description with available collections
@@ -282,9 +291,8 @@ export function createRAGSearchTool(ragConfig?: RAGConfig, options?: Omit<RAGSea
         collectionName: input.collectionName || defaultCollectionName,
       };
       const searchConfig: RAGSearchConfig = {
-        embeddingProvider: ragConfig.chromaConfig.embeddingConfig.provider,
-        embeddingModel: ragConfig.chromaConfig.embeddingConfig.model,
-        embeddingApiKey: ragConfig.chromaConfig.apiKey,
+        runtimeConfig: ragConfig,
+        defaultCollectionName,
       };
       return executeRAGSearch(searchInput, searchConfig);
     },
@@ -755,6 +763,9 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
         'display_review_session',
         'display_progress_summary',
         'display_concept_explanation',
+        'display_step_guide',
+        'display_concept_map',
+        'display_animation',
       ],
       registryConfig
     );

@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { CheckCircle, Zap, AlertCircle, Wrench } from 'lucide-react';
+import { CheckCircle, Zap, AlertCircle, Wrench, Command, Plug } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface StatsBarProps {
@@ -18,6 +18,10 @@ interface StatsBarProps {
   errorCount: number;
   /** Total number of tools provided by plugins */
   totalTools: number;
+  /** Total number of runtime registered commands */
+  totalCommands?: number;
+  /** Number of plugins currently active in runtime registry */
+  runtimeActivePlugins?: number;
   /** Health score (0-100) */
   healthScore: number;
   /** Additional class names */
@@ -31,6 +35,8 @@ export function StatsBar({
   enabledCount,
   errorCount,
   totalTools,
+  totalCommands,
+  runtimeActivePlugins,
   healthScore,
   className,
   compact = false,
@@ -106,6 +112,30 @@ export function StatsBar({
           <span className="text-xs text-muted-foreground">
             {t('total')}
           </span>
+        </div>
+      )}
+
+      {typeof totalCommands === 'number' && (
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Command className="h-3.5 w-3.5 text-blue-500" />
+          <span className="text-xs tabular-nums">{totalCommands}</span>
+          {!compact && (
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              Cmd
+            </span>
+          )}
+        </div>
+      )}
+
+      {typeof runtimeActivePlugins === 'number' && (
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Plug className="h-3.5 w-3.5 text-violet-500" />
+          <span className="text-xs tabular-nums">{runtimeActivePlugins}</span>
+          {!compact && (
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              Runtime
+            </span>
+          )}
         </div>
       )}
 

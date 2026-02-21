@@ -65,6 +65,7 @@ describe('useExternalAgentStore', () => {
       expect(state.defaultPermissionMode).toBe('default');
       expect(state.autoConnectOnStartup).toBe(false);
       expect(state.showConnectionNotifications).toBe(true);
+      expect(state.chatFailurePolicy).toBe('fallback');
     });
   });
 
@@ -630,6 +631,14 @@ describe('useExternalAgentStore', () => {
 
       expect(useExternalAgentStore.getState().showConnectionNotifications).toBe(false);
     });
+
+    it('should set chat failure policy', () => {
+      act(() => {
+        useExternalAgentStore.getState().setChatFailurePolicy('strict');
+      });
+
+      expect(useExternalAgentStore.getState().chatFailurePolicy).toBe('strict');
+    });
   });
 
   describe('Bulk Operations', () => {
@@ -730,6 +739,7 @@ describe('useExternalAgentStore', () => {
       expect(state.agents).toEqual({});
       expect(state.enabled).toBe(true);
       expect(state.defaultPermissionMode).toBe('default');
+      expect(state.chatFailurePolicy).toBe('fallback');
     });
   });
 

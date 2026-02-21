@@ -254,6 +254,7 @@ impl SelectionManager {
 
         // Start mouse hook
         log::debug!("[SelectionManager] Starting mouse hook");
+        self.mouse_hook.reset();
         self.mouse_hook.start()?;
 
         // Clone necessary references for the event loop
@@ -421,6 +422,7 @@ impl SelectionManager {
         // Stop mouse hook
         log::trace!("[SelectionManager] Stopping mouse hook");
         self.mouse_hook.stop()?;
+        self.mouse_hook.reset();
 
         // Hide toolbar if visible
         log::trace!("[SelectionManager] Hiding toolbar");
@@ -514,8 +516,9 @@ impl SelectionManager {
     /// Get current status
     pub fn get_status(&self) -> SelectionStatus {
         let config = self.config.read().clone();
+        let is_running = *self.is_running.read() && self.mouse_hook.is_running();
         SelectionStatus {
-            is_running: *self.is_running.read(),
+            is_running,
             toolbar_visible: self.toolbar_window.is_visible(),
             toolbar_position: if self.toolbar_window.is_visible() {
                 Some(self.toolbar_window.get_position())

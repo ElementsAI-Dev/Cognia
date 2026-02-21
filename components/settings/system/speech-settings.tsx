@@ -4,7 +4,7 @@
  * SpeechSettings - Configure voice input (STT) and text-to-speech (TTS) settings
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Mic, Volume2, Languages, Zap, Settings2, Play, Square, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
@@ -75,9 +75,10 @@ export function SpeechSettings() {
   const hasHumeKey = !!providerSettings.hume?.apiKey;
   const hasCartesiaKey = !!providerSettings.cartesia?.apiKey;
   const hasDeepgramKey = !!providerSettings.deepgram?.apiKey;
+  const [serverKeyStatus, setServerKeyStatus] = useState<Record<string, boolean>>({});
   
   // TTS hook for testing
-  const { speak: testSpeak, stop: testStop, isPlaying: isTestPlaying, isLoading: isTestLoading } = useTTS();
+  const { speak: testSpeak, stop: testStop, isPlaying: isTestPlaying, isLoading: isTestLoading } = useTTS({ source: 'settings' });
 
   // Browser support detection - initialize synchronously
   const [sttSupported] = useState(() => isSpeechRecognitionSupported());
@@ -98,6 +99,51 @@ export function SpeechSettings() {
       speechSynthesis.onvoiceschanged = null;
     };
   }, [ttsSupported]);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch('/api/tts/status')
+      .then((response) => response.json())
+      .then((data) => {
+        if (!mounted) return;
+        setServerKeyStatus(data?.status || {});
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setServerKeyStatus({});
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const keyStatus = useMemo(() => {
+    const provider = speechSettings.ttsProvider;
+    if (provider === 'system' || provider === 'edge') {
+      return { local: true, server: true };
+    }
+
+    const keyProviderMap: Partial<Record<TTSProvider, string>> = {
+      openai: 'openai',
+      gemini: 'google',
+      elevenlabs: 'elevenlabs',
+      lmnt: 'lmnt',
+      hume: 'hume',
+      cartesia: 'cartesia',
+      deepgram: 'deepgram',
+    };
+
+    const keyProvider = keyProviderMap[provider];
+    if (!keyProvider) {
+      return { local: false, server: false };
+    }
+
+    return {
+      local: Boolean(providerSettings[keyProvider]?.apiKey),
+      server: Boolean(serverKeyStatus[keyProvider]),
+    };
+  }, [providerSettings, serverKeyStatus, speechSettings.ttsProvider]);
 
   // Test TTS with current provider
   const handleTestTts = () => {
@@ -423,12 +469,25 @@ export function SpeechSettings() {
               {speechSettings.ttsProvider === 'openai' && t('openaiTtsDesc')}
               {speechSettings.ttsProvider === 'gemini' && t('geminiTtsDesc')}
               {speechSettings.ttsProvider === 'edge' && t('edgeTtsDesc')}
-              {speechSettings.ttsProvider === 'elevenlabs' && 'Industry-leading AI voice synthesis with 29 languages'}
-              {speechSettings.ttsProvider === 'lmnt' && 'Ultra-low latency voice synthesis'}
-              {speechSettings.ttsProvider === 'hume' && 'Emotionally expressive voice synthesis'}
-              {speechSettings.ttsProvider === 'cartesia' && 'Ultra-low latency streaming TTS with 42 languages'}
-              {speechSettings.ttsProvider === 'deepgram' && 'Enterprise-grade low-latency TTS'}
+              {speechSettings.ttsProvider === 'elevenlabs' && t('elevenlabsTtsDesc')}
+              {speechSettings.ttsProvider === 'lmnt' && t('lmntTtsDesc')}
+              {speechSettings.ttsProvider === 'hume' && t('humeTtsDesc')}
+              {speechSettings.ttsProvider === 'cartesia' && t('cartesiaTtsDesc')}
+              {speechSettings.ttsProvider === 'deepgram' && t('deepgramTtsDesc')}
             </p>
+            {speechSettings.ttsProvider !== 'system' && speechSettings.ttsProvider !== 'edge' && (
+              <div className="flex items-center gap-2 text-xs">
+                <Badge variant={keyStatus.local ? 'default' : 'secondary'}>
+                  {keyStatus.local ? t('localKey') : t('noLocalKey')}
+                </Badge>
+                <Badge variant={keyStatus.server ? 'default' : 'secondary'}>
+                  {keyStatus.server ? t('serverKey') : t('noServerKey')}
+                </Badge>
+                {!keyStatus.local && !keyStatus.server && (
+                  <Badge variant="destructive">{t('unavailable')}</Badge>
+                )}
+              </div>
+            )}
           </div>
 
           {/* System Voice Selection */}
@@ -582,39 +641,61 @@ export function SpeechSettings() {
 
           {/* Edge Voice Selection */}
           {speechSettings.ttsProvider === 'edge' && (
-            <div className="space-y-2">
-              <Label className="text-sm">{t('voice')}</Label>
-              <Select
-                value={speechSettings.edgeTtsVoice}
-                onValueChange={(v) => setSpeechSettings({ edgeTtsVoice: v as typeof speechSettings.edgeTtsVoice })}
-                disabled={!speechSettings.ttsEnabled}
-              >
-                <SelectTrigger className="w-full sm:w-[300px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {filteredEdgeVoices.length > 0 ? (
-                    filteredEdgeVoices.map((voice) => (
-                      <SelectItem key={voice.id} value={voice.id}>
-                        <span className="flex items-center gap-2">
-                          <span>{voice.name}</span>
-                          <span className="text-xs text-muted-foreground">({voice.gender})</span>
-                        </span>
-                      </SelectItem>
-                    ))
-                  ) : (
-                    EDGE_TTS_VOICES.map((voice) => (
-                      <SelectItem key={voice.id} value={voice.id}>
-                        <span className="flex items-center gap-2">
-                          <span>{voice.name}</span>
-                          <span className="text-xs text-muted-foreground">({voice.language})</span>
-                        </span>
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label className="text-sm">{t('voice')}</Label>
+                <Select
+                  value={speechSettings.edgeTtsVoice}
+                  onValueChange={(v) => setSpeechSettings({ edgeTtsVoice: v as typeof speechSettings.edgeTtsVoice })}
+                  disabled={!speechSettings.ttsEnabled}
+                >
+                  <SelectTrigger className="w-full sm:w-[300px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {filteredEdgeVoices.length > 0 ? (
+                      filteredEdgeVoices.map((voice) => (
+                        <SelectItem key={voice.id} value={voice.id}>
+                          <span className="flex items-center gap-2">
+                            <span>{voice.name}</span>
+                            <span className="text-xs text-muted-foreground">({voice.gender})</span>
+                          </span>
+                        </SelectItem>
+                      ))
+                    ) : (
+                      EDGE_TTS_VOICES.map((voice) => (
+                        <SelectItem key={voice.id} value={voice.id}>
+                          <span className="flex items-center gap-2">
+                            <span>{voice.name}</span>
+                            <span className="text-xs text-muted-foreground">({voice.language})</span>
+                          </span>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">{t('edgeRate')}</Label>
+                <Input
+                  value={speechSettings.edgeTtsRate}
+                  onChange={(event) => setSpeechSettings({ edgeTtsRate: event.target.value })}
+                  placeholder="+0%"
+                  disabled={!speechSettings.ttsEnabled}
+                  className="w-full sm:w-[300px]"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">{t('edgePitch')}</Label>
+                <Input
+                  value={speechSettings.edgeTtsPitch}
+                  onChange={(event) => setSpeechSettings({ edgeTtsPitch: event.target.value })}
+                  placeholder="+0Hz"
+                  disabled={!speechSettings.ttsEnabled}
+                  className="w-full sm:w-[300px]"
+                />
+              </div>
+            </>
           )}
 
           {/* ElevenLabs Settings */}
@@ -802,7 +883,7 @@ export function SpeechSettings() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-sm">Language</Label>
+                <Label className="text-sm">{t('languageCode')}</Label>
                 <Input
                   value={speechSettings.cartesiaTtsLanguage}
                   onChange={(e) => setSpeechSettings({ cartesiaTtsLanguage: e.target.value })}
@@ -811,20 +892,31 @@ export function SpeechSettings() {
                   className="w-full sm:w-[300px]"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Language code (e.g., en, zh, ja, ko, fr, de, es)
+                  {t('languageCodeDesc')}
                 </p>
               </div>
               <div className="space-y-2">
-                <Label className="text-sm">Emotion</Label>
+                <Label className="text-sm">{t('speed')}: {speechSettings.cartesiaTtsSpeed.toFixed(1)}</Label>
+                <Slider
+                  value={[speechSettings.cartesiaTtsSpeed * 10]}
+                  onValueChange={([v]) => setSpeechSettings({ cartesiaTtsSpeed: v / 10 })}
+                  min={-10}
+                  max={20}
+                  step={1}
+                  disabled={!speechSettings.ttsEnabled}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">{t('emotion')}</Label>
                 <Input
                   value={speechSettings.cartesiaTtsEmotion}
                   onChange={(e) => setSpeechSettings({ cartesiaTtsEmotion: e.target.value })}
-                  placeholder="e.g., positivity:high, curiosity:high"
+                  placeholder={t('emotionPlaceholder')}
                   disabled={!speechSettings.ttsEnabled}
                   className="w-full"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Emotion controls (optional)
+                  {t('emotionDesc')}
                 </p>
               </div>
             </>
@@ -915,6 +1007,34 @@ export function SpeechSettings() {
             <Switch
               checked={speechSettings.ttsAutoPlay}
               onCheckedChange={setTtsAutoPlay}
+              disabled={!speechSettings.ttsEnabled}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="text-sm">{t('enableCache')}</Label>
+              <p className="text-xs text-muted-foreground">
+                {t('enableCacheDesc')}
+              </p>
+            </div>
+            <Switch
+              checked={speechSettings.ttsCacheEnabled}
+              onCheckedChange={(checked) => setSpeechSettings({ ttsCacheEnabled: checked })}
+              disabled={!speechSettings.ttsEnabled}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="text-sm">{t('enableStreaming')}</Label>
+              <p className="text-xs text-muted-foreground">
+                {t('enableStreamingDesc')}
+              </p>
+            </div>
+            <Switch
+              checked={speechSettings.ttsStreamingEnabled}
+              onCheckedChange={(checked) => setSpeechSettings({ ttsStreamingEnabled: checked })}
               disabled={!speechSettings.ttsEnabled}
             />
           </div>

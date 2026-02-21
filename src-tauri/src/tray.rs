@@ -627,23 +627,31 @@ pub fn handle_screenshot_action(app: &AppHandle, action: &str) {
                     match manager.start_region_selection().await {
                         Ok(region) => match manager.capture_region_with_history(region).await {
                             Ok(result) => {
-                                let ocr = manager.extract_text_windows(&result.image_data).map(|res| {
-                                    (res.text, res.language)
-                                });
+                                let ocr = manager
+                                    .extract_text_windows(&result.image_data)
+                                    .map(|res| (res.text, res.language));
                                 let (text, language) = match ocr {
                                     Ok(data) => data,
                                     Err(_) => match manager.extract_text(&result.image_data) {
-                                    Ok(fallback_text) => (fallback_text, None),
-                                    Err(error) => {
-                                        log::error!("Failed to run OCR: {}", error);
-                                        emit_screenshot_error(&app_clone, "screenshot-ocr", error);
-                                        set_tray_busy(&app_clone, false, None);
-                                        return;
-                                    }
-                                },
-                            };
+                                        Ok(fallback_text) => (fallback_text, None),
+                                        Err(error) => {
+                                            log::error!("Failed to run OCR: {}", error);
+                                            emit_screenshot_error(
+                                                &app_clone,
+                                                "screenshot-ocr",
+                                                error,
+                                            );
+                                            set_tray_busy(&app_clone, false, None);
+                                            return;
+                                        }
+                                    },
+                                };
 
-                                emit_screenshot_captured(&app_clone, "screenshot-ocr", result.clone());
+                                emit_screenshot_captured(
+                                    &app_clone,
+                                    "screenshot-ocr",
+                                    result.clone(),
+                                );
                                 let ocr_payload = ScreenshotOcrEventPayload {
                                     text: text.clone(),
                                     image_base64: Some(
@@ -657,7 +665,10 @@ pub fn handle_screenshot_action(app: &AppHandle, action: &str) {
                                 {
                                     use tauri_plugin_clipboard_manager::ClipboardExt;
                                     if let Err(error) = app_clone.clipboard().write_text(text) {
-                                        log::warn!("Failed to copy OCR result to clipboard: {}", error);
+                                        log::warn!(
+                                            "Failed to copy OCR result to clipboard: {}",
+                                            error
+                                        );
                                     }
                                 }
                             }
@@ -807,8 +818,8 @@ pub fn handle_tray_menu_event(app: &AppHandle, item_id: String) {
                             Err(e) => {
                                 log::error!("Failed to start recording: {}", e);
                                 set_tray_recording(&app_clone, false);
-                                let _ = app_clone
-                                    .emit("recording-error", recording_error_payload(&e));
+                                let _ =
+                                    app_clone.emit("recording-error", recording_error_payload(&e));
                             }
                         }
                     }
@@ -830,8 +841,8 @@ pub fn handle_tray_menu_event(app: &AppHandle, item_id: String) {
                             }
                             Err(e) => {
                                 log::error!("Failed to stop recording: {}", e);
-                                let _ = app_clone
-                                    .emit("recording-error", recording_error_payload(&e));
+                                let _ =
+                                    app_clone.emit("recording-error", recording_error_payload(&e));
                             }
                         }
                     }

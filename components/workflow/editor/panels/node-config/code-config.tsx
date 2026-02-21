@@ -5,6 +5,7 @@
  */
 
 import dynamic from 'next/dynamic';
+import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +23,12 @@ import {
 import { VariableSelector } from './variable-selector';
 import type { NodeConfigProps, CodeNodeData } from './types';
 import { createEditorOptions, getMonacoLanguage } from '@/lib/monaco';
+import { useSettingsStore } from '@/stores';
+import {
+  bindMonacoEditorContext,
+  type MonacoContextBinding,
+} from '@/lib/editor-workbench/monaco-context-binding';
+import { isEditorFeatureFlagEnabled } from '@/lib/editor-workbench/feature-flags';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,
@@ -35,6 +42,21 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
 export function CodeNodeConfig({ data, onUpdate }: NodeConfigProps<CodeNodeData>) {
   const t = useTranslations('workflowEditor');
   const sandbox = data.sandbox ?? { runtime: 'auto', networkEnabled: false };
+  const globalEditorSettings = useSettingsStore((state) => state.editorSettings);
+  const workbenchBindingRef = useRef<MonacoContextBinding | null>(null);
+
+  useEffect(() => {
+    return () => {
+      workbenchBindingRef.current?.dispose();
+      workbenchBindingRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    workbenchBindingRef.current?.update({
+      languageId: getMonacoLanguage(data.language),
+    });
+  }, [data.language]);
 
   const parseKeyValueLines = (value: string): Record<string, string> => {
     const result: Record<string, string> = {};
@@ -98,11 +120,26 @@ export function CodeNodeConfig({ data, onUpdate }: NodeConfigProps<CodeNodeData>
             theme="vs-dark"
             value={data.code}
             onChange={(value) => onUpdate({ code: value || '' })}
+            onMount={(editor) => {
+              if (!isEditorFeatureFlagEnabled('editor.workbench.v2')) {
+                return;
+              }
+              workbenchBindingRef.current?.dispose();
+              workbenchBindingRef.current = bindMonacoEditorContext({
+                contextId: 'workflow',
+                label: 'Workflow Node Code Editor',
+                languageId: getMonacoLanguage(data.language),
+                editor,
+                fallbackReason: 'Using Monaco built-in providers',
+              });
+            }}
             options={createEditorOptions('code', {
               minimap: { enabled: false },
               fontSize: 12,
               stickyScroll: { enabled: false },
               padding: { top: 8, bottom: 8 },
+            }, {
+              editorSettings: globalEditorSettings,
             })}
           />
         </div>

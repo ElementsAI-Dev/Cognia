@@ -3,7 +3,7 @@
  * PDF download, path management, and deletion
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { academicRuntimeInvoke } from '@/lib/native/academic-runtime';
 import type { AcademicSliceCreator } from '../types';
 
 // ============================================================================
@@ -24,7 +24,7 @@ export const createPdfSlice: AcademicSliceCreator<PdfActions> = (set, get) => ({
     downloadPdf: async (paperId, pdfUrl) => {
       set({ isLoading: true, error: null });
       try {
-        const path = await invoke<string>('academic_download_pdf', { paperId, pdfUrl });
+        const path = await academicRuntimeInvoke<string>('academic_download_pdf', { paperId, pdfUrl });
         set({ isLoading: false });
         await get().refreshLibrary();
         return path;
@@ -36,7 +36,9 @@ export const createPdfSlice: AcademicSliceCreator<PdfActions> = (set, get) => ({
 
     getPdfPath: async (paperId) => {
       try {
-        const path = await invoke<string | null>('academic_get_pdf_path', { paperId });
+        const path = await academicRuntimeInvoke<string | null>('academic_get_pdf_path', {
+          paperId,
+        });
         return path;
       } catch {
         return null;
@@ -45,7 +47,7 @@ export const createPdfSlice: AcademicSliceCreator<PdfActions> = (set, get) => ({
 
     deletePdf: async (paperId) => {
       try {
-        await invoke('academic_delete_pdf', { paperId });
+        await academicRuntimeInvoke('academic_delete_pdf', { paperId });
         await get().refreshLibrary();
       } catch (error) {
         set({ error: error instanceof Error ? error.message : String(error) });

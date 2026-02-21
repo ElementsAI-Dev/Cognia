@@ -610,6 +610,7 @@ describe('createFullPluginContext', () => {
     expect(context.i18n).toBeDefined();
     expect(context.canvas).toBeDefined();
     expect(context.artifact).toBeDefined();
+    expect(context.media).toBeDefined();
     expect(context.notifications).toBeDefined();
     expect(context.ai).toBeDefined();
     expect(context.extensions).toBeDefined();

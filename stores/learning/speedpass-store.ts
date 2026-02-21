@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
-import { DEFAULT_SPEEDPASS_USER_ID } from '@/types/learning/speedpass';
+import { DEFAULT_SPEEDPASS_COURSE_ID, DEFAULT_SPEEDPASS_USER_ID } from '@/types/learning/speedpass';
 import type {
   University,
   Major,
@@ -30,9 +30,16 @@ import type {
   StartSpeedLearningInput,
   CreateQuizInput,
   SpeedPassPersistedState,
+  SpeedPassEventStatement,
 } from '@/types/learning/speedpass';
 import { generateTutorial } from '@/lib/learning/speedpass/tutorial-generator';
 import { matchTeacherKeyPoints as matchTeacherKeyPointsLocally } from '@/lib/learning/speedpass/knowledge-matcher';
+import {
+  createSpeedPassEventStatement,
+  parseXApiPayload,
+  serializeSpeedPassEventStatements,
+} from '@/lib/learning/speedpass/xapi-event-adapter';
+import { isLearningInteropV2Enabled } from '@/lib/learning/feature-flags';
 import { speedpassRuntime } from '@/lib/native/speedpass-runtime';
 import { isTauri } from '@/lib/utils';
 import { loggers } from '@/lib/logger';
@@ -80,6 +87,9 @@ export interface SpeedPassState {
 
   // Study Reports
   studyReports: StudyReport[];
+
+  // Event Statements (xAPI-aligned)
+  eventStatements: Record<string, SpeedPassEventStatement>;
 
   // Statistics
   globalStats: {
@@ -236,6 +246,8 @@ export interface SpeedPassState {
   // ============================================================================
   setError: (error: string | null) => void;
   setLoading: (loading: boolean) => void;
+  appendEventStatement: (statement: SpeedPassEventStatement) => void;
+  exportEventStatements: () => string;
   hydrateFromSnapshot: (snapshot: SpeedPassPersistedState) => void;
   reset: () => void;
 }
@@ -274,6 +286,7 @@ const initialState = {
   wrongQuestions: {},
 
   studyReports: [],
+  eventStatements: {},
 
   globalStats: {
     totalStudyTimeMs: 0,
@@ -311,6 +324,7 @@ type PersistedSpeedPassFields = Pick<
   | 'quizzes'
   | 'wrongQuestions'
   | 'studyReports'
+  | 'eventStatements'
   | 'globalStats'
   | 'userProfile'
 >;
@@ -320,22 +334,164 @@ function resolveSpeedPassUserId(candidate?: string | null): string {
   return normalized.length > 0 ? normalized : DEFAULT_SPEEDPASS_USER_ID;
 }
 
+function resolveSpeedPassCourseId(
+  source: Pick<SpeedPassState, 'academicProfile' | 'userTextbooks'>,
+  textbookId?: string | null,
+  explicitCourseId?: string | null
+): string {
+  const normalizedExplicit = (explicitCourseId || '').trim();
+  if (normalizedExplicit.length > 0) {
+    return normalizedExplicit;
+  }
+
+  const normalizedTextbookId = (textbookId || '').trim();
+  if (normalizedTextbookId) {
+    const textbookMatch = source.userTextbooks.find((entry) => {
+      return (
+        entry.textbookId === normalizedTextbookId &&
+        typeof entry.courseId === 'string' &&
+        entry.courseId.trim().length > 0
+      );
+    });
+    if (textbookMatch?.courseId) {
+      return textbookMatch.courseId.trim();
+    }
+  }
+
+  const enrolledCourses = (source.academicProfile?.enrolledCourses || [])
+    .map((courseId) => (courseId || '').trim())
+    .filter((courseId) => courseId.length > 0);
+  const uniqueCourses = Array.from(new Set(enrolledCourses));
+  if (uniqueCourses.length === 1) {
+    return uniqueCourses[0];
+  }
+
+  return DEFAULT_SPEEDPASS_COURSE_ID;
+}
+
+function normalizePersistedCourseFields(
+  snapshot: Pick<SpeedPassPersistedState, 'academicProfile' | 'userTextbooks' | 'tutorials'>
+): {
+  userTextbooks: UserTextbook[];
+  tutorials: Record<string, SpeedLearningTutorial>;
+} {
+  const sourceUserTextbooks = snapshot.userTextbooks || [];
+  const userTextbooks = sourceUserTextbooks.map((entry) => ({
+    ...entry,
+    courseId: resolveSpeedPassCourseId(
+      {
+        academicProfile: snapshot.academicProfile,
+        userTextbooks: sourceUserTextbooks,
+      },
+      entry.textbookId,
+      entry.courseId
+    ),
+  }));
+
+  const tutorials = Object.entries(snapshot.tutorials || {}).reduce<
+    Record<string, SpeedLearningTutorial>
+  >((accumulator, [tutorialId, tutorial]) => {
+    accumulator[tutorialId] = {
+      ...tutorial,
+      userId: resolveSpeedPassUserId(tutorial.userId),
+      courseId: resolveSpeedPassCourseId(
+        {
+          academicProfile: snapshot.academicProfile,
+          userTextbooks,
+        },
+        tutorial.textbookId,
+        tutorial.courseId
+      ),
+    };
+    return accumulator;
+  }, {});
+
+  return {
+    userTextbooks,
+    tutorials,
+  };
+}
+
+const MAX_EVENT_STATEMENTS = 2000;
+
+function trimEventStatements(
+  statements: Record<string, SpeedPassEventStatement>
+): Record<string, SpeedPassEventStatement> {
+  const values = Object.values(statements);
+  if (values.length <= MAX_EVENT_STATEMENTS) {
+    return statements;
+  }
+
+  const retained = values
+    .sort((left, right) => left.timestamp.localeCompare(right.timestamp))
+    .slice(values.length - MAX_EVENT_STATEMENTS);
+  return retained.reduce<Record<string, SpeedPassEventStatement>>((accumulator, current) => {
+    accumulator[current.id] = current;
+    return accumulator;
+  }, {});
+}
+
+function toEventStatementRecord(
+  statements: SpeedPassEventStatement[]
+): Record<string, SpeedPassEventStatement> {
+  return statements.reduce<Record<string, SpeedPassEventStatement>>((accumulator, statement) => {
+    if (statement?.id) {
+      accumulator[statement.id] = statement;
+    }
+    return accumulator;
+  }, {});
+}
+
+function migratePersistedEventStatements(
+  candidate: unknown
+): Record<string, SpeedPassEventStatement> {
+  if (!candidate) {
+    return {};
+  }
+
+  if (typeof candidate === 'string') {
+    const parsed = parseXApiPayload(candidate);
+    return toEventStatementRecord(parsed.importedStatements);
+  }
+
+  if (Array.isArray(candidate)) {
+    const parsed = parseXApiPayload(JSON.stringify(candidate));
+    return toEventStatementRecord(parsed.importedStatements);
+  }
+
+  if (typeof candidate === 'object') {
+    const maybeRecord = candidate as Record<string, SpeedPassEventStatement>;
+    if (Object.values(maybeRecord).every((value) => value && typeof value === 'object')) {
+      return maybeRecord;
+    }
+  }
+
+  return {};
+}
+
 export function extractSpeedPassPersistedState(
   state: PersistedSpeedPassFields
 ): SpeedPassPersistedState {
+  const normalized = normalizePersistedCourseFields({
+    academicProfile: state.academicProfile,
+    userTextbooks: state.userTextbooks,
+    tutorials: state.tutorials,
+  });
+
   return {
     academicProfile: state.academicProfile,
     textbooks: state.textbooks,
     textbookChapters: state.textbookChapters,
     textbookKnowledgePoints: state.textbookKnowledgePoints,
     textbookQuestions: state.textbookQuestions,
-    userTextbooks: state.userTextbooks,
+    userTextbooks: normalized.userTextbooks,
     courseTextbookMappings: state.courseTextbookMappings,
-    tutorials: state.tutorials,
+    tutorials: normalized.tutorials,
     studySessions: state.studySessions,
     quizzes: state.quizzes,
     wrongQuestions: state.wrongQuestions,
     studyReports: state.studyReports,
+    eventStatements: state.eventStatements,
     globalStats: state.globalStats,
     userProfile: state.userProfile,
   };
@@ -535,12 +691,33 @@ export const useSpeedPassStore = create<SpeedPassState>()(
           return;
         }
 
+        const resolvedProfile = {
+          ...profile,
+          id: resolveSpeedPassUserId(profile.id),
+        };
         set({
-          userProfile: {
-            ...profile,
-            id: resolveSpeedPassUserId(profile.id),
-          },
+          userProfile: resolvedProfile,
         });
+        get().appendEventStatement(
+          createSpeedPassEventStatement({
+            actorId: resolvedProfile.id,
+            actorName: resolvedProfile.displayName,
+            verb: 'initialized',
+            object: {
+              id: 'speedpass-settings',
+              type: 'settings',
+              name: 'SpeedPass Settings',
+            },
+            result: {
+              success: true,
+              extensions: {
+                preferredMode: resolvedProfile.preferredMode,
+                dailyStudyTarget: resolvedProfile.dailyStudyTarget,
+                reminderEnabled: resolvedProfile.reminderEnabled,
+              },
+            },
+          })
+        );
       },
 
       // ========================================================================
@@ -651,10 +828,12 @@ export const useSpeedPassStore = create<SpeedPassState>()(
       },
 
       addUserTextbook: (input) => {
+        const state = get();
         const userTextbook: UserTextbook = {
           id: nanoid(),
           ...input,
           userId: resolveSpeedPassUserId(input.userId),
+          courseId: resolveSpeedPassCourseId(state, input.textbookId, input.courseId),
           addedAt: new Date(),
         };
         set((state) => ({
@@ -819,7 +998,7 @@ export const useSpeedPassStore = create<SpeedPassState>()(
             questions,
             mode: input.mode,
             userId: resolveSpeedPassUserId(input.userId || state.userProfile?.id),
-            courseId: input.courseId || '',
+            courseId: resolveSpeedPassCourseId(state, input.textbookId, input.courseId),
           });
 
           // Override the generated ID with nanoid for consistency
@@ -834,6 +1013,27 @@ export const useSpeedPassStore = create<SpeedPassState>()(
             currentTutorialId: tutorial.id,
             isLoading: false,
           }));
+          get().appendEventStatement(
+            createSpeedPassEventStatement({
+              actorId: resolveSpeedPassUserId(state.userProfile?.id || input.userId),
+              actorName: state.userProfile?.displayName,
+              verb: 'initialized',
+              object: {
+                id: tutorial.id,
+                type: 'tutorial',
+                name: tutorial.title,
+              },
+              context: {
+                textbookId: tutorial.textbookId,
+                tutorialId: tutorial.id,
+                mode: tutorial.mode,
+              },
+              result: {
+                success: true,
+                durationMs: tutorial.totalEstimatedMinutes * 60 * 1000,
+              },
+            })
+          );
 
           return tutorial;
         } catch (error) {
@@ -883,6 +1083,8 @@ export const useSpeedPassStore = create<SpeedPassState>()(
       },
 
       completeTutorial: (tutorialId) => {
+        const userProfile = get().userProfile;
+        const tutorial = get().tutorials[tutorialId];
         set((state) => {
           const tutorial = state.tutorials[tutorialId];
           if (!tutorial) return state;
@@ -903,6 +1105,32 @@ export const useSpeedPassStore = create<SpeedPassState>()(
             },
           };
         });
+
+        if (tutorial) {
+          get().appendEventStatement(
+            createSpeedPassEventStatement({
+              actorId: resolveSpeedPassUserId(userProfile?.id),
+              actorName: userProfile?.displayName,
+              verb: 'completed',
+              object: {
+                id: tutorialId,
+                type: 'tutorial',
+                name: tutorial.title,
+              },
+              context: {
+                textbookId: tutorial.textbookId,
+                tutorialId,
+                mode: tutorial.mode,
+              },
+              result: {
+                success: true,
+                extensions: {
+                  progress: 100,
+                },
+              },
+            })
+          );
+        }
       },
 
       deleteTutorial: (tutorialId) => {
@@ -925,6 +1153,7 @@ export const useSpeedPassStore = create<SpeedPassState>()(
         if (!tutorial) {
           throw new Error('Tutorial not found');
         }
+        const userProfile = get().userProfile;
 
         const session: SpeedStudySession = {
           id: nanoid(),
@@ -943,6 +1172,27 @@ export const useSpeedPassStore = create<SpeedPassState>()(
           studySessions: { ...state.studySessions, [session.id]: session },
           currentSessionId: session.id,
         }));
+        get().appendEventStatement(
+          createSpeedPassEventStatement({
+            actorId: session.userId,
+            actorName: userProfile?.displayName,
+            verb: 'initialized',
+            object: {
+              id: session.id,
+              type: 'session',
+              name: 'SpeedPass Study Session',
+            },
+            context: {
+              tutorialId,
+              sessionId: session.id,
+              textbookId: tutorial.textbookId,
+              mode: tutorial.mode,
+            },
+            result: {
+              success: true,
+            },
+          })
+        );
 
         return session;
       },
@@ -1140,6 +1390,7 @@ export const useSpeedPassStore = create<SpeedPassState>()(
       },
 
       answerQuestion: (quizId, questionIndex, answer) => {
+        const userProfile = get().userProfile;
         set((state) => {
           const quiz = state.quizzes[quizId];
           if (!quiz || !quiz.questions[questionIndex]) return state;
@@ -1160,6 +1411,7 @@ export const useSpeedPassStore = create<SpeedPassState>()(
             userAnswer: answer,
             isCorrect,
             attemptedAt: new Date(),
+            timeSpentMs: question.timeSpentMs || 0,
           };
 
           return {
@@ -1172,6 +1424,36 @@ export const useSpeedPassStore = create<SpeedPassState>()(
             },
           };
         });
+
+        const answeredQuiz = get().quizzes[quizId];
+        const answeredQuestion = answeredQuiz?.questions[questionIndex];
+        if (answeredQuestion) {
+          get().appendEventStatement(
+            createSpeedPassEventStatement({
+              actorId: resolveSpeedPassUserId(userProfile?.id),
+              actorName: userProfile?.displayName,
+              verb: 'answered',
+              object: {
+                id: answeredQuestion.sourceQuestion.id,
+                type: 'question',
+                name: answeredQuestion.sourceQuestion.questionNumber,
+              },
+              context: {
+                quizId,
+                questionId: answeredQuestion.sourceQuestion.id,
+                textbookId: answeredQuestion.sourceQuestion.textbookId,
+              },
+              result: {
+                success: answeredQuestion.isCorrect,
+                response: answer,
+                durationMs: answeredQuestion.timeSpentMs,
+                extensions: {
+                  hintsUsed: answeredQuestion.hintsUsed,
+                },
+              },
+            })
+          );
+        }
       },
 
       useHint: (quizId, questionIndex) => {
@@ -1254,6 +1536,7 @@ export const useSpeedPassStore = create<SpeedPassState>()(
       },
 
       completeQuiz: (quizId) => {
+        const userProfile = get().userProfile;
         set((state) => {
           const quiz = state.quizzes[quizId];
           if (!quiz) return state;
@@ -1269,19 +1552,56 @@ export const useSpeedPassStore = create<SpeedPassState>()(
             attemptedQuestions.length > 0
               ? Math.round((correctQuestions.length / attemptedQuestions.length) * 100)
               : 0;
+          const now = new Date();
+
+          const mergedWrongQuestions = { ...state.wrongQuestions };
+          for (const question of attemptedQuestions.filter((entry) => entry.isCorrect === false)) {
+            const existingRecord = Object.values(mergedWrongQuestions).find(
+              (record) => record.questionId === question.sourceQuestion.id
+            );
+            const attemptPayload = {
+              attemptedAt: question.attemptedAt || now,
+              userAnswer: question.userAnswer || '',
+              isCorrect: false,
+              timeSpentMs: question.timeSpentMs || 0,
+            };
+
+            if (existingRecord) {
+              mergedWrongQuestions[existingRecord.id] = {
+                ...existingRecord,
+                attempts: [...existingRecord.attempts, attemptPayload],
+                status: 'reviewing',
+                updatedAt: now,
+              };
+            } else {
+              const wrongRecord: WrongQuestionRecord = {
+                id: nanoid(),
+                userId: resolveSpeedPassUserId(state.userProfile?.id),
+                questionId: question.sourceQuestion.id,
+                textbookId: question.sourceQuestion.textbookId,
+                attempts: [attemptPayload],
+                status: 'new',
+                reviewCount: 0,
+                createdAt: now,
+                updatedAt: now,
+              };
+              mergedWrongQuestions[wrongRecord.id] = wrongRecord;
+            }
+          }
 
           return {
             quizzes: {
               ...state.quizzes,
               [quizId]: {
                 ...quiz,
-                completedAt: new Date(),
+                completedAt: now,
                 totalScore: score,
                 maxScore: quiz.questions.length,
                 accuracy,
                 wrongQuestionIds,
               },
             },
+            wrongQuestions: mergedWrongQuestions,
             currentQuizId: state.currentQuizId === quizId ? null : state.currentQuizId,
             globalStats: {
               ...state.globalStats,
@@ -1299,6 +1619,48 @@ export const useSpeedPassStore = create<SpeedPassState>()(
             },
           };
         });
+
+        const completedQuiz = get().quizzes[quizId];
+        if (!completedQuiz) {
+          return;
+        }
+        const attemptedQuestions = completedQuiz.questions.filter((question) => question.userAnswer !== undefined);
+        const correctAnswers = completedQuiz.questions.filter((question) => question.isCorrect === true).length;
+        const wrongAnswers = attemptedQuestions.length - correctAnswers;
+
+        get().appendEventStatement(
+          createSpeedPassEventStatement({
+            actorId: resolveSpeedPassUserId(userProfile?.id),
+            actorName: userProfile?.displayName,
+            verb: 'completed',
+            object: {
+              id: quizId,
+              type: 'quiz',
+              name: completedQuiz.title,
+            },
+            context: {
+              quizId,
+              mode: userProfile?.preferredMode,
+            },
+            result: {
+              success: wrongAnswers === 0,
+              score: {
+                raw: correctAnswers,
+                min: 0,
+                max: completedQuiz.questions.length,
+                scaled:
+                  completedQuiz.questions.length > 0
+                    ? correctAnswers / completedQuiz.questions.length
+                    : 0,
+              },
+              extensions: {
+                attemptedQuestions: attemptedQuestions.length,
+                wrongQuestions: wrongAnswers,
+                accuracy: completedQuiz.accuracy || 0,
+              },
+            },
+          })
+        );
       },
 
       getQuizResults: (quizId) => {
@@ -1375,6 +1737,7 @@ export const useSpeedPassStore = create<SpeedPassState>()(
       },
 
       markWrongQuestionReviewed: (recordId, isCorrect) => {
+        const userProfile = get().userProfile;
         set((state) => {
           const record = state.wrongQuestions[recordId];
           if (!record) return state;
@@ -1412,6 +1775,37 @@ export const useSpeedPassStore = create<SpeedPassState>()(
             },
           };
         });
+
+        const updatedRecord = get().wrongQuestions[recordId];
+        if (updatedRecord) {
+          get().appendEventStatement(
+            createSpeedPassEventStatement({
+              actorId: resolveSpeedPassUserId(userProfile?.id),
+              actorName: userProfile?.displayName,
+              verb: isCorrect
+                ? updatedRecord.status === 'mastered'
+                  ? 'mastered'
+                  : 'experienced'
+                : 'failed',
+              object: {
+                id: updatedRecord.questionId,
+                type: 'wrong-question',
+                name: updatedRecord.questionId,
+              },
+              context: {
+                questionId: updatedRecord.questionId,
+                textbookId: updatedRecord.textbookId,
+              },
+              result: {
+                success: isCorrect,
+                extensions: {
+                  reviewCount: updatedRecord.reviewCount,
+                  status: updatedRecord.status,
+                },
+              },
+            })
+          );
+        }
       },
 
       getWrongQuestionsForReview: () => {
@@ -1499,25 +1893,85 @@ export const useSpeedPassStore = create<SpeedPassState>()(
 
       setError: (error) => set({ error }),
       setLoading: (loading) => set({ isLoading: loading }),
-      hydrateFromSnapshot: (snapshot) =>
+      appendEventStatement: (statement) =>
         set((state) => ({
-          ...state,
-          ...snapshot,
-          userProfile: snapshot.userProfile
-            ? {
-                ...snapshot.userProfile,
-                id: resolveSpeedPassUserId(snapshot.userProfile.id),
-              }
-            : null,
-          error: null,
-          isLoading: false,
+          eventStatements: trimEventStatements({
+            ...state.eventStatements,
+            [statement.id]: statement,
+          }),
         })),
+      exportEventStatements: () =>
+        serializeSpeedPassEventStatements(get().eventStatements, {
+          format: isLearningInteropV2Enabled() ? 'xapi' : 'speedpass',
+        }),
+      hydrateFromSnapshot: (snapshot) =>
+        set((state) => {
+          const normalizedCourseFields = normalizePersistedCourseFields({
+            academicProfile: snapshot.academicProfile,
+            userTextbooks: snapshot.userTextbooks || [],
+            tutorials: snapshot.tutorials || {},
+          });
+
+          return {
+            ...state,
+            ...snapshot,
+            tutorials: normalizedCourseFields.tutorials,
+            userTextbooks: normalizedCourseFields.userTextbooks,
+            userProfile: snapshot.userProfile
+              ? {
+                  ...snapshot.userProfile,
+                  id: resolveSpeedPassUserId(snapshot.userProfile.id),
+                }
+              : null,
+            eventStatements: snapshot.eventStatements || {},
+            error: null,
+            isLoading: false,
+          };
+        }),
 
       reset: () => set(initialState),
     }),
     {
       name: 'cognia-speedpass',
+      version: 3,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState, version) => {
+        const state = (persistedState || {}) as Record<string, unknown>;
+        const legacyEvents =
+          state.eventStatements ??
+          state.xapiStatements ??
+          state.speedpassStatements ??
+          state.speedPassEvents;
+
+        if (version < 2 || !state.eventStatements) {
+          state.eventStatements = trimEventStatements(migratePersistedEventStatements(legacyEvents));
+        }
+
+        if (version < 3) {
+          const rawUserTextbooks = state.userTextbooks;
+          const rawTutorials = state.tutorials;
+          const normalized = normalizePersistedCourseFields({
+            academicProfile: (state.academicProfile as UserAcademicProfile | null) || null,
+            userTextbooks: Array.isArray(rawUserTextbooks) ? (rawUserTextbooks as UserTextbook[]) : [],
+            tutorials:
+              rawTutorials && typeof rawTutorials === 'object'
+                ? (rawTutorials as Record<string, SpeedLearningTutorial>)
+                : {},
+          });
+          state.userTextbooks = normalized.userTextbooks;
+          state.tutorials = normalized.tutorials;
+
+          const userProfile = state.userProfile as SpeedPassPersistedState['userProfile'] | undefined;
+          if (userProfile?.id) {
+            state.userProfile = {
+              ...userProfile,
+              id: resolveSpeedPassUserId(userProfile.id),
+            };
+          }
+        }
+
+        return state;
+      },
       partialize: (state) => extractSpeedPassPersistedState(state),
     }
   )

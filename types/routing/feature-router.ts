@@ -203,6 +203,24 @@ export interface FeatureNavigationContext {
   from: string;
   /** Timestamp */
   timestamp: number;
+  /** Optional speedpass context (legacy flat fields kept for backward compatibility) */
+  speedpassContext?: {
+    textbookId?: string;
+    availableTimeMinutes?: number;
+    targetScore?: number;
+    examDate?: string;
+    recommendedMode?: 'extreme' | 'speed' | 'comprehensive';
+  };
+  /** @deprecated use speedpassContext.textbookId */
+  textbookId?: string;
+  /** @deprecated use speedpassContext.availableTimeMinutes */
+  availableTimeMinutes?: number;
+  /** @deprecated use speedpassContext.targetScore */
+  targetScore?: number;
+  /** @deprecated use speedpassContext.examDate */
+  examDate?: string;
+  /** @deprecated use speedpassContext.recommendedMode */
+  recommendedMode?: 'extreme' | 'speed' | 'comprehensive';
   /** Additional metadata */
   metadata?: Record<string, unknown>;
 }

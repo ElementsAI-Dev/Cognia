@@ -17,6 +17,33 @@ const GOOGLE_ACCESS_TOKEN_KEY = 'sync:google:access_token';
 const GOOGLE_REFRESH_TOKEN_KEY = 'sync:google:refresh_token';
 const GOOGLE_TOKEN_EXPIRY_KEY = 'sync:google:token_expiry';
 
+async function storeSecureValue(key: string, value: string): Promise<boolean> {
+  try {
+    const { storeSecret } = await import('@/lib/native/stronghold');
+    return await storeSecret(key, value);
+  } catch {
+    return false;
+  }
+}
+
+async function getSecureValue(key: string): Promise<string | null> {
+  try {
+    const { getSecret } = await import('@/lib/native/stronghold');
+    return await getSecret(key);
+  } catch {
+    return null;
+  }
+}
+
+async function removeSecureValue(key: string): Promise<boolean> {
+  try {
+    const { removeSecret } = await import('@/lib/native/stronghold');
+    return await removeSecret(key);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Store WebDAV password securely
  */
@@ -32,11 +59,8 @@ export async function storeWebDAVPassword(password: string): Promise<boolean> {
   }
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('stronghold_store_sync_credential', {
-      key: WEBDAV_PASSWORD_KEY,
-      value: password,
-    });
+    const stored = await storeSecureValue(WEBDAV_PASSWORD_KEY, password);
+    if (!stored) throw new Error('Stronghold store failed');
     return true;
   } catch (error) {
     log.error('Failed to store WebDAV password', error as Error);
@@ -71,10 +95,7 @@ export async function getWebDAVPassword(): Promise<string | null> {
   }
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const password = await invoke<string | null>('stronghold_get_sync_credential', {
-      key: WEBDAV_PASSWORD_KEY,
-    });
+    const password = await getSecureValue(WEBDAV_PASSWORD_KEY);
     return password;
   } catch (error) {
     log.error('Failed to get WebDAV password', error as Error);
@@ -106,10 +127,7 @@ export async function removeWebDAVPassword(): Promise<boolean> {
   }
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('stronghold_remove_sync_credential', {
-      key: WEBDAV_PASSWORD_KEY,
-    });
+    await removeSecureValue(WEBDAV_PASSWORD_KEY);
     localStorage.removeItem(WEBDAV_PASSWORD_KEY);
     return true;
   } catch (error) {
@@ -134,11 +152,8 @@ export async function storeGitHubToken(token: string): Promise<boolean> {
   }
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('stronghold_store_sync_credential', {
-      key: GITHUB_TOKEN_KEY,
-      value: token,
-    });
+    const stored = await storeSecureValue(GITHUB_TOKEN_KEY, token);
+    if (!stored) throw new Error('Stronghold store failed');
     return true;
   } catch (error) {
     log.error('Failed to store GitHub token', error as Error);
@@ -171,10 +186,7 @@ export async function getGitHubToken(): Promise<string | null> {
   }
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const token = await invoke<string | null>('stronghold_get_sync_credential', {
-      key: GITHUB_TOKEN_KEY,
-    });
+    const token = await getSecureValue(GITHUB_TOKEN_KEY);
     return token;
   } catch (error) {
     log.error('Failed to get GitHub token', error as Error);
@@ -206,10 +218,7 @@ export async function removeGitHubToken(): Promise<boolean> {
   }
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('stronghold_remove_sync_credential', {
-      key: GITHUB_TOKEN_KEY,
-    });
+    await removeSecureValue(GITHUB_TOKEN_KEY);
     localStorage.removeItem(GITHUB_TOKEN_KEY);
     return true;
   } catch (error) {
@@ -262,19 +271,12 @@ export async function storeGoogleTokens(
   }
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('stronghold_store_sync_credential', {
-      key: GOOGLE_ACCESS_TOKEN_KEY,
-      value: accessToken,
-    });
-    await invoke('stronghold_store_sync_credential', {
-      key: GOOGLE_REFRESH_TOKEN_KEY,
-      value: refreshToken,
-    });
-    await invoke('stronghold_store_sync_credential', {
-      key: GOOGLE_TOKEN_EXPIRY_KEY,
-      value: String(expiresAt),
-    });
+    const accessStored = await storeSecureValue(GOOGLE_ACCESS_TOKEN_KEY, accessToken);
+    const refreshStored = await storeSecureValue(GOOGLE_REFRESH_TOKEN_KEY, refreshToken);
+    const expiryStored = await storeSecureValue(GOOGLE_TOKEN_EXPIRY_KEY, String(expiresAt));
+    if (!accessStored || !refreshStored || !expiryStored) {
+      throw new Error('Stronghold store failed');
+    }
     return true;
   } catch (error) {
     log.error('Failed to store Google tokens', error as Error);
@@ -307,15 +309,11 @@ export async function updateGoogleAccessToken(
   }
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('stronghold_store_sync_credential', {
-      key: GOOGLE_ACCESS_TOKEN_KEY,
-      value: accessToken,
-    });
-    await invoke('stronghold_store_sync_credential', {
-      key: GOOGLE_TOKEN_EXPIRY_KEY,
-      value: String(expiresAt),
-    });
+    const accessStored = await storeSecureValue(GOOGLE_ACCESS_TOKEN_KEY, accessToken);
+    const expiryStored = await storeSecureValue(GOOGLE_TOKEN_EXPIRY_KEY, String(expiresAt));
+    if (!accessStored || !expiryStored) {
+      throw new Error('Stronghold store failed');
+    }
     return true;
   } catch (error) {
     log.error('Failed to update Google access token', error as Error);
@@ -348,10 +346,7 @@ export async function getGoogleAccessToken(): Promise<string | null> {
   }
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const token = await invoke<string | null>('stronghold_get_sync_credential', {
-      key: GOOGLE_ACCESS_TOKEN_KEY,
-    });
+    const token = await getSecureValue(GOOGLE_ACCESS_TOKEN_KEY);
     return token;
   } catch (error) {
     log.error('Failed to get Google access token', error as Error);
@@ -388,10 +383,7 @@ export async function getGoogleRefreshToken(): Promise<string | null> {
   }
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const token = await invoke<string | null>('stronghold_get_sync_credential', {
-      key: GOOGLE_REFRESH_TOKEN_KEY,
-    });
+    const token = await getSecureValue(GOOGLE_REFRESH_TOKEN_KEY);
     return token;
   } catch (error) {
     log.error('Failed to get Google refresh token', error as Error);
@@ -423,10 +415,7 @@ export async function getGoogleTokenExpiry(): Promise<number | null> {
   }
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const expiry = await invoke<string | null>('stronghold_get_sync_credential', {
-      key: GOOGLE_TOKEN_EXPIRY_KEY,
-    });
+    const expiry = await getSecureValue(GOOGLE_TOKEN_EXPIRY_KEY);
     return expiry ? parseInt(expiry, 10) : null;
   } catch (error) {
     log.error('Failed to get Google token expiry', error as Error);
@@ -466,16 +455,9 @@ export async function removeGoogleTokens(): Promise<boolean> {
   }
 
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('stronghold_remove_sync_credential', {
-      key: GOOGLE_ACCESS_TOKEN_KEY,
-    });
-    await invoke('stronghold_remove_sync_credential', {
-      key: GOOGLE_REFRESH_TOKEN_KEY,
-    });
-    await invoke('stronghold_remove_sync_credential', {
-      key: GOOGLE_TOKEN_EXPIRY_KEY,
-    });
+    await removeSecureValue(GOOGLE_ACCESS_TOKEN_KEY);
+    await removeSecureValue(GOOGLE_REFRESH_TOKEN_KEY);
+    await removeSecureValue(GOOGLE_TOKEN_EXPIRY_KEY);
     localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
     localStorage.removeItem(GOOGLE_REFRESH_TOKEN_KEY);
     localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);

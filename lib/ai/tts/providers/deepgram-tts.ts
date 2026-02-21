@@ -16,6 +16,7 @@ export interface DeepgramTTSOptions {
   apiKey: string;
   voice?: DeepgramTTSVoice;
   encoding?: 'mp3' | 'linear16' | 'aac' | 'opus' | 'flac';
+  container?: 'none' | 'wav';
   sampleRate?: number;
 }
 
@@ -30,6 +31,7 @@ export async function generateDeepgramTTS(
     apiKey,
     voice = 'aura-2-asteria-en',
     encoding = 'mp3',
+    container,
     sampleRate,
   } = options;
 
@@ -56,6 +58,9 @@ export async function generateDeepgramTTS(
       model: voice,
       encoding,
     });
+    if (container) {
+      params.set('container', container);
+    }
     if (sampleRate) {
       params.set('sample_rate', String(sampleRate));
     }
@@ -110,6 +115,8 @@ export async function generateDeepgramTTSViaApi(
   const {
     voice = 'aura-2-asteria-en',
     encoding = 'mp3',
+    container,
+    sampleRate,
   } = options;
 
   try {
@@ -122,6 +129,8 @@ export async function generateDeepgramTTSViaApi(
         text,
         voice,
         encoding,
+        container,
+        sampleRate,
       }),
     });
 
@@ -134,11 +143,12 @@ export async function generateDeepgramTTSViaApi(
     }
 
     const audioData = await response.arrayBuffer();
+    const mimeType = response.headers.get('content-type') || 'audio/mpeg';
 
     return {
       success: true,
       audioData,
-      mimeType: 'audio/mpeg',
+      mimeType,
     };
   } catch (error) {
     log.error('Deepgram TTS API error', error as Error);
@@ -161,6 +171,7 @@ export async function streamDeepgramTTS(
     apiKey,
     voice = 'aura-2-asteria-en',
     encoding = 'linear16',
+    container = 'wav',
   } = options;
 
   if (!apiKey) {
@@ -174,6 +185,7 @@ export async function streamDeepgramTTS(
     const params = new URLSearchParams({
       model: voice,
       encoding,
+      container,
     });
 
     const response = await proxyFetch(`${DEEPGRAM_API_BASE}?${params.toString()}`, {

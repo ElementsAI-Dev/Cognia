@@ -468,8 +468,8 @@ export function useSelectionToolbar() {
     async (replacementText: string) => {
       if (!isTauri()) return;
       try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('selection_replace_text', { text: replacementText });
+        const { replaceSelectedText } = await import('@/lib/native/selection');
+        await replaceSelectedText(replacementText);
       } catch (e) {
         log.error('Failed to replace selected text', e as Error);
       }

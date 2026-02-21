@@ -25,7 +25,7 @@ jest.mock('@/stores', () => ({
 
 // Mock UI components - inline to avoid hoisting issues
 jest.mock('@/components/ui/command', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   const React = require('react');
   return {
     Command: ({ children }: { children: React.ReactNode }) => <div data-testid="command">{children}</div>,

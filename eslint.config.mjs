@@ -9,6 +9,7 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    ".next-*/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
@@ -39,6 +40,19 @@ const eslintConfig = defineConfig([
       "react/forbid-dom-props": "off",
       // Allow <li> without parent context check (react-markdown handles this)
       "jsx-a11y/html-has-lang": "off",
+    },
+  },
+  {
+    files: ["**/*.test.ts", "**/*.test.tsx"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+  {
+    files: ["next.config.ts"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
 ]);

@@ -155,7 +155,14 @@
         "address": "Server Address",
         "addressPlaceholder": "localhost:19530",
         "token": "Token (optional)",
-        "tokenPlaceholder": "Enter token if required"
+        "tokenPlaceholder": "Enter token if required",
+        "username": "Username (optional)",
+        "usernamePlaceholder": "Enter username if required",
+        "password": "Password (optional)",
+        "passwordPlaceholder": "Enter password if required",
+        "ssl": "TLS / SSL",
+        "sslEnabled": "Enabled",
+        "sslDisabled": "Disabled"
       }
     },
     "embedding": {

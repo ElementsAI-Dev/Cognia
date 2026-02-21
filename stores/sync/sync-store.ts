@@ -56,6 +56,13 @@ function getDefaultDeviceName(): string {
   return 'Cognia Device';
 }
 
+async function getInitializedSyncManager(provider: SyncProviderType | null) {
+  const { getSyncManager } = await import('@/lib/sync');
+  const manager = getSyncManager();
+  const initialized = await manager.ensureProviderInitialized(provider);
+  return { manager, initialized };
+}
+
 const initialState: SyncState = {
   // Provider configurations
   webdavConfig: { ...DEFAULT_WEBDAV_CONFIG },
@@ -144,9 +151,10 @@ export const useSyncStore = create<SyncStore>()(
         set({ status: 'syncing', lastError: null });
 
         try {
-          // Import sync manager dynamically to avoid circular dependencies
-          const { getSyncManager } = await import('@/lib/sync');
-          const manager = getSyncManager();
+          const { manager, initialized } = await getInitializedSyncManager(activeProvider);
+          if (!initialized.success) {
+            throw new Error(initialized.error || 'Sync provider is not initialized');
+          }
           
           const result = await manager.sync(direction, (progress) => {
             set({ progress });
@@ -220,8 +228,13 @@ export const useSyncStore = create<SyncStore>()(
         }
 
         try {
-          const { getSyncManager } = await import('@/lib/sync');
-          const manager = getSyncManager();
+          const { manager, initialized } = await getInitializedSyncManager(activeProvider);
+          if (!initialized.success) {
+            return {
+              success: false,
+              error: initialized.error || 'No credentials configured for active sync provider',
+            };
+          }
           return await manager.testConnection();
         } catch (error) {
           return {
@@ -265,8 +278,10 @@ export const useSyncStore = create<SyncStore>()(
         }
 
         try {
-          const { getSyncManager } = await import('@/lib/sync');
-          const manager = getSyncManager();
+          const { manager, initialized } = await getInitializedSyncManager(activeProvider);
+          if (!initialized.success) {
+            return [];
+          }
           return await manager.listBackups();
         } catch (error) {
           log.error('Failed to list backups', error as Error);
@@ -275,9 +290,16 @@ export const useSyncStore = create<SyncStore>()(
       },
 
       restoreBackup: async (backupId: string): Promise<boolean> => {
+        const { activeProvider } = get();
+        if (!activeProvider) {
+          return false;
+        }
+
         try {
-          const { getSyncManager } = await import('@/lib/sync');
-          const manager = getSyncManager();
+          const { manager, initialized } = await getInitializedSyncManager(activeProvider);
+          if (!initialized.success) {
+            return false;
+          }
           return await manager.restoreBackup(backupId);
         } catch (error) {
           log.error('Failed to restore backup', error as Error);
@@ -286,9 +308,16 @@ export const useSyncStore = create<SyncStore>()(
       },
 
       deleteBackup: async (backupId: string): Promise<boolean> => {
+        const { activeProvider } = get();
+        if (!activeProvider) {
+          return false;
+        }
+
         try {
-          const { getSyncManager } = await import('@/lib/sync');
-          const manager = getSyncManager();
+          const { manager, initialized } = await getInitializedSyncManager(activeProvider);
+          if (!initialized.success) {
+            return false;
+          }
           return await manager.deleteBackup(backupId);
         } catch (error) {
           log.error('Failed to delete backup', error as Error);

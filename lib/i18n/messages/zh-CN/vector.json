@@ -155,7 +155,14 @@
         "address": "服务器地址",
         "addressPlaceholder": "localhost:19530",
         "token": "令牌（可选）",
-        "tokenPlaceholder": "如需要请输入令牌"
+        "tokenPlaceholder": "如需要请输入令牌",
+        "username": "用户名（可选）",
+        "usernamePlaceholder": "如需要请输入用户名",
+        "password": "密码（可选）",
+        "passwordPlaceholder": "如需要请输入密码",
+        "ssl": "TLS / SSL",
+        "sslEnabled": "启用",
+        "sslDisabled": "禁用"
       }
     },
     "embedding": {

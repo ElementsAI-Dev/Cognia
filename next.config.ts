@@ -1,12 +1,15 @@
 import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
+const enableStaticExport = process.env.COGNIA_STATIC_EXPORT === "true";
+const buildDistDir = process.env.COGNIA_NEXT_DIST_DIR?.trim();
 
 // Enable static export for Tauri production builds.
 // This makes `pnpm build` generate the `out/` directory that Tauri loads from `src-tauri/tauri.conf.json` (frontendDist: "../out").
 const nextConfig: NextConfig = {
-  // Only use export mode for production builds, not development
-  output: isProd ? "export" : undefined,
+  distDir: buildDistDir && buildDistDir.length > 0 ? buildDistDir : '.next',
+  // Static export is opt-in to avoid blocking standard production builds on dynamic API routes.
+  output: isProd && enableStaticExport ? "export" : undefined,
   // Note: This feature is required to use the Next.js Image component in SSG mode.
   // See https://nextjs.org/docs/messages/export-image-api for different workarounds.
   images: {
@@ -17,7 +20,6 @@ const nextConfig: NextConfig = {
     '@tauri-apps/plugin-fs',
     '@tauri-apps/plugin-dialog', 
     '@tauri-apps/plugin-shell',
-    '@tauri-apps/api',
     '@zilliz/milvus2-sdk-node',
     '@pinecone-database/pinecone',
     'monaco-editor',
@@ -43,6 +45,14 @@ const nextConfig: NextConfig = {
   },
   // Webpack config for production builds (non-Turbopack)
   webpack: (config, { isServer }) => {
+    const webpack = require('webpack');
+    config.plugins = config.plugins || [];
+    config.plugins.push(
+      new webpack.NormalModuleReplacementPlugin(/^node:/, (resource: { request: string }) => {
+        resource.request = resource.request.replace(/^node:/, '');
+      })
+    );
+
     // Handle Node.js-only packages for client-side builds
     if (!isServer) {
       config.resolve.alias = {
@@ -53,6 +63,8 @@ const nextConfig: NextConfig = {
         'playwright': require.resolve('./lib/stubs/playwright-stub.ts'),
         'playwright-core': require.resolve('./lib/stubs/playwright-stub.ts'),
         '@tavily/core': require.resolve('./lib/stubs/tavily-stub.ts'),
+        'node:process': require.resolve('./lib/stubs/process-stub.ts'),
+        process: require.resolve('./lib/stubs/process-stub.ts'),
         'onnxruntime-node': false,
         'sharp': false,
       };

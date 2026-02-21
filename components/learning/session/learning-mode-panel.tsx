@@ -81,6 +81,7 @@ export const LearningModePanel = memo(function LearningModePanel({
   className,
 }: LearningModePanelProps) {
   const t = useTranslations('learningMode');
+  const tSpeedPass = useTranslations('learningMode.speedpass.panel');
   const router = useRouter();
   const {
     learningSession,
@@ -123,12 +124,38 @@ export const LearningModePanel = memo(function LearningModePanel({
         return;
       }
 
+      const activeSpeedPassContext = activeChatSession?.learningContext?.speedpassContext;
       const textbookId =
-        speedPassStore.currentTextbookId || Object.keys(speedPassStore.textbooks)[0] || undefined;
-      const url = buildFeatureNavigationUrl(speedPassRoute, { message, textbookId });
+        activeSpeedPassContext?.textbookId ||
+        speedPassStore.currentTextbookId ||
+        Object.keys(speedPassStore.textbooks)[0] ||
+        undefined;
+      const speedpassContext = {
+        textbookId,
+        availableTimeMinutes: activeSpeedPassContext?.availableTimeMinutes,
+        targetScore: activeSpeedPassContext?.targetScore,
+        examDate: activeSpeedPassContext?.examDate,
+        recommendedMode: activeSpeedPassContext?.recommendedMode || profile.preferredMode,
+      };
+      const url = buildFeatureNavigationUrl(speedPassRoute, {
+        message,
+        speedpassContext,
+        textbookId: speedpassContext.textbookId,
+        availableTimeMinutes: speedpassContext.availableTimeMinutes,
+        targetScore: speedpassContext.targetScore,
+        examDate: speedpassContext.examDate,
+        recommendedMode: speedpassContext.recommendedMode,
+      });
       router.push(url);
     },
-    [router, speedPassRoute, speedPassStore.currentTextbookId, speedPassStore.textbooks]
+    [
+      activeChatSession?.learningContext?.speedpassContext,
+      profile.preferredMode,
+      router,
+      speedPassRoute,
+      speedPassStore.currentTextbookId,
+      speedPassStore.textbooks,
+    ]
   );
 
   const handleEndLearning = useCallback(() => {
@@ -189,11 +216,14 @@ export const LearningModePanel = memo(function LearningModePanel({
           )}
         </div>
         <CardDescription className="line-clamp-2">
-          {shouldShowSpeedPassPanel ? 'SpeedPass 快速备考子模式' : learningSession?.topic}
+          {shouldShowSpeedPassPanel ? tSpeedPass('submodeTitle') : learningSession?.topic}
         </CardDescription>
         <p className="text-xs text-muted-foreground mt-1">
           {shouldShowSpeedPassPanel
-            ? `今日学习 ${todayProgress.studyMinutes}/${todayProgress.targetMinutes} 分钟`
+            ? tSpeedPass('dailyStudy', {
+                studyMinutes: todayProgress.studyMinutes,
+                targetMinutes: todayProgress.targetMinutes,
+              })
             : getStatusLine()}
         </p>
       </CardHeader>
@@ -214,7 +244,7 @@ export const LearningModePanel = memo(function LearningModePanel({
             onClick={() => handleSubModeSwitch('speedpass')}
           >
             <Zap className="h-3.5 w-3.5 mr-1" />
-            SpeedPass
+            {tSpeedPass('submodeSwitcher')}
           </Button>
         </div>
 
@@ -225,16 +255,19 @@ export const LearningModePanel = memo(function LearningModePanel({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Zap className="h-4 w-4 text-primary" />
-                    SpeedPass 快捷面板
+                    {tSpeedPass('quickPanelTitle')}
                   </CardTitle>
                   <CardDescription>
-                    推荐模式：{recommendedMode} · 今日目标 {profile.dailyStudyTarget} 分钟
+                    {tSpeedPass('recommendedModeAndTarget', {
+                      mode: tSpeedPass(`modeLabels.${recommendedMode}`),
+                      targetMinutes: profile.dailyStudyTarget,
+                    })}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                      <span>今日进度</span>
+                      <span>{tSpeedPass('todayProgress')}</span>
                       <span>{todayProgress.percentage}%</span>
                     </div>
                     <Progress value={todayProgress.percentage} className="h-2" />
@@ -243,28 +276,28 @@ export const LearningModePanel = memo(function LearningModePanel({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => navigateToSpeedPass('继续速通过程教程')}
+                      onClick={() => navigateToSpeedPass(tSpeedPass('messages.continueTutorial'))}
                       className="text-xs"
                     >
                       <BookOpen className="h-3.5 w-3.5 mr-1" />
-                      继续教程
+                      {tSpeedPass('actions.continueTutorial')}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => navigateToSpeedPass('开始刷题测验')}
+                      onClick={() => navigateToSpeedPass(tSpeedPass('messages.startQuiz'))}
                       className="text-xs"
                     >
                       <Brain className="h-3.5 w-3.5 mr-1" />
-                      开始刷题
+                      {tSpeedPass('actions.startQuiz')}
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => navigateToSpeedPass('打开 speedpass 工作台')}
+                      onClick={() => navigateToSpeedPass(tSpeedPass('messages.openWorkspace'))}
                       className="text-xs"
                     >
                       <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                      打开工作台
+                      {tSpeedPass('actions.openWorkspace')}
                     </Button>
                   </div>
                 </CardContent>
@@ -273,15 +306,15 @@ export const LearningModePanel = memo(function LearningModePanel({
               <div className="grid grid-cols-2 gap-2">
                 <Card>
                   <CardContent className="pt-4">
-                    <p className="text-xs text-muted-foreground">教材数量</p>
+                    <p className="text-xs text-muted-foreground">{tSpeedPass('textbookCount')}</p>
                     <p className="text-lg font-semibold">{Object.keys(speedPassStore.textbooks).length}</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="pt-4">
-                    <p className="text-xs text-muted-foreground">当前教程</p>
+                    <p className="text-xs text-muted-foreground">{tSpeedPass('currentTutorial')}</p>
                     <p className="text-sm font-medium line-clamp-1">
-                      {activeSpeedPassTutorial?.title || '暂无教程'}
+                      {activeSpeedPassTutorial?.title || tSpeedPass('noTutorial')}
                     </p>
                   </CardContent>
                 </Card>
@@ -478,7 +511,7 @@ export const LearningModePanel = memo(function LearningModePanel({
 
             <TabsContent value="paths" className="h-full mt-2 overflow-auto">
               <ScrollArea className="h-full">
-                <LearningPathDashboard />
+                <LearningPathDashboard pathId={learningSession?.learningPathId} />
               </ScrollArea>
             </TabsContent>
           </div>

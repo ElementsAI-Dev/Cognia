@@ -109,6 +109,10 @@ export function ContextSettingsDialog({
   const setCompressionTokenThreshold = useSettingsStore((state) => state.setCompressionTokenThreshold);
   const setCompressionMessageThreshold = useSettingsStore((state) => state.setCompressionMessageThreshold);
   const setCompressionPreserveRecent = useSettingsStore((state) => state.setCompressionPreserveRecent);
+  const setCompressionRetainedThreshold = useSettingsStore((state) => state.setCompressionRetainedThreshold);
+  const setCompressionPrefixStability = useSettingsStore((state) => state.setCompressionPrefixStability);
+  const chatPromptCacheAlignmentEnabled = useSettingsStore((state) => state.chatPromptCacheAlignmentEnabled);
+  const setChatPromptCacheAlignmentEnabled = useSettingsStore((state) => state.setChatPromptCacheAlignmentEnabled);
 
   // Handle manual compression (support sync and async callbacks)
   const handleManualCompress = useCallback(async () => {
@@ -529,6 +533,37 @@ export function ContextSettingsDialog({
                     <p className="text-xs text-muted-foreground">
                       {t('preserveRecentDesc') || 'Number of recent messages to keep uncompressed'}
                     </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Retained Threshold</span>
+                      <span className="text-sm font-mono">{compressionSettings.retainedThreshold}%</span>
+                    </div>
+                    <Slider
+                      value={[compressionSettings.retainedThreshold]}
+                      onValueChange={([value]) => setCompressionRetainedThreshold(value)}
+                      min={10}
+                      max={90}
+                      step={5}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-md border px-2 py-2">
+                    <span className="text-sm">Prefix Stability</span>
+                    <Switch
+                      checked={compressionSettings.prefixStabilityMode}
+                      onCheckedChange={setCompressionPrefixStability}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-md border px-2 py-2">
+                    <span className="text-sm">Prompt Cache Alignment</span>
+                    <Switch
+                      checked={chatPromptCacheAlignmentEnabled}
+                      onCheckedChange={setChatPromptCacheAlignmentEnabled}
+                    />
                   </div>
 
                   {/* Manual Compress Button */}

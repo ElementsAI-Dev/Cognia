@@ -1383,6 +1383,21 @@ html.bg-anim-parallax body::before {
   transform: translateZ(-1px) scale(1.5);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html.bg-anim-kenburns body::before,
+  html.bg-anim-gradient-shift body::before,
+  html.bg-anim-parallax body::before {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  html.has-bg-renderer [data-bg-render-layer='true'] {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    App Shell and Layout Transparency for Background Image
    ═══════════════════════════════════════════════════════════════════ */

@@ -7,6 +7,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit, type UnlistenFn } from "@tauri-apps/api/event";
 
+const SELECTION_TOOLBAR_THEME_KEY = 'selection:toolbar-theme';
+
 export interface SelectionPayload {
   text: string;
   x: number;
@@ -616,6 +618,13 @@ export async function detectTextType(text: string): Promise<string> {
 }
 
 /**
+ * Replace current selected text in the source application
+ */
+export async function replaceSelectedText(text: string): Promise<void> {
+  return invoke("selection_replace_text", { text });
+}
+
+/**
  * Get toolbar configuration as JSON
  */
 export async function getToolbarConfig(): Promise<Record<string, unknown>> {
@@ -628,7 +637,21 @@ export async function getToolbarConfig(): Promise<Record<string, unknown>> {
 export async function setToolbarTheme(
   theme: "auto" | "light" | "dark" | "glass"
 ): Promise<void> {
-  return invoke("selection_set_theme", { theme });
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(SELECTION_TOOLBAR_THEME_KEY, theme);
+    }
+  } catch {
+    // ignore persistence errors
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('selection-toolbar-theme-changed', {
+        detail: { theme },
+      })
+    );
+  }
 }
 
 /**

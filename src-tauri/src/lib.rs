@@ -4,6 +4,7 @@
 
 mod assistant_bubble;
 mod awareness;
+mod chat_runtime;
 mod chat_widget;
 mod commands;
 mod context;
@@ -20,14 +21,15 @@ mod scheduler;
 mod screen_recording;
 mod screenshot;
 mod selection;
-mod speedpass_runtime;
 mod skill;
 mod skill_seekers;
+mod speedpass_runtime;
 mod tray;
 mod workflow_runtime;
 
 use assistant_bubble::AssistantBubbleWindow;
 use awareness::AwarenessManager;
+use chat_runtime::ChatRuntimeState;
 use chat_widget::ChatWidgetWindow;
 use commands::devtools::jupyter::JupyterState;
 use commands::storage::vector::VectorStoreState;
@@ -46,8 +48,8 @@ use std::sync::Arc;
 #[cfg(not(mobile))]
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager, RunEvent, WindowEvent};
-use workflow_runtime::WorkflowRuntimeState;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
+use workflow_runtime::WorkflowRuntimeState;
 
 /// Prevent running cleanup twice (window destroy and shortcut teardown are idempotent but we guard anyway)
 static CLEANUP_CALLED: AtomicBool = AtomicBool::new(false);
@@ -150,9 +152,11 @@ fn get_cli_workflow_runtime_db_path() -> std::path::PathBuf {
 }
 
 async fn run_execute_script_cli(args: ExecuteScriptCliArgs) -> Result<i32, String> {
-    let code_bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &args.code_b64)
-        .map_err(|error| format!("Invalid code base64 payload: {error}"))?;
-    let code = String::from_utf8(code_bytes).map_err(|error| format!("Invalid UTF-8 code payload: {error}"))?;
+    let code_bytes =
+        base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &args.code_b64)
+            .map_err(|error| format!("Invalid code base64 payload: {error}"))?;
+    let code = String::from_utf8(code_bytes)
+        .map_err(|error| format!("Invalid UTF-8 code payload: {error}"))?;
 
     let sandbox_state = SandboxState::new(get_cli_sandbox_config_path())
         .await
@@ -181,23 +185,21 @@ async fn run_execute_script_cli(args: ExecuteScriptCliArgs) -> Result<i32, Strin
 
         let runtime_state = WorkflowRuntimeState::from_db_path(get_cli_workflow_runtime_db_path())
             .unwrap_or_else(|_| WorkflowRuntimeState::default());
-        let result = workflow_runtime::run_definition(
-            &runtime_state,
-            &sandbox_state,
-            request,
-            None,
-            None,
-        )
-        .await?;
+        let result =
+            workflow_runtime::run_definition(&runtime_state, &sandbox_state, request, None, None)
+                .await?;
         println!(
             "{}",
-            serde_json::to_string(&result).map_err(|error| format!("Serialize result failed: {error}"))?
+            serde_json::to_string(&result)
+                .map_err(|error| format!("Serialize result failed: {error}"))?
         );
-        return Ok(if result.status == workflow_runtime::WorkflowExecutionStatus::Completed {
-            0
-        } else {
-            1
-        });
+        return Ok(
+            if result.status == workflow_runtime::WorkflowExecutionStatus::Completed {
+                0
+            } else {
+                1
+            },
+        );
     }
 
     let mut request = crate::sandbox::ExecutionRequest::new(args.language, code);
@@ -227,7 +229,7 @@ async fn run_execute_script_cli(args: ExecuteScriptCliArgs) -> Result<i32, Strin
 
     Ok(result
         .exit_code
-        .map(|code| if code < 0 { 1 } else { code as i32 })
+        .map(|code| if code < 0 { 1 } else { code })
         .unwrap_or(if has_error { 1 } else { 0 }))
 }
 
@@ -686,7 +688,10 @@ pub fn run() {
                                                 "action": "translate"
                                             }),
                                         );
-                                        log::debug!("Quick translate triggered: {} chars", text.len());
+                                        log::debug!(
+                                            "Quick translate triggered: {} chars",
+                                            text.len()
+                                        );
                                     }
                                 }
                             }
@@ -719,7 +724,10 @@ pub fn run() {
                                                 "action": "explain"
                                             }),
                                         );
-                                        log::debug!("Quick explain triggered: {} chars", text.len());
+                                        log::debug!(
+                                            "Quick explain triggered: {} chars",
+                                            text.len()
+                                        );
                                     }
                                 }
                             }
@@ -758,7 +766,9 @@ pub fn run() {
                     ) {
                         log::error!("Failed to register bubble toggle shortcut: {}", e);
                     } else {
-                        log::info!("Global shortcut registered: Alt+B for bubble visibility toggle");
+                        log::info!(
+                            "Global shortcut registered: Alt+B for bubble visibility toggle"
+                        );
                     }
                 });
 
@@ -861,36 +871,51 @@ pub fn run() {
             });
 
             // Initialize System Scheduler State
-            let scheduler_state = SchedulerState::new();
+            let scheduler_metadata_db_path = app_data_dir.join("system_scheduler.db");
+            let scheduler_state = SchedulerState::new(Some(scheduler_metadata_db_path));
             app.manage(scheduler_state);
             log::info!("System scheduler state initialized");
 
             // Initialize Workflow Runtime State
             let workflow_runtime_db_path = app_data_dir.join("workflow_runtime.db");
-            let workflow_runtime_state =
-                WorkflowRuntimeState::from_db_path(workflow_runtime_db_path)
-                    .unwrap_or_else(|error| {
-                        log::warn!(
-                            "Failed to initialize workflow runtime sqlite storage, fallback to memory: {}",
-                            error
-                        );
-                        WorkflowRuntimeState::default()
-                    });
+            let workflow_runtime_state = WorkflowRuntimeState::from_db_path(
+                workflow_runtime_db_path,
+            )
+            .unwrap_or_else(|error| {
+                log::warn!(
+                    "Failed to initialize workflow runtime sqlite storage, fallback to memory: {}",
+                    error
+                );
+                WorkflowRuntimeState::default()
+            });
             app.manage(workflow_runtime_state);
             log::info!("Workflow runtime state initialized");
 
+            // Initialize Chat Runtime State (SQLite persistence for chat/project/summary domains)
+            let chat_runtime_db_path = app_data_dir.join("chat_runtime.db");
+            let chat_runtime_state = ChatRuntimeState::from_db_path(chat_runtime_db_path)
+                .unwrap_or_else(|error| {
+                    log::warn!(
+                        "Failed to initialize chat runtime sqlite storage, fallback to memory: {}",
+                        error
+                    );
+                    ChatRuntimeState::default()
+                });
+            app.manage(chat_runtime_state);
+            log::info!("Chat runtime state initialized");
+
             // Initialize SpeedPass Runtime State
             let speedpass_runtime_db_path = app_data_dir.join("speedpass_runtime.db");
-            let speedpass_runtime_state =
-                SpeedPassRuntimeState::from_db_path(speedpass_runtime_db_path).unwrap_or_else(
-                    |error| {
-                        log::warn!(
-                            "Failed to initialize speedpass runtime sqlite storage, fallback to memory: {}",
-                            error
-                        );
-                        SpeedPassRuntimeState::default()
-                    },
+            let speedpass_runtime_state = SpeedPassRuntimeState::from_db_path(
+                speedpass_runtime_db_path,
+            )
+            .unwrap_or_else(|error| {
+                log::warn!(
+                    "Failed to initialize speedpass runtime sqlite storage, fallback to memory: {}",
+                    error
                 );
+                SpeedPassRuntimeState::default()
+            });
             app.manage(speedpass_runtime_state);
             log::info!("SpeedPass runtime state initialized");
 
@@ -1066,6 +1091,27 @@ pub fn run() {
             commands::storage::vector::vector_search_points,
             commands::storage::vector::vector_scroll_points,
             commands::storage::vector::vector_stats,
+            // Chat runtime sqlite commands
+            chat_runtime::commands::chat_db_upsert_session,
+            chat_runtime::commands::chat_db_list_sessions,
+            chat_runtime::commands::chat_db_delete_session,
+            chat_runtime::commands::chat_db_clear_sessions,
+            chat_runtime::commands::chat_db_clear_domain_data,
+            chat_runtime::commands::chat_db_upsert_messages_batch,
+            chat_runtime::commands::chat_db_list_messages,
+            chat_runtime::commands::chat_db_get_messages_page,
+            chat_runtime::commands::chat_db_delete_messages_by_session,
+            chat_runtime::commands::chat_db_upsert_project,
+            chat_runtime::commands::chat_db_list_projects,
+            chat_runtime::commands::chat_db_delete_project,
+            chat_runtime::commands::chat_db_upsert_knowledge_files_batch,
+            chat_runtime::commands::chat_db_list_knowledge_files,
+            chat_runtime::commands::chat_db_upsert_summary,
+            chat_runtime::commands::chat_db_list_summaries,
+            chat_runtime::commands::chat_db_delete_summary,
+            chat_runtime::commands::chat_db_delete_summaries_by_session,
+            chat_runtime::commands::chat_db_export_backup,
+            chat_runtime::commands::chat_db_import_backup,
             // Selection toolbar commands
             commands::window::selection::selection_start,
             commands::window::selection::selection_stop,
@@ -1408,13 +1454,28 @@ pub fn run() {
             commands::devtools::lsp::lsp_completion,
             commands::devtools::lsp::lsp_hover,
             commands::devtools::lsp::lsp_definition,
+            commands::devtools::lsp::lsp_references,
+            commands::devtools::lsp::lsp_rename,
+            commands::devtools::lsp::lsp_implementation,
+            commands::devtools::lsp::lsp_type_definition,
+            commands::devtools::lsp::lsp_signature_help,
+            commands::devtools::lsp::lsp_document_highlights,
             commands::devtools::lsp::lsp_document_symbols,
+            commands::devtools::lsp::lsp_inlay_hints,
+            commands::devtools::lsp::lsp_semantic_tokens_full,
             commands::devtools::lsp::lsp_format_document,
             commands::devtools::lsp::lsp_code_actions,
             commands::devtools::lsp::lsp_workspace_symbols,
             commands::devtools::lsp::lsp_execute_command,
             commands::devtools::lsp::lsp_resolve_code_action,
             commands::devtools::lsp::lsp_shutdown_session,
+            commands::devtools::lsp::lsp_registry_search,
+            commands::devtools::lsp::lsp_registry_get_recommended,
+            commands::devtools::lsp::lsp_install_server,
+            commands::devtools::lsp::lsp_uninstall_server,
+            commands::devtools::lsp::lsp_list_installed_servers,
+            commands::devtools::lsp::lsp_get_server_status,
+            commands::devtools::lsp::lsp_resolve_launch,
             // Proxy commands
             commands::system::proxy::proxy_detect_all,
             commands::system::proxy::proxy_test,
@@ -1456,10 +1517,13 @@ pub fn run() {
             commands::media::screen_recording::video_convert,
             commands::media::screen_recording::video_convert_with_progress,
             commands::media::screen_recording::video_get_info,
+            commands::media::screen_recording::video_render_timeline,
+            commands::media::screen_recording::video_render_timeline_with_progress,
             commands::media::screen_recording::video_generate_thumbnail,
             commands::media::screen_recording::video_generate_thumbnail_with_progress,
             commands::media::screen_recording::video_check_encoding_support,
             commands::media::screen_recording::video_cancel_processing,
+            commands::media::screen_recording::video_is_processing,
             // FFmpeg commands
             commands::media::screen_recording::ffmpeg_get_info,
             commands::media::screen_recording::ffmpeg_get_install_guide,
@@ -1724,6 +1788,7 @@ pub fn run() {
             commands::extensions::plugin::plugin_python_module_getattr,
             commands::extensions::plugin::plugin_get_state,
             commands::extensions::plugin::plugin_get_all,
+            commands::extensions::plugin::plugin_runtime_snapshot,
             commands::extensions::plugin::plugin_python_runtime_info,
             commands::extensions::plugin::plugin_python_is_initialized,
             commands::extensions::plugin::plugin_python_get_info,
@@ -1812,6 +1877,58 @@ pub fn run() {
             commands::extensions::plugin::plugin_install_update,
             commands::extensions::plugin::plugin_install_version,
             commands::extensions::plugin::plugin_set_data,
+            // Compatibility commands (deprecated legacy invoke contracts)
+            commands::compatibility::agent_execute,
+            commands::compatibility::agent_cancel,
+            commands::compatibility::get_storage_value,
+            commands::compatibility::set_storage_value,
+            commands::compatibility::delete_storage_value,
+            commands::compatibility::stronghold_store_sync_credential,
+            commands::compatibility::stronghold_get_sync_credential,
+            commands::compatibility::stronghold_remove_sync_credential,
+            commands::compatibility::read_text_file,
+            commands::compatibility::plugin_read_file,
+            commands::compatibility::read_binary_file,
+            commands::compatibility::shell_open,
+            commands::compatibility::selection_set_theme,
+            commands::compatibility::selection_replace_text,
+            commands::compatibility::video_get_subtitle_info,
+            commands::compatibility::video_extract_subtitles,
+            commands::compatibility::video_extract_audio,
+            commands::compatibility::plugin_backup_load_index,
+            commands::compatibility::plugin_backup_get_size,
+            commands::compatibility::plugin_backup_inspect,
+            commands::compatibility::plugin_get_manifest,
+            commands::compatibility::plugin_get_data,
+            commands::compatibility::plugin_list_enabled,
+            commands::compatibility::plugin_list_installed,
+            commands::compatibility::plugin_requires_restart,
+            commands::compatibility::plugin_download_version,
+            commands::compatibility::plugin_marketplace_versions,
+            commands::compatibility::plugin_dev_server_start,
+            commands::compatibility::plugin_build,
+            commands::compatibility::plugin_list_dev_plugins,
+            commands::compatibility::plugin_get_official_publishers,
+            commands::compatibility::plugin_get_user_publishers,
+            commands::compatibility::plugin_read_signature,
+            commands::compatibility::plugin_verify_signature,
+            commands::compatibility::plugin_create_signature,
+            commands::compatibility::plugin_generate_keypair,
+            commands::compatibility::plugin_add_trusted_publisher,
+            commands::compatibility::plugin_remove_trusted_publisher,
+            commands::compatibility::plugin_media_load_video_clip,
+            commands::compatibility::plugin_media_get_video_frame,
+            commands::compatibility::plugin_media_get_video_metadata,
+            commands::compatibility::plugin_media_trim_video,
+            commands::compatibility::plugin_media_concatenate_videos,
+            commands::compatibility::plugin_media_apply_video_effect,
+            commands::compatibility::plugin_media_add_transition,
+            commands::compatibility::plugin_media_export_video,
+            commands::compatibility::plugin_media_ai_upscale,
+            commands::compatibility::plugin_media_ai_remove_background,
+            commands::compatibility::plugin_media_ai_enhance,
+            commands::compatibility::plugin_media_ai_variation,
+            commands::compatibility::plugin_media_ai_inpaint,
             // Skill commands
             commands::extensions::skill::skill_list_repos,
             commands::extensions::skill::skill_add_repo,
@@ -1884,6 +2001,7 @@ pub fn run() {
             commands::input_completion::input_completion_get_config,
             commands::input_completion::input_completion_trigger,
             commands::input_completion::input_completion_trigger_v2,
+            commands::input_completion::input_completion_trigger_v3,
             commands::input_completion::input_completion_is_running,
             commands::input_completion::input_completion_get_stats,
             commands::input_completion::input_completion_reset_stats,
@@ -2412,7 +2530,7 @@ fn perform_full_cleanup(app: &tauri::AppHandle) {
             });
         })
         .join();
-        if let Err(_) = cleanup_result {
+        if cleanup_result.is_err() {
             log::warn!("Async cleanup thread panicked");
         }
     }
@@ -2485,7 +2603,10 @@ fn destroy_all_windows(app: &tauri::AppHandle) {
     // Recording click highlight overlay
     if let Some(manager) = app.try_state::<screen_recording::RecordingClickOverlay>() {
         if let Err(e) = manager.destroy() {
-            log::debug!("Failed to destroy recording click overlay via manager: {}", e);
+            log::debug!(
+                "Failed to destroy recording click overlay via manager: {}",
+                e
+            );
         }
     } else if let Some(window) = app.get_webview_window("recording-click-overlay") {
         let _ = window.hide();

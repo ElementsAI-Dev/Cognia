@@ -416,6 +416,14 @@ export interface TTSResponse {
   error?: string;
 }
 
+export interface TTSNormalizedError {
+  error: string;
+  provider: TTSProvider | 'unknown';
+  status: number;
+  code: string;
+  retriable: boolean;
+}
+
 // TTS playback state
 export type TTSPlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'stopped' | 'error';
 

@@ -1,6 +1,5 @@
-import { db } from '@/lib/db/schema';
 import type { StoreApi } from 'zustand';
-import { dbToStoredSummary } from '../adapters';
+import { unifiedPersistenceService } from '@/lib/storage/persistence/unified-persistence-service';
 import type { SummaryStore, SummaryStoreActions } from '../types';
 
 type SummaryStoreSet = StoreApi<SummaryStore>['setState'];
@@ -20,9 +19,7 @@ export const createSessionSlice = (set: SummaryStoreSet, get: SummaryStoreGet): 
   loadSummariesForSession: async (sessionId) => {
     set({ isLoading: true, error: null });
     try {
-      const dbSummaries = await db.summaries.where('sessionId').equals(sessionId).toArray();
-
-      const summaries = dbSummaries.map(dbToStoredSummary);
+      const summaries = await unifiedPersistenceService.summaries.listBySession(sessionId);
       summaries.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
       set({ summaries, isLoading: false });

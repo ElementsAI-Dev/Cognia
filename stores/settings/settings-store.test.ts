@@ -7,6 +7,7 @@ import {
   useSettingsStore,
   selectTheme,
   selectLanguage,
+  selectEditorSettings,
   selectDefaultProvider,
   selectAgentTraceSettings,
   selectAgentTraceEnabled,
@@ -19,6 +20,19 @@ const mockSecureStoreProviderApiKeys = jest.fn();
 const mockSecureStoreSearchApiKey = jest.fn();
 const mockSecureStoreCustomProviderApiKey = jest.fn();
 const mockSecureRemoveProviderApiKey = jest.fn();
+const mockDeleteBackgroundImageAsset = jest.fn().mockResolvedValue(undefined);
+const mockSaveBackgroundImageAsset = jest.fn().mockResolvedValue({ assetId: 'bg-new' });
+const mockDispatchThemeModeChange = jest.fn();
+const mockDispatchColorPresetChange = jest.fn();
+const mockDispatchCustomThemeActivate = jest.fn();
+
+jest.mock('@/lib/plugin', () => ({
+  getPluginEventHooks: () => ({
+    dispatchThemeModeChange: (...args: unknown[]) => mockDispatchThemeModeChange(...args),
+    dispatchColorPresetChange: (...args: unknown[]) => mockDispatchColorPresetChange(...args),
+    dispatchCustomThemeActivate: (...args: unknown[]) => mockDispatchCustomThemeActivate(...args),
+  }),
+}));
 
 jest.mock('@/lib/native/stronghold-integration', () => ({
   isStrongholdAvailable: () => mockIsStrongholdAvailable(),
@@ -30,6 +44,11 @@ jest.mock('@/lib/native/stronghold-integration', () => ({
   secureRemoveProviderApiKey: (...args: unknown[]) => mockSecureRemoveProviderApiKey(...args),
 }));
 
+jest.mock('@/lib/themes/background-assets', () => ({
+  deleteBackgroundImageAsset: (...args: unknown[]) => mockDeleteBackgroundImageAsset(...args),
+  saveBackgroundImageAsset: (...args: unknown[]) => mockSaveBackgroundImageAsset(...args),
+}));
+
 describe('useSettingsStore', () => {
   beforeEach(() => {
     mockIsStrongholdAvailable.mockReturnValue(false);
@@ -38,6 +57,11 @@ describe('useSettingsStore', () => {
     mockSecureStoreSearchApiKey.mockReset();
     mockSecureStoreCustomProviderApiKey.mockReset();
     mockSecureRemoveProviderApiKey.mockReset();
+    mockDeleteBackgroundImageAsset.mockClear();
+    mockSaveBackgroundImageAsset.mockClear();
+    mockDispatchThemeModeChange.mockClear();
+    mockDispatchColorPresetChange.mockClear();
+    mockDispatchCustomThemeActivate.mockClear();
     act(() => {
       useSettingsStore.getState().resetSettings();
     });
@@ -76,6 +100,46 @@ describe('useSettingsStore', () => {
     });
   });
 
+  describe('editor settings', () => {
+    it('updates nested appearance and diagnostics settings without clobbering sibling fields', () => {
+      act(() => {
+        useSettingsStore.getState().setEditorSettings({
+          appearance: {
+            fontSize: 18,
+            minimap: true,
+          },
+          diagnostics: {
+            minimumSeverity: 'warning',
+          },
+        });
+      });
+
+      const editorSettings = useSettingsStore.getState().editorSettings;
+      expect(editorSettings.appearance.fontSize).toBe(18);
+      expect(editorSettings.appearance.minimap).toBe(true);
+      expect(editorSettings.appearance.tabSize).toBe(2);
+      expect(editorSettings.diagnostics.minimumSeverity).toBe('warning');
+      expect(editorSettings.palette.showContextCommands).toBe(true);
+    });
+
+    it('resets editor settings back to defaults', () => {
+      act(() => {
+        useSettingsStore.getState().setEditorSettings({
+          appearance: {
+            wordWrap: true,
+            autoSave: false,
+          },
+        });
+        useSettingsStore.getState().resetEditorSettings();
+      });
+
+      const editorSettings = selectEditorSettings(useSettingsStore.getState());
+      expect(editorSettings.appearance.wordWrap).toBe(false);
+      expect(editorSettings.appearance.autoSave).toBe(true);
+      expect(editorSettings.lsp.enabled).toBe(true);
+    });
+  });
+
   describe('theme', () => {
     it('should set theme', () => {
       act(() => {
@@ -90,6 +154,25 @@ describe('useSettingsStore', () => {
       });
       expect(useSettingsStore.getState().colorTheme).toBe('rose');
       expect(useSettingsStore.getState().activeCustomThemeId).toBeNull();
+    });
+
+    it('dispatches resolved system theme mode for plugin hooks', () => {
+      const originalMatchMedia = window.matchMedia;
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: jest.fn().mockReturnValue({ matches: true }),
+      });
+
+      act(() => {
+        useSettingsStore.getState().setTheme('system');
+      });
+
+      expect(mockDispatchThemeModeChange).toHaveBeenCalledWith('system', 'dark');
+
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: originalMatchMedia,
+      });
     });
   });
 
@@ -801,6 +884,100 @@ describe('useSettingsStore', () => {
         expect(settings.singleAgentThreshold).toBe(0.6);
         expect(settings.maxTokenBudget).toBe(50000);
       });
+    });
+  });
+
+  describe('background asset lifecycle cleanup', () => {
+    it('blocks unsafe URL updates and keeps previous state', () => {
+      const initialSettings = useSettingsStore.getState().backgroundSettings;
+
+      act(() => {
+        useSettingsStore.getState().setBackgroundSettings({
+          enabled: true,
+          source: 'url',
+          imageUrl: 'javascript:alert(1)',
+        });
+      });
+
+      expect(useSettingsStore.getState().backgroundSettings).toEqual(initialSettings);
+    });
+
+    it('clearBackground removes all referenced local assets across modes', async () => {
+      act(() => {
+        useSettingsStore.getState().setBackgroundSettings({
+          mode: 'slideshow',
+          source: 'local',
+          localAssetId: 'bg-root',
+          layers: [
+            { ...useSettingsStore.getState().backgroundSettings.layers[0], id: 'layer-1', source: 'local', localAssetId: 'bg-layer' },
+          ],
+          slideshow: {
+            ...useSettingsStore.getState().backgroundSettings.slideshow,
+            slides: [
+              { ...useSettingsStore.getState().backgroundSettings.layers[0], id: 'slide-1', source: 'local', localAssetId: 'bg-slide' },
+            ],
+          },
+        });
+      });
+
+      await act(async () => {
+        await useSettingsStore.getState().clearBackground();
+      });
+
+      expect(mockDeleteBackgroundImageAsset).toHaveBeenCalledWith('bg-root');
+      expect(mockDeleteBackgroundImageAsset).toHaveBeenCalledWith('bg-layer');
+      expect(mockDeleteBackgroundImageAsset).toHaveBeenCalledWith('bg-slide');
+    });
+
+    it('setBackgroundSettings deletes removed assets based on diff', () => {
+      act(() => {
+        useSettingsStore.getState().setBackgroundSettings({
+          source: 'local',
+          localAssetId: 'bg-old',
+          mode: 'layers',
+          layers: [
+            { ...useSettingsStore.getState().backgroundSettings.layers[0], id: 'layer-1', source: 'local', localAssetId: 'bg-layer-old' },
+          ],
+        });
+      });
+
+      mockDeleteBackgroundImageAsset.mockClear();
+
+      act(() => {
+        useSettingsStore.getState().setBackgroundSettings({
+          source: 'preset',
+          presetId: 'gradient-blue',
+          localAssetId: null,
+          layers: [
+            { ...useSettingsStore.getState().backgroundSettings.layers[0], id: 'layer-1', source: 'preset', localAssetId: null, presetId: 'gradient-blue' },
+          ],
+        });
+      });
+
+      expect(mockDeleteBackgroundImageAsset).toHaveBeenCalledWith('bg-old');
+      expect(mockDeleteBackgroundImageAsset).toHaveBeenCalledWith('bg-layer-old');
+    });
+
+    it('resetBackgroundSettings clears stale assets', () => {
+      act(() => {
+        useSettingsStore.getState().setBackgroundSettings({
+          source: 'local',
+          localAssetId: 'bg-reset',
+          mode: 'layers',
+          layers: [
+            { ...useSettingsStore.getState().backgroundSettings.layers[0], id: 'layer-1', source: 'local', localAssetId: 'bg-reset' },
+          ],
+        });
+      });
+
+      mockDeleteBackgroundImageAsset.mockClear();
+
+      act(() => {
+        useSettingsStore.getState().resetBackgroundSettings();
+      });
+
+      expect(mockDeleteBackgroundImageAsset).toHaveBeenCalledTimes(1);
+      expect(mockDeleteBackgroundImageAsset).toHaveBeenCalledWith('bg-reset');
     });
   });
 

@@ -335,10 +335,12 @@ describe('queryQdrant', () => {
     client = getQdrantClient(mockConfig.url);
     jest.clearAllMocks();
 
-    (client.search as jest.Mock).mockResolvedValue([
-      { id: 'doc1', score: 0.95, payload: { content: 'result 1' } },
-      { id: 'doc2', score: 0.85, payload: { content: 'result 2' } },
-    ]);
+    (client.query as jest.Mock).mockResolvedValue({
+      points: [
+        { id: 'doc1', score: 0.95, payload: { content: 'result 1' } },
+        { id: 'doc2', score: 0.85, payload: { content: 'result 2' } },
+      ],
+    });
   });
 
   it('queries with generated embedding', async () => {
@@ -364,7 +366,7 @@ describe('queryQdrant', () => {
   it('respects topK option', async () => {
     await queryQdrant(client, 'test-collection', 'query', mockConfig, { topK: 10 });
 
-    expect(client.search).toHaveBeenCalledWith('test-collection', expect.objectContaining({
+    expect(client.query).toHaveBeenCalledWith('test-collection', expect.objectContaining({
       limit: 10,
     }));
   });
@@ -374,7 +376,7 @@ describe('queryQdrant', () => {
 
     await queryQdrant(client, 'test-collection', 'query', mockConfig, { filter });
 
-    expect(client.search).toHaveBeenCalledWith('test-collection', expect.objectContaining({
+    expect(client.query).toHaveBeenCalledWith('test-collection', expect.objectContaining({
       filter,
     }));
   });
@@ -382,9 +384,21 @@ describe('queryQdrant', () => {
   it('passes score threshold', async () => {
     await queryQdrant(client, 'test-collection', 'query', mockConfig, { scoreThreshold: 0.8 });
 
-    expect(client.search).toHaveBeenCalledWith('test-collection', expect.objectContaining({
+    expect(client.query).toHaveBeenCalledWith('test-collection', expect.objectContaining({
       score_threshold: 0.8,
     }));
+  });
+
+  it('falls back to search when query endpoint fails', async () => {
+    (client.query as jest.Mock).mockRejectedValueOnce(new Error('query unavailable'));
+    (client.search as jest.Mock).mockResolvedValueOnce([
+      { id: 'doc1', score: 0.95, payload: { content: 'result 1' } },
+    ]);
+
+    const results = await queryQdrant(client, 'test-collection', 'query', mockConfig);
+
+    expect(client.search).toHaveBeenCalled();
+    expect(results).toHaveLength(1);
   });
 });
 

@@ -56,6 +56,7 @@ import { useWindowControls } from '@/hooks';
 import { useRouter } from 'next/navigation';
 import { isMainWindow } from '@/lib/native/utils';
 import { cn } from '@/lib/utils';
+import { isBackgroundRenderable } from '@/lib/themes';
 import { TRANSPARENCY_CONFIG } from '@/lib/constants/transparency';
 import { registerTitleBarItem, useTitleBarRegistry } from './title-bar-registry';
 
@@ -428,7 +429,7 @@ export function TitleBar() {
     </>
   );
 
-  const isBackgroundActive = backgroundSettings.enabled && backgroundSettings.source !== 'none';
+  const isBackgroundActive = isBackgroundRenderable(backgroundSettings);
 
   return (
     <div

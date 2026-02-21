@@ -67,6 +67,7 @@ interface GitHubGist {
 class GitHubClient {
   private token: string;
   private baseUrl = 'https://api.github.com';
+  private mutationQueue: Promise<void> = Promise.resolve();
 
   constructor(token: string) {
     this.token = token;
@@ -126,12 +127,29 @@ class GitHubClient {
   async getContent(
     owner: string,
     repo: string,
-    path: string
+    path: string,
+    branch?: string
   ): Promise<GitHubContent | GitHubContent[] | null> {
+    const query = branch ? `?ref=${encodeURIComponent(branch)}` : '';
     return this.request<GitHubContent | GitHubContent[]>(
       'GET',
-      `/repos/${owner}/${repo}/contents/${path}`
+      `/repos/${owner}/${repo}/contents/${path}${query}`
     );
+  }
+
+  private async enqueueMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const waitForTurn = this.mutationQueue;
+    let releaseTurn = () => {};
+    this.mutationQueue = new Promise<void>((resolve) => {
+      releaseTurn = resolve;
+    });
+
+    await waitForTurn;
+    try {
+      return await operation();
+    } finally {
+      releaseTurn();
+    }
   }
 
   async createOrUpdateFile(
@@ -140,19 +158,22 @@ class GitHubClient {
     path: string,
     content: string,
     message: string,
+    branch: string,
     sha?: string
   ): Promise<{ content: GitHubContent; commit: GitHubCommit } | null> {
     const body: Record<string, unknown> = {
       message,
       content: btoa(unescape(encodeURIComponent(content))), // Base64 encode
-      branch: 'main',
+      branch,
     };
 
     if (sha) {
       body.sha = sha;
     }
 
-    return this.request('PUT', `/repos/${owner}/${repo}/contents/${path}`, body);
+    return this.enqueueMutation(() =>
+      this.request('PUT', `/repos/${owner}/${repo}/contents/${path}`, body)
+    );
   }
 
   async deleteFile(
@@ -160,13 +181,16 @@ class GitHubClient {
     repo: string,
     path: string,
     sha: string,
+    branch: string,
     message: string
   ): Promise<boolean> {
-    const result = await this.request('DELETE', `/repos/${owner}/${repo}/contents/${path}`, {
-      message,
-      sha,
-      branch: 'main',
-    });
+    const result = await this.enqueueMutation(() =>
+      this.request('DELETE', `/repos/${owner}/${repo}/contents/${path}`, {
+        message,
+        sha,
+        branch,
+      })
+    );
     return result !== null;
   }
 
@@ -349,7 +373,7 @@ export class GitHubProvider extends BaseSyncProvider {
     data: SyncData,
     onProgress?: (progress: SyncProgress) => void
   ): Promise<SyncResult> {
-    const { repoOwner, repoName } = this.config;
+    const { repoOwner, repoName, branch } = this.config;
     const currentPath = this.getFilePath('current.json');
     const backupPath = this.getFilePath(`backup-${timestamp}.json`);
 
@@ -357,7 +381,7 @@ export class GitHubProvider extends BaseSyncProvider {
 
     // Get existing file SHA if it exists
     let sha: string | undefined;
-    const existing = await client.getContent(repoOwner, repoName, currentPath);
+    const existing = await client.getContent(repoOwner, repoName, currentPath, branch);
     if (existing && !Array.isArray(existing) && existing.sha) {
       sha = existing.sha;
     }
@@ -371,6 +395,7 @@ export class GitHubProvider extends BaseSyncProvider {
       currentPath,
       jsonData,
       `Sync update from ${data.deviceName}`,
+      branch,
       sha
     );
 
@@ -391,29 +416,37 @@ export class GitHubProvider extends BaseSyncProvider {
       size: jsonData.length,
     };
     let metaSha: string | undefined;
-    const existingMeta = await client.getContent(repoOwner, repoName, metadataPath);
+    const existingMeta = await client.getContent(repoOwner, repoName, metadataPath, branch);
     if (existingMeta && !Array.isArray(existingMeta) && existingMeta.sha) {
       metaSha = existingMeta.sha;
     }
-    await client.createOrUpdateFile(
+    const metadataResult = await client.createOrUpdateFile(
       repoOwner,
       repoName,
       metadataPath,
       JSON.stringify(metadata),
       `Metadata update from ${data.deviceName}`,
+      branch,
       metaSha
     );
+    if (!metadataResult) {
+      return this.createErrorResult('upload', 'Failed to upload metadata');
+    }
 
     onProgress?.(this.createProgress('uploading', 80, 100, 'Creating backup...'));
 
     // Create backup
-    await client.createOrUpdateFile(
+    const backupResult = await client.createOrUpdateFile(
       repoOwner,
       repoName,
       backupPath,
       jsonData,
-      `Backup from ${data.deviceName} at ${timestamp}`
+      `Backup from ${data.deviceName} at ${timestamp}`,
+      branch
     );
+    if (!backupResult) {
+      return this.createErrorResult('upload', 'Failed to create backup file');
+    }
 
     onProgress?.(this.createProgress('completing', 100, 100, 'Upload complete'));
 
@@ -470,12 +503,12 @@ export class GitHubProvider extends BaseSyncProvider {
     client: GitHubClient,
     onProgress?: (progress: SyncProgress) => void
   ): Promise<SyncData | null> {
-    const { repoOwner, repoName } = this.config;
+    const { repoOwner, repoName, branch } = this.config;
     const currentPath = this.getFilePath('current.json');
 
     onProgress?.(this.createProgress('downloading', 50, 100, 'Fetching file...'));
 
-    const content = await client.getContent(repoOwner, repoName, currentPath);
+    const content = await client.getContent(repoOwner, repoName, currentPath, branch);
     if (!content || Array.isArray(content) || !content.content) {
       return null;
     }
@@ -509,9 +542,9 @@ export class GitHubProvider extends BaseSyncProvider {
       }
 
       // Repo mode: try small metadata.json first
-      const { repoOwner, repoName } = this.config;
+      const { repoOwner, repoName, branch } = this.config;
       const metadataPath = this.getFilePath('metadata.json');
-      const metaFile = await client.getContent(repoOwner, repoName, metadataPath);
+      const metaFile = await client.getContent(repoOwner, repoName, metadataPath, branch);
 
       if (metaFile && !Array.isArray(metaFile) && metaFile.content) {
         const decoded = atob(metaFile.content);
@@ -558,10 +591,10 @@ export class GitHubProvider extends BaseSyncProvider {
           }));
       } else {
         // List repo files
-        const { repoOwner, repoName } = this.config;
+        const { repoOwner, repoName, branch } = this.config;
         const basePath = this.config.remotePath.replace(/^\/|\/$/g, '');
         
-        const contents = await client.getContent(repoOwner, repoName, basePath);
+        const contents = await client.getContent(repoOwner, repoName, basePath, branch);
         if (!contents || !Array.isArray(contents)) return [];
 
         return contents
@@ -592,13 +625,13 @@ export class GitHubProvider extends BaseSyncProvider {
         const content = gist.files[id].content;
         return JSON.parse(content) as SyncData;
       } else {
-        const { repoOwner, repoName } = this.config;
+        const { repoOwner, repoName, branch } = this.config;
         const backups = await this.listBackups();
         const backup = backups.find((b) => b.id === id);
         if (!backup) return null;
 
         const path = this.getFilePath(backup.filename);
-        const fileContent = await client.getContent(repoOwner, repoName, path);
+        const fileContent = await client.getContent(repoOwner, repoName, path, branch);
         if (!fileContent || Array.isArray(fileContent) || !fileContent.content) return null;
 
         const decoded = atob(fileContent.content);
@@ -620,7 +653,7 @@ export class GitHubProvider extends BaseSyncProvider {
         const result = await client.updateGist(this.config.gistId, 'Cognia Sync Backup', files);
         return result !== null;
       } else {
-        const { repoOwner, repoName } = this.config;
+        const { repoOwner, repoName, branch } = this.config;
         const backups = await this.listBackups();
         const backup = backups.find((b) => b.id === id);
         
@@ -632,6 +665,7 @@ export class GitHubProvider extends BaseSyncProvider {
           repoName,
           path,
           id,
+          branch,
           `Delete backup ${backup.filename}`
         );
       }

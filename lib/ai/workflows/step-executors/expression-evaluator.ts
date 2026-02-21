@@ -242,7 +242,7 @@ function evaluateNode(node: Node, context: EvalContext): unknown {
         case '??':
           return left ?? evaluateNode(node.right, context);
         default:
-          throw new Error(`Unsupported logical operator: ${node.operator}`);
+          throw new Error('Unsupported logical operator');
       }
     }
     case 'ConditionalExpression':

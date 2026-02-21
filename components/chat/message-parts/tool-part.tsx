@@ -37,6 +37,8 @@ import type { ToolInvocationPart, ToolState } from '@/types/core/message';
 import type { McpServerStatus } from '@/types/mcp';
 import { A2UIToolOutput, hasA2UIToolOutput } from '@/components/a2ui';
 import { A2UIInlineSurface } from '@/components/a2ui/a2ui-surface';
+import { LearningToolPart } from './learning-tool-part';
+import { normalizeLearningToolName } from '@/lib/ai/tools/learning-tools';
 import { MCPServerBadge } from '@/components/mcp';
 import { MCPProgressIndicator } from '@/components/mcp/mcp-progress-indicator';
 import { MCPErrorDisplay } from '@/components/mcp/mcp-error-display';
@@ -130,6 +132,7 @@ export function ToolPart({
   onApprove, 
   onDeny 
 }: ToolPartProps) {
+  const normalizedLearningToolName = normalizeLearningToolName(part.toolName);
   const t = useTranslations('toolStatus');
   const tMcp = useTranslations('mcp');
   const [copied, setCopied] = useState(false);
@@ -166,6 +169,14 @@ export function ToolPart({
   const isApprovalRequired = part.state === 'approval-requested';
   const isError = part.state === 'output-error' || part.state === 'output-denied';
   const isComplete = part.state === 'output-available';
+
+  if (normalizedLearningToolName) {
+    return (
+      <LearningToolPart
+        part={{ ...part, toolName: normalizedLearningToolName }}
+      />
+    );
+  }
 
   return (
     <Tool 

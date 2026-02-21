@@ -31,6 +31,9 @@ import {
   executeDisplayStepGuide,
   executeDisplayConceptMap,
   executeDisplayAnimation,
+  LEARNING_TOOL_CANONICAL_NAMES,
+  normalizeLearningToolName,
+  toLearningToolAliasName,
   learningTools,
   type FlashcardData,
   type QuizQuestionData,
@@ -745,16 +748,29 @@ describe('Learning Tools Definitions', () => {
   });
 
   it('tool names match their keys', () => {
-    expect(learningTools.displayFlashcard.name).toBe('displayFlashcard');
-    expect(learningTools.displayFlashcardDeck.name).toBe('displayFlashcardDeck');
-    expect(learningTools.displayQuiz.name).toBe('displayQuiz');
-    expect(learningTools.displayQuizQuestion.name).toBe('displayQuizQuestion');
-    expect(learningTools.displayReviewSession.name).toBe('displayReviewSession');
-    expect(learningTools.displayProgressSummary.name).toBe('displayProgressSummary');
-    expect(learningTools.displayConceptExplanation.name).toBe('displayConceptExplanation');
-    expect(learningTools.displayStepGuide.name).toBe('displayStepGuide');
-    expect(learningTools.displayConceptMap.name).toBe('displayConceptMap');
-    expect(learningTools.displayAnimation.name).toBe('displayAnimation');
+    expect(learningTools.displayFlashcard.name).toBe('display_flashcard');
+    expect(learningTools.displayFlashcardDeck.name).toBe('display_flashcard_deck');
+    expect(learningTools.displayQuiz.name).toBe('display_quiz');
+    expect(learningTools.displayQuizQuestion.name).toBe('display_quiz_question');
+    expect(learningTools.displayReviewSession.name).toBe('display_review_session');
+    expect(learningTools.displayProgressSummary.name).toBe('display_progress_summary');
+    expect(learningTools.displayConceptExplanation.name).toBe('display_concept_explanation');
+    expect(learningTools.displayStepGuide.name).toBe('display_step_guide');
+    expect(learningTools.displayConceptMap.name).toBe('display_concept_map');
+    expect(learningTools.displayAnimation.name).toBe('display_animation');
+  });
+
+  it('normalizes canonical and alias tool names', () => {
+    for (const canonicalName of LEARNING_TOOL_CANONICAL_NAMES) {
+      expect(normalizeLearningToolName(canonicalName)).toBe(canonicalName);
+      const aliasName = toLearningToolAliasName(canonicalName);
+      expect(aliasName).toBeDefined();
+      expect(normalizeLearningToolName(aliasName)).toBe(canonicalName);
+    }
+
+    expect(normalizeLearningToolName('displayFlashcard')).toBe('display_flashcard');
+    expect(normalizeLearningToolName('display-step-guide')).toBe('display_step_guide');
+    expect(normalizeLearningToolName('unknown_tool')).toBeUndefined();
   });
 });
 

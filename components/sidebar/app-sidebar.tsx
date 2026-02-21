@@ -86,6 +86,7 @@ import {
 } from '@/components/ui/input-group';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { isBackgroundRenderable } from '@/lib/themes';
 import { useSessionStore, useSettingsStore, useProjectStore, useArtifactStore } from '@/stores';
 import { ArtifactListCompact, ArtifactCard, ArtifactInlineRef, ArtifactList, ARTIFACT_TYPE_ICONS } from '@/components/artifacts';
 import {
@@ -158,7 +159,7 @@ export function AppSidebar() {
   const setTheme = useSettingsStore((state) => state.setTheme);
   const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
   const backgroundSettings = useSettingsStore((state) => state.backgroundSettings);
-  const isBackgroundActive = backgroundSettings.enabled && backgroundSettings.source !== 'none';
+  const isBackgroundActive = isBackgroundRenderable(backgroundSettings);
 
   const sessions = useSessionStore((state) => state.sessions);
   const folders = useSessionStore((state) => state.folders) || [];

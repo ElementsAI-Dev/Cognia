@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonTtsError } from '../_utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,43 +13,40 @@ export async function POST(request: NextRequest) {
       text,
       voice = 'kora',
       actingInstructions,
+      version = 1,
+      format = { type: 'mp3' },
     } = body;
 
     // Validate input
     if (!text || typeof text !== 'string') {
-      return NextResponse.json(
-        { error: 'Text is required' },
-        { status: 400 }
-      );
+      return jsonTtsError('hume', 'Text is required', 400, 'validation_error');
     }
 
     // Get API key from environment
     const apiKey = process.env.HUME_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Hume API key not configured' },
-        { status: 500 }
-      );
+      return jsonTtsError('hume', 'Hume API key not configured', 500, 'api_key_missing');
     }
 
     // Validate text length
     if (text.length > 5000) {
-      return NextResponse.json(
-        { error: 'Text exceeds maximum length of 5000 characters' },
-        { status: 400 }
-      );
+      return jsonTtsError('hume', 'Text exceeds maximum length of 5000 characters', 400, 'text_too_long');
     }
 
-    // Build request body
+    // Build request body (latest schema)
     const requestBody: Record<string, unknown> = {
-      text,
-      voice: { name: voice },
+      utterances: [
+        {
+          text,
+          voice: { name: voice },
+          ...(actingInstructions ? { description: actingInstructions } : {}),
+        },
+      ],
+      version,
+      format,
+      num_generations: 1,
     };
-
-    if (actingInstructions) {
-      requestBody.acting_instructions = actingInstructions;
-    }
 
     // Call Hume TTS API
     const response = await fetch('https://api.hume.ai/v0/tts', {
@@ -62,27 +60,47 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      return NextResponse.json(
-        { error: errorData.message || `Hume API error: ${response.status}` },
-        { status: response.status }
+      return jsonTtsError(
+        'hume',
+        errorData.message || `Hume API error: ${response.status}`,
+        response.status,
+        'upstream_error',
+        response.status >= 500
       );
     }
 
-    // Get audio data
-    const audioData = await response.arrayBuffer();
+    const result = await response.json().catch(() => null);
+    const generation = result?.generations?.[0];
+    const audioBase64 = generation?.audio;
+    const encodingFormat = generation?.encoding?.format || 'mp3';
 
-    return new NextResponse(audioData, {
+    if (!audioBase64 || typeof audioBase64 !== 'string') {
+      return jsonTtsError('hume', 'No audio returned by Hume API', 500, 'upstream_invalid_response');
+    }
+
+    const audioBuffer = Buffer.from(audioBase64, 'base64');
+    const contentType =
+      encodingFormat === 'wav'
+        ? 'audio/wav'
+        : encodingFormat === 'pcm'
+          ? 'audio/pcm'
+          : 'audio/mpeg';
+
+    return new NextResponse(audioBuffer, {
       status: 200,
       headers: {
-        'Content-Type': 'audio/mpeg',
-        'Content-Length': audioData.byteLength.toString(),
+        'Content-Type': contentType,
+        'Content-Length': audioBuffer.byteLength.toString(),
       },
     });
   } catch (error) {
     console.error('Hume TTS error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate speech' },
-      { status: 500 }
+    return jsonTtsError(
+      'hume',
+      error instanceof Error ? error.message : 'Failed to generate speech',
+      500,
+      'internal_error',
+      true
     );
   }
 }

@@ -46,12 +46,62 @@ describe('CompletionCache', () => {
 
     it('should generate key without context', () => {
       const key = CompletionCache.generateKey('hello');
-      expect(key).toMatch(/^completion_-?\d+$/);
+      expect(key).toMatch(/^completion_v3_[a-f0-9]+$/);
     });
 
     it('should handle empty strings', () => {
       const key = CompletionCache.generateKey('');
       expect(key).toBeDefined();
+    });
+
+    it('should generate stable structured keys', () => {
+      const key1 = CompletionCache.generateStructuredKey({
+        textBeforeCursor: 'const foo = ',
+        textAfterCursor: 'bar',
+        provider: 'openai',
+        modelId: 'gpt-4o-mini',
+        mode: 'code',
+        surface: 'chat_input',
+      });
+      const key2 = CompletionCache.generateStructuredKey({
+        textBeforeCursor: 'const foo = ',
+        textAfterCursor: 'bar',
+        provider: 'openai',
+        modelId: 'gpt-4o-mini',
+        mode: 'code',
+        surface: 'chat_input',
+      });
+      expect(key1).toBe(key2);
+    });
+
+    it('should normalize equivalent whitespace and newlines', () => {
+      const key1 = CompletionCache.generateStructuredKey({
+        textBeforeCursor: 'hello   world\r\n',
+        provider: 'openai',
+      });
+      const key2 = CompletionCache.generateStructuredKey({
+        textBeforeCursor: 'hello world\n',
+        provider: 'openai',
+      });
+      expect(key1).toBe(key2);
+    });
+
+    it('should vary by provider and surface', () => {
+      const base = {
+        textBeforeCursor: 'hello',
+        modelId: 'gpt-4o-mini',
+      };
+      const openaiKey = CompletionCache.generateStructuredKey({
+        ...base,
+        provider: 'openai',
+        surface: 'chat_input',
+      });
+      const groqKey = CompletionCache.generateStructuredKey({
+        ...base,
+        provider: 'groq',
+        surface: 'chat_widget',
+      });
+      expect(openaiKey).not.toBe(groqKey);
     });
   });
 

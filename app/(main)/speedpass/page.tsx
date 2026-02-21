@@ -45,6 +45,7 @@ import { TextbookLibrary, TextbookCardSkeleton } from '@/components/speedpass/te
 import { AnalyticsDashboard } from '@/components/speedpass/analytics-dashboard';
 import { QuizInterface } from '@/components/speedpass/quiz-interface';
 import { ModeSelectorDialog } from '@/components/speedpass/mode-selector-dialog';
+import { SpeedPassSettingsDialog } from '@/components/speedpass/speedpass-settings-dialog';
 import { useSpeedPassUser } from '@/hooks/learning';
 import { consumeFeatureNavigationContext } from '@/lib/ai/routing';
 import { detectSpeedLearningMode } from '@/lib/learning/speedpass';
@@ -59,7 +60,16 @@ export default function SpeedPassPage() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
   const [showModeDialog, setShowModeDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [selectedTextbookForMode, setSelectedTextbookForMode] = useState<string | null>(null);
+  const [modeDialogInitialMode, setModeDialogInitialMode] = useState<SpeedLearningMode | undefined>(
+    undefined
+  );
+  const [modeDialogContext, setModeDialogContext] = useState<{
+    availableTimeMinutes?: number;
+    examDate?: Date;
+    targetScore?: number;
+  }>({});
   const [quizTextbookId, setQuizTextbookId] = useState<string | null>(null);
   const store = useSpeedPassStore();
   const handledContextKeyRef = useRef<string | null>(null);
@@ -68,7 +78,6 @@ export default function SpeedPassPage() {
   const startTutorial = useCallback(async (mode: SpeedLearningMode, textbookId: string) => {
     try {
       const tutorial = await store.createTutorial({
-        courseId: '', // courseId can be set when implementing course management
         textbookId,
         mode,
       });
@@ -88,7 +97,7 @@ export default function SpeedPassPage() {
   }, [store, t]);
 
   // Handle mode selection from QuickActionCard
-  const handleModeSelect = useCallback((_mode: SpeedLearningMode) => {
+  const handleModeSelect = useCallback((mode: SpeedLearningMode) => {
     const textbookCount = Object.keys(store.textbooks).length;
     
     if (textbookCount === 0) {
@@ -105,12 +114,16 @@ export default function SpeedPassPage() {
     if (textbookCount === 1) {
       const textbook = Object.values(store.textbooks)[0];
       setSelectedTextbookForMode(textbook.id);
+      setModeDialogContext({});
+      setModeDialogInitialMode(mode);
       setShowModeDialog(true);
       return;
     }
     
     // Multiple textbooks: show mode selector with first textbook
     setSelectedTextbookForMode(Object.values(store.textbooks)[0]?.id || null);
+    setModeDialogContext({});
+    setModeDialogInitialMode(mode);
     setShowModeDialog(true);
   }, [store.textbooks, t]);
 
@@ -120,6 +133,7 @@ export default function SpeedPassPage() {
       startTutorial(mode, selectedTextbookForMode);
       setShowModeDialog(false);
       setSelectedTextbookForMode(null);
+      setModeDialogInitialMode(undefined);
     }
   }, [selectedTextbookForMode, startTutorial]);
 
@@ -135,6 +149,7 @@ export default function SpeedPassPage() {
       const detail = (e as CustomEvent).detail;
       if (detail?.textbookId) {
         setSelectedTextbookForMode(detail.textbookId);
+        setModeDialogInitialMode(undefined);
         setShowModeDialog(true);
       }
     };
@@ -158,6 +173,10 @@ export default function SpeedPassPage() {
 
   // Consume feature navigation context and bootstrap SpeedPass UI from routed message
   useEffect(() => {
+    const enqueueUiUpdate = (updater: () => void) => {
+      queueMicrotask(updater);
+    };
+
     const ctxKey = searchParams.get('ctx');
     if (!ctxKey || handledContextKeyRef.current === ctxKey) {
       return;
@@ -170,18 +189,44 @@ export default function SpeedPassPage() {
     }
 
     const message = String(navContext.message);
+    const normalizedSpeedPassContext = navContext.speedpassContext ?? {};
+    const navAvailableTime =
+      typeof normalizedSpeedPassContext.availableTimeMinutes === 'number'
+        ? normalizedSpeedPassContext.availableTimeMinutes
+        : typeof navContext.availableTimeMinutes === 'number'
+          ? navContext.availableTimeMinutes
+          : undefined;
+    const examDateIso =
+      typeof normalizedSpeedPassContext.examDate === 'string'
+        ? normalizedSpeedPassContext.examDate
+        : typeof navContext.examDate === 'string'
+          ? navContext.examDate
+          : undefined;
+    const navExamDate = examDateIso ? new Date(examDateIso) : undefined;
+    const navTargetScore =
+      typeof normalizedSpeedPassContext.targetScore === 'number'
+        ? normalizedSpeedPassContext.targetScore
+        : typeof navContext.targetScore === 'number'
+          ? navContext.targetScore
+          : undefined;
     const textbooks = Object.values(store.textbooks);
     if (textbooks.length === 0) {
-      setActiveTab('textbooks');
+      enqueueUiUpdate(() => setActiveTab('textbooks'));
       toast.info(t('noTextbooks'), {
         description: t('uploadPdfOrAdd'),
       });
       return;
     }
 
+    const preferredTextbookIdFromContext =
+      typeof normalizedSpeedPassContext.textbookId === 'string'
+        ? normalizedSpeedPassContext.textbookId
+        : typeof navContext.textbookId === 'string'
+          ? navContext.textbookId
+          : undefined;
     const preferredTextbookId =
-      typeof navContext.textbookId === 'string' && store.textbooks[navContext.textbookId]
-        ? navContext.textbookId
+      typeof preferredTextbookIdFromContext === 'string' && store.textbooks[preferredTextbookIdFromContext]
+        ? preferredTextbookIdFromContext
         : textbooks[0]?.id;
 
     if (!preferredTextbookId) {
@@ -189,15 +234,31 @@ export default function SpeedPassPage() {
     }
 
     if (/(?:刷题|练习|测验|错题|quiz|practice|test)/i.test(message)) {
-      setQuizTextbookId(preferredTextbookId);
-      setActiveTab('quiz');
+      enqueueUiUpdate(() => {
+        setQuizTextbookId(preferredTextbookId);
+        setActiveTab('quiz');
+      });
       return;
     }
 
     const modeDetection = detectSpeedLearningMode(message);
-    setSelectedTextbookForMode(preferredTextbookId);
-    setShowModeDialog(true);
-    setActiveTab('overview');
+    enqueueUiUpdate(() => {
+      setSelectedTextbookForMode(preferredTextbookId);
+      setModeDialogContext({
+        availableTimeMinutes: navAvailableTime ?? modeDetection.detectedTime,
+        examDate: navExamDate,
+        targetScore: navTargetScore,
+      });
+      setModeDialogInitialMode(
+        (typeof normalizedSpeedPassContext.recommendedMode === 'string'
+          ? normalizedSpeedPassContext.recommendedMode
+          : typeof navContext.recommendedMode === 'string'
+            ? (navContext.recommendedMode as SpeedLearningMode)
+          : modeDetection.recommendedMode) || undefined
+      );
+      setShowModeDialog(true);
+      setActiveTab('overview');
+    });
 
     if (modeDetection.detected) {
       const recommendedLabel =
@@ -229,7 +290,7 @@ export default function SpeedPassPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => setShowSettingsDialog(true)}>
               <Settings className="mr-2 h-4 w-4" />
               {t('settings')}
             </Button>
@@ -347,10 +408,18 @@ export default function SpeedPassPage() {
       {/* Mode Selector Dialog */}
       <ModeSelectorDialog
         open={showModeDialog}
-        onOpenChange={setShowModeDialog}
+        onOpenChange={(open) => {
+          setShowModeDialog(open);
+          if (!open) {
+            setModeDialogInitialMode(undefined);
+          }
+        }}
         textbook={selectedTextbookObj}
+        initialMode={modeDialogInitialMode}
+        contextHint={modeDialogContext}
         onSelect={handleModeDialogSelect}
       />
+      <SpeedPassSettingsDialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog} />
     </div>
   );
 }
@@ -450,7 +519,7 @@ function OverviewTab({ store, router, onModeSelect, onAddTextbook }: OverviewTab
                   {t('completedSections', { count: activeSession.sectionsCompleted.length })}
                 </p>
               </div>
-              <Button onClick={() => router.push(`/speedpass/tutorial/${activeSession.tutorialId}`)}>{t('continueLearning')}</Button>
+                <Button onClick={() => router.push(`/speedpass/tutorial?id=${activeSession.tutorialId}`)}>{t('continueLearning')}</Button>
             </div>
             <Progress value={activeSession.sectionsCompleted.length > 0 ? Math.min(activeSession.sectionsCompleted.length * 10, 100) : 0} className="mt-4" />
           </CardContent>
@@ -526,7 +595,7 @@ function OverviewTab({ store, router, onModeSelect, onAddTextbook }: OverviewTab
                         </p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => router.push(`/speedpass/tutorial/${tutorial.id}`)}>
+                    <Button variant="outline" size="sm" onClick={() => router.push(`/speedpass/tutorial?id=${tutorial.id}`)}>
                       {t('continue')}
                     </Button>
                   </div>
@@ -631,7 +700,7 @@ function TutorialsTab({ store, router, onAddTextbook }: TutorialsTabProps) {
 
   const handleContinueTutorial = useCallback((tutorialId: string) => {
     store.setCurrentTutorial(tutorialId);
-    router.push(`/speedpass/tutorial/${tutorialId}`);
+    router.push(`/speedpass/tutorial?id=${tutorialId}`);
   }, [store, router]);
 
   const handleDeleteTutorial = useCallback((tutorialId: string) => {

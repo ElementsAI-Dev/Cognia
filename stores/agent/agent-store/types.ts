@@ -1,4 +1,4 @@
-import type { ToolExecution, AgentToolStatus as ToolStatus } from '@/types/agent/tool';
+import type { ToolExecution } from '@/types/agent/tool';
 import type {
   AgentPlan,
   PlanStep,

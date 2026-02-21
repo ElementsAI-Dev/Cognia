@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ChatContainer } from './chat-container';
 
 // Mock next-intl
@@ -12,6 +12,9 @@ jest.mock('next-intl', () => ({
 
 // Mock stores
 let mockSessionMode: 'chat' | 'agent' | 'research' | 'learning' = 'chat';
+let mockExternalAgentId: string | undefined;
+let mockExternalAgentSessionId: string | undefined;
+let mockExternalChatFailurePolicy: 'fallback' | 'strict' = 'fallback';
 const mockUpdateSession = jest.fn();
 
 const buildMockSession = () => ({
@@ -26,6 +29,8 @@ const buildMockSession = () => ({
   thinkingEnabled: false,
   activeBranchId: 'branch-1',
   projectId: null,
+  externalAgentId: mockExternalAgentId,
+  externalAgentSessionId: mockExternalAgentSessionId,
 });
 
 const mockMessages = [
@@ -74,6 +79,28 @@ const mockAgentHook = {
   run: mockAgentRun,
   stop: mockAgentStop,
   reset: mockAgentReset,
+};
+const mockExternalAgentExecute = jest.fn();
+const mockExternalAgentSetActiveAgent = jest.fn();
+const mockExternalAgentCheckHealth = jest.fn();
+const mockExternalAgentConnect = jest.fn();
+const mockExternalAgentCancel = jest.fn();
+const mockExternalRespondToPermission = jest.fn();
+const mockExternalSetConfigOption = jest.fn();
+const mockExternalAgentHook: Record<string, unknown> = {
+  execute: mockExternalAgentExecute,
+  setActiveAgent: mockExternalAgentSetActiveAgent,
+  checkHealth: mockExternalAgentCheckHealth,
+  connect: mockExternalAgentConnect,
+  cancel: mockExternalAgentCancel,
+  pendingPermission: null,
+  respondToPermission: mockExternalRespondToPermission,
+  availableCommands: [],
+  planEntries: [],
+  planStep: null,
+  configOptions: [],
+  setConfigOption: mockExternalSetConfigOption,
+  isExecuting: false,
 };
 
 const mockProjectContextHook = { hasKnowledge: false };
@@ -151,6 +178,10 @@ jest.mock('@/stores', () => ({
         showRoutingIndicator: false,
         tier: 'balanced',
       },
+      customInstructionsEnabled: true,
+      aboutUser: '',
+      responsePreferences: '',
+      customInstructions: '',
       chatHistoryContextSettings: {
         enabled: true,
         maxMessages: 10,
@@ -158,6 +189,15 @@ jest.mock('@/stores', () => ({
       },
       sourceVerification: { enabled: false },
       streamingEnabled: true,
+      speechSettings: {
+        ttsEnabled: false,
+        ttsAutoPlay: false,
+      },
+      defaultTemperature: 0.7,
+      defaultMaxTokens: 2048,
+      defaultTopP: 1,
+      defaultFrequencyPenalty: 0,
+      defaultPresencePenalty: 0,
       addAlwaysAllowedTool: jest.fn(),
       alwaysAllowedTools: [],
     };
@@ -252,11 +292,19 @@ jest.mock('@/stores', () => ({
     };
     return selector ? selector(state) : state;
   },
+  useExternalAgentStore: (selector: (state: unknown) => unknown) => {
+    const state = {
+      chatFailurePolicy: mockExternalChatFailurePolicy,
+    };
+    return selector ? selector(state) : state;
+  },
 }));
 
 jest.mock('@/stores/skills', () => ({
   useSkillStore: (selector: (state: unknown) => unknown) => {
     const state = {
+      skills: {},
+      activeSkillIds: [],
       getActiveSkills: jest.fn(() => []),
     };
     return selector ? selector(state) : state;
@@ -277,6 +325,7 @@ jest.mock('@/stores/workflow', () => ({
 jest.mock('@/hooks', () => ({
   useMessages: () => mockMessagesHook,
   useAgent: () => mockAgentHook,
+  useExternalAgent: () => mockExternalAgentHook,
   useProjectContext: () => mockProjectContextHook,
   calculateTokenBreakdown: jest.fn(() => ({
     systemPrompt: 0,
@@ -312,6 +361,7 @@ jest.mock('@/lib/ai/generation/translate', () => ({
 
 jest.mock('@/lib/skills/executor', () => ({
   buildProgressiveSkillsPrompt: jest.fn(() => ({ prompt: '', level: 0, tokenEstimate: 0 })),
+  findMatchingSkills: jest.fn(() => []),
 }));
 
 // Mock database
@@ -339,7 +389,6 @@ jest.mock('../message', () => ({
 }));
 
 jest.mock('./chat-header', () => ({
-  ...jest.requireActual('./chat-header'),
   ChatHeader: ({ sessionId }: { sessionId?: string }) => (
     <header data-testid="chat-header" data-session={sessionId}>Header</header>
   ),
@@ -483,8 +532,35 @@ jest.mock('@/components/agent/tool-timeline', () => ({
 }));
 
 jest.mock('@/components/agent/tool-approval-dialog', () => ({
-  ToolApprovalDialog: ({ open }: { open: boolean }) => 
-    open ? <div data-testid="tool-approval-dialog">Approval</div> : null,
+  ToolApprovalDialog: ({
+    open,
+    request,
+    onOpenChange,
+    onDeny,
+    onSelectOption,
+  }: {
+    open: boolean;
+    request?: { id?: string };
+    onOpenChange: (open: boolean) => void;
+    onDeny: (id: string) => void;
+    onSelectOption?: (id: string, optionId: string) => void;
+  }) =>
+    open ? (
+      <div data-testid="tool-approval-dialog">
+        <button
+          data-testid="tool-option-select"
+          onClick={() => onSelectOption?.(request?.id || 'request-id', 'allow_once')}
+        >
+          Option
+        </button>
+        <button data-testid="tool-deny" onClick={() => onDeny(request?.id || 'request-id')}>
+          Deny
+        </button>
+        <button data-testid="tool-close" onClick={() => onOpenChange(false)}>
+          Close
+        </button>
+      </div>
+    ) : null,
 }));
 
 jest.mock('@/components/agent/workflow-selector', () => ({
@@ -615,6 +691,14 @@ jest.mock('react-virtuoso', () => ({
 
 beforeEach(() => {
   mockSessionMode = 'chat';
+  mockExternalAgentId = undefined;
+  mockExternalAgentSessionId = undefined;
+  mockExternalChatFailurePolicy = 'fallback';
+  mockExternalAgentHook.pendingPermission = null;
+  mockExternalAgentHook.isExecuting = false;
+  mockExternalRespondToPermission.mockImplementation(async () => {
+    mockExternalAgentHook.pendingPermission = null;
+  });
   mockUpdateSession.mockReset();
 });
 
@@ -735,7 +819,182 @@ describe('ChatContainer', () => {
       );
     });
 
-    expect(mockCheckFeatureIntent).not.toHaveBeenCalled();
+    expect(mockCheckFeatureIntent).toHaveBeenCalledWith('明天考试，帮我速通过高数并刷题');
+    expect(mockCheckFeatureIntent).toHaveBeenCalledTimes(1);
+  });
+
+  it('routes agent execution through external agent and persists external session id', async () => {
+    mockSessionMode = 'agent';
+    mockExternalAgentId = 'external-agent-1';
+    mockExternalAgentSessionId = 'external-session-old';
+    mockAgentRun.mockReset();
+    mockExternalAgentCheckHealth.mockResolvedValueOnce(true);
+    mockExternalAgentExecute.mockResolvedValueOnce({
+      success: true,
+      finalResponse: 'External response',
+      sessionId: 'external-session-new',
+      messages: [],
+      steps: [],
+      toolCalls: [],
+      duration: 12,
+    });
+
+    render(<ChatContainer sessionId="session-1" />);
+    const input = screen.getByTestId('input-field');
+    const sendButton = screen.getByTestId('send-button');
+
+    fireEvent.change(input, { target: { value: 'Run externally' } });
+    fireEvent.click(sendButton);
+
+    await waitFor(() => {
+      expect(mockExternalAgentSetActiveAgent).toHaveBeenCalledWith('external-agent-1');
+    });
+
+    expect(mockExternalAgentExecute).toHaveBeenCalledWith(
+      'Run externally',
+      expect.objectContaining({
+        sessionId: 'external-session-old',
+      })
+    );
+    expect(mockAgentRun).not.toHaveBeenCalled();
+    expect(mockUpdateSession).toHaveBeenCalledWith(
+      'session-1',
+      expect.objectContaining({
+        externalAgentSessionId: 'external-session-new',
+      })
+    );
+  });
+
+  it('falls back to built-in agent when external execution fails', async () => {
+    mockSessionMode = 'agent';
+    mockExternalAgentId = 'external-agent-1';
+    mockAgentRun.mockResolvedValueOnce({
+      success: true,
+      finalResponse: 'Built-in fallback response',
+      steps: [],
+      totalSteps: 1,
+      duration: 20,
+    });
+    mockExternalAgentCheckHealth.mockResolvedValueOnce(true);
+    mockExternalAgentExecute.mockRejectedValueOnce(new Error('External failure'));
+
+    render(<ChatContainer sessionId="session-1" />);
+    const input = screen.getByTestId('input-field');
+    const sendButton = screen.getByTestId('send-button');
+
+    fireEvent.change(input, { target: { value: 'Fallback request' } });
+    fireEvent.click(sendButton);
+
+    await waitFor(() => {
+      expect(mockAgentRun).toHaveBeenCalledWith('Fallback request');
+    });
+  });
+
+  it('does not fall back when failure policy is strict', async () => {
+    mockSessionMode = 'agent';
+    mockExternalAgentId = 'external-agent-1';
+    mockExternalChatFailurePolicy = 'strict';
+    mockAgentRun.mockClear();
+    mockExternalAgentCheckHealth.mockResolvedValueOnce(true);
+    mockExternalAgentExecute.mockRejectedValueOnce(new Error('External failure strict'));
+
+    render(<ChatContainer sessionId="session-1" />);
+    const input = screen.getByTestId('input-field');
+    const sendButton = screen.getByTestId('send-button');
+
+    fireEvent.change(input, { target: { value: 'Strict request' } });
+    fireEvent.click(sendButton);
+
+    await waitFor(() => {
+      expect(mockExternalAgentExecute).toHaveBeenCalledWith(
+        'Strict request',
+        expect.objectContaining({})
+      );
+    });
+    expect(mockAgentRun).not.toHaveBeenCalled();
+  });
+
+  it('responds to ACP permission option selection', async () => {
+    mockExternalAgentHook.pendingPermission = {
+      id: 'permission-id-1',
+      requestId: 'request-id-1',
+      title: 'Read file',
+      reason: 'Need workspace access',
+      riskLevel: 'medium',
+      rawInput: { path: 'README.md' },
+      toolInfo: {
+        name: 'read_file',
+        description: 'Read a file',
+      },
+      options: [
+        {
+          optionId: 'allow_once',
+          kind: 'allow_once',
+          name: 'Allow once',
+          isDefault: true,
+        },
+      ],
+    };
+
+    render(<ChatContainer sessionId="session-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tool-approval-dialog')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('tool-option-select'));
+
+    await waitFor(() => {
+      expect(mockExternalRespondToPermission).toHaveBeenCalledWith({
+        requestId: 'request-id-1',
+        granted: true,
+        optionId: 'allow_once',
+      });
+    });
+  });
+
+  it('auto-denies permission request when timeout is reached', async () => {
+    mockExternalAgentHook.pendingPermission = {
+      id: 'permission-timeout-id',
+      requestId: 'request-timeout-id',
+      title: 'Run command',
+      reason: 'Requires execution permission',
+      riskLevel: 'high',
+      rawInput: { command: 'echo hi' },
+      toolInfo: {
+        name: 'shell_execute',
+        description: 'Run shell command',
+      },
+      autoApproveTimeout: 10,
+    };
+
+    render(<ChatContainer sessionId="session-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tool-approval-dialog')).toBeInTheDocument();
+    });
+
+    act(() => {
+      jest.advanceTimersByTime(20);
+    });
+
+    await waitFor(() => {
+      expect(mockExternalRespondToPermission).toHaveBeenCalledWith({
+        requestId: 'request-timeout-id',
+        granted: false,
+        reason: 'Permission request timed out',
+      });
+    });
+  });
+
+  it('stops external execution when stop is clicked', () => {
+    mockSessionMode = 'agent';
+    mockExternalAgentHook.isExecuting = true;
+
+    render(<ChatContainer sessionId="session-1" />);
+    fireEvent.click(screen.getByTestId('stop-button'));
+
+    expect(mockExternalAgentCancel).toHaveBeenCalled();
   });
 
   it('displays messages in conversation', () => {

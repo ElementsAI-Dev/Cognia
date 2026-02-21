@@ -7,14 +7,6 @@ import {
   type AgentTeamMessage,
   type AgentTeamConfig,
   type AgentTeamTemplate,
-  type AgentTeamEvent,
-  type TeamStatus,
-  type TeammateStatus,
-  type TeamTaskStatus,
-  type TeamDisplayMode,
-  type AddTeammateInput,
-  type CreateTaskInput,
-  type SendMessageInput,
 } from '@/types/agent/agent-team';
 import { initialState, builtInTemplatesMap } from '../initial-state';
 import type { AgentTeamState } from '../types';

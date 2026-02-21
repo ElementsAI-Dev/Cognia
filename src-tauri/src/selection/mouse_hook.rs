@@ -21,12 +21,7 @@ pub enum MouseEvent {
     /// Triple click (line/paragraph selection)
     TripleClick { x: f64, y: f64 },
     /// Drag selection completed (mouse moved while button was held)
-    DragEnd {
-        x: f64,
-        y: f64,
-        start_x: f64,
-        start_y: f64,
-    },
+    DragEnd { x: f64, y: f64 },
 }
 
 /// Multi-click detection timeout in milliseconds
@@ -134,12 +129,7 @@ impl MouseHook {
                             // Drag selection completed
                             log::debug!("[MouseHook] Drag detected: ({:.0}, {:.0}) -> ({:.0}, {:.0}), distance={:.1}px", 
                                 last_x, last_y, x, y, distance);
-                            MouseEvent::DragEnd {
-                                x,
-                                y,
-                                start_x: last_x,
-                                start_y: last_y,
-                            }
+                            MouseEvent::DragEnd { x, y }
                         } else {
                             match *count {
                                 2 => {
@@ -432,24 +422,12 @@ mod tests {
 
     #[test]
     fn test_mouse_event_drag_end() {
-        let event = MouseEvent::DragEnd {
-            x: 300.0,
-            y: 400.0,
-            start_x: 100.0,
-            start_y: 200.0,
-        };
+        let event = MouseEvent::DragEnd { x: 300.0, y: 400.0 };
 
         match event {
-            MouseEvent::DragEnd {
-                x,
-                y,
-                start_x,
-                start_y,
-            } => {
+            MouseEvent::DragEnd { x, y } => {
                 assert_eq!(x, 300.0);
                 assert_eq!(y, 400.0);
-                assert_eq!(start_x, 100.0);
-                assert_eq!(start_y, 200.0);
             }
             _ => panic!("Wrong event type"),
         }

@@ -30,9 +30,9 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useScheduler } from '@/hooks/scheduler';
+import type { BackupDestination, BackupTaskPayload, BackupTaskType } from '@/types/scheduler';
 
-type BackupType = 'full' | 'sessions' | 'settings' | 'all';
-type BackupDestination = 'local' | 'webdav' | 'github' | 'all';
+type BackupType = Exclude<BackupTaskType, 'plugins'>;
 
 interface BackupScheduleDialogProps {
   trigger?: React.ReactNode;
@@ -92,7 +92,7 @@ export function BackupScheduleDialog({
             includeArtifacts,
             includeIndexedDB,
           },
-        },
+        } satisfies BackupTaskPayload,
         notification: {
           onStart: false,
           onComplete: notifyOnComplete,
@@ -228,6 +228,12 @@ export function BackupScheduleDialog({
                     {t('backup.destinations.github')}
                   </div>
                 </SelectItem>
+                <SelectItem value="googledrive">
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    {t('backup.destinations.googledrive')}
+                  </div>
+                </SelectItem>
                 <SelectItem value="all">
                   <div className="flex items-center gap-2">
                     <Upload className="h-4 w-4" />
@@ -236,6 +242,9 @@ export function BackupScheduleDialog({
                 </SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              {t('backup.destinationHint') || 'Choose where this scheduled backup should be uploaded.'}
+            </p>
           </div>
 
           {/* Backup Options */}

@@ -1,280 +1,173 @@
-# Agent, Vector Database, and Skills Integration
+# Agent Integration (Built-in + External ACP)
 
-This document describes the integration between Agent, Vector Database (RAG), Skills, and MCP tools in Cognia.
+This document describes the current end-to-end Agent integration in Cognia, including built-in agent execution, external ACP agents, chat/session linkage, cancellation semantics, and platform behavior.
 
-## Overview
+## Scope
 
-Cognia provides a unified system for AI agent execution that seamlessly integrates multiple tool sources:
+- Built-in agent execution (`useAgent`)
+- External agent execution (`useExternalAgent` + `ExternalAgentManager`)
+- Chat routing and fallback (`components/chat/core/chat-container.tsx`)
+- Persisted external agent configuration (`stores/agent/external-agent-store`)
+- Startup synchronization (`ExternalAgentInitializer`)
 
-- **Built-in Tools**: Calculator, web search, code execution, etc.
-- **Skill-based Tools**: Tools derived from activated Skills
-- **MCP Tools**: Tools from connected MCP (Model Context Protocol) servers
-- **RAG Tools**: Retrieval Augmented Generation using vector databases
-- **Custom Tools**: User-defined tools
+## Standards Baseline
+
+The implementation aligns with:
+
+- MCP spec baseline:
+  - [MCP 2025-11-05](https://modelcontextprotocol.io/specification/2025-11-05)
+  - [MCP 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18)
+  - [MCP Transports](https://modelcontextprotocol.io/specification/2025-11-05/basic/transports)
+  - [MCP Security Best Practices](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices)
+- ACP capabilities and session lifecycle:
+  - [ACP Home](https://agentclientprotocol.com/)
+  - [ACP Prompt Turn](https://agentclientprotocol.com/protocol/prompt-turn)
+  - [ACP Session Delete RFD](https://agentclientprotocol.com/blog/session-delete-rfd)
+- A2A references (reserved, not executable in current release):
+  - [A2A Spec](https://a2aproject.github.io/A2A/latest/specification/)
+  - [A2A Core](https://a2aproject.github.io/A2A/latest/topics/core/)
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Unified Tool Registry                     │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌────────┐ │
-│  │ Built-in    │ │ Skill       │ │ MCP         │ │ RAG    │ │
-│  │ Tools       │ │ Tools       │ │ Tools       │ │ Tools  │ │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └────────┘ │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Agent Executor                          │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │ useAgent Hook / Background Agent Manager                ││
-│  └─────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────┘
-```
+### Single Source of Truth
 
-## Key Components
+- Configuration truth: `useExternalAgentStore`
+- Runtime truth: `ExternalAgentManager`
+- Synchronization bridge:
+  - `components/providers/initializers/external-agent-initializer.tsx`
+  - `hooks/agent/use-external-agent.ts`
 
-### 1. MCP Tools Adapter (`lib/ai/agent/mcp-tools.ts`)
+### Startup Initialization
 
-Converts MCP server tools to the AgentTool format used by the agent executor.
+On app startup:
 
-```typescript
-import { createMcpToolsFromStore } from '@/lib/ai/agent';
+1. `ExternalAgentInitializer` reads persisted external agent configs.
+2. Executable ACP configs are registered into `ExternalAgentManager`.
+3. `autoConnectOnStartup` controls startup connect attempts.
+4. Runtime connection status is written back to store `connectionStatus`.
 
-// Convert MCP tools for agent use
-const mcpTools = createMcpToolsFromStore(servers, callTool, {
-  requireApproval: false,
-  timeout: 30000,
-});
-```
+## Protocol + Platform Matrix
 
-**Features:**
+## Executable Protocols
 
-- JSON Schema to Zod conversion for parameter validation
-- Automatic tool naming with server prefix
-- Timeout handling
-- Error formatting
+- `acp`: supported
 
-### 2. RAG Integration (`lib/ai/agent/agent-tools.ts`)
+## Non-Executable Protocols (explicitly disabled)
 
-Provides RAG search capabilities through the vector database.
+- `a2a`
+- custom `http`
+- custom `websocket`
 
-```typescript
-import { buildRAGConfigFromSettings, createRAGSearchTool } from '@/lib/ai/agent';
+These remain visible in settings as `Coming Soon`, are preserved in storage, but cannot be executed until protocol executors are implemented.
 
-// Build RAG config from vector store settings
-const ragConfig = buildRAGConfigFromSettings(vectorSettings, apiKey);
-const ragTool = createRAGSearchTool(ragConfig);
-```
+## Transport Behavior
 
-**Features:**
+- `stdio`:
+  - Tauri: supported
+  - Web: blocked with explicit user-facing reason
+- `http` / `websocket` / `sse` under ACP:
+  - Supported according to adapter/runtime capability
 
-- Auto-configuration from vector store settings
-- Support for multiple embedding providers
-- Semantic search with similarity threshold
+## Migration Behavior
 
-### 3. Skills Integration (`lib/skills/executor.ts`)
+External agent persisted state now uses store persist version `2`.
 
-Converts Skills to agent tools and enhances system prompts.
+During migration:
 
-```typescript
-import { createSkillTools, buildMultiSkillSystemPrompt } from '@/lib/skills/executor';
+- Existing non-ACP entries are retained.
+- They are annotated in `metadata`:
+  - `unsupported: true`
+  - `unsupportedProtocol`
+  - `unsupportedReason`
+- They remain editable and can be migrated to ACP in UI.
 
-// Create tools from active skills
-const skillTools = createSkillTools(activeSkills);
+No non-ACP config is silently deleted.
 
-// Build enhanced system prompt
-const skillsPrompt = buildMultiSkillSystemPrompt(activeSkills, {
-  maxContentLength: 8000,
-  includeResources: true,
-});
-```
+## Chat Routing and Fallback
 
-**Features:**
+Chat agent messages now route with this order:
 
-- Progressive disclosure based on token budget
-- Resource inclusion
-- Multi-skill system prompt generation
+1. If session has `externalAgentId` and external agent is available, execute externally.
+2. If external execution fails, show warning/telemetry and automatically fallback to built-in `runAgent`.
+3. If no external agent is configured, execute built-in path directly.
 
-### 4. Unified Tool Registry (`lib/ai/tools/unified-registry.ts`)
+Implemented in:
 
-Central registry for managing all tool sources.
+- `components/chat/core/chat-container.tsx`
 
-```typescript
-import { getUnifiedToolRegistry, registerBuiltinTools } from '@/lib/ai/tools';
+## Session Continuity
 
-const registry = getUnifiedToolRegistry();
+`Session` now supports persisted external session reuse:
 
-// Register tools
-registerBuiltinTools(registry, builtinTools);
-registerSkillTools(registry, skills, skillTools);
-registerMcpTools(registry, servers, mcpTools);
+- `externalAgentId?: string`
+- `externalAgentSessionId?: string`
 
-// Get enabled tools
-const tools = registry.getToolsRecord({ isEnabled: true });
+Execution flow:
 
-// Filter tools
-const searchTools = registry.filter({ categories: ['search'] });
-```
+1. Chat passes `session.externalAgentSessionId` as `ExternalAgentExecutionOptions.sessionId`.
+2. External result/session events update `externalAgentSessionId`.
+3. Next turn reuses the same external ACP session when valid.
 
-**Features:**
+## Cancellation Semantics
 
-- Tool categorization (search, compute, file, document, etc.)
-- Source tracking (builtin, skill, mcp, custom)
-- Enable/disable individual tools
-- Search and filter capabilities
-- Change subscription
+## Built-in Agent
 
-### 5. Background Agent Manager (`lib/ai/agent/background-agent-manager.ts`)
+- `AgentConfig` includes `abortSignal?: AbortSignal`.
+- `useAgent.stop()` now:
+  - aborts in-flight model generation via `AbortController`
+  - cancels planning loop token (`createAgentLoopCancellationToken`)
 
-Manages background agent execution with full integration support.
+## External Agent
 
-```typescript
-const manager = getBackgroundAgentManager();
+- `ExternalAgentExecutionOptions` includes `sessionId?: string`.
+- External execute/streaming both resolve session consistently:
+  - explicit `options.sessionId`
+  - legacy context compatibility (`context.custom.sessionId`)
+  - resume/create fallback
+- `useExternalAgent.cancel()` targets current executing external session.
 
-// Set up providers for integration
-manager.setProviders({
-  skills: () => ({ skills, activeSkillIds }),
-  mcp: () => ({ servers, callTool }),
-  vectorSettings: () => vectorSettings,
-  apiKey: (provider) => getApiKey(provider),
-});
+## UI Behavior
 
-// Create agent with integration enabled
-const agent = manager.createAgent({
-  name: 'Research Agent',
-  task: 'Research the topic',
-  config: {
-    enableSkills: true,
-    enableRAG: true,
-    enableMcpTools: true,
-  },
-});
-```
+All external-agent entry points are aligned:
 
-## Hooks
+- `components/agent/external-agent-manager.tsx`
+- `components/settings/agent/external-agent-settings.tsx`
+- `components/agent/external-agent-selector.tsx`
 
-### useAgent
+They consistently:
 
-The main hook for agent execution with integrated tools.
+- Disable unsupported protocols (`Coming Soon`)
+- Prevent connect/execute for blocked configs
+- Show actionable reason for blocked execution
+- Preserve legacy/non-ACP configs for migration
 
-```typescript
-import { useAgent } from '@/hooks';
+## Key API / Type Updates
 
-const {
-  run,
-  stop,
-  isRunning,
-  toolCalls,
-} = useAgent({
-  systemPrompt: 'You are a helpful assistant.',
-  enableSkills: true,
-  enableMcpTools: true,
-  enableRAG: true,
-});
-```
+- `types/core/session.ts`
+  - `externalAgentSessionId?: string`
+- `types/agent/external-agent.ts`
+  - `ExternalAgentExecutionOptions.sessionId?: string`
+- `lib/ai/agent/agent-executor.ts`
+  - `AgentConfig.abortSignal?: AbortSignal`
 
-### useUnifiedTools
+## Observability
 
-Hook for unified tool management.
+External execution path uses trace bridge metadata and keeps ACP session id + chat session id linkage for debugging:
 
-```typescript
-import { useUnifiedTools } from '@/hooks';
+- `lib/ai/agent/external/manager.ts`
 
-const {
-  tools,
-  registeredTools,
-  filter,
-  enableTool,
-  disableTool,
-  stats,
-} = useUnifiedTools({
-  enableBuiltinTools: true,
-  enableSkillTools: true,
-  enableMcpTools: true,
-  enableRAG: true,
-});
-```
+## Validation Coverage
 
-## Configuration
+Main validation includes:
 
-### Background Agent Config
+- `hooks/agent/use-external-agent.test.ts`
+- `hooks/agent/use-agent.test.ts`
+- `lib/ai/agent/external/manager.test.ts`
+- `components/agent/external-agent-manager.test.tsx`
+- `components/settings/agent/external-agent-settings.test.tsx`
+- `components/agent/external-agent-selector.test.tsx`
+- `components/chat/core/chat-container.test.tsx`
 
-```typescript
-interface BackgroundAgentConfig {
-  // ... existing config ...
-  
-  // Skills integration
-  enableSkills?: boolean;
-  activeSkillIds?: string[];
-  
-  // RAG integration
-  enableRAG?: boolean;
-  ragCollectionId?: string;
-  
-  // MCP integration
-  enableMcpTools?: boolean;
-  mcpServerIds?: string[];
-}
-```
+For browser-level flow verification, see:
 
-### Agent Tools Config
-
-```typescript
-interface AgentToolsConfig {
-  // Built-in tools
-  enableWebSearch?: boolean;
-  enableCalculator?: boolean;
-  enableRAGSearch?: boolean;
-  
-  // Skills
-  enableSkills?: boolean;
-  activeSkills?: Skill[];
-  
-  // MCP
-  enableMcpTools?: boolean;
-  mcpServers?: McpServerState[];
-  mcpCallTool?: (serverId, toolName, args) => Promise<ToolCallResult>;
-  mcpRequireApproval?: boolean;
-  
-  // RAG
-  ragConfig?: RAGConfig;
-}
-```
-
-## Best Practices
-
-1. **Tool Approval**: Set `requireApproval: true` for sensitive MCP tools
-2. **Token Budget**: Use progressive disclosure for skills to manage context length
-3. **Error Handling**: MCP tools have built-in timeout and error handling
-4. **Dynamic Updates**: Use `useUnifiedTools` for automatic synchronization
-
-## Troubleshooting
-
-### MCP Tools Not Appearing
-
-1. Check that the MCP server is connected (`status.type === 'connected'`)
-2. Verify `enableMcpTools` is set to `true`
-3. Check console for any conversion errors
-
-### RAG Search Not Working
-
-1. Ensure vector database is configured in settings
-2. Verify embedding API key is set
-3. Check that documents have been indexed
-
-### Skills Not Active
-
-1. Verify skills are activated in the skill store
-2. Check `enableSkills` option is `true`
-3. Ensure skills have valid content
-
-## API Reference
-
-See the following files for detailed API documentation:
-
-- `@/lib/ai/agent/mcp-tools.ts` - MCP tools adapter
-- `@/lib/ai/agent/agent-tools.ts` - Agent tools configuration
-- `@/lib/ai/tools/unified-registry.ts` - Unified tool registry
-- `@/hooks/use-agent.ts` - Agent hook
-- `@/hooks/use-unified-tools.ts` - Unified tools hook
+- `e2e/features/external-agent-routing.spec.ts`

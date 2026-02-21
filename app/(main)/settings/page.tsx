@@ -39,6 +39,7 @@ import {
   ExternalLink,
   Swords,
   Users,
+  Code2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -97,6 +98,7 @@ import {
   ChatSettings,
   ToolSettings,
   DesktopSettings,
+  EditorSettings,
   EnvironmentSettings,
   ProxySettings,
   SpeechSettings,
@@ -535,6 +537,13 @@ export default function SettingsPage() {
         description: t('descVector'),
         group: 'data',
       },
+      {
+        id: 'editor',
+        label: t('tabEditor') || 'Editor',
+        icon: <Code2 className="h-4 w-4" />,
+        description: t('descEditor') || 'Unified Monaco editor settings and LSP behavior',
+        group: 'system',
+      },
       ...(isDesktop
         ? [
             {
@@ -659,6 +668,8 @@ export default function SettingsPage() {
         return <AgentTraceSettings />;
       case 'vector':
         return <VectorSettings />;
+      case 'editor':
+        return <EditorSettings />;
       case 'tools':
         return <ToolSettings />;
       case 'skills':

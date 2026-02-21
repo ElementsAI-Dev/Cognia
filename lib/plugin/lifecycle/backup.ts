@@ -6,6 +6,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { loggers } from '../core/logger';
+import { usePluginStore } from '@/stores/plugin';
 
 // =============================================================================
 // Types
@@ -85,6 +86,102 @@ export class PluginBackupManager {
     };
   }
 
+  private getIndexStorageKey(): string {
+    return `plugin:backup:index:${this.config.backupPath}`;
+  }
+
+  private readIndexFromStorage(): Record<string, PluginBackup[]> | null {
+    try {
+      if (typeof localStorage === 'undefined') {
+        return null;
+      }
+      const raw = localStorage.getItem(this.getIndexStorageKey());
+      return raw ? (JSON.parse(raw) as Record<string, PluginBackup[]>) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private writeIndexToStorage(index: Record<string, PluginBackup[]>): void {
+    try {
+      if (typeof localStorage === 'undefined') {
+        return;
+      }
+      localStorage.setItem(this.getIndexStorageKey(), JSON.stringify(index));
+    } catch {
+      // ignore storage write failures
+    }
+  }
+
+  private getPluginRuntime(pluginId: string) {
+    return usePluginStore.getState().plugins[pluginId];
+  }
+
+  private async calculatePathSize(path: string): Promise<number> {
+    try {
+      const { stat, readDir } = await import('@tauri-apps/plugin-fs');
+
+      const walk = async (target: string): Promise<number> => {
+        const info = await stat(target);
+        if (!info.isDirectory) {
+          return info.size;
+        }
+
+        let total = 0;
+        const entries = await readDir(target);
+        for (const entry of entries) {
+          if (!entry.name) continue;
+          total += await walk(`${target}/${entry.name}`);
+        }
+        return total;
+      };
+
+      return await walk(path);
+    } catch {
+      return 0;
+    }
+  }
+
+  private async inspectBackup(backupPath: string): Promise<BackupContents | null> {
+    try {
+      const { stat, readDir, readTextFile } = await import('@tauri-apps/plugin-fs');
+      const files: string[] = [];
+
+      const walk = async (target: string): Promise<void> => {
+        const info = await stat(target);
+        if (!info.isDirectory) {
+          files.push(target);
+          return;
+        }
+        const entries = await readDir(target);
+        for (const entry of entries) {
+          if (!entry.name) continue;
+          await walk(`${target}/${entry.name}`);
+        }
+      };
+
+      await walk(backupPath);
+
+      let manifest: Record<string, unknown> = {};
+      const manifestPath = `${backupPath}/plugin.json`;
+      try {
+        const raw = await readTextFile(manifestPath);
+        manifest = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        // ignore missing manifest in backup
+      }
+
+      return {
+        manifest,
+        config: {},
+        data: {},
+        files,
+      };
+    } catch {
+      return null;
+    }
+  }
+
   // ===========================================================================
   // Initialization
   // ===========================================================================
@@ -99,9 +196,7 @@ export class PluginBackupManager {
 
   private async loadBackupIndex(): Promise<void> {
     try {
-      const index = await invoke<Record<string, PluginBackup[]>>('plugin_backup_load_index', {
-        backupPath: this.config.backupPath,
-      });
+      const index = this.readIndexFromStorage() ?? {};
 
       for (const [pluginId, backups] of Object.entries(index)) {
         this.backups.set(
@@ -131,23 +226,23 @@ export class PluginBackupManager {
     const startTime = Date.now();
 
     try {
-      // Get plugin info
-      const manifest = await invoke<Record<string, unknown>>('plugin_get_manifest', { pluginId });
-      const version = (manifest.version as string) || 'unknown';
+      const pluginRuntime = this.getPluginRuntime(pluginId);
+      const version = pluginRuntime?.manifest.version || 'unknown';
+      const sourcePath = pluginRuntime?.path;
+      if (!sourcePath) {
+        throw new Error(`Plugin path not found for ${pluginId}`);
+      }
+      const backupPath = `${this.config.backupPath}/${pluginId}/${Date.now()}-${version}`;
 
       // Create backup via Tauri
-      const backupPath = await invoke<string>('plugin_backup_create', {
+      await invoke('plugin_backup_create', {
         pluginId,
-        backupPath: this.config.backupPath,
-        options: {
-          includeConfig: this.config.includeConfig,
-          includeData: this.config.includeData,
-          compress: this.config.compressBackups,
-        },
+        sourcePath,
+        backupPath,
       });
 
       // Get backup size
-      const size = await invoke<number>('plugin_backup_get_size', { path: backupPath });
+      const size = await this.calculatePathSize(backupPath);
 
       const backup: PluginBackup = {
         id: this.generateBackupId(),
@@ -211,10 +306,7 @@ export class PluginBackupManager {
         index[pluginId] = backups;
       }
 
-      await invoke('plugin_backup_save_index', {
-        backupPath: this.config.backupPath,
-        index,
-      });
+      this.writeIndexToStorage(index);
     } catch (error) {
       loggers.manager.error('[Backup] Failed to save index:', error);
     }
@@ -247,21 +339,21 @@ export class PluginBackupManager {
 
     try {
       // Restore via Tauri
+      const targetPath = this.getPluginRuntime(backup.pluginId)?.path;
+      if (!targetPath) {
+        throw new Error(`Plugin path not found for ${backup.pluginId}`);
+      }
       await invoke('plugin_backup_restore', {
-        backupPath: backup.path,
-        pluginId: backup.pluginId,
+        sourcePath: backup.path,
+        targetPath,
       });
-
-      const requiresRestart = await invoke<boolean>('plugin_requires_restart', {
-        pluginId: backup.pluginId,
-      }).catch(() => false);
 
       return {
         success: true,
         pluginId: backup.pluginId,
         restoredVersion: backup.version,
         duration: Date.now() - startTime,
-        requiresRestart,
+        requiresRestart: false,
       };
     } catch (error) {
       return {
@@ -322,13 +414,7 @@ export class PluginBackupManager {
 
     if (!backup) return null;
 
-    try {
-      return await invoke<BackupContents>('plugin_backup_inspect', {
-        backupPath: backup.path,
-      });
-    } catch {
-      return null;
-    }
+    return this.inspectBackup(backup.path);
   }
 
   // ===========================================================================
@@ -417,7 +503,10 @@ export class PluginBackupManager {
 
   private async runAutoBackup(): Promise<void> {
     try {
-      const installedPlugins = await invoke<string[]>('plugin_list_enabled');
+      const installedPlugins = usePluginStore
+        .getState()
+        .getEnabledPlugins()
+        .map((plugin) => plugin.manifest.id);
 
       for (const pluginId of installedPlugins) {
         const lastBackup = this.backups.get(pluginId)?.[0];

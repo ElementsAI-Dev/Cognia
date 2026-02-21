@@ -16,7 +16,7 @@ import { useProjectStats } from './use-project-stats';
 
 // Helper to get mock stores for test manipulation
 function getStores() {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
+   
   const stores = require('@/stores') as any;
   return {
     projectStore: stores.useProjectStore,

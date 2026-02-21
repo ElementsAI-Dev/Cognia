@@ -1,10 +1,15 @@
 /**
  * @jest-environment jsdom
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ExternalAgentSettings } from './external-agent-settings';
+
+jest.mock('@/lib/utils', () => ({
+  ...jest.requireActual('@/lib/utils'),
+  isTauri: jest.fn(() => true),
+}));
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -20,6 +25,10 @@ jest.mock('next-intl', () => ({
       showNotificationsDesc: 'Show connection notifications',
       defaultPermissionMode: 'Default Permission Mode',
       defaultPermissionModeDesc: 'Default mode for sessions',
+      chatFailurePolicy: 'Chat Failure Policy',
+      chatFailurePolicyDesc: 'Behavior when external agent execution fails in chat mode',
+      chatFailurePolicyFallback: 'Fallback to built-in agent',
+      chatFailurePolicyStrict: 'Strict failure (no fallback)',
       permissionDefault: 'Default',
       permissionAcceptEdits: 'Accept Edits',
       permissionBypass: 'Bypass',
@@ -71,6 +80,7 @@ jest.mock('sonner', () => ({
 
 // Mock external agent store
 const mockGetAllAgents = jest.fn();
+const mockGetAgent = jest.fn();
 const mockGetConnectionStatus = jest.fn();
 const mockAddAgent = jest.fn();
 const mockUpdateAgent = jest.fn();
@@ -79,16 +89,19 @@ const mockSetEnabled = jest.fn();
 const mockSetDefaultPermissionMode = jest.fn();
 const mockSetAutoConnectOnStartup = jest.fn();
 const mockSetShowConnectionNotifications = jest.fn();
+const mockSetChatFailurePolicy = jest.fn();
 const mockStoreState = {
   enabled: true,
   defaultPermissionMode: 'default',
   autoConnectOnStartup: false,
   showConnectionNotifications: true,
+  chatFailurePolicy: 'fallback',
 };
 
 jest.mock('@/stores/agent/external-agent-store', () => ({
   useExternalAgentStore: () => ({
     getAllAgents: mockGetAllAgents,
+    getAgent: mockGetAgent,
     getConnectionStatus: mockGetConnectionStatus,
     addAgent: mockAddAgent,
     updateAgent: mockUpdateAgent,
@@ -101,6 +114,8 @@ jest.mock('@/stores/agent/external-agent-store', () => ({
     setAutoConnectOnStartup: mockSetAutoConnectOnStartup,
     showConnectionNotifications: mockStoreState.showConnectionNotifications,
     setShowConnectionNotifications: mockSetShowConnectionNotifications,
+    chatFailurePolicy: mockStoreState.chatFailurePolicy,
+    setChatFailurePolicy: mockSetChatFailurePolicy,
   }),
 }));
 
@@ -177,13 +192,31 @@ jest.mock('@/components/ui/select', () => ({
   Select: ({ children, value, onValueChange }: any) => (
     <div data-testid="select" data-value={value}>
       {React.Children.map(children, (child) =>
-        React.cloneElement(child, { onValueChange })
+        React.isValidElement(child)
+          ? React.cloneElement(child as React.ReactElement<any>, { onValueChange })
+          : child
       )}
     </div>
   ),
-  SelectContent: ({ children }: any) => <div data-testid="select-content">{children}</div>,
-  SelectItem: ({ children, value, onClick }: any) => (
-    <div data-testid={`select-item-${value}`} onClick={onClick}>{children}</div>
+  SelectContent: ({ children, onValueChange }: any) => (
+    <div data-testid="select-content">
+      {React.Children.map(children, (child) =>
+        React.isValidElement(child)
+          ? React.cloneElement(child as React.ReactElement<any>, { onValueChange })
+          : child
+      )}
+    </div>
+  ),
+  SelectItem: ({ children, value, onClick, onValueChange }: any) => (
+    <div
+      data-testid={`select-item-${value}`}
+      onClick={() => {
+        onClick?.();
+        onValueChange?.(value);
+      }}
+    >
+      {children}
+    </div>
   ),
   SelectTrigger: ({ children, className }: any) => <div data-testid="select-trigger" className={className}>{children}</div>,
   SelectValue: ({ placeholder }: any) => <span>{placeholder}</span>,
@@ -230,6 +263,7 @@ describe('ExternalAgentSettings', () => {
       name: 'Claude Code',
       protocol: 'acp',
       transport: 'stdio',
+      enabled: true,
       process: { command: 'claude-code', args: [] },
     },
     {
@@ -237,6 +271,7 @@ describe('ExternalAgentSettings', () => {
       name: 'Custom Agent',
       protocol: 'http',
       transport: 'http',
+      enabled: true,
       network: { endpoint: 'http://localhost:8080' },
     },
   ];
@@ -244,11 +279,13 @@ describe('ExternalAgentSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetAllAgents.mockReturnValue(mockAgents);
+    mockGetAgent.mockImplementation((id: string) => mockAgents.find((agent) => agent.id === id));
     mockGetConnectionStatus.mockReturnValue('disconnected');
     mockStoreState.enabled = true;
     mockStoreState.autoConnectOnStartup = false;
     mockStoreState.showConnectionNotifications = true;
     mockStoreState.defaultPermissionMode = 'default';
+    mockStoreState.chatFailurePolicy = 'fallback';
   });
 
   describe('Rendering', () => {
@@ -414,5 +451,23 @@ describe('ExternalAgentSettings Permission Mode', () => {
   it('displays permission mode description', () => {
     render(<ExternalAgentSettings />);
     expect(screen.getByText('Default mode for sessions')).toBeInTheDocument();
+  });
+
+  it('renders chat failure policy selector', () => {
+    render(<ExternalAgentSettings />);
+    expect(screen.getByText('Chat Failure Policy')).toBeInTheDocument();
+  });
+
+  it('displays chat failure policy description', () => {
+    render(<ExternalAgentSettings />);
+    expect(
+      screen.getByText('Behavior when external agent execution fails in chat mode')
+    ).toBeInTheDocument();
+  });
+
+  it('updates chat failure policy selection', () => {
+    render(<ExternalAgentSettings />);
+    fireEvent.click(screen.getByTestId('select-item-strict'));
+    expect(mockSetChatFailurePolicy).toHaveBeenCalledWith('strict');
   });
 });

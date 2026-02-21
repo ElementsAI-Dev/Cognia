@@ -91,6 +91,10 @@
   "created": "创建时间",
   "actions": "操作",
   "noBackups": "未找到备份",
+  "restore": "恢复",
+  "restoreSuccess": "备份恢复成功",
+  "restoreFailed": "备份恢复失败",
+  "deleteBackup": "删除备份",
   "backupDeleted": "备份已删除",
   "deleteFailed": "删除备份失败",
   

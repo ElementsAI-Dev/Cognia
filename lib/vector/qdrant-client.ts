@@ -226,15 +226,33 @@ export async function queryQdrant(
     config.embeddingApiKey
   );
 
-  const results = await client.search(collectionName, {
-    vector: queryResult.embedding,
-    limit: topK,
-    filter: filter as Record<string, unknown> | undefined,
-    score_threshold: scoreThreshold,
-    with_payload: true,
-  });
+  let points: Array<{ id: string | number; payload?: Record<string, unknown>; score: number }> = [];
+  try {
+    const queryPayload: Record<string, unknown> = {
+      query: queryResult.embedding,
+      limit: topK,
+      filter: filter as Record<string, unknown> | undefined,
+      score_threshold: scoreThreshold,
+      with_payload: true,
+      with_vector: false,
+    };
 
-  return results.map((result) => ({
+    const response = await client.query(collectionName, {
+      ...(queryPayload as Parameters<QdrantClient['query']>[1]),
+    });
+    points = ((response as { points?: Array<{ id: string | number; payload?: Record<string, unknown>; score: number }> }).points || []);
+  } catch {
+    const fallback = await client.search(collectionName, {
+      vector: queryResult.embedding,
+      limit: topK,
+      filter: filter as Record<string, unknown> | undefined,
+      score_threshold: scoreThreshold,
+      with_payload: true,
+    });
+    points = fallback as Array<{ id: string | number; payload?: Record<string, unknown>; score: number }>;
+  }
+
+  return points.map((result) => ({
     id: result.id,
     content: (result.payload?.content as string) || '',
     metadata: result.payload as Record<string, unknown> | undefined,

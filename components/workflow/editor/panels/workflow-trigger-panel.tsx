@@ -724,7 +724,8 @@ interface WebhookTriggerConfigProps {
 }
 
 function WebhookTriggerConfig({ config, workflowId, onChange }: WebhookTriggerConfigProps) {
-  const webhookUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/workflows/${workflowId}/webhook`;
+  const baseOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+  const webhookUrl = `${baseOrigin}/api/workflows/webhook?workflowId=${encodeURIComponent(workflowId)}`;
 
   return (
     <div className="space-y-3">

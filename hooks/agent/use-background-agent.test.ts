@@ -63,6 +63,10 @@ jest.mock('@/stores/data', () => ({
   }),
 }));
 
+jest.mock('@/lib/vector/embedding', () => ({
+  resolveEmbeddingApiKey: jest.fn(() => 'test-api-key'),
+}));
+
 // Mock the background agent manager
 const mockQueueState = {
   items: [],

@@ -1,41 +1,120 @@
 /**
  * TransformersManager tests
- * Tests the Web Worker manager for browser-based ML inference.
  */
 
 import { TransformersManager, isWebGPUAvailable, isWebWorkerAvailable } from './transformers-manager';
 
-// Mock Worker
+const workerBehavior = {
+  delayMs: 10,
+  noResponseTypes: new Set<string>(),
+};
+
 class MockWorker {
-  onmessage: ((event: MessageEvent) => void) | null = null;
   private listeners = new Map<string, Array<(event: unknown) => void>>();
+  private loaded = new Set<string>();
 
   postMessage(data: unknown) {
-    // Simulate async worker response
-    const msg = data as { id: string; type: string; payload: Record<string, unknown> };
+    const msg = data as {
+      id: string;
+      type: 'load' | 'infer' | 'dispose' | 'status';
+      payload: {
+        task?: string;
+        modelId?: string;
+        input?: unknown;
+      };
+    };
+
+    if (workerBehavior.noResponseTypes.has(msg.type)) {
+      return;
+    }
+
     setTimeout(() => {
       if (msg.type === 'load') {
-        // Send progress then loaded
         this.dispatchEvent('message', {
-          data: { id: msg.id, type: 'progress', progress: { modelId: msg.payload.modelId, status: 'downloading', progress: 50 } },
+          data: {
+            id: msg.id,
+            type: 'progress',
+            progress: {
+              task: msg.payload.task,
+              modelId: msg.payload.modelId,
+              status: 'downloading',
+              progress: 50,
+            },
+          },
         });
+
+        const key = `${msg.payload.task}::${msg.payload.modelId}`;
+        this.loaded.add(key);
         this.dispatchEvent('message', {
-          data: { id: msg.id, type: 'loaded', data: { task: msg.payload.task, modelId: msg.payload.modelId }, duration: 100 },
+          data: {
+            id: msg.id,
+            type: 'loaded',
+            data: { task: msg.payload.task, modelId: msg.payload.modelId },
+            duration: 100,
+          },
         });
-      } else if (msg.type === 'infer') {
+        return;
+      }
+
+      if (msg.type === 'infer') {
+        let data: unknown = [{ label: 'POSITIVE', score: 0.99 }];
+
+        if (msg.payload.task === 'feature-extraction') {
+          if (Array.isArray(msg.payload.input)) {
+            data = (msg.payload.input as string[]).map((_, index) => [index + 0.1, index + 0.2]);
+          } else {
+            data = [0.1, 0.2, 0.3];
+          }
+        }
+
         this.dispatchEvent('message', {
-          data: { id: msg.id, type: 'result', data: [{ label: 'POSITIVE', score: 0.99 }], duration: 50 },
+          data: { id: msg.id, type: 'result', data, duration: 50 },
         });
-      } else if (msg.type === 'dispose') {
+        return;
+      }
+
+      if (msg.type === 'dispose') {
+        if (msg.payload.task && msg.payload.modelId) {
+          this.loaded.delete(`${msg.payload.task}::${msg.payload.modelId}`);
+        } else {
+          this.loaded.clear();
+        }
         this.dispatchEvent('message', {
           data: { id: msg.id, type: 'result', data: { disposed: true } },
         });
-      } else if (msg.type === 'status') {
+        return;
+      }
+
+      if (msg.type === 'status') {
+        const loadedModels = Array.from(this.loaded).map((entry, index) => {
+          const [task, modelId] = entry.split('::');
+          return {
+            cacheKey: entry,
+            task,
+            modelId,
+            loadedAt: Date.now() - 1000,
+            lastUsedAt: Date.now() - 100 * index,
+            hitCount: index + 1,
+          };
+        });
+
         this.dispatchEvent('message', {
-          data: { id: msg.id, type: 'status', data: { loadedModels: [], count: 0 } },
+          data: {
+            id: msg.id,
+            type: 'status',
+            data: {
+              loadedModels,
+              count: loadedModels.length,
+              cache: {
+                enabled: true,
+                maxCachedModels: 5,
+                currentCachedModels: loadedModels.length,
+              },
+            },
+          },
         });
       }
-    }, 10);
+    }, workerBehavior.delayMs);
   }
 
   addEventListener(type: string, listener: (event: unknown) => void) {
@@ -55,23 +134,22 @@ class MockWorker {
 
   terminate() {
     this.listeners.clear();
+    this.loaded.clear();
   }
 
   private dispatchEvent(type: string, event: unknown) {
     const listeners = this.listeners.get(type);
-    if (listeners) {
-      for (const listener of listeners) {
-        listener(event);
-      }
+    if (!listeners) return;
+    for (const listener of listeners) {
+      listener(event);
     }
   }
 }
 
-// Mock Worker constructor
 const originalWorker = globalThis.Worker;
+
 beforeAll(() => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).Worker = MockWorker;
+  (globalThis as { Worker: typeof Worker }).Worker = MockWorker as unknown as typeof Worker;
 });
 
 afterAll(() => {
@@ -79,106 +157,106 @@ afterAll(() => {
 });
 
 afterEach(() => {
-  // Terminate any existing instance
+  workerBehavior.noResponseTypes.clear();
+  workerBehavior.delayMs = 10;
   try {
     TransformersManager.getInstance().terminate();
   } catch {
-    // Already terminated
+    // ignore
   }
 });
 
 describe('TransformersManager', () => {
-  describe('singleton', () => {
-    it('returns the same instance', () => {
-      const a = TransformersManager.getInstance();
-      const b = TransformersManager.getInstance();
-      expect(a).toBe(b);
+  it('returns singleton instance', () => {
+    const a = TransformersManager.getInstance();
+    const b = TransformersManager.getInstance();
+    expect(a).toBe(b);
+  });
+
+  it('loads a model and emits progress', async () => {
+    const manager = TransformersManager.getInstance();
+    const progressCalls: unknown[] = [];
+
+    const result = await manager.loadModel('text-classification', 'Xenova/test-model', {
+      onProgress: (progress) => progressCalls.push(progress),
     });
 
-    it('creates new instance after terminate', () => {
-      const a = TransformersManager.getInstance();
-      a.terminate();
-      const b = TransformersManager.getInstance();
-      expect(a).not.toBe(b);
+    expect(result.task).toBe('text-classification');
+    expect(result.modelId).toBe('Xenova/test-model');
+    expect(progressCalls.length).toBeGreaterThan(0);
+  });
+
+  it('runs inference with auto-load', async () => {
+    const manager = TransformersManager.getInstance();
+
+    const result = await manager.infer('text-classification', 'Xenova/test-model', 'I love this!');
+
+    expect(result.task).toBe('text-classification');
+    expect(result.modelId).toBe('Xenova/test-model');
+    expect(result.output).toBeDefined();
+  });
+
+  it('supports batched embeddings and batch callbacks', async () => {
+    const manager = TransformersManager.getInstance();
+    const batchCalls: Array<{ batchIndex: number; totalBatches: number; processed: number; total: number }> = [];
+
+    const result = await manager.generateEmbeddings(['a', 'b', 'c'], 'Xenova/all-MiniLM-L6-v2', {
+      batchSize: 2,
+      onBatchComplete: (batch) => batchCalls.push(batch),
+    });
+
+    expect(result.embeddings).toHaveLength(3);
+    expect(batchCalls.length).toBe(2);
+    expect(batchCalls[0].processed).toBe(2);
+    expect(batchCalls[1].processed).toBe(3);
+  });
+
+  it('disposeAll clears loaded status', async () => {
+    const manager = TransformersManager.getInstance();
+
+    await manager.loadModel('text-classification', 'Xenova/test-model');
+    let status = await manager.getStatus();
+    expect(status.count).toBe(1);
+
+    await manager.disposeAll();
+    status = await manager.getStatus();
+    expect(status.count).toBe(0);
+  });
+
+  it('returns default status when worker is not initialized', async () => {
+    const manager = TransformersManager.getInstance();
+    const status = await manager.getStatus();
+
+    expect(status).toEqual({
+      loadedModels: [],
+      count: 0,
+      cache: {
+        enabled: true,
+        maxCachedModels: 5,
+        currentCachedModels: 0,
+      },
     });
   });
 
-  describe('loadModel', () => {
-    it('loads a model and returns task/modelId/duration', async () => {
-      const manager = TransformersManager.getInstance();
-      const result = await manager.loadModel('text-classification', 'Xenova/test-model');
-      expect(result.task).toBe('text-classification');
-      expect(result.modelId).toBe('Xenova/test-model');
-      expect(result.duration).toBeGreaterThanOrEqual(0);
-    });
+  it('times out requests with normalized error code', async () => {
+    const manager = TransformersManager.getInstance();
+    await manager.loadModel('text-classification', 'Xenova/test-model', { timeoutMs: 100 });
+    manager.setRuntimeSettings({ requestTimeoutMs: 5 });
+    workerBehavior.noResponseTypes.add('status');
 
-    it('calls onProgress callback during loading', async () => {
-      const manager = TransformersManager.getInstance();
-      const progressCalls: unknown[] = [];
-      await manager.loadModel('text-classification', 'Xenova/test-model', {
-        onProgress: (p) => progressCalls.push(p),
-      });
-      expect(progressCalls.length).toBeGreaterThan(0);
+    await expect(manager.getStatus()).rejects.toMatchObject({
+      code: 'request_timeout',
     });
   });
 
-  describe('infer', () => {
-    it('runs inference and returns result', async () => {
-      const manager = TransformersManager.getInstance();
-      const result = await manager.infer(
-        'text-classification',
-        'Xenova/test-model',
-        'I love this!'
-      );
-      expect(result.task).toBe('text-classification');
-      expect(result.modelId).toBe('Xenova/test-model');
-      expect(result.output).toBeDefined();
-      expect(result.duration).toBeGreaterThanOrEqual(0);
-    });
-  });
+  it('rejects pending requests on terminate', async () => {
+    const manager = TransformersManager.getInstance();
+    workerBehavior.delayMs = 100;
 
-  describe('dispose', () => {
-    it('disposes a specific model', async () => {
-      const manager = TransformersManager.getInstance();
-      await expect(
-        manager.dispose('text-classification', 'Xenova/test-model')
-      ).resolves.not.toThrow();
-    });
-  });
+    const pending = manager.loadModel('text-classification', 'Xenova/test-model');
+    manager.terminate();
 
-  describe('getStatus', () => {
-    it('returns status when no worker exists', async () => {
-      const manager = TransformersManager.getInstance();
-      const status = await manager.getStatus();
-      expect(status).toEqual({ loadedModels: [], count: 0 });
-    });
-  });
-
-  describe('terminate', () => {
-    it('terminates worker and cleans up', () => {
-      const manager = TransformersManager.getInstance();
-      expect(() => manager.terminate()).not.toThrow();
-    });
-
-    it('rejects pending requests on terminate', async () => {
-      const manager = TransformersManager.getInstance();
-      // Start a load (won't resolve instantly)
-      const loadPromise = manager.loadModel('text-classification', 'Xenova/test-model');
-      // Immediately terminate
-      manager.terminate();
-      await expect(loadPromise).rejects.toThrow('Manager terminated');
-    });
-  });
-
-  describe('setProgressCallback', () => {
-    it('calls global progress callback', async () => {
-      const manager = TransformersManager.getInstance();
-      const calls: unknown[] = [];
-      manager.setProgressCallback((p) => calls.push(p));
-      await manager.loadModel('text-classification', 'Xenova/test-model');
-      expect(calls.length).toBeGreaterThan(0);
-      manager.setProgressCallback(null);
-    });
+    await expect(pending).rejects.toThrow('Manager terminated');
   });
 });
 

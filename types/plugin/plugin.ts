@@ -92,6 +92,11 @@ export type PluginPermission =
   | 'settings:write' // Modify settings
   | 'session:read' // Read chat sessions
   | 'session:write' // Modify chat sessions
+  | 'media:image:read' // Read image media assets
+  | 'media:image:write' // Write image media assets
+  | 'media:video:read' // Read video media assets
+  | 'media:video:write' // Write video media assets
+  | 'media:video:export' // Export rendered video output
   | 'agent:control' // Control agent execution
   | 'python:execute'; // Execute Python code
 
@@ -198,6 +203,9 @@ export interface PluginManifest {
   /** Agent modes provided */
   modes?: PluginModeDef[];
 
+  /** Slash commands provided */
+  commands?: PluginManifestCommandDef[];
+
   // Activation
   /** Activation events - when to load the plugin */
   activationEvents?: PluginActivationEvent[];
@@ -280,9 +288,14 @@ export interface PluginConfigProperty {
  * Activation events
  */
 export type PluginActivationEvent =
+  | 'startup'
   | 'onStartup'
   | 'onCommand:*'
   | `onCommand:${string}`
+  | 'onTool:*'
+  | `onTool:${string}`
+  | 'onAgentTool:*'
+  | `onAgentTool:${string}`
   | 'onChat:*'
   | 'onAgent:start'
   | 'onA2UI:surface'
@@ -492,6 +505,26 @@ export interface PluginModeDef {
 
   /** Whether preview is enabled */
   previewEnabled?: boolean;
+}
+
+/**
+ * Command definition in plugin manifest
+ */
+export interface PluginManifestCommandDef {
+  /** Command ID (plugin-local or namespaced) */
+  id: string;
+
+  /** Display name */
+  name: string;
+
+  /** Description */
+  description?: string;
+
+  /** Icon (Lucide name) */
+  icon?: string;
+
+  /** Optional slash command aliases */
+  aliases?: string[];
 }
 
 // =============================================================================
@@ -1326,6 +1359,13 @@ export interface PluginDefinition {
   manifest: PluginManifest;
   activate: (context: PluginContext) => Promise<PluginHooks | void> | PluginHooks | void;
   deactivate?: () => Promise<void> | void;
+  /** Parsed activation metadata resolved by runtime manager */
+  activation?: {
+    startup: boolean;
+    commandEvents: string[];
+    toolEvents: string[];
+    rawEvents: PluginActivationEvent[];
+  };
 }
 
 /**

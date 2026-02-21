@@ -386,7 +386,14 @@ describe('useVideoEditor', () => {
         result.current.addEffect('clip-1', 'brightness-contrast');
       });
 
-      expect(result.current.state.tracks[0].clips[0].effects).toContain('brightness-contrast');
+      expect(result.current.state.tracks[0].clips[0].effects).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            effectId: 'brightness-contrast',
+            enabled: true,
+          }),
+        ])
+      );
     });
 
     it('should remove effect from clip', () => {
@@ -420,7 +427,7 @@ describe('useVideoEditor', () => {
         result.current.removeEffect('clip-1', 'brightness-contrast');
       });
 
-      expect(result.current.state.tracks[0].clips[0].effects).not.toContain('brightness-contrast');
+      expect(result.current.state.tracks[0].clips[0].effects).toEqual([]);
     });
 
     it('should add transition to clip', () => {

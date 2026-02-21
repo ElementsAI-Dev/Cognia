@@ -4,6 +4,8 @@
  */
 
 import type { ScheduledTask, TaskExecution } from '@/types/scheduler';
+import type { BackupTaskPayload } from '@/types/scheduler';
+import type { SyncProviderType } from '@/types/sync';
 import type { ProviderName } from '@/types/provider';
 import { registerTaskExecutor } from '../task-scheduler';
 import { loggers } from '@/lib/logger';
@@ -208,20 +210,10 @@ async function executeBackupTask(
   _execution: TaskExecution
 ): Promise<{ success: boolean; output?: Record<string, unknown>; error?: string }> {
   try {
-    const { 
-      backupType, 
-      destination,
-      options 
-    } = task.payload as { 
-      backupType?: 'full' | 'sessions' | 'settings' | 'plugins' | 'all';
-      destination?: 'local' | 'webdav' | 'github' | 'all';
-      options?: {
-        includeSessions?: boolean;
-        includeSettings?: boolean;
-        includeArtifacts?: boolean;
-        includeIndexedDB?: boolean;
-      };
-    };
+    const payload = (task.payload || {}) as BackupTaskPayload;
+    const backupType = payload.backupType;
+    const destination = payload.destination;
+    const options = payload.options;
     
     log.info(`Executing backup task: ${backupType || 'all'} to ${destination || 'local'}`);
 
@@ -233,9 +225,34 @@ async function executeBackupTask(
 
     // Full data backup
     if (backupType === 'full' || backupType === 'all' || backupType === 'sessions' || backupType === 'settings') {
-      const { createFullBackup } = await import('@/lib/storage/data-export');
+      const { createFullBackup, exportToJSON } = await import('@/lib/storage/data-export');
+      const { isTauri } = await import('@/lib/utils');
+      const { storageFeatureFlags } = await import('@/lib/storage/persistence/feature-flags');
+      const desktop = isTauri();
+
+      if (desktop && storageFeatureFlags.encryptedBackupV3Enabled) {
+        const { isStrongholdAvailable } = await import('@/lib/native/stronghold-integration');
+        if (!isStrongholdAvailable()) {
+          log.warn('scheduler_backup_skipped_locked_stronghold', { taskId: task.id });
+          return {
+            success: false,
+            output: {
+              skipped: true,
+              reason: 'stronghold_locked',
+              taskId: task.id,
+            },
+            error: 'Backup skipped: Stronghold is locked',
+          };
+        }
+      }
       
-      const exportData = await createFullBackup({
+      const backupPackage = await createFullBackup({
+        includeSessions: options?.includeSessions ?? (backupType !== 'settings'),
+        includeSettings: options?.includeSettings ?? (backupType !== 'sessions'),
+        includeArtifacts: options?.includeArtifacts ?? true,
+        includeIndexedDB: options?.includeIndexedDB ?? true,
+      });
+      const backupJson = await exportToJSON({
         includeSessions: options?.includeSessions ?? (backupType !== 'settings'),
         includeSettings: options?.includeSettings ?? (backupType !== 'sessions'),
         includeArtifacts: options?.includeArtifacts ?? true,
@@ -243,28 +260,148 @@ async function executeBackupTask(
       });
 
       results.dataBackup = {
-        sessions: exportData.sessions?.length || 0,
-        hasSettings: !!exportData.settings,
-        exportedAt: exportData.exportedAt,
+        sessions: backupPackage.payload.sessions.length,
+        messages: backupPackage.payload.messages.length,
+        projects: backupPackage.payload.projects.length,
+        summaries: backupPackage.payload.summaries.length,
+        hasSettings: !!backupPackage.payload.settings,
+        exportedAt: backupPackage.manifest.exportedAt,
       };
 
-      // Sync to remote if destination specified
-      if (destination === 'webdav' || destination === 'github' || destination === 'all') {
+      if (destination === 'local' || destination === 'all' || !destination) {
+        if (desktop) {
+          const { appDataDir, join } = await import('@tauri-apps/api/path');
+          const { mkdir, writeTextFile } = await import('@tauri-apps/plugin-fs');
+          const appDataPath = await appDataDir();
+          const backupDir = await join(appDataPath, 'backups');
+          await mkdir(backupDir, { recursive: true });
+          const fileName = `cognia-backup-v3-${Date.now()}.json`;
+          const targetPath = await join(backupDir, fileName);
+          await writeTextFile(targetPath, backupJson);
+          results.localBackup = { saved: true, path: targetPath };
+        } else if (typeof window !== 'undefined') {
+          const existingBackupKeys = Object.keys(localStorage)
+            .filter((key) => key.startsWith('cognia-scheduled-backup-v3-'))
+            .sort();
+          const maxBackups = 5;
+          while (existingBackupKeys.length >= maxBackups) {
+            const oldest = existingBackupKeys.shift();
+            if (oldest) {
+              localStorage.removeItem(oldest);
+            }
+          }
+
+          const key = `cognia-scheduled-backup-v3-${Date.now()}`;
+          try {
+            localStorage.setItem(key, backupJson);
+            results.localBackup = { saved: true, path: key };
+          } catch (storageError) {
+            const retryKeys = Object.keys(localStorage)
+              .filter((storageKey) => storageKey.startsWith('cognia-scheduled-backup-v3-'))
+              .sort();
+            while (retryKeys.length > 0) {
+              const oldest = retryKeys.shift();
+              if (oldest) {
+                localStorage.removeItem(oldest);
+              }
+              try {
+                localStorage.setItem(key, backupJson);
+                results.localBackup = { saved: true, path: key, reclaimedByEviction: true };
+                break;
+              } catch {
+                // continue evicting
+              }
+            }
+
+            if (!(results.localBackup as { saved?: boolean } | undefined)?.saved) {
+              throw storageError;
+            }
+          }
+        }
+      }
+
+      const shouldRemoteSync =
+        destination === 'webdav' ||
+        destination === 'github' ||
+        destination === 'googledrive' ||
+        destination === 'all';
+
+      if (shouldRemoteSync) {
+        const { getSyncManager } = await import('@/lib/sync');
+        const { hasStoredCredentials } = await import('@/lib/sync/credential-storage');
         const { useSyncStore } = await import('@/stores/sync');
-        const syncState = useSyncStore.getState();
-        
-        if (syncState.activeProvider) {
-          const { getSyncScheduler } = await import('@/lib/sync/sync-scheduler');
-          const scheduler = getSyncScheduler();
-          const syncSuccess = await scheduler.runSync('upload');
-          results.syncResult = { 
-            success: syncSuccess, 
-            provider: syncState.activeProvider,
+        const syncManager = getSyncManager();
+        let targetProviders: SyncProviderType[] = [];
+        const skippedProviders: SyncProviderType[] = [];
+
+        if (destination === 'all') {
+          const syncState = useSyncStore.getState();
+          const providerCandidates: SyncProviderType[] = ['webdav', 'github', 'googledrive'];
+          const activeByConfig: Record<SyncProviderType, boolean> = {
+            webdav: syncState.webdavConfig.enabled,
+            github: syncState.githubConfig.enabled,
+            googledrive: syncState.googleDriveConfig.enabled,
           };
+
+          for (const provider of providerCandidates) {
+            if (!activeByConfig[provider]) {
+              skippedProviders.push(provider);
+              continue;
+            }
+
+            const hasCredential = await hasStoredCredentials(provider);
+            if (!hasCredential) {
+              skippedProviders.push(provider);
+              continue;
+            }
+
+            targetProviders.push(provider);
+          }
+
+          if (targetProviders.length === 0) {
+            return {
+              success: false,
+              output: {
+                ...results,
+                syncResult: {
+                  providers: {},
+                  successfulProviders: [],
+                  failedProviders: [],
+                  skippedProviders,
+                },
+              },
+              error: 'No configured sync providers with available credentials for remote backup',
+            };
+          }
         } else {
-          results.syncResult = { 
-            success: false, 
-            error: 'No sync provider configured',
+          targetProviders = [destination as SyncProviderType];
+        }
+
+        const providerResults: Record<string, { success: boolean; error?: string }> = {};
+        for (const provider of targetProviders) {
+          const providerResult = await syncManager.runBackupUploadForProvider(provider);
+          providerResults[provider] = providerResult;
+        }
+
+        const successfulProviders = Object.entries(providerResults)
+          .filter(([, providerResult]) => providerResult.success)
+          .map(([provider]) => provider);
+        const failedProviders = Object.entries(providerResults)
+          .filter(([, providerResult]) => !providerResult.success)
+          .map(([provider, providerResult]) => ({ provider, error: providerResult.error || 'Unknown error' }));
+
+        results.syncResult = {
+          providers: providerResults,
+          successfulProviders,
+          failedProviders,
+          skippedProviders,
+        };
+
+        if (failedProviders.length > 0) {
+          return {
+            success: false,
+            output: results,
+            error: `Remote backup failed for providers: ${failedProviders.map((item) => item.provider).join(', ')}`,
           };
         }
       }

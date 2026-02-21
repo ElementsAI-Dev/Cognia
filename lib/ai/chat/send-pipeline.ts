@@ -9,10 +9,9 @@
  */
 
 import type { Attachment } from '@/types/core/message';
-import type { CredibilityLevel, SearchResponse } from '@/types/search';
+import type { SearchResponse } from '@/types/search';
 import type { ProviderName } from '@/types/provider';
 import type { UIMessage, ChatMode } from '@/types';
-import type { ParsedToolCall } from '@/types/mcp';
 import type { AnalysisResult } from '@/types';
 import { getPluginEventHooks, getPluginLifecycleHooks } from '@/lib/plugin';
 import { messageRepository } from '@/lib/db';
@@ -115,6 +114,15 @@ export interface SystemPromptParams {
     systemPrompt?: string;
     mode?: ChatMode;
     activeSkillIds?: string[];
+    learningContext?: {
+      subMode?: 'socratic' | 'speedpass';
+      speedpassContext?: {
+        availableTimeMinutes?: number;
+        targetScore?: number;
+        examDate?: string;
+        recommendedMode?: 'extreme' | 'speed' | 'comprehensive';
+      };
+    };
     id: string;
   } | undefined;
   messages: UIMessage[];
@@ -307,9 +315,48 @@ Be thorough in your thinking but concise in your final answer.`;
 
   // --- Learning mode ---
   if (currentMode === 'learning') {
-    const { buildLearningSystemPrompt } = await import('@/lib/learning');
+    const { buildLearningSystemPrompt, isLearningModeV2Enabled } = await import('@/lib/learning');
+    const learningModeV2Enabled = isLearningModeV2Enabled();
     const learningSession = getLearningSessionByChat(currentSessionId);
-    const learningPrompt = (buildLearningSystemPrompt as (s: unknown) => string | null)(learningSession);
+    const speedpassContext = session?.learningContext?.subMode === 'speedpass'
+      ? session.learningContext.speedpassContext
+      : undefined;
+
+    const speedpassContextPrompt = speedpassContext
+      ? (() => {
+          const examDate = speedpassContext.examDate ? new Date(speedpassContext.examDate) : undefined;
+          const examDateIso =
+            examDate && !Number.isNaN(examDate.getTime()) ? examDate.toISOString() : undefined;
+          const constraintPayload = {
+            schema: learningModeV2Enabled
+              ? 'cognia.speedpass.constraints.v2'
+              : 'cognia.speedpass.constraints.v1',
+            generatedAtIso: new Date().toISOString(),
+            subMode: 'speedpass',
+            availableTimeMinutes: speedpassContext.availableTimeMinutes ?? null,
+            targetScore: speedpassContext.targetScore ?? null,
+            examDateIso: examDateIso ?? null,
+            recommendedMode: speedpassContext.recommendedMode ?? null,
+            constraints: [
+              'Prioritize high-yield topics first',
+              'Use active recall and spaced review',
+              'Keep explanations concise and actionable',
+            ],
+          };
+
+          return [
+            '## SpeedPass Constraints (Auditable)',
+            'Use the following structured constraints as the source of truth:',
+            '```json',
+            JSON.stringify(constraintPayload, null, 2),
+            '```',
+          ].join('\n');
+        })()
+      : undefined;
+
+    const learningPrompt = (
+      buildLearningSystemPrompt as (s: unknown, customContext?: string) => string | null
+    )(learningSession, speedpassContextPrompt);
     if (learningPrompt) {
       console.log('Injecting learning mode (Socratic Method) system prompt');
       enhancedSystemPrompt = learningPrompt + (enhancedSystemPrompt ? `\n\n${enhancedSystemPrompt}` : '');

@@ -22,6 +22,8 @@ export {
 
 export {
   analyzeLearnerResponse,
+  analyzeLearnerResponseWithAI,
+  detectMisconceptionsWithAI,
   detectPhaseTransition,
   extractSubQuestions,
   shouldProvideHint,
@@ -70,3 +72,10 @@ export {
 
 // SpeedPass learning utilities
 export * from './speedpass';
+
+// Learning mode feature flags
+export {
+  isLearningModeV2Enabled,
+  isLearningInteropV2Enabled,
+  learningFeatureFlagKeys,
+} from './feature-flags';

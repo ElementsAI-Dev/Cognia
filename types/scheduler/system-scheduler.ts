@@ -20,6 +20,9 @@ export type SystemTaskStatus =
   | 'failed'
   | 'unknown';
 
+/** Metadata completeness for system task */
+export type SystemTaskMetadataState = 'full' | 'degraded';
+
 /** Risk level for task operations */
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -131,6 +134,7 @@ export interface SystemTask {
   last_run_at?: string;
   next_run_at?: string;
   last_result?: TaskRunResult;
+  metadata_state?: SystemTaskMetadataState;
 }
 
 /** Input for creating a system task */
@@ -153,12 +157,17 @@ export interface TaskConfirmationDetails {
 
 /** Confirmation request for sensitive operations */
 export interface TaskConfirmationRequest {
+  confirmation_id: string;
+  /** @deprecated legacy field kept for compatibility */
   task_id?: SystemTaskId;
+  target_task_id?: SystemTaskId;
   operation: TaskOperation;
   risk_level: RiskLevel;
   requires_admin: boolean;
   warnings: string[];
   details: TaskConfirmationDetails;
+  created_at: string;
+  expires_at: string;
 }
 
 /** System scheduler capabilities */
@@ -216,6 +225,7 @@ export const DEFAULT_SCRIPT_SETTINGS = {
 
 /** Supported script languages */
 export const SCRIPT_LANGUAGES = [
+  { value: 'workflow', label: 'Workflow Payload', icon: '🧩' },
   { value: 'python', label: 'Python', icon: '🐍' },
   { value: 'javascript', label: 'JavaScript', icon: '📜' },
   { value: 'typescript', label: 'TypeScript', icon: '📘' },

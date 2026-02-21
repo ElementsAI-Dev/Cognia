@@ -15,12 +15,14 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { useSpeedPassStore } from '@/stores/learning/speedpass-store';
 import { useTextbookProcessor } from '@/hooks/learning/use-textbook-processor';
+import { extractTextbookContent } from '@/lib/learning/speedpass/textbook-content-extractor';
 import type { Textbook } from '@/types/learning/speedpass';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Dialog,
   DialogContent,
@@ -67,7 +69,7 @@ export function TextbookUploader({
   onCancel,
   className,
 }: TextbookUploaderProps) {
-  const _t = useTranslations('learningMode.speedpass.library');
+  const tUploader = useTranslations('learningMode.speedpass.uploader');
   const store = useSpeedPassStore();
   const { processTextbook, progress, isProcessing, error, reset } = useTextbookProcessor();
 
@@ -93,8 +95,8 @@ export function TextbookUploader({
     const hasValidExtension = validExtensions.some((ext) => file.name.toLowerCase().endsWith(ext));
 
     if (!hasValidType && !hasValidExtension) {
-      toast.error('不支持的文件格式', {
-        description: '请上传 PDF、TXT 或 Markdown 文件',
+      toast.error(tUploader('errors.unsupportedFileFormat.title'), {
+        description: tUploader('errors.unsupportedFileFormat.description'),
       });
       return;
     }
@@ -105,7 +107,7 @@ export function TextbookUploader({
       name: file.name.replace(/\.(pdf|txt|md)$/i, ''),
     }));
     setShowMetadataDialog(true);
-  }, []);
+  }, [tUploader]);
 
   // Handle drag events
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -158,29 +160,33 @@ export function TextbookUploader({
   // Process the textbook
   const handleProcessTextbook = useCallback(async () => {
     if (!selectedFile || !metadata.name) {
-      toast.error('请填写教材名称');
+      toast.error(tUploader('errors.missingTextbookName'));
       return;
     }
 
     setShowMetadataDialog(false);
 
+    let createdTextbookId: string | null = null;
     try {
-      // Read file content
-      const content = await readFileContent(selectedFile);
+      const extraction = await extractTextbookContent({
+        file: selectedFile,
+      });
 
       // Generate textbook ID
       const textbookId = `textbook_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      createdTextbookId = textbookId;
 
       // Create textbook object
       const textbook: Textbook = {
         id: textbookId,
         name: metadata.name,
-        author: metadata.author || '未知作者',
-        publisher: metadata.publisher || '未知出版社',
+        author: metadata.author || tUploader('defaults.unknownAuthor'),
+        publisher: metadata.publisher || tUploader('defaults.unknownPublisher'),
         isbn: metadata.isbn || undefined,
         edition: metadata.edition || undefined,
-        totalPages: 0,
-        parseStatus: 'parsing',
+        totalPages: extraction.pageCount || 0,
+        parseStatus: 'uploading',
+        parseProgress: 10,
         source: 'user_upload',
         isPublic: false,
         usageCount: 0,
@@ -190,22 +196,52 @@ export function TextbookUploader({
 
       // Add textbook to store
       store.addTextbook(textbook);
+      store.setParseProgress({
+        textbookId,
+        status: 'uploading',
+        progress: 30,
+        message: tUploader('progress.fileReadReady'),
+      });
+      store.updateTextbook(textbookId, {
+        parseStatus: 'uploading',
+        parseProgress: 30,
+      });
 
       // Process the textbook content
-      const result = await processTextbook(textbookId, content);
+      const result = await processTextbook(textbookId, extraction.content);
 
       if (result) {
-        toast.success('教材解析完成', {
-          description: `成功提取 ${result.knowledgePoints?.length || 0} 个知识点`,
+        const parsedTextbook = store.textbooks[textbookId] || textbook;
+        toast.success(tUploader('success.parsedTitle'), {
+          description: tUploader('success.parsedDescription', {
+            count: result.knowledgePoints?.length || 0,
+          }),
         });
-        onUploadComplete?.(textbook);
+        onUploadComplete?.(parsedTextbook);
+      } else {
+        throw new Error(tUploader('errors.processingFailed'));
       }
     } catch (err) {
-      toast.error('教材处理失败', {
-        description: err instanceof Error ? err.message : '请重试',
+      if (createdTextbookId) {
+        const fallbackErrorMessage = tUploader('errors.processingFailed');
+        const errorMessage = err instanceof Error ? err.message : fallbackErrorMessage;
+        store.updateTextbook(createdTextbookId, {
+          parseStatus: 'failed',
+          parseProgress: 0,
+          parseError: errorMessage,
+        });
+        store.setParseProgress({
+          textbookId: createdTextbookId,
+          status: 'failed',
+          progress: 0,
+          message: errorMessage,
+        });
+      }
+      toast.error(tUploader('errors.processingFailed'), {
+        description: err instanceof Error ? err.message : tUploader('errors.retry'),
       });
     }
-  }, [selectedFile, metadata, store, processTextbook, onUploadComplete]);
+  }, [selectedFile, metadata, store, processTextbook, onUploadComplete, tUploader]);
 
   // Cancel upload
   const handleCancel = useCallback(() => {
@@ -221,9 +257,9 @@ export function TextbookUploader({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            上传教材
+            {tUploader('card.title')}
           </CardTitle>
-          <CardDescription>上传 PDF 或文本文件，系统将自动提取知识点</CardDescription>
+          <CardDescription>{tUploader('card.description')}</CardDescription>
         </CardHeader>
         <CardContent>
           {/* Processing State */}
@@ -232,11 +268,14 @@ export function TextbookUploader({
               <div className="flex items-center gap-3">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 <div className="flex-1">
-                  <p className="font-medium">{progress?.message || '正在处理...'}</p>
+                  <p className="font-medium">{progress?.message || tUploader('processing.inProgress')}</p>
                   <p className="text-sm text-muted-foreground">
-                    {progress?.stage === 'parsing' && '解析教材内容中...'}
-                    {progress?.stage === 'extracting' && '提取知识点中...'}
-                    {progress?.stage === 'generating' && '提取例题习题中...'}
+                    {progress?.stage === 'parsing' && tUploader('processing.stage.parsing')}
+                    {progress?.stage === 'extracting_chapters' && tUploader('processing.stage.extractingChapters')}
+                    {progress?.stage === 'extracting_knowledge_points' &&
+                      tUploader('processing.stage.extractingKnowledgePoints')}
+                    {progress?.stage === 'extracting_questions' &&
+                      tUploader('processing.stage.extractingQuestions')}
                   </p>
                 </div>
               </div>
@@ -246,12 +285,14 @@ export function TextbookUploader({
 
           {/* Error State */}
           {error && !isProcessing && (
-            <div className="flex flex-col items-center justify-center py-8">
-              <AlertCircle className="h-12 w-12 text-destructive" />
-              <p className="mt-4 font-medium text-destructive">处理失败</p>
-              <p className="mt-1 text-sm text-muted-foreground">{error.message}</p>
+            <div className="space-y-4 py-6">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>{tUploader('errorState.title')}</AlertTitle>
+                <AlertDescription>{error.message}</AlertDescription>
+              </Alert>
               <Button className="mt-4" variant="outline" onClick={handleCancel}>
-                重试
+                {tUploader('errorState.retry')}
               </Button>
             </div>
           )}
@@ -275,11 +316,11 @@ export function TextbookUploader({
                 onChange={handleInputChange}
               />
               <FileText className="mx-auto h-12 w-12 text-muted-foreground/50" />
-              <p className="mt-4 text-lg font-medium">拖放文件到此处</p>
-              <p className="mt-1 text-sm text-muted-foreground">或点击选择文件</p>
-              <p className="mt-2 text-xs text-muted-foreground">支持 PDF、TXT、Markdown 格式</p>
+              <p className="mt-4 text-lg font-medium">{tUploader('uploadZone.dragDrop')}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{tUploader('uploadZone.clickToSelect')}</p>
+              <p className="mt-2 text-xs text-muted-foreground">{tUploader('uploadZone.supportedFormats')}</p>
               <Button className="mt-4" variant="outline" onClick={openFileSelector}>
-                选择文件
+                {tUploader('uploadZone.selectFile')}
               </Button>
             </div>
           )}
@@ -292,9 +333,9 @@ export function TextbookUploader({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BookOpen className="h-5 w-5" />
-              教材信息
+              {tUploader('metadataDialog.title')}
             </DialogTitle>
-            <DialogDescription>填写教材的基本信息，帮助系统更好地解析内容</DialogDescription>
+            <DialogDescription>{tUploader('metadataDialog.description')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -319,91 +360,71 @@ export function TextbookUploader({
 
             <div className="space-y-2">
               <Label htmlFor="name">
-                教材名称 <span className="text-destructive">*</span>
+                {tUploader('fields.name.label')} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="name"
                 value={metadata.name}
                 onChange={(e) => handleMetadataChange('name', e.target.value)}
-                placeholder="例如：高等数学（上册）"
+                placeholder={tUploader('fields.name.placeholder')}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="author">作者</Label>
+                <Label htmlFor="author">{tUploader('fields.author.label')}</Label>
                 <Input
                   id="author"
                   value={metadata.author}
                   onChange={(e) => handleMetadataChange('author', e.target.value)}
-                  placeholder="例如：同济大学"
+                  placeholder={tUploader('fields.author.placeholder')}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="publisher">出版社</Label>
+                <Label htmlFor="publisher">{tUploader('fields.publisher.label')}</Label>
                 <Input
                   id="publisher"
                   value={metadata.publisher}
                   onChange={(e) => handleMetadataChange('publisher', e.target.value)}
-                  placeholder="例如：高等教育出版社"
+                  placeholder={tUploader('fields.publisher.placeholder')}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edition">版次</Label>
+              <Label htmlFor="edition">{tUploader('fields.edition.label')}</Label>
               <Input
                 id="edition"
                 value={metadata.edition}
                 onChange={(e) => handleMetadataChange('edition', e.target.value)}
-                placeholder="例如：第七版"
+                placeholder={tUploader('fields.edition.placeholder')}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="isbn">ISBN（可选）</Label>
+              <Label htmlFor="isbn">{tUploader('fields.isbn.label')}</Label>
               <Input
                 id="isbn"
                 value={metadata.isbn}
                 onChange={(e) => handleMetadataChange('isbn', e.target.value)}
-                placeholder="例如：978-7-04-037988-6"
+                placeholder={tUploader('fields.isbn.placeholder')}
               />
             </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={handleCancel}>
-              取消
+              {tUploader('metadataDialog.cancel')}
             </Button>
             <Button onClick={handleProcessTextbook} disabled={!metadata.name}>
               <CheckCircle2 className="mr-2 h-4 w-4" />
-              开始解析
+              {tUploader('metadataDialog.submit')}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
   );
-}
-
-// ============================================================================
-// Utility Functions
-// ============================================================================
-
-async function readFileContent(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result;
-      if (typeof result === 'string') {
-        resolve(result);
-      } else {
-        reject(new Error('Failed to read file content'));
-      }
-    };
-    reader.onerror = () => reject(new Error('Failed to read file'));
-    reader.readAsText(file);
-  });
 }
 
 function formatFileSize(bytes: number): string {

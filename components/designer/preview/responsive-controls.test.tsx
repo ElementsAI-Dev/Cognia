@@ -21,7 +21,7 @@ jest.mock('@/stores/designer', () => ({
   useDesignerStore: jest.fn(),
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const { useDesignerStore } = require('@/stores/designer');
 
 const defaultState: Record<string, unknown> = {

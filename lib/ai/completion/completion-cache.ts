@@ -19,6 +19,20 @@ export interface CompletionCacheOptions {
   ttlMs?: number;
 }
 
+export interface CompletionCacheKeyInput {
+  textBeforeCursor: string;
+  textAfterCursor?: string;
+  provider?: string;
+  modelId?: string;
+  endpoint?: string;
+  mode?: string;
+  surface?: string;
+  language?: string;
+  cursorOffset?: number;
+  conversationDigest?: string;
+  keyVersion?: string;
+}
+
 const DEFAULT_OPTIONS: Required<CompletionCacheOptions> = {
   maxSize: 100,
   ttlMs: 5 * 60 * 1000, // 5 minutes
@@ -32,17 +46,73 @@ export class CompletionCache<T = string> {
     this.options = { ...DEFAULT_OPTIONS, ...options };
   }
 
-  /** Generate a cache key from input and context */
-  static generateKey(input: string, context?: string): string {
-    const combined = context ? `${input}::${context}` : input;
-    // Simple hash function
-    let hash = 0;
-    for (let i = 0; i < combined.length; i++) {
-      const char = combined.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32bit integer
+  /** Normalize input text for cache-key stability */
+  static normalizeText(input: string): string {
+    return input
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .normalize('NFKC')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trimEnd();
+  }
+
+  /** Small deterministic hash for cache keys */
+  private static hashString(input: string): string {
+    let hash = 2166136261;
+    for (let i = 0; i < input.length; i++) {
+      hash ^= input.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
     }
-    return `completion_${hash}`;
+    return (hash >>> 0).toString(16);
+  }
+
+  private static normalizeMode(mode?: string): string {
+    return (mode ?? 'plain_text').trim().toLowerCase();
+  }
+
+  private static normalizeSurface(surface?: string): string {
+    return (surface ?? 'generic').trim().toLowerCase();
+  }
+
+  private static normalizeLanguage(language?: string): string {
+    return (language ?? '').trim().toLowerCase();
+  }
+
+  /** Generate a structured cache key for completion alignment */
+  static generateStructuredKey(input: CompletionCacheKeyInput): string {
+    const keyVersion = input.keyVersion ?? 'completion-key:v3';
+    const normalizedPrefix = CompletionCache.normalizeText(input.textBeforeCursor);
+    const normalizedSuffix = CompletionCache.normalizeText(input.textAfterCursor ?? '');
+    const normalizedConversation = CompletionCache.normalizeText(input.conversationDigest ?? '');
+    const normalizedMode = CompletionCache.normalizeMode(input.mode);
+    const normalizedSurface = CompletionCache.normalizeSurface(input.surface);
+    const normalizedLanguage = CompletionCache.normalizeLanguage(input.language);
+
+    const stablePayload = [
+      keyVersion,
+      input.provider ?? 'unknown',
+      input.modelId ?? 'unknown',
+      input.endpoint ?? '',
+      normalizedMode,
+      normalizedSurface,
+      normalizedLanguage,
+      String(input.cursorOffset ?? normalizedPrefix.length),
+      CompletionCache.hashString(normalizedPrefix),
+      CompletionCache.hashString(normalizedSuffix),
+      CompletionCache.hashString(normalizedConversation),
+    ].join('|');
+
+    return `completion_v3_${CompletionCache.hashString(stablePayload)}`;
+  }
+
+  /** Backward-compatible key generation (legacy callers) */
+  static generateKey(input: string, context?: string): string {
+    return CompletionCache.generateStructuredKey({
+      textBeforeCursor: input,
+      conversationDigest: context,
+      keyVersion: 'completion-key:v2-compat',
+    });
   }
 
   /** Get a cached value */

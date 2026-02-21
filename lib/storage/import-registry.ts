@@ -4,6 +4,7 @@
  */
 
 import type { Session, UIMessage } from '@/types/core';
+import type { PersistedChatMessage } from './persistence/types';
 import type {
   ChatImporter,
   ChatImportFormat,
@@ -287,6 +288,15 @@ export async function importConversations(
   fileContent: string,
   options: Partial<ChatImportOptions> = {}
 ): Promise<ChatImportResult> {
+  const resolvedOptions: ChatImportOptions = {
+    mergeStrategy: options.mergeStrategy || 'merge',
+    generateNewIds: options.generateNewIds ?? true,
+    preserveTimestamps: options.preserveTimestamps ?? true,
+    defaultProvider: options.defaultProvider,
+    defaultModel: options.defaultModel,
+    defaultMode: options.defaultMode,
+  };
+
   const { conversations, errors: parseErrors } = await parseImport(fileContent, options);
 
   if (conversations.length === 0) {
@@ -300,47 +310,79 @@ export async function importConversations(
 
   // Dynamic imports to avoid circular dependencies
   const { useSessionStore } = await import('@/stores');
-  const { db } = await import('@/lib/db');
-  const { messageRepository } = await import('@/lib/db/repositories/message-repository');
+  const { unifiedPersistenceService } = await import('@/lib/storage/persistence/unified-persistence-service');
+  const { nanoid } = await import('nanoid');
 
   const warnings: string[] = [];
   const errors: ChatImportError[] = [...parseErrors];
   let importedSessions = 0;
   let importedMessages = 0;
 
-  const store = useSessionStore.getState();
+  const existingSessions = new Set(
+    (await unifiedPersistenceService.sessions.list()).map((session) => session.id)
+  );
+  const existingMessageIds = new Set(
+    (await unifiedPersistenceService.messages.listAll()).map((message) => message.id)
+  );
+
+  const persistedSessions: Session[] = [];
+  const persistedMessages: PersistedChatMessage[] = [];
+  const replacedSessionIds = new Set<string>();
 
   for (const { session, messages } of conversations) {
     try {
-      const existingSession = store.sessions.find((s) => s.id === session.id);
+      let targetSessionId = session.id;
+      const sessionExists = existingSessions.has(targetSessionId);
 
-      if (existingSession && options.mergeStrategy === 'skip') {
+      if (sessionExists && resolvedOptions.mergeStrategy === 'skip') {
         warnings.push(`Skipped existing session: ${session.title}`);
         continue;
       }
 
-      const newSession = store.createSession({
-        title: session.title,
-        provider: session.provider,
-        model: session.model,
-        mode: session.mode,
-      });
+      if (sessionExists && resolvedOptions.mergeStrategy === 'merge') {
+        targetSessionId = `${session.id}-import-${nanoid(6)}`;
+      }
 
-      await db.sessions.put({
-        id: newSession.id,
-        title: session.title,
-        provider: session.provider,
-        model: session.model,
-        mode: session.mode,
+      if (sessionExists && resolvedOptions.mergeStrategy === 'replace') {
+        replacedSessionIds.add(session.id);
+        await unifiedPersistenceService.messages.removeBySession(session.id);
+        await unifiedPersistenceService.summaries.removeBySession(session.id);
+        await unifiedPersistenceService.sessions.remove(session.id);
+      }
+
+      const now = new Date();
+      const normalizedSession: Session = {
+        ...session,
+        id: targetSessionId,
+        title:
+          targetSessionId !== session.id
+            ? `${session.title} (imported)`
+            : session.title,
+        createdAt: resolvedOptions.preserveTimestamps === false ? now : session.createdAt,
+        updatedAt: resolvedOptions.preserveTimestamps === false ? now : session.updatedAt,
         messageCount: messages.length,
-        lastMessagePreview: session.lastMessagePreview,
-        createdAt: session.createdAt,
-        updatedAt: session.updatedAt,
-      });
+        lastMessagePreview:
+          messages[messages.length - 1]?.content?.slice(0, 100) ||
+          session.lastMessagePreview,
+      };
+      persistedSessions.push(normalizedSession);
+      existingSessions.add(targetSessionId);
 
       if (messages.length > 0) {
-        await messageRepository.bulkCreate(newSession.id, messages);
-        importedMessages += messages.length;
+        const normalizedMessages = messages.map((message) => {
+          const preferredId = resolvedOptions.generateNewIds ? nanoid() : message.id;
+          const messageId = existingMessageIds.has(preferredId) ? nanoid() : preferredId;
+          existingMessageIds.add(messageId);
+
+          return {
+            ...message,
+            id: messageId,
+            sessionId: targetSessionId,
+            createdAt: resolvedOptions.preserveTimestamps === false ? now : message.createdAt,
+          } as PersistedChatMessage;
+        });
+        persistedMessages.push(...normalizedMessages);
+        importedMessages += normalizedMessages.length;
       }
 
       importedSessions++;
@@ -351,6 +393,23 @@ export async function importConversations(
         message: error instanceof Error ? error.message : 'Failed to import conversation',
       });
     }
+  }
+
+  if (persistedSessions.length > 0) {
+    await unifiedPersistenceService.sessions.bulkUpsert(persistedSessions);
+  }
+  if (persistedMessages.length > 0) {
+    await unifiedPersistenceService.messages.upsertBatch(persistedMessages);
+  }
+
+  if (persistedSessions.length > 0 || replacedSessionIds.size > 0) {
+    useSessionStore.setState((state) => {
+      const existing = state.sessions.filter((session) => !replacedSessionIds.has(session.id));
+      return {
+        ...state,
+        sessions: [...persistedSessions, ...existing],
+      };
+    });
   }
 
   return {

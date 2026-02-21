@@ -8,11 +8,16 @@ import type {
   LspCodeAction,
   LspCodeActionOrCommand,
   LspCommand,
+  LspDocumentHighlight,
   LspDiagnostic,
   LspDocumentSymbol,
+  LspInlayHint,
+  LspProvider,
   LspRange,
+  LspSemanticTokens,
   LspRequestMeta,
   LspSessionStatus,
+  LspSignatureHelp,
   LspSymbolInformation,
   LspTextDocumentContentChangeEvent,
   LspTextDocumentSyncOptions,
@@ -28,16 +33,24 @@ import {
   lspCodeActions,
   lspCompletion,
   lspDefinition,
+  lspDocumentHighlights,
   lspDocumentSymbols,
   lspExecuteCommand,
   lspFormatDocument,
   lspHover,
+  lspImplementation,
+  lspInlayHints,
   lspListenDiagnostics,
   lspOpenDocument,
+  lspReferences,
+  lspRename,
   lspResolveCodeAction,
+  lspSemanticTokensFull,
+  lspSignatureHelp,
   lspSeverityToMonaco,
   lspShutdownSession,
   lspStartSession,
+  lspTypeDefinition,
   lspWorkspaceSymbols,
 } from './lsp-client';
 
@@ -45,10 +58,18 @@ export interface MonacoLspFeatureSupport {
   completion: boolean;
   hover: boolean;
   definition: boolean;
+  references: boolean;
+  rename: boolean;
+  implementation: boolean;
+  typeDefinition: boolean;
+  signatureHelp: boolean;
+  documentHighlight: boolean;
   documentSymbols: boolean;
   codeActions: boolean;
   formatting: boolean;
   workspaceSymbols: boolean;
+  inlayHints: boolean;
+  semanticTokens: boolean;
 }
 
 export interface MonacoLspStartResult {
@@ -63,6 +84,10 @@ export interface MonacoLspAdapterOptions {
   languageId: string;
   rootUri?: string;
   protocolV2Enabled?: boolean;
+  extendedFeaturesEnabled?: boolean;
+  autoInstall?: boolean;
+  preferredProviders?: LspProvider[];
+  allowFallback?: boolean;
   onStatusChange?: (status: LspSessionStatus, detail?: string) => void;
 }
 
@@ -79,10 +104,18 @@ const EMPTY_FEATURE_SUPPORT: MonacoLspFeatureSupport = {
   completion: false,
   hover: false,
   definition: false,
+  references: false,
+  rename: false,
+  implementation: false,
+  typeDefinition: false,
+  signatureHelp: false,
+  documentHighlight: false,
   documentSymbols: false,
   codeActions: false,
   formatting: false,
   workspaceSymbols: false,
+  inlayHints: false,
+  semanticTokens: false,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -357,6 +390,113 @@ function toMonacoWorkspaceEdit(
   return { edits };
 }
 
+function toMonacoLocations(
+  monaco: typeof Monaco,
+  locations: Array<{ uri: string; range: LspRange }>
+): Monaco.languages.Location[] {
+  return locations.map((location) => ({
+    uri: monaco.Uri.parse(location.uri),
+    range: toMonacoRange(monaco, location.range),
+  }));
+}
+
+function toMonacoDocumentHighlights(
+  monaco: typeof Monaco,
+  highlights: LspDocumentHighlight[]
+): Monaco.languages.DocumentHighlight[] {
+  return highlights.map((highlight) => ({
+    range: toMonacoRange(monaco, highlight.range),
+    kind:
+      highlight.kind === 2
+        ? monaco.languages.DocumentHighlightKind.Write
+        : highlight.kind === 3
+          ? monaco.languages.DocumentHighlightKind.Text
+          : monaco.languages.DocumentHighlightKind.Read,
+  }));
+}
+
+function toMonacoSignatureHelp(
+  signatureHelp: LspSignatureHelp
+): Monaco.languages.SignatureHelpResult {
+  return {
+    value: {
+      signatures: signatureHelp.signatures.map((signature) => ({
+        label: signature.label,
+        documentation:
+          typeof signature.documentation === 'string'
+            ? signature.documentation
+            : signature.documentation?.value,
+        parameters:
+          signature.parameters?.map((parameter) => ({
+            label: parameter.label,
+            documentation:
+              typeof parameter.documentation === 'string'
+                ? parameter.documentation
+                : parameter.documentation?.value,
+          })) ?? [],
+      })),
+      activeSignature: signatureHelp.activeSignature ?? 0,
+      activeParameter: signatureHelp.activeParameter ?? 0,
+    },
+    dispose: () => {},
+  };
+}
+
+function toMonacoInlayHints(
+  monaco: typeof Monaco,
+  hints: LspInlayHint[]
+): Monaco.languages.InlayHintList {
+  return {
+    hints: hints.map((hint) => ({
+      position: {
+        lineNumber: hint.position.line + 1,
+        column: hint.position.character + 1,
+      },
+      label:
+        typeof hint.label === 'string'
+          ? hint.label
+          : hint.label.map((part) => ({
+              label: part.value,
+              tooltip:
+                typeof part.tooltip === 'string'
+                  ? part.tooltip
+                  : part.tooltip?.value,
+              command: undefined,
+              location: part.location
+                ? {
+                    uri: monaco.Uri.parse(part.location.uri),
+                    range: toMonacoRange(monaco, part.location.range),
+                  }
+                : undefined,
+            })),
+      kind:
+        hint.kind === 2
+          ? monaco.languages.InlayHintKind.Type
+          : monaco.languages.InlayHintKind.Parameter,
+      paddingLeft: hint.paddingLeft,
+      paddingRight: hint.paddingRight,
+      tooltip: typeof hint.tooltip === 'string' ? hint.tooltip : hint.tooltip?.value,
+      textEdits: hint.textEdits?.map((edit) => ({
+        range: {
+          startLineNumber: edit.range.start.line + 1,
+          startColumn: edit.range.start.character + 1,
+          endLineNumber: edit.range.end.line + 1,
+          endColumn: edit.range.end.character + 1,
+        },
+        text: edit.newText,
+      })),
+    })),
+    dispose: () => {},
+  };
+}
+
+function toMonacoSemanticTokens(tokens: LspSemanticTokens): Monaco.languages.SemanticTokens {
+  return {
+    resultId: tokens.resultId,
+    data: new Uint32Array(tokens.data ?? []),
+  };
+}
+
 function isLspCommand(value: LspCodeActionOrCommand): value is LspCommand {
   return isRecord(value) && typeof value.command === 'string';
 }
@@ -456,15 +596,31 @@ function extractCodeActionKinds(
   return kinds.filter((kind): kind is string => typeof kind === 'string');
 }
 
-function resolveFeatureSupport(capabilities: LspCapabilities): MonacoLspFeatureSupport {
+function resolveFeatureSupport(
+  capabilities: LspCapabilities,
+  extendedFeaturesEnabled: boolean
+): MonacoLspFeatureSupport {
   return {
     completion: !!capabilities.completionProvider,
     hover: hasLspCapability(capabilities.hoverProvider),
     definition: hasLspCapability(capabilities.definitionProvider),
+    references: extendedFeaturesEnabled && hasLspCapability(capabilities.referencesProvider),
+    rename: extendedFeaturesEnabled && hasLspCapability(capabilities.renameProvider),
+    implementation:
+      extendedFeaturesEnabled && hasLspCapability(capabilities.implementationProvider),
+    typeDefinition:
+      extendedFeaturesEnabled && hasLspCapability(capabilities.typeDefinitionProvider),
+    signatureHelp:
+      extendedFeaturesEnabled && hasLspCapability(capabilities.signatureHelpProvider),
+    documentHighlight:
+      extendedFeaturesEnabled && hasLspCapability(capabilities.documentHighlightProvider),
     documentSymbols: hasLspCapability(capabilities.documentSymbolProvider),
     codeActions: hasLspCapability(capabilities.codeActionProvider),
     formatting: hasLspCapability(capabilities.documentFormattingProvider),
     workspaceSymbols: hasLspCapability(capabilities.workspaceSymbolProvider),
+    inlayHints: extendedFeaturesEnabled && hasLspCapability(capabilities.inlayHintProvider),
+    semanticTokens:
+      extendedFeaturesEnabled && hasLspCapability(capabilities.semanticTokensProvider),
   };
 }
 
@@ -475,6 +631,10 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
     languageId,
     rootUri = 'file:///workspace',
     protocolV2Enabled = true,
+    extendedFeaturesEnabled = true,
+    autoInstall = true,
+    preferredProviders,
+    allowFallback = true,
     onStatusChange,
   } = options;
   const disposables: Monaco.IDisposable[] = [];
@@ -613,11 +773,14 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
       const session = await lspStartSession({
         language: languageId,
         rootUri,
+        autoInstall,
+        preferredProviders,
+        allowFallback,
       });
       sessionId = session.sessionId;
       executeCommandId = `cognia.lsp.executeCommand.${sessionId}`;
       currentCapabilities = session.capabilities ?? {};
-      currentFeatureSupport = resolveFeatureSupport(currentCapabilities);
+      currentFeatureSupport = resolveFeatureSupport(currentCapabilities, extendedFeaturesEnabled);
 
       const executeCommandDisposable = monaco.editor.registerCommand(
         executeCommandId,
@@ -774,6 +937,181 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
         disposables.push(definitionDisposable);
       }
 
+      if (currentFeatureSupport.references) {
+        const referenceDisposable = monaco.languages.registerReferenceProvider(languageId, {
+          provideReferences: async (refModel, position, context, token) => {
+            if (!sessionId) {
+              return [];
+            }
+            const activeSessionId = sessionId;
+            const references = await runCancelableRequest(
+              'references',
+              token,
+              [],
+              (meta) =>
+                lspReferences(
+                  activeSessionId,
+                  { uri: refModel.uri.toString() },
+                  position.lineNumber - 1,
+                  position.column - 1,
+                  context.includeDeclaration,
+                  meta
+                )
+            );
+            return toMonacoLocations(monaco, references);
+          },
+        });
+        disposables.push(referenceDisposable);
+      }
+
+      if (currentFeatureSupport.implementation) {
+        const implementationDisposable = monaco.languages.registerImplementationProvider(languageId, {
+          provideImplementation: async (implModel, position, token) => {
+            if (!sessionId) {
+              return [];
+            }
+            const activeSessionId = sessionId;
+            const implementations = await runCancelableRequest(
+              'implementation',
+              token,
+              [],
+              (meta) =>
+                lspImplementation(
+                  activeSessionId,
+                  { uri: implModel.uri.toString() },
+                  position.lineNumber - 1,
+                  position.column - 1,
+                  meta
+                )
+            );
+            return toMonacoLocations(monaco, implementations);
+          },
+        });
+        disposables.push(implementationDisposable);
+      }
+
+      if (currentFeatureSupport.typeDefinition) {
+        const typeDefinitionDisposable = monaco.languages.registerTypeDefinitionProvider(languageId, {
+          provideTypeDefinition: async (typeModel, position, token) => {
+            if (!sessionId) {
+              return [];
+            }
+            const activeSessionId = sessionId;
+            const definitions = await runCancelableRequest(
+              'typeDefinition',
+              token,
+              [],
+              (meta) =>
+                lspTypeDefinition(
+                  activeSessionId,
+                  { uri: typeModel.uri.toString() },
+                  position.lineNumber - 1,
+                  position.column - 1,
+                  meta
+                )
+            );
+            return toMonacoLocations(monaco, definitions);
+          },
+        });
+        disposables.push(typeDefinitionDisposable);
+      }
+
+      if (currentFeatureSupport.rename) {
+        const renameDisposable = monaco.languages.registerRenameProvider(languageId, {
+          provideRenameEdits: async (renameModel, position, newName, token) => {
+            if (!sessionId) {
+              return undefined;
+            }
+            const activeSessionId = sessionId;
+            const edit = await runCancelableRequest(
+              'rename',
+              token,
+              null,
+              (meta) =>
+                lspRename(
+                  activeSessionId,
+                  { uri: renameModel.uri.toString() },
+                  position.lineNumber - 1,
+                  position.column - 1,
+                  { newName },
+                  meta
+                )
+            );
+            return toMonacoWorkspaceEdit(monaco, edit ?? undefined);
+          },
+        });
+        disposables.push(renameDisposable);
+      }
+
+      if (currentFeatureSupport.signatureHelp) {
+        const signatureHelpProvider = currentCapabilities.signatureHelpProvider;
+        const signatureHelpDisposable = monaco.languages.registerSignatureHelpProvider(languageId, {
+          signatureHelpTriggerCharacters:
+            isRecord(signatureHelpProvider) && Array.isArray(signatureHelpProvider.triggerCharacters)
+              ? signatureHelpProvider.triggerCharacters.filter(
+                  (character): character is string => typeof character === 'string'
+                )
+              : ['(', ','],
+          signatureHelpRetriggerCharacters:
+            isRecord(signatureHelpProvider) &&
+            Array.isArray(signatureHelpProvider.retriggerCharacters)
+              ? signatureHelpProvider.retriggerCharacters.filter(
+                  (character): character is string => typeof character === 'string'
+                )
+              : [')'],
+          provideSignatureHelp: async (sigModel, position, token) => {
+            if (!sessionId) {
+              return null;
+            }
+            const activeSessionId = sessionId;
+            const response = await runCancelableRequest(
+              'signatureHelp',
+              token,
+              null,
+              (meta) =>
+                lspSignatureHelp(
+                  activeSessionId,
+                  { uri: sigModel.uri.toString() },
+                  position.lineNumber - 1,
+                  position.column - 1,
+                  meta
+                )
+            );
+            if (!response || !response.signatures || response.signatures.length === 0) {
+              return null;
+            }
+            return toMonacoSignatureHelp(response);
+          },
+        });
+        disposables.push(signatureHelpDisposable);
+      }
+
+      if (currentFeatureSupport.documentHighlight) {
+        const highlightDisposable = monaco.languages.registerDocumentHighlightProvider(languageId, {
+          provideDocumentHighlights: async (highlightModel, position, token) => {
+            if (!sessionId) {
+              return [];
+            }
+            const activeSessionId = sessionId;
+            const highlights = await runCancelableRequest(
+              'documentHighlight',
+              token,
+              [],
+              (meta) =>
+                lspDocumentHighlights(
+                  activeSessionId,
+                  { uri: highlightModel.uri.toString() },
+                  position.lineNumber - 1,
+                  position.column - 1,
+                  meta
+                )
+            );
+            return toMonacoDocumentHighlights(monaco, highlights);
+          },
+        });
+        disposables.push(highlightDisposable);
+      }
+
       if (currentFeatureSupport.documentSymbols) {
         const documentSymbolDisposable = monaco.languages.registerDocumentSymbolProvider(languageId, {
           provideDocumentSymbols: async (symbolModel) => {
@@ -905,6 +1243,76 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
           },
         });
         disposables.push(formattingDisposable);
+      }
+
+      if (currentFeatureSupport.inlayHints) {
+        const inlayHintsDisposable = monaco.languages.registerInlayHintsProvider(languageId, {
+          provideInlayHints: async (inlayModel, range, token) => {
+            if (!sessionId) {
+              return { hints: [], dispose: () => {} };
+            }
+            const activeSessionId = sessionId;
+            const hints = await runCancelableRequest(
+              'inlayHints',
+              token,
+              [],
+              (meta) =>
+                lspInlayHints(
+                  activeSessionId,
+                  { uri: inlayModel.uri.toString() },
+                  toLspRange(range),
+                  meta
+                )
+            );
+            return toMonacoInlayHints(monaco, hints);
+          },
+        });
+        disposables.push(inlayHintsDisposable);
+      }
+
+      if (currentFeatureSupport.semanticTokens) {
+        const semanticDisposable = monaco.languages.registerDocumentSemanticTokensProvider(
+          languageId,
+          {
+            getLegend: () => ({
+              tokenTypes:
+                isRecord(currentCapabilities.semanticTokensProvider) &&
+                isRecord(currentCapabilities.semanticTokensProvider.legend) &&
+                Array.isArray(currentCapabilities.semanticTokensProvider.legend.tokenTypes)
+                  ? currentCapabilities.semanticTokensProvider.legend.tokenTypes.filter(
+                      (item): item is string => typeof item === 'string'
+                    )
+                  : [],
+              tokenModifiers:
+                isRecord(currentCapabilities.semanticTokensProvider) &&
+                isRecord(currentCapabilities.semanticTokensProvider.legend) &&
+                Array.isArray(currentCapabilities.semanticTokensProvider.legend.tokenModifiers)
+                  ? currentCapabilities.semanticTokensProvider.legend.tokenModifiers.filter(
+                      (item): item is string => typeof item === 'string'
+                    )
+                  : [],
+            }),
+            provideDocumentSemanticTokens: async (semanticModel, _lastResultId, token) => {
+              if (!sessionId) {
+                return { data: new Uint32Array() };
+              }
+              const activeSessionId = sessionId;
+              const semanticTokens = await runCancelableRequest(
+                'semanticTokens',
+                token,
+                null,
+                (meta) =>
+                  lspSemanticTokensFull(activeSessionId, { uri: semanticModel.uri.toString() }, meta)
+              );
+              if (!semanticTokens) {
+                return { data: new Uint32Array() };
+              }
+              return toMonacoSemanticTokens(semanticTokens);
+            },
+            releaseDocumentSemanticTokens: () => {},
+          }
+        );
+        disposables.push(semanticDisposable);
       }
 
       unlistenDiagnostics = await lspListenDiagnostics((event) => {

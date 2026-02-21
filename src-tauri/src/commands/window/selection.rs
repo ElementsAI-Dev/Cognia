@@ -3,9 +3,8 @@
 //! Commands for controlling the selection toolbar from the frontend.
 
 use crate::selection::{
-    Selection, SelectionConfig, SelectionContext, SelectionExpansion, SelectionHistoryEntry,
-    SelectionHistoryStats, SelectionManager, SelectionMode, SelectionPayload, SelectionStatus,
-    SourceAppInfo,
+    Selection, SelectionConfig, SelectionHistoryEntry, SelectionHistoryStats, SelectionManager,
+    SelectionPayload, SelectionStatus, SourceAppInfo,
 };
 use tauri::{Emitter, State};
 
@@ -524,6 +523,7 @@ pub async fn selection_get_last_selection(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::selection::{SelectionContext, SelectionExpansion, SelectionMode};
 
     #[test]
     fn test_selection_payload_struct() {

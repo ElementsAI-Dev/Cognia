@@ -114,6 +114,8 @@ export interface MessageCompressionState {
   compressedAt?: Date;
   /** Compression strategy used */
   strategyUsed?: CompressionStrategy;
+  /** Frozen summary decision metadata for prefix-stability lifecycle */
+  frozenSummaryDecision?: 'reused' | 'regenerated';
 }
 
 /**

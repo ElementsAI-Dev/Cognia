@@ -30,6 +30,8 @@ export { default as SkillSyncInitializerDefault } from './skill-sync-initializer
 
 // Agent trace initialization
 export { AgentTraceInitializer } from './agent-trace-initializer';
+export { ExternalAgentInitializer } from './external-agent-initializer';
+export { default as ExternalAgentInitializerDefault } from './external-agent-initializer';
 
 // Context sync initialization
 export { ContextSyncInitializer } from './context-sync-initializer';

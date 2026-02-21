@@ -37,12 +37,18 @@ export interface CursorPosition {
 export interface CompletionContext {
   /** The text before the cursor */
   text: string;
+  /** Optional text after the cursor (used for suffix-aware alignment) */
+  text_after_cursor?: string;
+  /** Absolute cursor offset in the full text */
+  cursor_offset?: number;
   /** Cursor position (if available) */
   cursor_position?: CursorPosition;
   /** File path (if editing a file) */
   file_path?: string;
   /** Programming language (if known) */
   language?: string;
+  /** Optional digest of recent conversation context */
+  conversation_digest?: string;
   /** Current IME state */
   ime_state?: ImeState;
   /** Completion mode hint for prompt optimization */
@@ -202,6 +208,41 @@ export interface TriggerCompletionV2Result extends InputCompletionResult {
   mode: CompletionMode;
 }
 
+/** v3 request payload with explicit cursor slicing for alignment */
+export interface TriggerCompletionV3Request {
+  /** Optional client request id for stale-response protection */
+  request_id?: string;
+  /** Text before cursor (required) */
+  text_before_cursor: string;
+  /** Optional text after cursor for suffix-aware alignment */
+  text_after_cursor?: string;
+  /** Absolute cursor offset in the full text (if known) */
+  cursor_offset?: number;
+  /** Cursor position (if available) */
+  cursor_position?: CursorPosition;
+  /** File path (if editing a file) */
+  file_path?: string;
+  /** Programming language (if known) */
+  language?: string;
+  /** Completion mode hint */
+  mode?: CompletionMode;
+  /** UI surface hint */
+  surface?: CompletionSurface;
+  /** Optional digest of recent conversation context */
+  conversation_digest?: string;
+  /** Current IME state */
+  ime_state?: ImeState;
+}
+
+/** v3 response payload preserving alignment metadata */
+export interface TriggerCompletionV3Result extends InputCompletionResult {
+  request_id: string;
+  surface: CompletionSurface;
+  mode: CompletionMode;
+  /** Echoed cursor offset for stale response guards */
+  cursor_offset?: number;
+}
+
 /** Events emitted by the input completion system */
 export type InputCompletionEvent =
   | { type: 'Suggestion'; data: CompletionSuggestion }
@@ -228,6 +269,11 @@ export interface CompletionStats {
   avg_latency_ms: number;
   /** Cache hit rate (0.0 - 1.0) */
   cache_hit_rate: number;
+  /** Structured cache breakdown counters */
+  cache_hits_exact?: number;
+  cache_hits_prefix?: number;
+  cache_hits_normalized?: number;
+  cache_stale_rejects?: number;
   /** Quality feedback statistics */
   feedback_stats: FeedbackStats;
 }

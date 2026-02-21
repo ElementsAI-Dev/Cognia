@@ -97,6 +97,16 @@ export {
 } from './data-export';
 export type { ExportOptions } from './data-export';
 
+// Unified persistence v3
+export { unifiedPersistenceService } from './persistence/unified-persistence-service';
+export { storageFeatureFlags } from './persistence/feature-flags';
+export type {
+  PersistenceBackend,
+  BackupPackageV3,
+  EncryptedEnvelopeV1,
+  ImportConflictResolution,
+} from './persistence/types';
+
 // Store migration utilities
 export {
   createMigrator,

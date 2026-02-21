@@ -21,7 +21,7 @@ const createMockPipeline = (): jest.Mocked<RAGPipeline> => {
     clearCollection: jest.fn(),
     indexDocuments: jest.fn(),
     search: jest.fn(),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
   } as any;
 };
 
@@ -336,7 +336,7 @@ describe('rag-tools', () => {
 
     describe('getKnowledgeBaseStats tool', () => {
       it('should return stats', async () => {
-        mockPipeline.getCollectionStats.mockReturnValue({
+        mockPipeline.getCollectionStats.mockResolvedValue({
           documentCount: 100,
           exists: true,
         });

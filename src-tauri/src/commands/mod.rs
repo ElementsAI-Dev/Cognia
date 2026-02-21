@@ -3,6 +3,7 @@
 //! All Tauri IPC commands organized by functional category.
 
 // Functional submodules
+pub mod compatibility;
 pub mod context;
 pub mod devtools;
 pub mod extensions;
@@ -13,8 +14,8 @@ pub mod scheduler;
 pub mod speedpass_runtime;
 pub mod storage;
 pub mod system;
-pub mod workflow_runtime;
 pub mod window;
+pub mod workflow_runtime;
 
 // Standalone module (already organized)
 pub mod academic;

@@ -60,12 +60,12 @@ import {
   HardDrive,
   Info,
 } from 'lucide-react';
-import { usePluginStore } from '@/stores/plugin';
 import {
   pluginAnalyticsStore,
   getPluginHealth,
   getPluginRollbackManager,
   getPluginBackupManager,
+  getPluginManager,
   type PluginHealthStatus,
   type RollbackInfo,
 } from '@/lib/plugin';
@@ -94,7 +94,6 @@ export function PluginInstalledDetail({
   onConfigure,
 }: PluginInstalledDetailProps) {
   const t = useTranslations('pluginInstalledDetail');
-  const { enablePlugin, disablePlugin } = usePluginStore();
 
   const [health, setHealth] = useState<PluginHealthStatus | null>(null);
   const [rollbackInfo, setRollbackInfo] = useState<RollbackInfo | null>(null);
@@ -134,16 +133,16 @@ export function PluginInstalledDetail({
     if (!plugin) return;
     try {
       if (plugin.status === 'enabled') {
-        await disablePlugin(plugin.manifest.id);
+        await getPluginManager().disablePlugin(plugin.manifest.id);
         toast.success(t('actions.disabled'));
       } else {
-        await enablePlugin(plugin.manifest.id);
+        await getPluginManager().enablePlugin(plugin.manifest.id);
         toast.success(t('actions.enabled'));
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     }
-  }, [plugin, enablePlugin, disablePlugin, t]);
+  }, [plugin, t]);
 
   const handleRollback = useCallback(async () => {
     if (!plugin || !selectedRollbackVersion) return;

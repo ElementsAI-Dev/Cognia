@@ -20,6 +20,18 @@ import {
   DEFAULT_FEATURE_ROUTING_SETTINGS,
 } from '@/lib/ai/routing';
 import { useSettingsStore } from '@/stores';
+import { detectSpeedLearningMode } from '@/lib/learning/speedpass';
+
+function resolveSpeedPassTargetScore(mode: 'extreme' | 'speed' | 'comprehensive'): number {
+  switch (mode) {
+    case 'extreme':
+      return 60;
+    case 'speed':
+      return 75;
+    case 'comprehensive':
+      return 85;
+  }
+}
 
 export interface UseFeatureRoutingOptions {
   /** Override settings from store */
@@ -86,6 +98,36 @@ export function useFeatureRouting(options: UseFeatureRoutingOptions = {}): UseFe
   const [suggestionCount, setSuggestionCount] = useState(0);
   const [dismissedFeatures, setDismissedFeatures] = useState<Set<string>>(new Set());
 
+  const buildNavigationContext = useCallback(
+    (feature: FeatureRoute, message: string): Record<string, unknown> => {
+      if (feature.id !== 'speedpass') {
+        return { message };
+      }
+
+      const modeDetection = detectSpeedLearningMode(message);
+      const detectedExamDate =
+        typeof modeDetection.detectedUrgencyDays === 'number'
+          ? new Date(Date.now() + modeDetection.detectedUrgencyDays * 24 * 60 * 60 * 1000).toISOString()
+          : undefined;
+      const speedpassContext = {
+        availableTimeMinutes: modeDetection.detectedTime,
+        targetScore: resolveSpeedPassTargetScore(modeDetection.recommendedMode),
+        examDate: detectedExamDate,
+        recommendedMode: modeDetection.recommendedMode,
+      };
+
+      return {
+        message,
+        speedpassContext,
+        availableTimeMinutes: speedpassContext.availableTimeMinutes,
+        targetScore: speedpassContext.targetScore,
+        examDate: speedpassContext.examDate,
+        recommendedMode: speedpassContext.recommendedMode,
+      };
+    },
+    []
+  );
+
   // Get API key for LLM routing
   const getLLMConfig = useCallback(() => {
     if (routingSettings.routingMode === 'rule-based') {
@@ -140,12 +182,16 @@ export function useFeatureRouting(options: UseFeatureRoutingOptions = {}): UseFe
         result.confidence >= routingSettings.confidenceThreshold &&
         !dismissedFeatures.has(result.feature.id)
       ) {
+        const navigationContext = buildNavigationContext(result.feature, message);
+        const shouldForceAutoNavigate = result.feature.id === 'speedpass';
+
         // Auto-navigate if enabled and high confidence
         if (
-          routingSettings.autoNavigateEnabled &&
-          result.confidence >= routingSettings.autoNavigateThreshold
+          shouldForceAutoNavigate ||
+          (routingSettings.autoNavigateEnabled &&
+            result.confidence >= routingSettings.autoNavigateThreshold)
         ) {
-          const url = buildFeatureNavigationUrl(result.feature, { message });
+          const url = buildFeatureNavigationUrl(result.feature, navigationContext);
           options.onNavigate?.(result.feature, url);
           router.push(url);
           return result;
@@ -161,20 +207,31 @@ export function useFeatureRouting(options: UseFeatureRoutingOptions = {}): UseFe
 
       return result;
     },
-    [routingSettings, suggestionCount, dismissedFeatures, getLLMConfig, options, router]
+    [
+      routingSettings,
+      suggestionCount,
+      dismissedFeatures,
+      getLLMConfig,
+      options,
+      router,
+      buildNavigationContext,
+    ]
   );
 
   // Navigate to pending feature
   const confirmNavigation = useCallback(() => {
     if (pendingFeature) {
-      const url = buildFeatureNavigationUrl(pendingFeature, { message: pendingMessage });
+      const url = buildFeatureNavigationUrl(
+        pendingFeature,
+        buildNavigationContext(pendingFeature, pendingMessage)
+      );
       options.onNavigate?.(pendingFeature, url);
       router.push(url);
     }
     setHasPendingSuggestion(false);
     setPendingFeature(null);
     setPendingMessage('');
-  }, [pendingFeature, pendingMessage, options, router]);
+  }, [pendingFeature, pendingMessage, options, router, buildNavigationContext]);
 
   // Continue in chat
   const continueInChat = useCallback(() => {

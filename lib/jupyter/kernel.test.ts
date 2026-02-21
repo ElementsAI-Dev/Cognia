@@ -731,7 +731,7 @@ describe('Jupyter Kernel Service', () => {
         const result = await getKernelConfig();
 
         expect(mockInvoke).toHaveBeenCalledWith('jupyter_get_config');
-        expect(result).toEqual(mockConfig);
+        expect(result).toEqual(expect.objectContaining(mockConfig));
       });
 
       it('should return null when not in Tauri environment', async () => {

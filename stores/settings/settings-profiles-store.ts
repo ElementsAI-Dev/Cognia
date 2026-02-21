@@ -6,7 +6,11 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
-import { DEFAULT_BACKGROUND_SETTINGS, normalizeBackgroundSettings } from '@/lib/themes';
+import {
+  DEFAULT_BACKGROUND_SETTINGS,
+  normalizeBackgroundSettings,
+  migrateAndSanitizeBackgroundSettings,
+} from '@/lib/themes';
 import type { BackgroundSettings, UICustomization, ColorThemePreset } from '@/lib/themes';
 import type { Theme, CustomTheme } from '@/stores/settings/settings-store';
 
@@ -196,6 +200,21 @@ export const useSettingsProfilesStore = create<SettingsProfilesState>()(
           const id = `profile-${nanoid(10)}`;
           const now = new Date();
 
+          const migratedBackground = migrateAndSanitizeBackgroundSettings(
+            data.profile.backgroundSettings,
+            {
+              downgradeUnresolvedLocalToNone: true,
+              allowIncompleteUrlSource: false,
+            }
+          );
+
+          if (!migratedBackground.success) {
+            return {
+              success: false,
+              error: migratedBackground.error ?? 'Invalid background settings',
+            };
+          }
+
           const newProfile: SettingsProfile = {
             id,
             name: data.profile.name,
@@ -206,7 +225,7 @@ export const useSettingsProfilesStore = create<SettingsProfilesState>()(
             colorTheme: data.profile.colorTheme || 'default',
             activeCustomThemeId: null,
             customThemes: data.profile.customThemes || [],
-            backgroundSettings: normalizeBackgroundSettings(data.profile.backgroundSettings),
+            backgroundSettings: migratedBackground.settings,
             uiCustomization: data.profile.uiCustomization || {
               borderRadius: 'md',
               spacing: 'comfortable',
@@ -250,12 +269,21 @@ export const useSettingsProfilesStore = create<SettingsProfilesState>()(
         const persistedProfiles = persisted?.profiles;
 
         const profiles = Array.isArray(persistedProfiles)
-          ? persistedProfiles.map((p) => ({
-              ...p,
-              backgroundSettings: normalizeBackgroundSettings(
-                (p as SettingsProfile).backgroundSettings
-              ),
-            }))
+          ? persistedProfiles.map((p) => {
+              const migrated = migrateAndSanitizeBackgroundSettings(
+                (p as SettingsProfile).backgroundSettings,
+                {
+                  downgradeUnresolvedLocalToNone: true,
+                  allowIncompleteUrlSource: false,
+                }
+              );
+              return {
+                ...p,
+                backgroundSettings: migrated.success
+                  ? migrated.settings
+                  : normalizeBackgroundSettings(DEFAULT_BACKGROUND_SETTINGS),
+              };
+            })
           : currentState.profiles;
 
         return {

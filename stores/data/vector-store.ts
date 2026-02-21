@@ -44,6 +44,9 @@ export interface VectorSettings {
   qdrantApiKey: string;
   milvusAddress: string;
   milvusToken: string;
+  milvusUsername: string;
+  milvusPassword: string;
+  milvusSsl: boolean;
   embeddingProvider: EmbeddingProvider;
   embeddingModel: string;
   chunkSize: number;
@@ -93,6 +96,9 @@ const DEFAULT_SETTINGS: VectorSettings = {
   qdrantApiKey: '',
   milvusAddress: 'http://localhost:19530',
   milvusToken: '',
+  milvusUsername: '',
+  milvusPassword: '',
+  milvusSsl: false,
   embeddingProvider: 'openai',
   embeddingModel: 'text-embedding-3-small',
   chunkSize: 1000,

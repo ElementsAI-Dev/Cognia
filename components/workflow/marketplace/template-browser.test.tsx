@@ -160,7 +160,7 @@ jest.mock('./template-preview', () => ({
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  // eslint-disable-next-line @next/next/no-img-element, @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @next/next/no-img-element
   default: ({ alt, ...props }: any) => <img data-testid="image" alt={alt} {...props} />,
 }));
 

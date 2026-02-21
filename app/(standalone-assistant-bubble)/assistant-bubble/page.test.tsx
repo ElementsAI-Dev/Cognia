@@ -11,9 +11,9 @@ import { render, fireEvent, screen, act, waitFor } from '@testing-library/react'
 //   @tauri-apps/api/dpi    -> __mocks__/tauri-api-dpi.js
 // We access the mocked functions via require() and configure them in beforeEach.
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const tauriCore = require('@tauri-apps/api/core');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const tauriWindow = require('@tauri-apps/api/window');
 
 const mockInvoke = tauriCore.invoke as jest.Mock;

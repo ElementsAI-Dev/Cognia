@@ -37,6 +37,9 @@ jest.mock('@/stores', () => ({
         qdrantApiKey: '',
         milvusAddress: '',
         milvusToken: '',
+        milvusUsername: '',
+        milvusPassword: '',
+        milvusSsl: false,
       },
       updateSettings: mockUpdateSettings,
     };
@@ -71,6 +74,9 @@ jest.mock('@/lib/vector/embedding', () => ({
     mistral: { provider: 'mistral', model: 'mistral-embed', dimensions: 1024 },
     transformersjs: { provider: 'transformersjs', model: 'all-MiniLM-L6-v2', dimensions: 384 },
   },
+  isEmbeddingProviderConfigured: jest.fn((provider: string, settings: Record<string, { apiKey?: string }>) =>
+    provider === 'transformersjs' ? true : Boolean(settings?.[provider]?.apiKey)
+  ),
 }));
 
 // Mock VectorManager component
@@ -399,6 +405,11 @@ describe('VectorSettings - Native Provider', () => {
             chunkSize: 1000,
             chunkOverlap: 200,
             autoEmbed: true,
+            milvusAddress: '',
+            milvusToken: '',
+            milvusUsername: '',
+            milvusPassword: '',
+            milvusSsl: false,
           },
           updateSettings: mockUpdateSettings,
         };

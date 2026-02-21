@@ -489,7 +489,13 @@ pub async fn jupyter_execute_notebook(
                 .as_ref()
                 .map(|e| e.evalue.as_str())
                 .unwrap_or(result.stderr.as_str());
-            emit_kernel_status(&app, &kernel_id, "error", result.execution_count, Some(error_message));
+            emit_kernel_status(
+                &app,
+                &kernel_id,
+                "error",
+                result.execution_count,
+                Some(error_message),
+            );
         }
 
         results.push(result);

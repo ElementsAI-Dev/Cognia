@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonTtsError } from '../_utils';
 
 const GEMINI_TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -15,28 +16,19 @@ export async function POST(request: NextRequest) {
 
     // Validate input
     if (!text || typeof text !== 'string') {
-      return NextResponse.json(
-        { error: 'Text is required' },
-        { status: 400 }
-      );
+      return jsonTtsError('gemini', 'Text is required', 400, 'validation_error');
     }
 
     // Get API key from environment
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_API_KEY;
     
     if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Google API key not configured' },
-        { status: 500 }
-      );
+      return jsonTtsError('gemini', 'Google API key not configured', 500, 'api_key_missing');
     }
 
     // Validate text length
     if (text.length > 8000) {
-      return NextResponse.json(
-        { error: 'Text exceeds maximum length of 8000 characters' },
-        { status: 400 }
-      );
+      return jsonTtsError('gemini', 'Text exceeds maximum length of 8000 characters', 400, 'text_too_long');
     }
 
     // Call Gemini TTS API
@@ -68,29 +60,30 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      return NextResponse.json(
-        { error: errorData.error?.message || `Gemini API error: ${response.status}` },
-        { status: response.status }
+      return jsonTtsError(
+        'gemini',
+        errorData.error?.message || `Gemini API error: ${response.status}`,
+        response.status,
+        'upstream_error',
+        response.status >= 500
       );
     }
 
     const result = await response.json();
     
     // Extract audio data from response
-    const audioBase64 = result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    const inlineData = result.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+    const audioBase64 = inlineData?.data;
+    const mimeType = String(inlineData?.mimeType || '').toLowerCase();
     
     if (!audioBase64) {
-      return NextResponse.json(
-        { error: 'No audio data in response' },
-        { status: 500 }
-      );
+      return jsonTtsError('gemini', 'No audio data in response', 500, 'upstream_invalid_response');
     }
 
     // Decode base64 to binary
     const audioBuffer = Buffer.from(audioBase64, 'base64');
-    
-    // Convert PCM to WAV (Gemini outputs s16le at 24kHz mono)
-    const wavBuffer = pcmToWav(audioBuffer, 24000, 1);
+    const shouldWrapPcm = mimeType.includes('pcm') || mimeType.includes('l16') || mimeType === '';
+    const wavBuffer = shouldWrapPcm ? pcmToWav(audioBuffer, 24000, 1) : audioBuffer;
 
     return new NextResponse(new Uint8Array(wavBuffer), {
       status: 200,
@@ -101,9 +94,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Gemini TTS error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate speech' },
-      { status: 500 }
+    return jsonTtsError(
+      'gemini',
+      error instanceof Error ? error.message : 'Failed to generate speech',
+      500,
+      'internal_error',
+      true
     );
   }
 }

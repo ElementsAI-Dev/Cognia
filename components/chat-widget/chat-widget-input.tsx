@@ -121,7 +121,7 @@ export const ChatWidgetInput = forwardRef<HTMLTextAreaElement, ChatWidgetInputPr
         // Fall through to parent handler
         onKeyDown(e);
       },
-      [handleCompletionKeyDown, ghostText, value, onChange, onKeyDown]
+      [handleCompletionKeyDown, onKeyDown]
     );
 
     // Reset height when value is cleared

@@ -109,6 +109,9 @@ pub struct SkillRepo {
     pub name: String,
     /// Branch (default "main")
     pub branch: String,
+    /// Optional subdirectory inside repository to scan for skills
+    #[serde(default, rename = "sourcePath")]
+    pub source_path: Option<String>,
     /// Whether enabled
     pub enabled: bool,
 }
@@ -119,6 +122,7 @@ impl Default for SkillRepo {
             owner: String::new(),
             name: String::new(),
             branch: "main".to_string(),
+            source_path: None,
             enabled: true,
         }
     }
@@ -152,12 +156,14 @@ impl Default for SkillStore {
                     owner: "anthropics".to_string(),
                     name: "skills".to_string(),
                     branch: "main".to_string(),
+                    source_path: Some("skills".to_string()),
                     enabled: true,
                 },
                 SkillRepo {
                     owner: "ComposioHQ".to_string(),
                     name: "awesome-claude-skills".to_string(),
                     branch: "master".to_string(),
+                    source_path: None,
                     enabled: true,
                 },
             ],
@@ -217,12 +223,188 @@ pub struct InstallSkillInput {
 /// Input for adding a repository
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AddRepoInput {
+    /// Repository URL or owner/repo shorthand
+    #[serde(default, rename = "repoUrl")]
+    pub repo_url: Option<String>,
     /// Repository owner
-    pub owner: String,
+    #[serde(default)]
+    pub owner: Option<String>,
     /// Repository name
-    pub name: String,
+    #[serde(default)]
+    pub name: Option<String>,
     /// Branch (defaults to "main")
+    #[serde(default)]
     pub branch: Option<String>,
+    /// Optional subdirectory path inside repository
+    #[serde(default, rename = "sourcePath")]
+    pub source_path: Option<String>,
+}
+
+impl AddRepoInput {
+    pub fn into_skill_repo(self) -> Result<SkillRepo, String> {
+        let mut parsed_owner = None;
+        let mut parsed_name = None;
+        let mut parsed_branch = None;
+        let mut parsed_path = None;
+
+        if let Some(raw_repo) = self.repo_url.as_deref().map(str::trim) {
+            if !raw_repo.is_empty() {
+                if let Some((owner, name, branch, source_path)) = Self::parse_repo_spec(raw_repo) {
+                    parsed_owner = Some(owner);
+                    parsed_name = Some(name);
+                    parsed_branch = branch;
+                    parsed_path = source_path;
+                } else {
+                    return Err(format!("Invalid GitHub repository source: {}", raw_repo));
+                }
+            }
+        }
+
+        let owner = self
+            .owner
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .or(parsed_owner)
+            .ok_or_else(|| "Repository owner is required".to_string())?;
+        let name = self
+            .name
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .or(parsed_name)
+            .ok_or_else(|| "Repository name is required".to_string())?;
+
+        if !Self::is_valid_repo_segment(&owner) {
+            return Err(format!("Invalid repository owner: {}", owner));
+        }
+        if !Self::is_valid_repo_segment(&name) {
+            return Err(format!("Invalid repository name: {}", name));
+        }
+
+        let branch = self
+            .branch
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .or(parsed_branch)
+            .unwrap_or_else(|| "main".to_string());
+
+        let source_path = Self::normalize_source_path(
+            self.source_path
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+                .or(parsed_path),
+        );
+
+        Ok(SkillRepo {
+            owner,
+            name,
+            branch,
+            source_path,
+            enabled: true,
+        })
+    }
+
+    fn parse_repo_spec(spec: &str) -> Option<(String, String, Option<String>, Option<String>)> {
+        let normalized = spec.trim();
+        if normalized.is_empty() {
+            return None;
+        }
+
+        let path_like = if let Some(rest) = normalized.strip_prefix("git@github.com:") {
+            rest.to_string()
+        } else if normalized.starts_with("git@") {
+            return None;
+        } else if let Some(rest) = normalized
+            .strip_prefix("https://")
+            .or_else(|| normalized.strip_prefix("http://"))
+        {
+            if let Some(path) = rest
+                .strip_prefix("github.com/")
+                .or_else(|| rest.strip_prefix("www.github.com/"))
+            {
+                path.to_string()
+            } else {
+                return None;
+            }
+        } else if let Some(path) = normalized
+            .strip_prefix("github.com/")
+            .or_else(|| normalized.strip_prefix("www.github.com/"))
+        {
+            path.to_string()
+        } else {
+            let segments = normalized
+                .split('/')
+                .filter(|segment| !segment.trim().is_empty())
+                .collect::<Vec<_>>();
+            if !segments.is_empty() && segments[0].contains('.') {
+                return None;
+            }
+            normalized.to_string()
+        };
+
+        let mut segments = path_like
+            .split('?')
+            .next()
+            .unwrap_or("")
+            .split('#')
+            .next()
+            .unwrap_or("")
+            .trim_matches('/')
+            .split('/')
+            .filter(|segment| !segment.trim().is_empty())
+            .collect::<Vec<_>>();
+
+        if segments.len() < 2 {
+            return None;
+        }
+
+        let owner = segments.remove(0).trim().to_string();
+        let name = segments
+            .remove(0)
+            .trim()
+            .trim_end_matches(".git")
+            .to_string();
+
+        if owner.is_empty() || name.is_empty() {
+            return None;
+        }
+
+        let mut branch = None;
+        let mut source_path = None;
+
+        if !segments.is_empty() {
+            if segments[0].eq_ignore_ascii_case("tree") {
+                if segments.len() >= 2 {
+                    branch = Some(segments[1].to_string());
+                }
+                if segments.len() > 2 {
+                    source_path = Some(segments[2..].join("/"));
+                }
+            } else {
+                source_path = Some(segments.join("/"));
+            }
+        }
+
+        Some((owner, name, branch, source_path))
+    }
+
+    fn normalize_source_path(source_path: Option<String>) -> Option<String> {
+        source_path.and_then(|path| {
+            let normalized = path.replace('\\', "/");
+            let normalized = normalized.trim_matches('/').trim();
+            if normalized.is_empty() {
+                None
+            } else {
+                Some(normalized.to_string())
+            }
+        })
+    }
+
+    fn is_valid_repo_segment(value: &str) -> bool {
+        !value.is_empty()
+            && value
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
+    }
 }
 
 /// Skill discovery result
@@ -551,6 +733,7 @@ mod tests {
         assert_eq!(repo.owner, "");
         assert_eq!(repo.name, "");
         assert_eq!(repo.branch, "main");
+        assert!(repo.source_path.is_none());
         assert!(repo.enabled);
     }
 
@@ -561,6 +744,7 @@ mod tests {
         assert_eq!(store.repos.len(), 2);
         assert_eq!(store.repos[0].owner, "anthropics");
         assert_eq!(store.repos[0].name, "skills");
+        assert_eq!(store.repos[0].source_path, Some("skills".to_string()));
         assert_eq!(store.repos[1].owner, "ComposioHQ");
     }
 
@@ -690,15 +874,128 @@ mod tests {
     #[test]
     fn test_add_repo_input() {
         let input = AddRepoInput {
-            owner: "test-owner".to_string(),
-            name: "test-repo".to_string(),
+            repo_url: None,
+            owner: Some("test-owner".to_string()),
+            name: Some("test-repo".to_string()),
             branch: Some("develop".to_string()),
+            source_path: Some("skills".to_string()),
         };
 
         let json = serde_json::to_string(&input).unwrap();
         let parsed: AddRepoInput = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed.owner, "test-owner");
+        assert_eq!(parsed.owner, Some("test-owner".to_string()));
         assert_eq!(parsed.branch, Some("develop".to_string()));
+        assert_eq!(parsed.source_path, Some("skills".to_string()));
+    }
+
+    #[test]
+    fn test_add_repo_input_into_skill_repo_owner_repo() {
+        let input = AddRepoInput {
+            repo_url: None,
+            owner: Some("test-owner".to_string()),
+            name: Some("test-repo".to_string()),
+            branch: Some("develop".to_string()),
+            source_path: Some("skills".to_string()),
+        };
+
+        let repo = input.into_skill_repo().unwrap();
+        assert_eq!(repo.owner, "test-owner");
+        assert_eq!(repo.name, "test-repo");
+        assert_eq!(repo.branch, "develop");
+        assert_eq!(repo.source_path, Some("skills".to_string()));
+    }
+
+    #[test]
+    fn test_add_repo_input_into_skill_repo_github_url() {
+        let input = AddRepoInput {
+            repo_url: Some("https://github.com/openclaw/skills/tree/main/skills".to_string()),
+            owner: None,
+            name: None,
+            branch: None,
+            source_path: None,
+        };
+
+        let repo = input.into_skill_repo().unwrap();
+        assert_eq!(repo.owner, "openclaw");
+        assert_eq!(repo.name, "skills");
+        assert_eq!(repo.branch, "main");
+        assert_eq!(repo.source_path, Some("skills".to_string()));
+    }
+
+    #[test]
+    fn test_add_repo_input_into_skill_repo_ssh_url() {
+        let input = AddRepoInput {
+            repo_url: Some("git@github.com:openclaw/skills.git".to_string()),
+            owner: None,
+            name: None,
+            branch: None,
+            source_path: None,
+        };
+
+        let repo = input.into_skill_repo().unwrap();
+        assert_eq!(repo.owner, "openclaw");
+        assert_eq!(repo.name, "skills");
+        assert_eq!(repo.branch, "main");
+        assert_eq!(repo.source_path, None);
+    }
+
+    #[test]
+    fn test_add_repo_input_into_skill_repo_prefers_explicit_over_url() {
+        let input = AddRepoInput {
+            repo_url: Some("https://github.com/openclaw/skills/tree/main/skills".to_string()),
+            owner: Some("custom-owner".to_string()),
+            name: Some("custom-repo".to_string()),
+            branch: Some("dev".to_string()),
+            source_path: Some("/custom/path/".to_string()),
+        };
+
+        let repo = input.into_skill_repo().unwrap();
+        assert_eq!(repo.owner, "custom-owner");
+        assert_eq!(repo.name, "custom-repo");
+        assert_eq!(repo.branch, "dev");
+        assert_eq!(repo.source_path, Some("custom/path".to_string()));
+    }
+
+    #[test]
+    fn test_add_repo_input_into_skill_repo_invalid_source() {
+        let input = AddRepoInput {
+            repo_url: Some("not-a-valid-source".to_string()),
+            owner: None,
+            name: None,
+            branch: None,
+            source_path: None,
+        };
+
+        let result = input.into_skill_repo();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_add_repo_input_into_skill_repo_rejects_non_github_url() {
+        let input = AddRepoInput {
+            repo_url: Some("https://gitlab.com/openclaw/skills".to_string()),
+            owner: None,
+            name: None,
+            branch: None,
+            source_path: None,
+        };
+
+        let result = input.into_skill_repo();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_add_repo_input_into_skill_repo_rejects_non_github_domain_shorthand() {
+        let input = AddRepoInput {
+            repo_url: Some("gitlab.com/openclaw".to_string()),
+            owner: None,
+            name: None,
+            branch: None,
+            source_path: None,
+        };
+
+        let result = input.into_skill_repo();
+        assert!(result.is_err());
     }
 
     #[test]

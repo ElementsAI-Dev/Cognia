@@ -17,6 +17,7 @@
 
 export * from './subtitle-parser';
 export * from './video-subtitle';
+export * from './video-render-service';
 
 // Video processing modules
 export * from './workers';

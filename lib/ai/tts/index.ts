@@ -25,3 +25,7 @@ export * from './tts-text-utils';
 
 // Streaming
 export * from './tts-streaming';
+
+// Orchestration + settings adapter
+export * from './tts-orchestrator';
+export * from './speech-settings-adapter';

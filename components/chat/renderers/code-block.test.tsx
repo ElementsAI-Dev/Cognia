@@ -37,7 +37,7 @@ jest.mock('@/hooks/ui', () => ({
 }));
 
 // Now import CodeBlock after mocks are set up
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const { CodeBlock } = require('./code-block');
 
 // Wrapper with TooltipProvider

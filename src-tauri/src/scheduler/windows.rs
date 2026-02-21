@@ -6,14 +6,16 @@
 // cfg(target_os = "windows") is already applied at module level in mod.rs
 
 use async_trait::async_trait;
+use chrono::Timelike;
 use log::{debug, error, info, warn};
+use regex::Regex;
 use std::process::Command;
 
 use super::error::{Result, SchedulerError};
 use super::service::{generate_task_name, is_cognia_task, now_iso, SystemScheduler, TASK_PREFIX};
 use super::types::{
     CreateSystemTaskInput, RunLevel, SchedulerCapabilities, SystemTask, SystemTaskAction,
-    SystemTaskStatus, SystemTaskTrigger, TaskRunResult,
+    SystemTaskStatus, SystemTaskTrigger, TaskMetadataState, TaskRunResult,
 };
 
 /// Windows Task Scheduler implementation
@@ -374,6 +376,226 @@ impl WindowsScheduler {
             .unwrap_or_else(|_| "cognia.exe".to_string())
     }
 
+    fn decode_xml_entities(input: &str) -> String {
+        input
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+            .trim()
+            .to_string()
+    }
+
+    fn capture_tag(input: &str, tag: &str) -> Option<String> {
+        let pattern = format!(r"(?s)<{0}>(.*?)</{0}>", tag);
+        let regex = Regex::new(&pattern).ok()?;
+        regex.captures(input).and_then(|cap| {
+            cap.get(1)
+                .map(|value| Self::decode_xml_entities(value.as_str()))
+        })
+    }
+
+    fn parse_iso8601_interval_seconds(value: &str) -> Option<u64> {
+        let interval = value.trim().trim_start_matches("PT");
+        if interval.is_empty() {
+            return None;
+        }
+        let mut total = 0_u64;
+        let regex = Regex::new(r"(?i)(\d+)([HMS])").ok()?;
+        for cap in regex.captures_iter(interval) {
+            let n = cap.get(1)?.as_str().parse::<u64>().ok()?;
+            match cap.get(2)?.as_str().to_ascii_uppercase().as_str() {
+                "H" => total += n * 3600,
+                "M" => total += n * 60,
+                "S" => total += n,
+                _ => {}
+            }
+        }
+        if total > 0 {
+            Some(total)
+        } else {
+            None
+        }
+    }
+
+    fn parse_datetime_boundary(start_boundary: &str) -> Option<chrono::DateTime<chrono::Utc>> {
+        chrono::DateTime::parse_from_rfc3339(start_boundary)
+            .ok()
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+    }
+
+    fn parse_days_of_week(calendar_block: &str) -> Option<String> {
+        let mut days = Vec::new();
+        let day_map = [
+            ("Sunday", "0"),
+            ("Monday", "1"),
+            ("Tuesday", "2"),
+            ("Wednesday", "3"),
+            ("Thursday", "4"),
+            ("Friday", "5"),
+            ("Saturday", "6"),
+        ];
+
+        for (tag, value) in day_map {
+            let marker = format!("<{}/>", tag);
+            if calendar_block.contains(&marker) {
+                days.push(value.to_string());
+            }
+        }
+
+        if days.is_empty() {
+            None
+        } else {
+            Some(days.join(","))
+        }
+    }
+
+    fn parse_trigger_from_xml(xml: &str) -> Option<SystemTaskTrigger> {
+        if let Some(boot_block) = Self::capture_tag(xml, "BootTrigger") {
+            let delay = Self::capture_tag(&boot_block, "Delay")
+                .and_then(|v| Self::parse_iso8601_interval_seconds(&v))
+                .unwrap_or(0);
+            return Some(SystemTaskTrigger::OnBoot {
+                delay_seconds: delay,
+            });
+        }
+
+        if let Some(logon_block) = Self::capture_tag(xml, "LogonTrigger") {
+            let user = Self::capture_tag(&logon_block, "UserId");
+            return Some(SystemTaskTrigger::OnLogon { user });
+        }
+
+        if let Some(time_block) = Self::capture_tag(xml, "TimeTrigger") {
+            if let Some(run_at) = Self::capture_tag(&time_block, "StartBoundary") {
+                return Some(SystemTaskTrigger::Once { run_at });
+            }
+        }
+
+        if let Some(calendar_block) = Self::capture_tag(xml, "CalendarTrigger") {
+            if let Some(repetition_block) = Self::capture_tag(&calendar_block, "Repetition") {
+                if let Some(interval) = Self::capture_tag(&repetition_block, "Interval")
+                    .and_then(|v| Self::parse_iso8601_interval_seconds(&v))
+                {
+                    return Some(SystemTaskTrigger::Interval { seconds: interval });
+                }
+            }
+
+            let start_boundary = Self::capture_tag(&calendar_block, "StartBoundary")?;
+            let start = Self::parse_datetime_boundary(&start_boundary)?;
+            let minute = start.minute();
+            let hour = start.hour();
+
+            if let Some(week_block) = Self::capture_tag(&calendar_block, "ScheduleByWeek") {
+                let dow = Self::parse_days_of_week(&week_block).unwrap_or_else(|| "*".to_string());
+                return Some(SystemTaskTrigger::Cron {
+                    expression: format!("{minute} {hour} * * {dow}"),
+                    timezone: Some("UTC".to_string()),
+                });
+            }
+
+            if let Some(day_block) = Self::capture_tag(&calendar_block, "ScheduleByDay") {
+                if let Some(days_interval) = Self::capture_tag(&day_block, "DaysInterval")
+                    .and_then(|v| v.parse::<u64>().ok())
+                {
+                    if days_interval > 1 {
+                        return Some(SystemTaskTrigger::Interval {
+                            seconds: days_interval * 24 * 3600,
+                        });
+                    }
+                }
+                return Some(SystemTaskTrigger::Cron {
+                    expression: format!("{minute} {hour} * * *"),
+                    timezone: Some("UTC".to_string()),
+                });
+            }
+
+            return Some(SystemTaskTrigger::Cron {
+                expression: format!("{minute} {hour} * * *"),
+                timezone: Some("UTC".to_string()),
+            });
+        }
+
+        None
+    }
+
+    fn parse_action_from_xml(xml: &str) -> Option<SystemTaskAction> {
+        let exec_block = Self::capture_tag(xml, "Exec")?;
+        let command = Self::capture_tag(&exec_block, "Command")?;
+        let arguments = Self::capture_tag(&exec_block, "Arguments").unwrap_or_default();
+        let working_dir = Self::capture_tag(&exec_block, "WorkingDirectory");
+
+        if command.to_ascii_lowercase().contains("powershell")
+            && arguments.contains("execute-script")
+        {
+            let language = Regex::new(r"--language\s+([^\s]+)")
+                .ok()
+                .and_then(|re| re.captures(&arguments))
+                .and_then(|cap| cap.get(1).map(|m| m.as_str().to_string()))
+                .unwrap_or_else(|| "unknown".to_string());
+            let code_b64 = Regex::new(r"--code-b64\s+'?([^'\s]+)'?")
+                .ok()
+                .and_then(|re| re.captures(&arguments))
+                .and_then(|cap| cap.get(1).map(|m| m.as_str().to_string()))
+                .unwrap_or_default();
+            let timeout_secs = Regex::new(r"--timeout\s+(\d+)")
+                .ok()
+                .and_then(|re| re.captures(&arguments))
+                .and_then(|cap| cap.get(1).and_then(|m| m.as_str().parse::<u64>().ok()))
+                .unwrap_or(300);
+            let memory_mb = Regex::new(r"--memory\s+(\d+)")
+                .ok()
+                .and_then(|re| re.captures(&arguments))
+                .and_then(|cap| cap.get(1).and_then(|m| m.as_str().parse::<u64>().ok()))
+                .unwrap_or(512);
+            let use_sandbox = arguments.contains("--sandbox");
+            let code = if code_b64.is_empty() {
+                String::new()
+            } else {
+                base64::Engine::decode(
+                    &base64::engine::general_purpose::STANDARD,
+                    code_b64.as_bytes(),
+                )
+                .ok()
+                .and_then(|bytes| String::from_utf8(bytes).ok())
+                .unwrap_or_default()
+            };
+
+            return Some(SystemTaskAction::ExecuteScript {
+                language,
+                code,
+                working_dir,
+                args: vec![],
+                env: std::collections::HashMap::new(),
+                timeout_secs,
+                memory_mb,
+                use_sandbox,
+            });
+        }
+
+        let args = arguments
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        Some(SystemTaskAction::RunCommand {
+            command,
+            args,
+            working_dir,
+            env: std::collections::HashMap::new(),
+        })
+    }
+
+    fn enrich_from_xml(task: &SystemTask, xml: &str) -> Option<SystemTask> {
+        let trigger = Self::parse_trigger_from_xml(xml)?;
+        let action = Self::parse_action_from_xml(xml)?;
+        let mut enriched = task.clone();
+        enriched.trigger = trigger;
+        enriched.action = action;
+        enriched.metadata_state = TaskMetadataState::Full;
+        enriched.requires_admin = enriched.check_requires_admin();
+        Some(enriched)
+    }
+
     /// Parse schtasks /Query output to extract task info
     fn parse_task_query(output: &str, task_name: &str) -> Option<SystemTask> {
         // Basic parsing of schtasks output
@@ -430,6 +652,7 @@ impl WindowsScheduler {
             last_run_at: last_run,
             next_run_at: next_run,
             last_result: None,
+            metadata_state: TaskMetadataState::Degraded,
         })
     }
 }
@@ -542,6 +765,7 @@ impl SystemScheduler for WindowsScheduler {
             last_run_at: None,
             next_run_at: None,
             last_result: None,
+            metadata_state: TaskMetadataState::Full,
         };
 
         task.requires_admin = task.check_requires_admin();
@@ -599,7 +823,23 @@ impl SystemScheduler for WindowsScheduler {
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        Ok(Self::parse_task_query(&stdout, id))
+        let base_task = match Self::parse_task_query(&stdout, id) {
+            Some(task) => task,
+            None => return Ok(None),
+        };
+
+        let xml_output = Command::new("schtasks")
+            .args(["/Query", "/TN", id, "/XML"])
+            .output()?;
+
+        if xml_output.status.success() {
+            let xml = String::from_utf8_lossy(&xml_output.stdout);
+            if let Some(parsed) = Self::enrich_from_xml(&base_task, &xml) {
+                return Ok(Some(parsed));
+            }
+        }
+
+        Ok(Some(base_task))
     }
 
     async fn list_tasks(&self) -> Result<Vec<SystemTask>> {
@@ -753,5 +993,55 @@ mod tests {
     fn test_is_cognia_task() {
         assert!(is_cognia_task("Cognia_MyTask"));
         assert!(!is_cognia_task("OtherTask"));
+    }
+
+    #[test]
+    fn parses_xml_trigger_and_action_for_legacy_task_backfill() {
+        let base = SystemTask {
+            id: "\\Cognia_Test".to_string(),
+            name: "Test".to_string(),
+            description: None,
+            trigger: SystemTaskTrigger::Interval { seconds: 0 },
+            action: SystemTaskAction::RunCommand {
+                command: String::new(),
+                args: vec![],
+                working_dir: None,
+                env: std::collections::HashMap::new(),
+            },
+            run_level: RunLevel::User,
+            status: SystemTaskStatus::Enabled,
+            requires_admin: false,
+            tags: vec![],
+            created_at: None,
+            updated_at: None,
+            last_run_at: None,
+            next_run_at: None,
+            last_result: None,
+            metadata_state: TaskMetadataState::Degraded,
+        };
+
+        let xml = r#"
+<Task>
+  <Triggers>
+    <CalendarTrigger>
+      <StartBoundary>2026-02-18T09:30:00Z</StartBoundary>
+      <ScheduleByDay>
+        <DaysInterval>1</DaysInterval>
+      </ScheduleByDay>
+    </CalendarTrigger>
+  </Triggers>
+  <Actions Context="Author">
+    <Exec>
+      <Command>cmd.exe</Command>
+      <Arguments>/C echo hello</Arguments>
+    </Exec>
+  </Actions>
+</Task>
+"#;
+
+        let parsed = WindowsScheduler::enrich_from_xml(&base, xml).expect("should parse XML");
+        assert_eq!(parsed.metadata_state, TaskMetadataState::Full);
+        assert!(matches!(parsed.trigger, SystemTaskTrigger::Cron { .. }));
+        assert!(matches!(parsed.action, SystemTaskAction::RunCommand { .. }));
     }
 }

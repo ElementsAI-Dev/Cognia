@@ -485,7 +485,8 @@ function createSubtitleTrackFromText(
  */
 async function readFileAsText(filePath: string): Promise<string | null> {
   try {
-    return await invoke<string>('read_text_file', { path: filePath });
+    const { readTextFile } = await import('@tauri-apps/plugin-fs');
+    return await readTextFile(filePath);
   } catch {
     return null;
   }
@@ -496,8 +497,11 @@ async function readFileAsText(filePath: string): Promise<string | null> {
  */
 async function readFileAsBlob(filePath: string): Promise<Blob | null> {
   try {
-    const bytes = await invoke<number[]>('read_binary_file', { path: filePath });
-    return new Blob([new Uint8Array(bytes)]);
+    const { readFile } = await import('@tauri-apps/plugin-fs');
+    const bytes = await readFile(filePath);
+    const normalized = new Uint8Array(bytes.length);
+    normalized.set(bytes);
+    return new Blob([normalized]);
   } catch {
     return null;
   }

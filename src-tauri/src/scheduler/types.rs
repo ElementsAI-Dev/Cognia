@@ -38,6 +38,17 @@ pub enum SystemTaskStatus {
     Unknown,
 }
 
+/// Completeness of scheduler metadata for a task
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskMetadataState {
+    /// Trigger/action metadata is complete and editable
+    #[default]
+    Full,
+    /// Metadata could not be fully reconstructed from platform scheduler
+    Degraded,
+}
+
 /// Risk level for task operations
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -180,6 +191,9 @@ pub struct SystemTask {
     /// Last run result
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_result: Option<TaskRunResult>,
+    /// Whether metadata is complete for editing
+    #[serde(default)]
+    pub metadata_state: TaskMetadataState,
 }
 
 /// Result of a task execution
@@ -216,12 +230,18 @@ pub struct CreateSystemTaskInput {
 /// Confirmation request for sensitive operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskConfirmationRequest {
+    pub confirmation_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub task_id: Option<SystemTaskId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_task_id: Option<SystemTaskId>,
     pub operation: TaskOperation,
     pub risk_level: RiskLevel,
     pub requires_admin: bool,
     pub warnings: Vec<String>,
     pub details: TaskConfirmationDetails,
+    pub created_at: String,
+    pub expires_at: String,
 }
 
 /// Type of operation requiring confirmation

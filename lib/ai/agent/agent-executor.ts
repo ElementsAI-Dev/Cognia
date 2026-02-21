@@ -285,6 +285,8 @@ export interface AgentConfig {
   onStopCondition?: (result: StopConditionResult) => void;
   /** Callback when error occurs */
   onError?: (error: Error) => void;
+  /** Abort signal for cancelling execution */
+  abortSignal?: AbortSignal;
   /** Function to require approval for tool calls */
   requireApproval?: (toolCall: ToolCall) => Promise<boolean>;
   /** Prepare step callback for dynamic step configuration */
@@ -672,6 +674,7 @@ export async function executeAgent(
     onToolCall,
     onToolResult,
     onError,
+    abortSignal,
     requireApproval,
     prepareStep: prepareStepCallback,
     onFinish,
@@ -973,6 +976,7 @@ export async function executeAgent(
       prompt,
       system: currentSystemPrompt || undefined,
       temperature: currentTemperature,
+      abortSignal,
       tools: sdkTools,
       stopWhen: stepCountIs(maxSteps),
       prepareStep: async () => {

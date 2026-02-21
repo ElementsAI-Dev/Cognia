@@ -262,15 +262,6 @@ pub fn get_client_long_for_url(url: &str) -> Result<Client, reqwest::Error> {
     }
 }
 
-/// Get the appropriate quick HTTP client for a given URL.
-pub fn get_client_quick_for_url(url: &str) -> Result<Client, reqwest::Error> {
-    if should_bypass_proxy(url) {
-        Ok(HTTP_CLIENT_QUICK.clone())
-    } else {
-        create_proxy_client_quick()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

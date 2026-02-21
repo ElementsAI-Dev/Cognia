@@ -14,6 +14,7 @@ export type LearningSubMode = 'socratic' | 'speedpass';
 
 export interface LearningSpeedPassContext {
   sourceMessage?: string;
+  textbookId?: string;
   availableTimeMinutes?: number;
   targetScore?: number;
   examDate?: string;
@@ -101,6 +102,10 @@ export interface Session {
 
   // External agent ID (when using external agent instead of built-in)
   externalAgentId?: string;
+  // External agent session ID (for session reuse across turns)
+  externalAgentSessionId?: string;
+  // Hash of the external-agent instruction envelope used to create/reuse ACP session
+  externalAgentInstructionHash?: string;
 
   // Features
   enableTools?: boolean;
@@ -187,6 +192,9 @@ export interface CreateSessionInput {
   provider?: ProviderName;
   model?: string;
   mode?: ChatMode;
+  externalAgentId?: string;
+  externalAgentSessionId?: string;
+  externalAgentInstructionHash?: string;
   systemPrompt?: string;
   projectId?: string;
   virtualEnvId?: string;
@@ -210,6 +218,9 @@ export interface UpdateSessionInput {
   model?: string;
   mode?: ChatMode;
   agentModeId?: string;
+  externalAgentId?: string;
+  externalAgentSessionId?: string;
+  externalAgentInstructionHash?: string;
   systemPrompt?: string;
   builtinPrompts?: Array<{ id: string; name: string; content: string; description?: string }>;
   temperature?: number;

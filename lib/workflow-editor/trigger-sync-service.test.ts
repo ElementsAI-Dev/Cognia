@@ -255,6 +255,64 @@ describe('WorkflowTriggerSyncService', () => {
     expect(result.config.lastSyncError).toContain('requires elevated permissions');
   });
 
+  it('migrates trigger from app scheduler to system scheduler on backend switch', async () => {
+    mockIsTauri.mockReturnValue(true);
+    mockCreateSystemTask.mockResolvedValue({
+      status: 'success',
+      task: { id: 'system-task-2' },
+    });
+    mockDeleteTask.mockResolvedValue(true);
+
+    const workflow = createWorkflow();
+    const trigger = createTrigger({
+      config: {
+        cronExpression: '0 9 * * *',
+        timezone: 'UTC',
+        backend: 'system',
+        bindingTaskId: 'app-task-legacy',
+        runtimeSource: 'app-scheduler',
+      },
+    });
+
+    const result = await service.syncTrigger(workflow, trigger);
+
+    expect(mockCreateSystemTask).toHaveBeenCalledTimes(1);
+    expect(mockDeleteTask).toHaveBeenCalledWith('app-task-legacy');
+    expect(result.config.backend).toBe('system');
+    expect(result.config.bindingTaskId).toBe('system-task-2');
+    expect(result.config.runtimeSource).toBe('system-scheduler');
+    expect(result.config.syncStatus).toBe('synced');
+  });
+
+  it('rolls back target task when migration cleanup fails', async () => {
+    mockIsTauri.mockReturnValue(true);
+    mockCreateSystemTask.mockResolvedValue({
+      status: 'success',
+      task: { id: 'system-task-rollback' },
+    });
+    mockDeleteTask.mockRejectedValue(new Error('failed to delete old app task'));
+    mockDeleteSystemTask.mockResolvedValue(true);
+
+    const workflow = createWorkflow();
+    const trigger = createTrigger({
+      config: {
+        cronExpression: '0 9 * * *',
+        timezone: 'UTC',
+        backend: 'system',
+        bindingTaskId: 'app-task-stale',
+        runtimeSource: 'app-scheduler',
+      },
+    });
+
+    const result = await service.syncTrigger(workflow, trigger);
+
+    expect(mockDeleteSystemTask).toHaveBeenCalledWith('system-task-rollback');
+    expect(result.config.syncStatus).toBe('error');
+    expect(result.config.bindingTaskId).toBe('app-task-stale');
+    expect(result.config.runtimeSource).toBe('app-scheduler');
+    expect(result.config.lastSyncError).toContain('target task rollback completed');
+  });
+
   it('unsyncs app trigger and clears stale binding metadata', async () => {
     const trigger = createTrigger({
       config: {

@@ -18,6 +18,9 @@ function toProject(dbProject: DBProject, knowledgeFiles: KnowledgeFile[]): Proje
     defaultProvider: dbProject.defaultProvider,
     defaultModel: dbProject.defaultModel,
     defaultMode: dbProject.defaultMode as Project['defaultMode'],
+    tags: dbProject.tags ? JSON.parse(dbProject.tags) : [],
+    isArchived: dbProject.isArchived,
+    archivedAt: dbProject.archivedAt,
     sessionIds: dbProject.sessionIds ? JSON.parse(dbProject.sessionIds) : [],
     knowledgeBase: knowledgeFiles,
     sessionCount: dbProject.sessionCount,
@@ -40,6 +43,9 @@ function toDBProject(project: Project): DBProject {
     defaultProvider: project.defaultProvider,
     defaultModel: project.defaultModel,
     defaultMode: project.defaultMode,
+    tags: project.tags ? JSON.stringify(project.tags) : undefined,
+    isArchived: project.isArchived,
+    archivedAt: project.archivedAt,
     sessionIds: JSON.stringify(project.sessionIds),
     sessionCount: project.sessionCount,
     messageCount: project.messageCount,
@@ -144,6 +150,8 @@ export const projectRepository = {
       defaultProvider: input.defaultProvider,
       defaultModel: input.defaultModel,
       defaultMode: input.defaultMode,
+      tags: input.tags || [],
+      isArchived: false,
       sessionIds: [],
       knowledgeBase: [],
       sessionCount: 0,
@@ -176,6 +184,11 @@ export const projectRepository = {
     if (updates.defaultProvider !== undefined) updateData.defaultProvider = updates.defaultProvider;
     if (updates.defaultModel !== undefined) updateData.defaultModel = updates.defaultModel;
     if (updates.defaultMode !== undefined) updateData.defaultMode = updates.defaultMode;
+    if (updates.tags !== undefined) updateData.tags = JSON.stringify(updates.tags);
+    if (updates.isArchived !== undefined) {
+      updateData.isArchived = updates.isArchived;
+      updateData.archivedAt = updates.isArchived ? new Date() : undefined;
+    }
 
     await db.projects.update(id, updateData);
     return this.getById(id);

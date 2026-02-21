@@ -194,6 +194,12 @@
   "operationEnable": "Enable Task",
   "operationRunNow": "Run Task Now",
   "operationDefault": "Task Operation",
+  "createdAt": "Created",
+  "expiresAt": "Expires",
+  "metadataDegraded": "Task metadata is incomplete; editing is limited",
+  "metadataDegradedEditHint": "Task metadata is incomplete and cannot be edited safely",
+  "workflowScriptReadOnlyTitle": "Workflow-managed task",
+  "workflowScriptReadOnlyDescription": "Script content is managed by workflow trigger sync and is read-only in this form.",
   "errorTitle": "Something went wrong",
   "errorDescription": "The scheduler encountered an unexpected error. This may be caused by a database issue or corrupted data.",
   "retry": "Try again",
@@ -216,11 +222,13 @@
       "all": "Everything (including plugins)"
     },
     "destination": "Backup Destination",
+    "destinationHint": "Choose where this scheduled backup should be uploaded.",
     "destinations": {
       "local": "Local Storage",
       "webdav": "WebDAV Server",
       "github": "GitHub Repository",
-      "all": "All Configured"
+      "googledrive": "Google Drive",
+      "all": "All Configured Targets"
     },
     "includeOptions": "Include in Backup",
     "options": {

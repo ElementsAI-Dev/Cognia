@@ -7,8 +7,8 @@ use crate::screenshot::{
     ScreenshotHistoryEntry, ScreenshotManager, ScreenshotMetadata, SelectionSnapResult,
     SelectionState, SnapConfig, SnapResult, WinOcrResult, WindowInfo,
 };
-use tauri::State;
 use base64::Engine;
+use tauri::State;
 
 fn into_frontend_result(result: crate::screenshot::ScreenshotResult) -> ScreenshotResult {
     ScreenshotResult {
@@ -741,7 +741,10 @@ mod tests {
             converted.image_base64,
             base64::engine::general_purpose::STANDARD.encode([1, 2, 3, 4])
         );
-        assert_eq!(converted.metadata.file_path, Some("C:/shots/a.png".to_string()));
+        assert_eq!(
+            converted.metadata.file_path,
+            Some("C:/shots/a.png".to_string())
+        );
         assert_eq!(converted.metadata.ocr_text, Some("hello".to_string()));
     }
 

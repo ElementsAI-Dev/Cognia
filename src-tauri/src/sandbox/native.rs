@@ -549,7 +549,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
 
         let result = runtime
@@ -650,7 +650,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
 
         assert_eq!(config.timeout.as_secs(), 30);
@@ -674,7 +674,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
 
         let result = runtime
@@ -699,7 +699,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
 
         let result = runtime
@@ -723,7 +723,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
 
         let result = runtime
@@ -747,7 +747,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
 
         let result = runtime
@@ -778,7 +778,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
 
         let result = runtime
@@ -804,7 +804,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
-        workspace_dir: None,
+            workspace_dir: None,
         };
 
         let result = runtime

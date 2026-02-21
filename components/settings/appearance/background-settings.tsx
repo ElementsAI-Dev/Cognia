@@ -4,7 +4,7 @@
  * BackgroundSettings - Configure window background image and effects
  */
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTranslations } from 'next-intl';
 import { useBackgroundEditor } from '@/hooks/settings/use-background-editor';
@@ -57,13 +57,13 @@ import {
 } from '@/components/ui/collapsible';
 import { useSettingsStore } from '@/stores';
 import {
-  DEFAULT_BACKGROUND_SETTINGS,
   BACKGROUND_PRESETS,
   BACKGROUND_FIT_OPTIONS,
   BACKGROUND_POSITION_OPTIONS,
   BACKGROUND_LIMITS,
+  sanitizeBackgroundUrl,
 } from '@/lib/themes';
-import { deleteBackgroundImageAsset, getBackgroundImageAssetBlob, saveBackgroundImageAsset } from '@/lib/themes/background-assets';
+import { getBackgroundImageAssetBlob, saveBackgroundImageAsset } from '@/lib/themes/background-assets';
 import { cn } from '@/lib/utils';
 import { isTauri } from '@/lib/native/utils';
 import { BackgroundImportExport } from './background-import-export';
@@ -75,7 +75,6 @@ export function BackgroundSettings() {
   const {
     isSingleMode,
     items,
-    selectedItem,
     activeItemIndex,
     setActiveItemIndex,
     effectiveSettings,
@@ -93,6 +92,8 @@ export function BackgroundSettings() {
     updateAnimationSpeed,
     updateOverlayColor,
     updateOverlayOpacity,
+    addItem,
+    removeItem,
     backgroundSettings,
     setBackgroundSettings,
   } = useBackgroundEditor();
@@ -113,7 +114,8 @@ export function BackgroundSettings() {
   );
 
   const [urlInput, setUrlInput] = useState(effectiveSettings.imageUrl || '');
-  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+  const [localPreviewMap, setLocalPreviewMap] = useState<Record<string, string>>({});
+  const localPreviewMapRef = useRef<Record<string, string>>({});
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isPreviewVisible, setIsPreviewVisible] = useState(true);
   const [presetCategory, setPresetCategory] = useState<'all' | 'gradient' | 'mesh' | 'abstract'>('all');
@@ -142,31 +144,73 @@ export function BackgroundSettings() {
     }
   }, [effectiveSettings.imageUrl, effectiveSettings.source]);
 
+  useEffect(() => {
+    localPreviewMapRef.current = localPreviewMap;
+  }, [localPreviewMap]);
+
   // Restore web-local preview from IndexedDB
   useEffect(() => {
-    let objectUrl: string | null = null;
-    let cancelled = false;
+    const controller = new AbortController();
 
     const resolve = async () => {
-      if (!backgroundSettings.enabled) return;
       if (typeof window === 'undefined') return;
       if (isTauri()) return;
-      if (effectiveSettings.source !== 'local') return;
-      if (!effectiveSettings.localAssetId) return;
 
-      const blob = await getBackgroundImageAssetBlob(effectiveSettings.localAssetId);
-      if (!blob || cancelled) return;
-      objectUrl = URL.createObjectURL(blob);
-      setLocalPreviewUrl(objectUrl);
+      const requiredAssetIds = new Set<string>();
+      if (backgroundSettings.enabled && effectiveSettings.source === 'local' && effectiveSettings.localAssetId) {
+        requiredAssetIds.add(effectiveSettings.localAssetId);
+      }
+
+      const existing = localPreviewMapRef.current;
+      const additions: Record<string, string> = {};
+
+      for (const assetId of requiredAssetIds) {
+        if (existing[assetId]) continue;
+        const blob = await getBackgroundImageAssetBlob(assetId);
+        if (!blob || controller.signal.aborted) continue;
+        additions[assetId] = URL.createObjectURL(blob);
+      }
+
+      if (controller.signal.aborted) return;
+
+      setLocalPreviewMap((prev) => {
+        const nextMap: Record<string, string> = {};
+        for (const assetId of requiredAssetIds) {
+          const url = prev[assetId] ?? additions[assetId];
+          if (url) nextMap[assetId] = url;
+        }
+
+        for (const [assetId, url] of Object.entries(prev)) {
+          if (!requiredAssetIds.has(assetId)) {
+            URL.revokeObjectURL(url);
+          }
+        }
+
+        const prevKeys = Object.keys(prev).sort();
+        const nextKeys = Object.keys(nextMap).sort();
+        const unchanged =
+          prevKeys.length === nextKeys.length &&
+          prevKeys.every((key, index) => key === nextKeys[index] && prev[key] === nextMap[key]);
+
+        if (unchanged) return prev;
+        return nextMap;
+      });
     };
 
-    resolve();
+    void resolve();
 
     return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      controller.abort();
     };
   }, [backgroundSettings.enabled, effectiveSettings.localAssetId, effectiveSettings.source]);
+
+  useEffect(() => {
+    return () => {
+      for (const url of Object.values(localPreviewMapRef.current)) {
+        URL.revokeObjectURL(url);
+      }
+    };
+  }, []);
 
   // Validate image URL by attempting to load it
   const validateImageUrl = useCallback((url: string): Promise<boolean> => {
@@ -203,7 +247,15 @@ export function BackgroundSettings() {
     setIsValidatingUrl(true);
     
     try {
-      const isValid = await validateImageUrl(trimmedUrl);
+      const isGradientInput =
+        trimmedUrl.startsWith('linear-gradient') || trimmedUrl.startsWith('radial-gradient');
+      const sanitized = isGradientInput ? { valid: true, normalized: trimmedUrl } : sanitizeBackgroundUrl(trimmedUrl);
+      if (!sanitized.valid || !sanitized.normalized) {
+        setUrlError(sanitized.reason || t('invalidImageUrl') || 'Invalid image URL');
+        return;
+      }
+
+      const isValid = await validateImageUrl(sanitized.normalized);
       
       if (!isValid) {
         setUrlError(t('invalidImageUrl') || 'Invalid image URL or failed to load');
@@ -214,7 +266,7 @@ export function BackgroundSettings() {
         setBackgroundSettings({
           enabled: true,
           source: 'url',
-          imageUrl: trimmedUrl,
+          imageUrl: sanitized.normalized,
           presetId: null,
           localAssetId: null,
         });
@@ -222,7 +274,7 @@ export function BackgroundSettings() {
         updateSelectedItem({
           enabled: true,
           source: 'url',
-          imageUrl: trimmedUrl,
+          imageUrl: sanitized.normalized,
           presetId: null,
           localAssetId: null,
         });
@@ -247,7 +299,6 @@ export function BackgroundSettings() {
   const handleClearBackground = useCallback(() => {
     void clearBackground();
     setUrlInput('');
-    setLocalPreviewUrl(null);
   }, [clearBackground]);
 
   const handleFileSelect = useCallback(async () => {
@@ -261,7 +312,7 @@ export function BackgroundSettings() {
         const result = await open({
           multiple: false,
           filters: [
-            { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'] },
+            { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] },
           ],
         });
         if (result) {
@@ -303,12 +354,6 @@ export function BackgroundSettings() {
         if (file) {
           void (async () => {
             try {
-              // Immediate preview
-              setLocalPreviewUrl((prev) => {
-                if (prev) URL.revokeObjectURL(prev);
-                return URL.createObjectURL(file);
-              });
-
               if (isSingleMode) {
                 await setBackgroundLocalFile(file);
                 setBackgroundSettings({
@@ -321,9 +366,6 @@ export function BackgroundSettings() {
               }
 
               const { assetId } = await saveBackgroundImageAsset(file);
-              if (selectedItem?.localAssetId && selectedItem.localAssetId !== assetId) {
-                await deleteBackgroundImageAsset(selectedItem.localAssetId);
-              }
               updateSelectedItem({
                 enabled: true,
                 source: 'local',
@@ -344,7 +386,7 @@ export function BackgroundSettings() {
       };
       input.click();
     }
-  }, [isSingleMode, selectedItem?.localAssetId, setBackgroundLocalFile, setBackgroundSettings, t, updateSelectedItem]);
+  }, [isSingleMode, setBackgroundLocalFile, setBackgroundSettings, t, updateSelectedItem]);
 
   // Generate preview background style
   // Use only non-shorthand properties to avoid React warning about conflicting shorthand/non-shorthand properties
@@ -353,14 +395,25 @@ export function BackgroundSettings() {
       return {};
     }
 
+    const localPreviewUrl = effectiveSettings.localAssetId
+      ? localPreviewMap[effectiveSettings.localAssetId]
+      : null;
+
     let backgroundValue = '';
     if (effectiveSettings.source === 'preset' && effectiveSettings.presetId) {
       const preset = BACKGROUND_PRESETS.find(p => p.id === effectiveSettings.presetId);
       if (preset) {
         backgroundValue = preset.url;
       }
-    } else if (effectiveSettings.imageUrl || localPreviewUrl) {
+    } else if (effectiveSettings.source === 'local') {
       const src = effectiveSettings.imageUrl || localPreviewUrl || '';
+      if (src) {
+        backgroundValue = src.startsWith('linear-gradient') || src.startsWith('radial-gradient')
+          ? src
+          : `url("${src}")`;
+      }
+    } else if (effectiveSettings.imageUrl) {
+      const src = effectiveSettings.imageUrl;
       if (src.startsWith('linear-gradient') || src.startsWith('radial-gradient')) {
         backgroundValue = src;
       } else {
@@ -382,7 +435,7 @@ export function BackgroundSettings() {
       opacity: effectiveSettings.opacity / 100,
       filter: `blur(${effectiveSettings.blur}px) brightness(${effectiveSettings.brightness}%) saturate(${effectiveSettings.saturation}%) contrast(${effectiveSettings.contrast ?? 100}%) grayscale(${effectiveSettings.grayscale ?? 0}%)`,
     };
-  }, [backgroundSettings.enabled, effectiveSettings, localPreviewUrl]);
+  }, [backgroundSettings.enabled, effectiveSettings, localPreviewMap]);
 
   return (
     <Card>
@@ -426,7 +479,10 @@ export function BackgroundSettings() {
             <Label className="text-xs">{t('mode')}</Label>
             <Select
               value={backgroundSettings.mode}
-              onValueChange={(v) => setBackgroundSettings({ mode: v as 'single' | 'layers' | 'slideshow' })}
+              onValueChange={(v) => {
+                setActiveItemIndex(0);
+                setBackgroundSettings({ mode: v as 'single' | 'layers' | 'slideshow' });
+              }}
             >
               <SelectTrigger aria-label="Background mode" className="h-8 text-xs">
                 <SelectValue />
@@ -507,19 +563,7 @@ export function BackgroundSettings() {
                   size="sm"
                   className="h-7 px-2"
                   aria-label={backgroundSettings.mode === 'layers' ? 'Add background layer' : 'Add background slide'}
-                  onClick={() => {
-                    const nextId = backgroundSettings.mode === 'layers'
-                      ? `layer-${items.length + 1}`
-                      : `slide-${items.length + 1}`;
-                    const nextItem = { ...DEFAULT_BACKGROUND_SETTINGS.layers[0], id: nextId };
-                    const nextItems = [...items, nextItem];
-                    if (backgroundSettings.mode === 'layers') {
-                      setBackgroundSettings({ layers: nextItems });
-                    } else {
-                      setBackgroundSettings({ slideshow: { ...backgroundSettings.slideshow, slides: nextItems } });
-                    }
-                    setActiveItemIndex(nextItems.length - 1);
-                  }}
+                  onClick={addItem}
                 >
                   <Plus className="h-3 w-3" />
                 </Button>
@@ -529,20 +573,7 @@ export function BackgroundSettings() {
                   className="h-7 px-2"
                   aria-label={backgroundSettings.mode === 'layers' ? 'Remove background layer' : 'Remove background slide'}
                   disabled={items.length <= 1}
-                  onClick={() => {
-                    const index = Math.min(activeItemIndex, items.length - 1);
-                    const removed = items[index];
-                    const nextItems = items.filter((_it, i) => i !== index);
-                    if (removed?.source === 'local' && removed.localAssetId) {
-                      void deleteBackgroundImageAsset(removed.localAssetId);
-                    }
-                    if (backgroundSettings.mode === 'layers') {
-                      setBackgroundSettings({ layers: nextItems });
-                    } else {
-                      setBackgroundSettings({ slideshow: { ...backgroundSettings.slideshow, slides: nextItems } });
-                    }
-                    setActiveItemIndex(Math.max(0, index - 1));
-                  }}
+                  onClick={() => removeItem(activeItemIndex)}
                 >
                   <Trash2 className="h-3 w-3" />
                 </Button>

@@ -137,10 +137,18 @@ describe('useNativeSkills', () => {
       const { result } = renderHook(() => useNativeSkills());
 
       await act(async () => {
-        await result.current.addRepo('new-owner', 'new-repo', 'develop');
+        await result.current.addRepo({
+          owner: 'new-owner',
+          name: 'new-repo',
+          branch: 'develop',
+        });
       });
 
-      expect(mockNativeSkill.addSkillRepo).toHaveBeenCalledWith('new-owner', 'new-repo', 'develop');
+      expect(mockNativeSkill.addSkillRepo).toHaveBeenCalledWith({
+        owner: 'new-owner',
+        name: 'new-repo',
+        branch: 'develop',
+      });
     });
 
     it('should remove a repo', async () => {
@@ -476,7 +484,7 @@ describe('useNativeSkills', () => {
 
       await act(async () => {
         try {
-          await result.current.addRepo('test', 'repo');
+          await result.current.addRepo({ owner: 'test', name: 'repo' });
         } catch {
           // Expected to throw
         }
@@ -553,7 +561,7 @@ describe('useNativeSkills', () => {
       const { result } = renderHook(() => useNativeSkills());
 
       await act(async () => {
-        await result.current.addRepo('test', 'repo');
+        await result.current.addRepo({ owner: 'test', name: 'repo' });
       });
 
       expect(mockNativeSkill.addSkillRepo).not.toHaveBeenCalled();

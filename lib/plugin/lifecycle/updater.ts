@@ -4,10 +4,10 @@
  * Handles plugin version management, update checking, and installation.
  */
 
-import { invoke } from '@tauri-apps/api/core';
-import type { PluginManifest } from '@/types/plugin';
+import { usePluginStore } from '@/stores/plugin';
 import { getPluginMarketplace } from '../package/marketplace';
 import { loggers } from '../core/logger';
+import { getPluginBackupManager } from './backup';
 
 // =============================================================================
 // Types
@@ -166,6 +166,7 @@ export class PluginUpdater {
     } = {}
   ): Promise<UpdateResult> {
     const startTime = Date.now();
+    const marketplace = getPluginMarketplace();
     const updateInfo = this.pendingUpdates.get(pluginId);
 
     if (!updateInfo && !options.force) {
@@ -179,10 +180,18 @@ export class PluginUpdater {
       };
     }
 
-    const currentVersion = updateInfo?.currentVersion || '';
-    const targetVersion = options.version || updateInfo?.latestVersion || '';
+    const currentVersion = updateInfo?.currentVersion || this.getPluginVersion(pluginId) || '';
+    let targetVersion = options.version || updateInfo?.latestVersion || '';
+    if (!targetVersion) {
+      const latest = await marketplace.getPlugin(pluginId);
+      targetVersion = latest?.latestVersion || '';
+    }
 
     try {
+      if (!targetVersion) {
+        throw new Error(`No target version available for plugin ${pluginId}`);
+      }
+
       // Step 1: Backup if configured
       if (options.backup ?? this.config.backupBeforeUpdate) {
         this.emitProgress({
@@ -192,10 +201,13 @@ export class PluginUpdater {
           message: 'Creating backup...',
         });
 
-        await invoke('plugin_backup_create', {
-          pluginId,
-          reason: `pre-update-${targetVersion}`,
+        const backupResult = await getPluginBackupManager().createBackup(pluginId, {
+          reason: 'pre-update',
+          metadata: { targetVersion },
         });
+        if (!backupResult.success) {
+          throw new Error(backupResult.error || 'Backup creation failed');
+        }
       }
 
       // Step 2: Download new version
@@ -206,10 +218,11 @@ export class PluginUpdater {
         message: `Downloading version ${targetVersion}...`,
       });
 
-      const downloadResult = await invoke<{ path: string }>('plugin_download_version', {
-        pluginId,
-        version: targetVersion,
-      });
+      const availableVersions = await marketplace.getVersions(pluginId);
+      const matchedVersion = availableVersions.find((version) => version.version === targetVersion);
+      if (!matchedVersion) {
+        throw new Error(`Version ${targetVersion} is not available in marketplace`);
+      }
 
       // Step 3: Install
       this.emitProgress({
@@ -219,11 +232,13 @@ export class PluginUpdater {
         message: 'Installing update...',
       });
 
-      await invoke('plugin_install_update', {
-        pluginId,
-        packagePath: downloadResult.path,
-        previousVersion: currentVersion,
-      });
+      const installResult = await marketplace.installPlugin(pluginId, matchedVersion.version);
+      if (!installResult.success) {
+        throw new Error(installResult.error || 'Plugin installation failed');
+      }
+
+      this.projectPluginVersion(pluginId, matchedVersion.version);
+      await this.refreshRuntimePlugins();
 
       // Step 4: Verify
       if (this.config.verifyAfterUpdate) {
@@ -256,7 +271,7 @@ export class PluginUpdater {
         previousVersion: currentVersion,
         newVersion: targetVersion,
         duration: Date.now() - startTime,
-        requiresRestart: await this.requiresRestart(pluginId),
+        requiresRestart: await this.requiresRestart(),
       };
 
       this.updateHistory.push(result);
@@ -304,20 +319,11 @@ export class PluginUpdater {
   }
 
   private async verifyInstallation(pluginId: string, expectedVersion: string): Promise<boolean> {
-    try {
-      const manifest = await invoke<PluginManifest>('plugin_get_manifest', { pluginId });
-      return manifest.version === expectedVersion;
-    } catch {
-      return false;
-    }
+    return this.getPluginVersion(pluginId) === expectedVersion;
   }
 
-  private async requiresRestart(pluginId: string): Promise<boolean> {
-    try {
-      return await invoke<boolean>('plugin_requires_restart', { pluginId });
-    } catch {
-      return false;
-    }
+  private async requiresRestart(): Promise<boolean> {
+    return false;
   }
 
   // ===========================================================================
@@ -423,13 +429,12 @@ export class PluginUpdater {
 
   private async getPluginVersions(pluginIds: string[]): Promise<Array<{ id: string; version: string }>> {
     const result: Array<{ id: string; version: string }> = [];
+    const plugins = usePluginStore.getState().plugins;
 
     for (const id of pluginIds) {
-      try {
-        const manifest = await invoke<PluginManifest>('plugin_get_manifest', { pluginId: id });
-        result.push({ id, version: manifest.version });
-      } catch {
-        // Plugin not found, skip
+      const plugin = plugins[id];
+      if (plugin?.manifest.version) {
+        result.push({ id, version: plugin.manifest.version });
       }
     }
 
@@ -437,11 +442,59 @@ export class PluginUpdater {
   }
 
   private async getAllInstalledPlugins(): Promise<Array<{ id: string; version: string }>> {
+    const installedStatuses = new Set([
+      'installed',
+      'loading',
+      'loaded',
+      'enabling',
+      'enabled',
+      'disabling',
+      'disabled',
+      'unloading',
+      'updating',
+      'error',
+    ]);
+
+    return Object.values(usePluginStore.getState().plugins)
+      .filter((plugin) => installedStatuses.has(plugin.status))
+      .map((plugin) => ({
+        id: plugin.manifest.id,
+        version: plugin.manifest.version,
+      }));
+  }
+
+  private getPluginVersion(pluginId: string): string | null {
+    const plugin = usePluginStore.getState().plugins[pluginId];
+    return plugin?.manifest.version || null;
+  }
+
+  private async refreshRuntimePlugins(): Promise<void> {
     try {
-      return await invoke<Array<{ id: string; version: string }>>('plugin_list_installed');
-    } catch {
-      return [];
+      const { getPluginManager } = await import('../core/manager');
+      await getPluginManager().scanPlugins();
+      await getPluginManager().syncRuntimeState();
+    } catch (error) {
+      loggers.manager.debug('[Updater] Runtime refresh skipped:', error);
     }
+  }
+
+  private projectPluginVersion(pluginId: string, version: string): void {
+    usePluginStore.setState((state) => {
+      const current = state.plugins[pluginId];
+      if (!current) return state;
+      return {
+        plugins: {
+          ...state.plugins,
+          [pluginId]: {
+            ...current,
+            manifest: {
+              ...current.manifest,
+              version,
+            },
+          },
+        },
+      };
+    });
   }
 
   // ===========================================================================

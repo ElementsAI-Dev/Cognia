@@ -15,6 +15,7 @@ export {
   useNativeSkillAvailable,
   type UseNativeSkillsReturn,
   type SkillRepo,
+  type AddSkillRepoInput,
   type DiscoverableSkill,
   type InstalledSkill,
   type NativeSkill,

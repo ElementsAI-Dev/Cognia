@@ -71,6 +71,13 @@ export const SETTINGS_SEARCH_INDEX: SearchableSetting[] = [
     sectionId: 'keyboard',
   },
   {
+    id: 'editor-workbench',
+    title: 'Editor Workbench',
+    keywords: ['monaco', 'editor', 'lsp', 'rename', 'references', 'diagnostics', 'command palette'],
+    sectionId: 'editor',
+    description: 'Configure unified editor appearance, LSP strategy, and context commands',
+  },
+  {
     id: 'git-config',
     title: 'Git Configuration',
     keywords: ['git', 'version control', 'commit', 'repo', 'repository'],

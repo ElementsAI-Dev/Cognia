@@ -4,53 +4,11 @@
 
 import {
   createFullBackup,
-  exportToJSON,
   exportToBlob,
-  downloadExport,
+  exportToJSON,
   getExportSizeEstimate,
 } from './data-export';
 
-// Mock db
-jest.mock('@/lib/db', () => ({
-  db: {
-    sessions: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
-    messages: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
-    documents: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
-    projects: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
-    workflows: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
-    workflowExecutions: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
-    summaries: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
-    knowledgeFiles: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
-    agentTraces: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
-    folders: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
-    mcpServers: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
-  },
-}));
-
-// Mock stores
-jest.mock('@/stores', () => ({
-  useSessionStore: {
-    getState: jest.fn().mockReturnValue({
-      sessions: [{ id: 'session-1', title: 'Test Session' }],
-    }),
-  },
-  useSettingsStore: {
-    getState: jest.fn().mockReturnValue({
-      theme: 'dark',
-      defaultProvider: 'openai',
-      providerSettings: {},
-      language: 'en',
-    }),
-  },
-  useArtifactStore: {
-    getState: jest.fn().mockReturnValue({
-      artifacts: [{ id: 'artifact-1', type: 'code' }],
-      canvasDocuments: [],
-    }),
-  },
-}));
-
-// Mock logger
 jest.mock('@/lib/logger', () => ({
   loggers: {
     store: {
@@ -61,148 +19,164 @@ jest.mock('@/lib/logger', () => ({
   },
 }));
 
-// Mock data-import for generateChecksum
-jest.mock('./data-import', () => ({
-  generateChecksum: jest.fn().mockReturnValue('mock-checksum'),
+jest.mock('./persistence/feature-flags', () => ({
+  storageFeatureFlags: {
+    chatPersistenceV3Enabled: true,
+    desktopSqliteEnabled: true,
+    encryptedBackupV3Enabled: true,
+  },
 }));
 
-describe('data-export', () => {
+jest.mock('./persistence/backup-key', () => ({
+  getDefaultBackupPassphrase: jest.fn(async () => 'test-passphrase'),
+}));
+
+jest.mock('./persistence/crypto', () => ({
+  sha256Hex: jest.fn(async () => 'payload-checksum'),
+  encryptBackupPackage: jest.fn(async (plainText: string) => ({
+    version: 'enc-v1',
+    algorithm: 'AES-GCM',
+    kdf: {
+      algorithm: 'PBKDF2',
+      hash: 'SHA-256',
+      iterations: 600000,
+      salt: 'salt',
+    },
+    iv: 'iv',
+    ciphertext: plainText,
+    manifest: {
+      version: '3.0',
+      schemaVersion: 3,
+      traceId: 'trace',
+      exportedAt: new Date().toISOString(),
+      backend: 'web-dexie',
+      encryption: {
+        enabled: true,
+        format: 'encrypted-envelope-v1',
+      },
+    },
+    checksum: 'payload-checksum',
+  })),
+}));
+
+const mockExportPayload = jest.fn();
+
+jest.mock('./persistence/unified-persistence-service', () => ({
+  unifiedPersistenceService: {
+    getBackend: () => 'web-dexie',
+    backup: {
+      exportPayload: (...args: unknown[]) => mockExportPayload(...args),
+    },
+  },
+}));
+
+jest.mock('@/lib/db', () => ({
+  db: {
+    sessions: { count: jest.fn().mockResolvedValue(0) },
+    messages: { count: jest.fn().mockResolvedValue(0) },
+    documents: { count: jest.fn().mockResolvedValue(0) },
+    projects: { count: jest.fn().mockResolvedValue(0) },
+    workflows: { count: jest.fn().mockResolvedValue(0) },
+    workflowExecutions: { count: jest.fn().mockResolvedValue(0) },
+    summaries: { count: jest.fn().mockResolvedValue(0) },
+    knowledgeFiles: { count: jest.fn().mockResolvedValue(0) },
+    agentTraces: { count: jest.fn().mockResolvedValue(0) },
+    checkpoints: { count: jest.fn().mockResolvedValue(0) },
+    contextFiles: { count: jest.fn().mockResolvedValue(0) },
+    videoProjects: { count: jest.fn().mockResolvedValue(0) },
+    assets: { count: jest.fn().mockResolvedValue(0) },
+    folders: { count: jest.fn().mockResolvedValue(0) },
+    mcpServers: { count: jest.fn().mockResolvedValue(0) },
+  },
+}));
+
+jest.mock('@/stores', () => ({
+  useSessionStore: {
+    getState: () => ({
+      sessions: [{ id: 'session-1' }],
+    }),
+  },
+  useSettingsStore: {
+    getState: () => ({
+      theme: 'dark',
+      defaultProvider: 'openai',
+      providerSettings: {},
+      language: 'en',
+    }),
+  },
+  useArtifactStore: {
+    getState: () => ({
+      artifacts: { artifact1: { id: 'artifact1' } },
+      canvasDocuments: {},
+    }),
+  },
+}));
+
+describe('data-export v3', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  describe('createFullBackup', () => {
-    it('should create backup with default options', async () => {
-      const backup = await createFullBackup();
-
-      expect(backup).toHaveProperty('version', '2.0');
-      expect(backup).toHaveProperty('exportedAt');
-      expect(backup).toHaveProperty('sessions');
-      expect(backup).toHaveProperty('settings');
-      expect(backup).toHaveProperty('artifacts');
-      expect(backup).toHaveProperty('indexedDB');
-      expect(backup).toHaveProperty('checksum');
-    });
-
-    it('should exclude sessions when option is false', async () => {
-      const backup = await createFullBackup({ includeSessions: false });
-
-      expect(backup.sessions).toBeUndefined();
-    });
-
-    it('should exclude settings when option is false', async () => {
-      const backup = await createFullBackup({ includeSettings: false });
-
-      expect(backup.settings).toBeUndefined();
-    });
-
-    it('should exclude artifacts when option is false', async () => {
-      const backup = await createFullBackup({ includeArtifacts: false });
-
-      expect(backup.artifacts).toBeUndefined();
-    });
-
-    it('should exclude IndexedDB when option is false', async () => {
-      const backup = await createFullBackup({ includeIndexedDB: false });
-
-      expect(backup.indexedDB).toBeUndefined();
-    });
-
-    it('should exclude checksum when option is false', async () => {
-      const backup = await createFullBackup({ includeChecksum: false });
-
-      expect(backup.checksum).toBeUndefined();
-    });
-
-    it('should include correct settings structure', async () => {
-      const backup = await createFullBackup({ includeSessions: false, includeArtifacts: false, includeIndexedDB: false });
-
-      expect(backup.settings).toEqual({
-        theme: 'dark',
-        defaultProvider: 'openai',
-        providerSettings: {},
-        language: 'en',
-      });
+    mockExportPayload.mockResolvedValue({
+      sessions: [{ id: 'session-1', title: 'test' }],
+      messages: [],
+      projects: [],
+      knowledgeFiles: [],
+      summaries: [],
+      settings: { theme: 'dark' },
+      artifacts: { artifact1: { id: 'artifact1' } },
     });
   });
 
-  describe('exportToJSON', () => {
-    it('should return JSON string', async () => {
-      const json = await exportToJSON();
+  it('creates BackupPackage v3 manifest and payload', async () => {
+    const backup = await createFullBackup();
 
-      expect(typeof json).toBe('string');
-      expect(() => JSON.parse(json)).not.toThrow();
-    });
-
-    it('should be pretty printed by default', async () => {
-      const json = await exportToJSON();
-
-      expect(json).toContain('\n');
-    });
-
-    it('should not be pretty printed when option is false', async () => {
-      const json = await exportToJSON({ prettyPrint: false });
-
-      expect(json).not.toContain('\n  ');
-    });
+    expect(backup.version).toBe('3.0');
+    expect(backup.manifest.version).toBe('3.0');
+    expect(backup.manifest.integrity.algorithm).toBe('SHA-256');
+    expect(backup.payload.sessions).toHaveLength(1);
   });
 
-  describe('exportToBlob', () => {
-    it('should return a Blob', async () => {
-      const blob = await exportToBlob();
-
-      expect(blob).toBeInstanceOf(Blob);
-      expect(blob.type).toBe('application/json');
-    });
-
-    it('should have content', async () => {
-      const blob = await exportToBlob();
-
-      expect(blob.size).toBeGreaterThan(0);
-    });
+  it('exports encrypted envelope by default', async () => {
+    const json = await exportToJSON();
+    const parsed = JSON.parse(json);
+    expect(parsed.version).toBe('enc-v1');
+    expect(parsed.algorithm).toBe('AES-GCM');
   });
 
-  describe('downloadExport', () => {
-    // Note: downloadExport uses browser APIs (URL.createObjectURL, document.createElement)
-    // that are difficult to mock in jsdom. Testing the function exists and is callable.
-    it('should be a function', () => {
-      expect(typeof downloadExport).toBe('function');
-    });
+  it('uses manual passphrase when provided', async () => {
+    const { encryptBackupPackage } = jest.requireMock('./persistence/crypto') as {
+      encryptBackupPackage: jest.Mock;
+    };
 
-    it('should accept options parameter', async () => {
-      // The function should accept options without throwing during setup
-      // Actual download will fail in test environment but structure is verified
-      expect(() => downloadExport({ includeSessions: true })).not.toThrow();
-    });
+    await exportToJSON({ passphrase: 'manual-passphrase' });
+
+    expect(encryptBackupPackage).toHaveBeenCalledWith(
+      expect.any(String),
+      'manual-passphrase',
+      expect.any(Object)
+    );
   });
 
-  describe('getExportSizeEstimate', () => {
-    it('should return size estimates', async () => {
-      const estimate = await getExportSizeEstimate();
+  it('exports plain backup package when encryption is disabled', async () => {
+    const json = await exportToJSON({ encrypt: false });
+    const parsed = JSON.parse(json);
+    expect(parsed.version).toBe('3.0');
+    expect(parsed.payload.sessions).toHaveLength(1);
+  });
 
-      expect(estimate).toHaveProperty('sessions');
-      expect(estimate).toHaveProperty('settings');
-      expect(estimate).toHaveProperty('artifacts');
-      expect(estimate).toHaveProperty('indexedDB');
-      expect(estimate).toHaveProperty('total');
-    });
+  it('exports JSON blob', async () => {
+    const blob = await exportToBlob({ encrypt: false });
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob.type).toBe('application/json');
+  });
 
-    it('should return numeric values', async () => {
-      const estimate = await getExportSizeEstimate();
-
-      expect(typeof estimate.sessions).toBe('number');
-      expect(typeof estimate.settings).toBe('number');
-      expect(typeof estimate.artifacts).toBe('number');
-      expect(typeof estimate.indexedDB).toBe('number');
-      expect(typeof estimate.total).toBe('number');
-    });
-
-    it('should calculate total correctly', async () => {
-      const estimate = await getExportSizeEstimate();
-
-      expect(estimate.total).toBe(
-        estimate.sessions + estimate.settings + estimate.artifacts + estimate.indexedDB
-      );
-    });
+  it('returns size estimate fields', async () => {
+    const estimate = await getExportSizeEstimate();
+    expect(typeof estimate.sessions).toBe('number');
+    expect(typeof estimate.settings).toBe('number');
+    expect(typeof estimate.artifacts).toBe('number');
+    expect(typeof estimate.indexedDB).toBe('number');
+    expect(estimate.total).toBe(
+      estimate.sessions + estimate.settings + estimate.artifacts + estimate.indexedDB
+    );
   });
 });
