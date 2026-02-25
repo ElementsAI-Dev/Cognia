@@ -732,13 +732,14 @@ describe('messageRepository', () => {
 
   describe('deleteOlderThan', () => {
     it('deletes messages older than cutoff date', async () => {
-      // Create a message first, then manually backdate it
-      const oldMsg = await messageRepository.create(testSessionId, {
-        role: 'user' as const,
+      // Insert an old message directly with a past date (indexed query requires correct insert)
+      await db.messages.add({
+        id: 'old-msg-1',
+        sessionId: testSessionId,
+        role: 'user',
         content: 'Old message',
+        createdAt: new Date('2020-01-01'),
       });
-      // Backdate the message directly in the DB
-      await db.messages.update(oldMsg.id, { createdAt: new Date('2020-01-01') });
 
       // Create a recent message
       await messageRepository.create(testSessionId, { role: 'user' as const, content: 'Recent' });

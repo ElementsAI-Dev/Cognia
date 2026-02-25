@@ -255,6 +255,15 @@ describe('search-service', () => {
       expect(result).toBe(true);
     });
 
+    it('should test bing connection', async () => {
+      mockTestBingConnection.mockResolvedValue(true);
+
+      const result = await testProviderConnection('bing', 'api-key');
+
+      expect(mockTestBingConnection).toHaveBeenCalledWith('api-key');
+      expect(result).toBe(true);
+    });
+
     it('should test serper connection', async () => {
       mockTestSerperConnection.mockResolvedValue(true);
 

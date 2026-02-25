@@ -17,6 +17,8 @@ import {
   type DBVideoProject,
 } from '@/lib/db';
 import { sessionRepository, sessionToDbSession } from '@/lib/db/repositories/session-repository';
+import { toUIMessage, toDBMessage } from '@/lib/db/repositories/message-repository';
+import { toDbProject } from '@/lib/db/repositories/project-repository';
 import { messageRepository } from '@/lib/db/repositories/message-repository';
 import { projectRepository } from '@/lib/db/repositories/project-repository';
 import { isTauri } from '@/lib/utils';
@@ -33,6 +35,17 @@ import type {
 } from './types';
 import type { Project, Session, UIMessage } from '@/types';
 import type { StoredSummary } from '@/types/learning/summary';
+
+// Adapter: convert PersistedChatMessage to DBMessage using the canonical toDBMessage
+function persistedToDbMessage(message: PersistedChatMessage): DBMessage {
+  return toDBMessage(message as unknown as UIMessage, message.sessionId, message.branchId);
+}
+
+// Adapter: convert DBMessage to PersistedChatMessage using the canonical toUIMessage  
+function fromDbMessage(message: DBMessage): PersistedChatMessage {
+  const uiMessage = toUIMessage(message);
+  return { ...uiMessage, sessionId: message.sessionId };
+}
 
 const log = loggers.store;
 
@@ -185,79 +198,8 @@ function fromDbSummary(summary: DBSummary): StoredSummary {
   };
 }
 
-function toDbMessage(message: PersistedChatMessage): DBMessage {
-  return {
-    id: message.id,
-    sessionId: message.sessionId,
-    branchId: message.branchId,
-    role: message.role,
-    content: message.content,
-    parts: message.parts ? JSON.stringify(message.parts) : undefined,
-    model: message.model,
-    provider: message.provider,
-    tokens: message.tokens ? JSON.stringify(message.tokens) : undefined,
-    attachments: message.attachments ? JSON.stringify(message.attachments) : undefined,
-    sources: message.sources ? JSON.stringify(message.sources) : undefined,
-    error: message.error,
-    createdAt: message.createdAt,
-    isEdited: message.isEdited,
-    editHistory: message.editHistory ? JSON.stringify(message.editHistory) : undefined,
-    originalContent: message.originalContent,
-    isBookmarked: message.isBookmarked,
-    bookmarkedAt: message.bookmarkedAt,
-    reaction: message.reaction,
-    reactions: message.reactions ? JSON.stringify(message.reactions) : undefined,
-  };
-}
 
-function toDbProject(project: Project): DBProject {
-  return {
-    id: project.id,
-    name: project.name,
-    description: project.description,
-    icon: project.icon,
-    color: project.color,
-    customInstructions: project.customInstructions,
-    defaultProvider: project.defaultProvider,
-    defaultModel: project.defaultModel,
-    defaultMode: project.defaultMode,
-    tags: project.tags ? JSON.stringify(project.tags) : undefined,
-    isArchived: project.isArchived,
-    archivedAt: project.archivedAt,
-    sessionIds: JSON.stringify(project.sessionIds || []),
-    sessionCount: project.sessionCount || 0,
-    messageCount: project.messageCount || 0,
-    createdAt: project.createdAt || new Date(),
-    updatedAt: project.updatedAt || new Date(),
-    lastAccessedAt: project.lastAccessedAt || new Date(),
-    metadata: undefined,
-  };
-}
 
-function fromDbMessage(message: DBMessage): PersistedChatMessage {
-  return {
-    id: message.id,
-    sessionId: message.sessionId,
-    branchId: message.branchId,
-    role: message.role as UIMessage['role'],
-    content: message.content,
-    parts: message.parts ? (JSON.parse(message.parts) as UIMessage['parts']) : undefined,
-    model: message.model,
-    provider: message.provider,
-    tokens: message.tokens ? (JSON.parse(message.tokens) as UIMessage['tokens']) : undefined,
-    attachments: message.attachments ? (JSON.parse(message.attachments) as UIMessage['attachments']) : undefined,
-    sources: message.sources ? (JSON.parse(message.sources) as UIMessage['sources']) : undefined,
-    error: message.error,
-    createdAt: message.createdAt,
-    isEdited: message.isEdited,
-    editHistory: message.editHistory ? (JSON.parse(message.editHistory) as UIMessage['editHistory']) : undefined,
-    originalContent: message.originalContent,
-    isBookmarked: message.isBookmarked,
-    bookmarkedAt: message.bookmarkedAt,
-    reaction: message.reaction as UIMessage['reaction'],
-    reactions: message.reactions ? (JSON.parse(message.reactions) as UIMessage['reactions']) : undefined,
-  };
-}
 
 async function invokeDesktopCommand<TResult>(
   command: string,
@@ -311,6 +253,13 @@ async function mirrorSessionToDesktop(session: Session): Promise<void> {
   await invokeDesktopCommand('chat_db_upsert_session', { session: serializeDesktopPayload(session) });
 }
 
+async function mirrorSessionsToDesktop(sessions: Session[]): Promise<void> {
+  if (sessions.length === 0) return;
+  await invokeDesktopCommand('chat_db_upsert_sessions_batch', {
+    sessions: serializeDesktopPayload(sessions),
+  });
+}
+
 async function mirrorProjectToDesktop(project: Project): Promise<void> {
   await invokeDesktopCommand('chat_db_upsert_project', { project: serializeDesktopPayload(project) });
 }
@@ -355,7 +304,7 @@ async function rebuildDexieFromDesktop(): Promise<void> {
       }
       if (desktopMessages) {
         await db.messages.bulkPut(
-          desktopMessages.map((message) => toDbMessage(maybeDate(message) as PersistedChatMessage))
+          desktopMessages.map((message) => persistedToDbMessage(maybeDate(message) as PersistedChatMessage))
         );
       }
       if (desktopProjects) {
@@ -417,9 +366,7 @@ export const unifiedPersistenceService = {
     async bulkUpsert(sessions: Session[]): Promise<void> {
       if (sessions.length === 0) return;
       await db.sessions.bulkPut(sessions.map((session) => sessionToDbSession(session)));
-      for (const session of sessions) {
-        await mirrorSessionToDesktop(session);
-      }
+      await mirrorSessionsToDesktop(sessions);
     },
 
     async remove(sessionId: string): Promise<void> {
@@ -445,7 +392,7 @@ export const unifiedPersistenceService = {
 
     async upsertBatch(messages: PersistedChatMessage[]): Promise<void> {
       if (messages.length === 0) return;
-      await db.messages.bulkPut(messages.map(toDbMessage));
+      await db.messages.bulkPut(messages.map(persistedToDbMessage));
       await mirrorMessagesToDesktop(messages);
     },
 

@@ -522,38 +522,36 @@ impl TimelineRenderer {
                         run_ffmpeg(&fallback_args)
                             .map_err(|_| "FFmpeg transition composition failed".to_string())?;
                     }
-                } else {
-                    if let Err(err) = run_ffmpeg(&args) {
-                        let fallback_args = vec![
-                            "-y".to_string(),
-                            "-i".to_string(),
-                            current.to_string_lossy().to_string(),
-                            "-i".to_string(),
-                            next.to_string_lossy().to_string(),
-                            "-filter_complex".to_string(),
-                            format!(
-                                "[0:v][1:v]xfade=transition={}:duration={:.3}:offset={:.3}[v]",
-                                transition_name, transition_duration, offset
-                            ),
-                            "-map".to_string(),
-                            "[v]".to_string(),
-                            "-map".to_string(),
-                            "0:a?".to_string(),
-                            "-c:v".to_string(),
-                            options
-                                .codec
-                                .clone()
-                                .unwrap_or_else(|| "libx264".to_string()),
-                            "-preset".to_string(),
-                            "medium".to_string(),
-                            "-crf".to_string(),
-                            quality_to_crf(options.quality.as_deref()).to_string(),
-                            "-c:a".to_string(),
-                            "aac".to_string(),
-                            out.to_string_lossy().to_string(),
-                        ];
-                        run_ffmpeg(&fallback_args).map_err(|_| err)?;
-                    }
+                } else if let Err(err) = run_ffmpeg(&args) {
+                    let fallback_args = vec![
+                        "-y".to_string(),
+                        "-i".to_string(),
+                        current.to_string_lossy().to_string(),
+                        "-i".to_string(),
+                        next.to_string_lossy().to_string(),
+                        "-filter_complex".to_string(),
+                        format!(
+                            "[0:v][1:v]xfade=transition={}:duration={:.3}:offset={:.3}[v]",
+                            transition_name, transition_duration, offset
+                        ),
+                        "-map".to_string(),
+                        "[v]".to_string(),
+                        "-map".to_string(),
+                        "0:a?".to_string(),
+                        "-c:v".to_string(),
+                        options
+                            .codec
+                            .clone()
+                            .unwrap_or_else(|| "libx264".to_string()),
+                        "-preset".to_string(),
+                        "medium".to_string(),
+                        "-crf".to_string(),
+                        quality_to_crf(options.quality.as_deref()).to_string(),
+                        "-c:a".to_string(),
+                        "aac".to_string(),
+                        out.to_string_lossy().to_string(),
+                    ];
+                    run_ffmpeg(&fallback_args).map_err(|_| err)?;
                 }
                 current_duration = current_duration + clips[idx].duration - transition_duration;
             } else {

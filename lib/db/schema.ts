@@ -257,8 +257,11 @@ class CogniaDB extends Dexie {
   contextFiles!: EntityTable<DBContextFile, 'id'>;
 
   constructor() {
-    super('CogniaDB');
+    super('CogniaDB', { cache: 'immutable' });
 
+    // ── Schema Versions (incremental — only changed tables per version) ──
+
+    // Version 1: Initial schema
     this.version(1).stores({
       sessions: 'id, title, provider, createdAt, updatedAt',
       messages: 'id, sessionId, role, createdAt, [sessionId+createdAt]',
@@ -266,180 +269,91 @@ class CogniaDB extends Dexie {
       mcpServers: 'id, name, url, connected',
     });
 
-    // Version 2: Add branchId support for messages
+    // Version 2: Add branchId + compound index for messages
     this.version(2).stores({
-      sessions: 'id, title, provider, createdAt, updatedAt',
       messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
-      documents: 'id, name, type, createdAt',
-      mcpServers: 'id, name, url, connected',
     });
 
-    // Version 3: Add projects, knowledgeFiles tables and enhance documents
+    // Version 3: Add projectId to sessions/documents; new projects + knowledgeFiles tables
     this.version(3).stores({
       sessions: 'id, title, provider, projectId, createdAt, updatedAt',
-      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
       documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
-      mcpServers: 'id, name, url, connected',
       projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
       knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
     });
 
-    // Version 4: Add workflows and workflowExecutions tables
+    // Version 4: Add workflows + workflowExecutions tables
     this.version(4).stores({
-      sessions: 'id, title, provider, projectId, createdAt, updatedAt',
-      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
-      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
-      mcpServers: 'id, name, url, connected',
-      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
-      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
       workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
       workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
     });
 
-    // Version 5: Add summaries table for chat summary persistence
+    // Version 5: Add summaries table
     this.version(5).stores({
-      sessions: 'id, title, provider, projectId, createdAt, updatedAt',
-      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
-      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
-      mcpServers: 'id, name, url, connected',
-      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
-      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
-      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
-      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
       summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
     });
 
-    // Version 6: Add assets table for storing binary blobs (e.g. background images)
+    // Version 6: Add folderId to sessions; new assets table
     this.version(6).stores({
       sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
-      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
-      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
-      mcpServers: 'id, name, url, connected',
-      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
-      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
-      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
-      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
-      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
       assets: 'id, kind, createdAt',
     });
 
-    // Version 7: Add folders support
+    // Version 7: Add folders table
     this.version(7).stores({
-      sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
-      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
-      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
-      mcpServers: 'id, name, url, connected',
-      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
-      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
-      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
-      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
-      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
-      assets: 'id, kind, createdAt',
       folders: 'id, name, order, createdAt',
     });
 
+    // Version 8: Add agentTraces table
     this.version(8).stores({
-      sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
-      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
-      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
-      mcpServers: 'id, name, url, connected',
-      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
-      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
-      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
-      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
-      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
       agentTraces: 'id, sessionId, timestamp, vcsRevision, [sessionId+timestamp], [vcsRevision+timestamp]',
-      assets: 'id, kind, createdAt',
-      folders: 'id, name, order, createdAt',
     });
 
-    // Version 9: Add filePaths multi-entry index for agent traces query optimization
+    // Version 9: Add *filePaths multi-entry index to agentTraces
     this.version(9).stores({
-      sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
-      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
-      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
-      mcpServers: 'id, name, url, connected',
-      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
-      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
-      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
-      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
-      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
       agentTraces: 'id, sessionId, timestamp, vcsRevision, *filePaths, [sessionId+timestamp], [vcsRevision+timestamp]',
-      assets: 'id, kind, createdAt',
-      folders: 'id, name, order, createdAt',
     });
 
-    // Version 10: Add checkpoints table for agent trace rollback support
+    // Version 10: Add checkpoints table
     this.version(10).stores({
-      sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
-      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
-      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
-      mcpServers: 'id, name, url, connected',
-      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
-      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
-      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
-      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
-      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
-      agentTraces: 'id, sessionId, timestamp, vcsRevision, *filePaths, [sessionId+timestamp], [vcsRevision+timestamp]',
       checkpoints: 'id, sessionId, traceId, filePath, timestamp, [sessionId+filePath], [sessionId+timestamp]',
-      assets: 'id, kind, createdAt',
-      folders: 'id, name, order, createdAt',
     });
 
-    // Version 11: Add videoProjects table for video editor persistence
+    // Version 11: Add videoProjects table
     this.version(11).stores({
-      sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
-      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
-      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
-      mcpServers: 'id, name, url, connected',
-      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
-      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
-      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
-      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
-      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
-      agentTraces: 'id, sessionId, timestamp, vcsRevision, *filePaths, [sessionId+timestamp], [vcsRevision+timestamp]',
-      checkpoints: 'id, sessionId, traceId, filePath, timestamp, [sessionId+filePath], [sessionId+timestamp]',
-      assets: 'id, kind, createdAt',
-      folders: 'id, name, order, createdAt',
       videoProjects: 'id, name, createdAt, updatedAt',
     });
 
-    // Version 12: Add contextFiles table for ContextFS persistence
+    // Version 12: Add contextFiles table
     this.version(12).stores({
-      sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
-      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
-      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
-      mcpServers: 'id, name, url, connected',
-      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
-      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
-      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
-      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
-      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
-      agentTraces: 'id, sessionId, timestamp, vcsRevision, *filePaths, [sessionId+timestamp], [vcsRevision+timestamp]',
-      checkpoints: 'id, sessionId, traceId, filePath, timestamp, [sessionId+filePath], [sessionId+timestamp]',
-      assets: 'id, kind, createdAt',
-      folders: 'id, name, order, createdAt',
-      videoProjects: 'id, name, createdAt, updatedAt',
       contextFiles: 'id, path, category, source, createdAt, lastAccessedAt, [category+createdAt], [category+source]',
     });
 
-    // Version 13: Extend chat/project schema for persistence v3 metadata and archive state
+    // Version 13: Add isArchived index to projects
     this.version(13).stores({
-      sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
-      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
-      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
-      mcpServers: 'id, name, url, connected',
       projects: 'id, name, isArchived, createdAt, updatedAt, lastAccessedAt',
-      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
-      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
-      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
-      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
-      agentTraces: 'id, sessionId, timestamp, vcsRevision, *filePaths, [sessionId+timestamp], [vcsRevision+timestamp]',
-      checkpoints: 'id, sessionId, traceId, filePath, timestamp, [sessionId+filePath], [sessionId+timestamp]',
-      assets: 'id, kind, createdAt',
-      folders: 'id, name, order, createdAt',
-      videoProjects: 'id, name, createdAt, updatedAt',
-      contextFiles: 'id, path, category, source, createdAt, lastAccessedAt, [category+createdAt], [category+source]',
+    });
+
+    // ── Events ──
+
+    // Seed default data on first database creation
+    this.on('populate', (tx) => {
+      tx.table('folders').add({
+        id: 'default-folder',
+        name: 'General',
+        order: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    });
+
+    // Handle multi-tab version change gracefully
+    this.on('versionchange', () => {
+      this.close();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cognia:db-version-change'));
+      }
+      return false;
     });
   }
 }

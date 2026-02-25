@@ -17,6 +17,7 @@ import type {
   DBFolder,
   DBMCPServer,
 } from '@/lib/db';
+import { toUIMessage } from '@/lib/db/repositories/message-repository';
 import type { StoredSummary } from '@/types/learning/summary';
 import type {
   BackupPayloadV3,
@@ -368,29 +369,10 @@ export function verifyChecksum(data: string, checksum: string): boolean {
   return generateChecksum(data) === checksum;
 }
 
+// Adapter: convert DBMessage to PersistedChatMessage
 function fromDbMessage(message: DBMessage): PersistedChatMessage {
-  return {
-    id: message.id,
-    sessionId: message.sessionId,
-    branchId: message.branchId,
-    role: message.role as UIMessage['role'],
-    content: message.content,
-    parts: message.parts ? JSON.parse(message.parts) : undefined,
-    model: message.model,
-    provider: message.provider,
-    tokens: message.tokens ? JSON.parse(message.tokens) : undefined,
-    attachments: message.attachments ? JSON.parse(message.attachments) : undefined,
-    sources: message.sources ? JSON.parse(message.sources) : undefined,
-    error: message.error,
-    createdAt: message.createdAt,
-    isEdited: message.isEdited,
-    editHistory: message.editHistory ? JSON.parse(message.editHistory) : undefined,
-    originalContent: message.originalContent,
-    isBookmarked: message.isBookmarked,
-    bookmarkedAt: message.bookmarkedAt,
-    reaction: message.reaction as UIMessage['reaction'],
-    reactions: message.reactions ? JSON.parse(message.reactions) : undefined,
-  };
+  const uiMessage = toUIMessage(message);
+  return { ...uiMessage, sessionId: message.sessionId };
 }
 
 function fromDbSummary(summary: DBSummary): StoredSummary {

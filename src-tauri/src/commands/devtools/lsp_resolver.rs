@@ -301,12 +301,8 @@ pub fn resolve_launch_from_installed_package(
         return None;
     }
 
-    let Some(bin_object) = bin.as_object() else {
-        return None;
-    };
-    let Some(entry) = bin_object.get(profile.command).and_then(Value::as_str) else {
-        return None;
-    };
+    let bin_object = bin.as_object()?;
+    let entry = bin_object.get(profile.command).and_then(Value::as_str)?;
     let script_path = install_dir.join(entry);
     if !script_path.exists() {
         return None;

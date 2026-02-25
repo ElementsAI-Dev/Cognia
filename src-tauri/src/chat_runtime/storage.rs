@@ -215,6 +215,23 @@ impl ChatRuntimeStorage {
         })
     }
 
+    pub fn upsert_sessions_batch(
+        &self,
+        sessions: Vec<JsonValue>,
+    ) -> Result<usize, ChatRuntimeStorageError> {
+        if sessions.is_empty() {
+            return Ok(0);
+        }
+        self.with_connection(|conn| {
+            let tx = conn.unchecked_transaction()?;
+            for session in &sessions {
+                Self::upsert_session_tx(&tx, session)?;
+            }
+            tx.commit()?;
+            Ok(sessions.len())
+        })
+    }
+
     pub fn list_sessions(&self) -> Result<Vec<JsonValue>, ChatRuntimeStorageError> {
         self.with_connection(|conn| {
             let mut statement = conn.prepare(
@@ -299,38 +316,62 @@ impl ChatRuntimeStorage {
         limit: usize,
         offset: usize,
     ) -> Result<ChatMessagesPage, ChatRuntimeStorageError> {
-        let normalized_limit = limit.max(1).min(500);
-        let all_messages = self.list_messages()?;
-        let filtered = all_messages
-            .into_iter()
-            .filter(|message| {
-                let message_session_id = optional_field(message, "sessionId");
-                let message_branch_id = optional_field(message, "branchId");
-                let session_ok = match &session_id {
-                    Some(expected) => message_session_id.as_deref() == Some(expected.as_str()),
-                    None => true,
-                };
-                let branch_ok = match &branch_id {
-                    Some(expected) => message_branch_id.as_deref() == Some(expected.as_str()),
-                    None => true,
-                };
-                session_ok && branch_ok
-            })
-            .collect::<Vec<_>>();
-        let total = filtered.len();
-        let items = filtered
-            .into_iter()
-            .skip(offset)
-            .take(normalized_limit)
-            .collect::<Vec<_>>();
-        let has_more = offset + items.len() < total;
+        let normalized_limit = limit.clamp(1, 500);
+        self.with_connection(|conn| {
+            // Build dynamic WHERE clause based on optional filters
+            let mut conditions = Vec::new();
+            let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
 
-        Ok(ChatMessagesPage {
-            items,
-            limit: normalized_limit,
-            offset,
-            total,
-            has_more,
+            if let Some(ref sid) = session_id {
+                conditions.push(format!("session_id = ?{}", param_values.len() + 1));
+                param_values.push(Box::new(sid.clone()));
+            }
+            if let Some(ref bid) = branch_id {
+                conditions.push(format!("branch_id = ?{}", param_values.len() + 1));
+                param_values.push(Box::new(bid.clone()));
+            }
+
+            let where_clause = if conditions.is_empty() {
+                String::new()
+            } else {
+                format!("WHERE {}", conditions.join(" AND "))
+            };
+
+            // Get total count
+            let count_sql = format!("SELECT COUNT(*) FROM messages {}", where_clause);
+            let params_ref: Vec<&dyn rusqlite::types::ToSql> =
+                param_values.iter().map(|p| p.as_ref()).collect();
+            let total: usize = conn.query_row(
+                &count_sql,
+                params_ref.as_slice(),
+                |row| row.get::<_, i64>(0),
+            )? as usize;
+
+            // Get paginated items
+            let select_sql = format!(
+                "SELECT payload_json FROM messages {} ORDER BY created_at ASC LIMIT ?{} OFFSET ?{}",
+                where_clause,
+                param_values.len() + 1,
+                param_values.len() + 2,
+            );
+            param_values.push(Box::new(normalized_limit as i64));
+            param_values.push(Box::new(offset as i64));
+
+            let params_ref: Vec<&dyn rusqlite::types::ToSql> =
+                param_values.iter().map(|p| p.as_ref()).collect();
+            let mut stmt = conn.prepare(&select_sql)?;
+            let rows = stmt.query_map(params_ref.as_slice(), |row| row.get::<_, String>(0))?;
+            let items = parse_payload_rows(rows)?;
+
+            let has_more = offset + items.len() < total;
+
+            Ok(ChatMessagesPage {
+                items,
+                limit: normalized_limit,
+                offset,
+                total,
+                has_more,
+            })
         })
     }
 
@@ -514,6 +555,12 @@ impl ChatRuntimeState {
             .map_err(|error| error.to_string())
     }
 
+    pub fn upsert_sessions_batch(&self, sessions: Vec<JsonValue>) -> Result<usize, String> {
+        self.storage
+            .upsert_sessions_batch(sessions)
+            .map_err(|error| error.to_string())
+    }
+
     pub fn list_sessions(&self) -> Result<Vec<JsonValue>, String> {
         self.storage
             .list_sessions()
@@ -671,4 +718,209 @@ where
         result.push(parsed);
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn make_session(id: &str) -> JsonValue {
+        json!({
+            "id": id,
+            "title": format!("Session {}", id),
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z"
+        })
+    }
+
+    fn make_message(id: &str, session_id: &str, branch_id: Option<&str>, created_at: &str) -> JsonValue {
+        let mut msg = json!({
+            "id": id,
+            "sessionId": session_id,
+            "role": "user",
+            "content": format!("Message {}", id),
+            "createdAt": created_at
+        });
+        if let Some(bid) = branch_id {
+            msg["branchId"] = json!(bid);
+        }
+        msg
+    }
+
+    fn insert_message(storage: &ChatRuntimeStorage, id: &str, session_id: &str, branch_id: Option<&str>, created_at: &str) {
+        storage.upsert_messages_batch(vec![make_message(id, session_id, branch_id, created_at)]).unwrap();
+    }
+
+    #[test]
+    fn test_empty_database_page() {
+        let storage = ChatRuntimeStorage::in_memory().unwrap();
+        let page = storage.get_messages_page(None, None, 10, 0).unwrap();
+        assert_eq!(page.total, 0);
+        assert_eq!(page.items.len(), 0);
+        assert!(!page.has_more);
+    }
+
+    #[test]
+    fn test_page_with_session_filter() {
+        let storage = ChatRuntimeStorage::in_memory().unwrap();
+        storage.upsert_session(make_session("s1")).unwrap();
+        storage.upsert_session(make_session("s2")).unwrap();
+
+        for i in 0..5 {
+            let ts = format!("2024-01-01T00:00:{:02}Z", i);
+            insert_message(&storage, &format!("m-s1-{}", i), "s1", None, &ts);
+        }
+        for i in 0..3 {
+            let ts = format!("2024-01-01T00:01:{:02}Z", i);
+            insert_message(&storage, &format!("m-s2-{}", i), "s2", None, &ts);
+        }
+
+        let page = storage.get_messages_page(Some("s1".into()), None, 10, 0).unwrap();
+        assert_eq!(page.total, 5);
+        assert_eq!(page.items.len(), 5);
+        assert!(!page.has_more);
+
+        let page = storage.get_messages_page(Some("s2".into()), None, 10, 0).unwrap();
+        assert_eq!(page.total, 3);
+        assert_eq!(page.items.len(), 3);
+    }
+
+    #[test]
+    fn test_page_with_branch_filter() {
+        let storage = ChatRuntimeStorage::in_memory().unwrap();
+        storage.upsert_session(make_session("s1")).unwrap();
+
+        insert_message(&storage, "m1", "s1", Some("b1"), "2024-01-01T00:00:01Z");
+        insert_message(&storage, "m2", "s1", Some("b1"), "2024-01-01T00:00:02Z");
+        insert_message(&storage, "m3", "s1", Some("b2"), "2024-01-01T00:00:03Z");
+
+        let page = storage.get_messages_page(Some("s1".into()), Some("b1".into()), 10, 0).unwrap();
+        assert_eq!(page.total, 2);
+        assert_eq!(page.items.len(), 2);
+
+        let page = storage.get_messages_page(Some("s1".into()), Some("b2".into()), 10, 0).unwrap();
+        assert_eq!(page.total, 1);
+    }
+
+    #[test]
+    fn test_page_has_more_flag() {
+        let storage = ChatRuntimeStorage::in_memory().unwrap();
+        storage.upsert_session(make_session("s1")).unwrap();
+
+        for i in 0..10 {
+            let ts = format!("2024-01-01T00:00:{:02}Z", i);
+            insert_message(&storage, &format!("m{}", i), "s1", None, &ts);
+        }
+
+        let page = storage.get_messages_page(Some("s1".into()), None, 5, 0).unwrap();
+        assert_eq!(page.total, 10);
+        assert_eq!(page.items.len(), 5);
+        assert!(page.has_more);
+
+        let page = storage.get_messages_page(Some("s1".into()), None, 5, 5).unwrap();
+        assert_eq!(page.items.len(), 5);
+        assert!(!page.has_more);
+    }
+
+    #[test]
+    fn test_page_offset_beyond_total() {
+        let storage = ChatRuntimeStorage::in_memory().unwrap();
+        storage.upsert_session(make_session("s1")).unwrap();
+        insert_message(&storage, "m1", "s1", None, "2024-01-01T00:00:01Z");
+
+        let page = storage.get_messages_page(Some("s1".into()), None, 10, 100).unwrap();
+        assert_eq!(page.total, 1);
+        assert_eq!(page.items.len(), 0);
+        assert!(!page.has_more);
+    }
+
+    #[test]
+    fn test_page_limit_clamped() {
+        let storage = ChatRuntimeStorage::in_memory().unwrap();
+        storage.upsert_session(make_session("s1")).unwrap();
+        insert_message(&storage, "m1", "s1", None, "2024-01-01T00:00:01Z");
+
+        // limit=0 should be clamped to 1
+        let page = storage.get_messages_page(Some("s1".into()), None, 0, 0).unwrap();
+        assert_eq!(page.limit, 1);
+
+        // limit=1000 should be clamped to 500
+        let page = storage.get_messages_page(Some("s1".into()), None, 1000, 0).unwrap();
+        assert_eq!(page.limit, 500);
+    }
+
+    #[test]
+    fn test_upsert_sessions_and_list() {
+        let storage = ChatRuntimeStorage::in_memory().unwrap();
+        storage.upsert_session(make_session("s1")).unwrap();
+        storage.upsert_session(make_session("s2")).unwrap();
+
+        let sessions = storage.list_sessions().unwrap();
+        assert_eq!(sessions.len(), 2);
+    }
+
+    #[test]
+    fn test_upsert_session_update() {
+        let storage = ChatRuntimeStorage::in_memory().unwrap();
+        storage.upsert_session(make_session("s1")).unwrap();
+
+        let mut updated = make_session("s1");
+        updated["title"] = json!("Updated Title");
+        storage.upsert_session(updated).unwrap();
+
+        let sessions = storage.list_sessions().unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0]["title"], "Updated Title");
+    }
+
+    #[test]
+    fn test_delete_session() {
+        let storage = ChatRuntimeStorage::in_memory().unwrap();
+        storage.upsert_session(make_session("s1")).unwrap();
+        insert_message(&storage, "m1", "s1", None, "2024-01-01T00:00:01Z");
+
+        storage.delete_session("s1").unwrap();
+
+        let sessions = storage.list_sessions().unwrap();
+        assert_eq!(sessions.len(), 0);
+    }
+
+    #[test]
+    fn test_upsert_messages_batch() {
+        let storage = ChatRuntimeStorage::in_memory().unwrap();
+        storage.upsert_session(make_session("s1")).unwrap();
+
+        let messages = vec![
+            make_message("m1", "s1", None, "2024-01-01T00:00:01Z"),
+            make_message("m2", "s1", None, "2024-01-01T00:00:02Z"),
+            make_message("m3", "s1", None, "2024-01-01T00:00:03Z"),
+        ];
+        let count = storage.upsert_messages_batch(messages).unwrap();
+        assert_eq!(count, 3);
+
+        let listed = storage.list_messages().unwrap();
+        assert_eq!(listed.len(), 3);
+    }
+
+    #[test]
+    fn test_upsert_messages_batch_empty() {
+        let storage = ChatRuntimeStorage::in_memory().unwrap();
+        let count = storage.upsert_messages_batch(vec![]).unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn test_no_filters_returns_all() {
+        let storage = ChatRuntimeStorage::in_memory().unwrap();
+        storage.upsert_session(make_session("s1")).unwrap();
+        storage.upsert_session(make_session("s2")).unwrap();
+
+        insert_message(&storage, "m1", "s1", None, "2024-01-01T00:00:01Z");
+        insert_message(&storage, "m2", "s2", None, "2024-01-01T00:00:02Z");
+
+        let page = storage.get_messages_page(None, None, 10, 0).unwrap();
+        assert_eq!(page.total, 2);
+        assert_eq!(page.items.len(), 2);
+    }
 }

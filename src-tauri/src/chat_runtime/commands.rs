@@ -20,6 +20,19 @@ pub async fn chat_db_upsert_session(
 
 #[allow(non_snake_case)]
 #[tauri::command]
+pub async fn chat_db_upsert_sessions_batch(
+    sessions: Vec<JsonValue>,
+    schemaVersion: Option<i64>,
+    traceId: Option<String>,
+    __trace_id: Option<String>,
+    runtime_state: State<'_, ChatRuntimeState>,
+) -> Result<usize, String> {
+    let _ = (schemaVersion, traceId, __trace_id);
+    runtime_state.upsert_sessions_batch(sessions)
+}
+
+#[allow(non_snake_case)]
+#[tauri::command]
 pub async fn chat_db_list_sessions(
     schemaVersion: Option<i64>,
     traceId: Option<String>,
@@ -95,7 +108,7 @@ pub async fn chat_db_list_messages(
     runtime_state.list_messages()
 }
 
-#[allow(non_snake_case)]
+#[allow(non_snake_case, clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn chat_db_get_messages_page(
     sessionId: Option<String>,

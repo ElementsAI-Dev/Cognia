@@ -154,14 +154,15 @@ export async function cleanupIndexedDB(
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - maxMessageAgeDays);
 
-      const oldMessages = await db.messages
-        .filter((m) => new Date(m.createdAt) < cutoffDate)
-        .toArray();
+      const oldMessageIds = await db.messages
+        .where('createdAt')
+        .below(cutoffDate)
+        .primaryKeys();
 
-      if (oldMessages.length > 0 && !dryRun) {
-        await db.messages.bulkDelete(oldMessages.map((m) => m.id));
-        result.messagesDeleted += oldMessages.length;
-        result.freedSpace += oldMessages.length * 2048;
+      if (oldMessageIds.length > 0 && !dryRun) {
+        await db.messages.bulkDelete(oldMessageIds);
+        result.messagesDeleted += oldMessageIds.length;
+        result.freedSpace += oldMessageIds.length * 2048;
       }
     }
 
@@ -205,67 +206,69 @@ export async function cleanupOrphanedRecords(dryRun = false): Promise<number> {
   let cleaned = 0;
 
   try {
-    // Find messages without valid sessions
-    const sessions = await db.sessions.toArray();
-    const sessionIds = new Set(sessions.map((s) => s.id));
+    // Load only primary keys for parent tables (lightweight)
+    const sessionIds = new Set(await db.sessions.toCollection().primaryKeys() as string[]);
+    const projectIds = new Set(await db.projects.toCollection().primaryKeys() as string[]);
+    const workflowIds = new Set(await db.workflows.toCollection().primaryKeys() as string[]);
 
-    const allMessages = await db.messages.toArray();
-    const orphanedMessages = allMessages.filter((m) => !sessionIds.has(m.sessionId));
-
-    if (orphanedMessages.length > 0 && !dryRun) {
-      await db.messages.bulkDelete(orphanedMessages.map((m) => m.id));
-      cleaned += orphanedMessages.length;
+    // Find orphaned messages using streaming each() instead of toArray()
+    const orphanedMessageIds: string[] = [];
+    await db.messages.each((msg) => {
+      if (!sessionIds.has(msg.sessionId)) orphanedMessageIds.push(msg.id);
+    });
+    if (orphanedMessageIds.length > 0 && !dryRun) {
+      await db.messages.bulkDelete(orphanedMessageIds);
+      cleaned += orphanedMessageIds.length;
     }
 
-    // Find knowledge files without valid projects
-    const projects = await db.projects.toArray();
-    const projectIds = new Set(projects.map((p) => p.id));
-
-    const allKnowledgeFiles = await db.knowledgeFiles.toArray();
-    const orphanedFiles = allKnowledgeFiles.filter((f) => !projectIds.has(f.projectId));
-
-    if (orphanedFiles.length > 0 && !dryRun) {
-      await db.knowledgeFiles.bulkDelete(orphanedFiles.map((f) => f.id));
-      cleaned += orphanedFiles.length;
+    // Find orphaned knowledge files
+    const orphanedFileIds: string[] = [];
+    await db.knowledgeFiles.each((f) => {
+      if (!projectIds.has(f.projectId)) orphanedFileIds.push(f.id);
+    });
+    if (orphanedFileIds.length > 0 && !dryRun) {
+      await db.knowledgeFiles.bulkDelete(orphanedFileIds);
+      cleaned += orphanedFileIds.length;
     }
 
-    // Find workflow executions without valid workflows
-    const workflows = await db.workflows.toArray();
-    const workflowIds = new Set(workflows.map((w) => w.id));
-
-    const allExecutions = await db.workflowExecutions.toArray();
-    const orphanedExecutions = allExecutions.filter((e) => !workflowIds.has(e.workflowId));
-
-    if (orphanedExecutions.length > 0 && !dryRun) {
-      await db.workflowExecutions.bulkDelete(orphanedExecutions.map((e) => e.id));
-      cleaned += orphanedExecutions.length;
+    // Find orphaned workflow executions
+    const orphanedExecIds: string[] = [];
+    await db.workflowExecutions.each((e) => {
+      if (!workflowIds.has(e.workflowId)) orphanedExecIds.push(e.id);
+    });
+    if (orphanedExecIds.length > 0 && !dryRun) {
+      await db.workflowExecutions.bulkDelete(orphanedExecIds);
+      cleaned += orphanedExecIds.length;
     }
 
-    // Find summaries without valid sessions
-    const allSummaries = await db.summaries.toArray();
-    const orphanedSummaries = allSummaries.filter((s) => !sessionIds.has(s.sessionId));
-
-    if (orphanedSummaries.length > 0 && !dryRun) {
-      await db.summaries.bulkDelete(orphanedSummaries.map((s) => s.id));
-      cleaned += orphanedSummaries.length;
+    // Find orphaned summaries
+    const orphanedSummaryIds: string[] = [];
+    await db.summaries.each((s) => {
+      if (!sessionIds.has(s.sessionId)) orphanedSummaryIds.push(s.id);
+    });
+    if (orphanedSummaryIds.length > 0 && !dryRun) {
+      await db.summaries.bulkDelete(orphanedSummaryIds);
+      cleaned += orphanedSummaryIds.length;
     }
 
-    // Find agent traces without valid sessions (only those with sessionId set)
-    const allTraces = await db.agentTraces.toArray();
-    const orphanedTraces = allTraces.filter((t) => t.sessionId && !sessionIds.has(t.sessionId));
-
-    if (orphanedTraces.length > 0 && !dryRun) {
-      await db.agentTraces.bulkDelete(orphanedTraces.map((t) => t.id));
-      cleaned += orphanedTraces.length;
+    // Find orphaned agent traces (only those with sessionId set)
+    const orphanedTraceIds: string[] = [];
+    await db.agentTraces.each((t) => {
+      if (t.sessionId && !sessionIds.has(t.sessionId)) orphanedTraceIds.push(t.id);
+    });
+    if (orphanedTraceIds.length > 0 && !dryRun) {
+      await db.agentTraces.bulkDelete(orphanedTraceIds);
+      cleaned += orphanedTraceIds.length;
     }
 
-    // Find documents without valid projects (only those with projectId set)
-    const allDocuments = await db.documents.toArray();
-    const orphanedDocs = allDocuments.filter((d) => d.projectId && !projectIds.has(d.projectId));
-
-    if (orphanedDocs.length > 0 && !dryRun) {
-      await db.documents.bulkDelete(orphanedDocs.map((d) => d.id));
-      cleaned += orphanedDocs.length;
+    // Find orphaned documents (only those with projectId set)
+    const orphanedDocIds: string[] = [];
+    await db.documents.each((d) => {
+      if (d.projectId && !projectIds.has(d.projectId)) orphanedDocIds.push(d.id);
+    });
+    if (orphanedDocIds.length > 0 && !dryRun) {
+      await db.documents.bulkDelete(orphanedDocIds);
+      cleaned += orphanedDocIds.length;
     }
 
   } catch (error) {

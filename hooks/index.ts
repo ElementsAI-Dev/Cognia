@@ -97,3 +97,6 @@ export * from './document';
 
 // Jupyter hooks
 export * from './jupyter';
+
+// Database hooks (reactive Dexie.js live query bindings)
+export * from './db';

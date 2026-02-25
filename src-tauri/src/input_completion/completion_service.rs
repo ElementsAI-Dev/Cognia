@@ -920,10 +920,9 @@ impl CompletionService {
                     if let Some(suggestion) = entry.result.suggestions.first() {
                         let normalized_suggestion =
                             Self::normalize_text_for_cache(&suggestion.text);
-                        if normalized_suggestion.starts_with(additional) {
+                        if let Some(remaining) = normalized_suggestion.strip_prefix(additional) {
                             entry.access_count += 1;
                             // Return modified result with remaining completion
-                            let remaining = &normalized_suggestion[additional.len()..];
                             if !remaining.is_empty() {
                                 let mut result = entry.result.clone();
                                 if let Some(s) = result.suggestions.first_mut() {

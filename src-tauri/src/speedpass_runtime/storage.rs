@@ -64,6 +64,9 @@ impl SpeedPassRuntimeStorage {
 
         conn.execute_batch(
             r#"
+            PRAGMA journal_mode=WAL;
+            PRAGMA foreign_keys=ON;
+
             CREATE TABLE IF NOT EXISTS speedpass_snapshots (
                 user_id TEXT PRIMARY KEY,
                 revision INTEGER NOT NULL,

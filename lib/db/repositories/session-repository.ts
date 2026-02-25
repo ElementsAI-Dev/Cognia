@@ -225,8 +225,10 @@ export const sessionRepository = {
    */
   async delete(id: string): Promise<void> {
     await withRetry(async () => {
-      await messageRepository.deleteBySessionId(id);
-      await db.sessions.delete(id);
+      await db.transaction('rw', [db.messages, db.sessions], async () => {
+        await messageRepository.deleteBySessionId(id);
+        await db.sessions.delete(id);
+      });
     }, 'sessionRepository.delete');
   },
 
@@ -235,8 +237,10 @@ export const sessionRepository = {
    */
   async deleteAll(): Promise<void> {
     await withRetry(async () => {
-      await db.messages.clear();
-      await db.sessions.clear();
+      await db.transaction('rw', [db.messages, db.sessions], async () => {
+        await db.messages.clear();
+        await db.sessions.clear();
+      });
     }, 'sessionRepository.deleteAll');
   },
 

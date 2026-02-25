@@ -5,6 +5,7 @@
 
 import { db } from '@/lib/db';
 import { StorageManager } from './storage-manager';
+import { cleanupOrphanedRecords } from './indexeddb-utils';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.store;
@@ -397,39 +398,17 @@ export class StorageCleanupService {
 
   /**
    * Remove orphaned data (references to deleted entities)
+   * Delegates to the comprehensive cleanupOrphanedRecords in indexeddb-utils
+   * which covers messages, knowledgeFiles, workflowExecutions, summaries,
+   * agentTraces, and documents.
    */
   async cleanupOrphanedData(): Promise<number> {
-    let cleaned = 0;
-
     try {
-      // Find messages without valid sessions
-      const sessions = await db.sessions.toArray();
-      const sessionIds = new Set(sessions.map((s) => s.id));
-
-      const allMessages = await db.messages.toArray();
-      const orphanedMessages = allMessages.filter((m) => !sessionIds.has(m.sessionId));
-
-      if (orphanedMessages.length > 0) {
-        await db.messages.bulkDelete(orphanedMessages.map((m) => m.id));
-        cleaned += orphanedMessages.length;
-      }
-
-      // Find knowledge files without valid projects
-      const projects = await db.projects.toArray();
-      const projectIds = new Set(projects.map((p) => p.id));
-
-      const allKnowledgeFiles = await db.knowledgeFiles.toArray();
-      const orphanedFiles = allKnowledgeFiles.filter((f) => !projectIds.has(f.projectId));
-
-      if (orphanedFiles.length > 0) {
-        await db.knowledgeFiles.bulkDelete(orphanedFiles.map((f) => f.id));
-        cleaned += orphanedFiles.length;
-      }
+      return await cleanupOrphanedRecords(false);
     } catch (error) {
       log.error('Failed to cleanup orphaned data', error as Error);
+      return 0;
     }
-
-    return cleaned;
   }
 }
 

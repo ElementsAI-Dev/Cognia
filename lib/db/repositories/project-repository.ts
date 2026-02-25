@@ -32,7 +32,7 @@ function toProject(dbProject: DBProject, knowledgeFiles: KnowledgeFile[]): Proje
 }
 
 // Convert Project to DBProject
-function toDBProject(project: Project): DBProject {
+export function toDbProject(project: Project): DBProject {
   return {
     id: project.id,
     name: project.name,
@@ -161,7 +161,7 @@ export const projectRepository = {
       lastAccessedAt: now,
     };
 
-    await db.projects.add(toDBProject(project));
+    await db.projects.add(toDbProject(project));
     return project;
   },
 
@@ -198,8 +198,10 @@ export const projectRepository = {
    * Delete a project and all its knowledge files
    */
   async delete(id: string): Promise<void> {
-    await db.knowledgeFiles.where('projectId').equals(id).delete();
-    await db.projects.delete(id);
+    await db.transaction('rw', [db.knowledgeFiles, db.projects], async () => {
+      await db.knowledgeFiles.where('projectId').equals(id).delete();
+      await db.projects.delete(id);
+    });
   },
 
   /**
@@ -320,11 +322,13 @@ export const projectRepository = {
       updatedAt: now,
     };
 
-    await db.knowledgeFiles.add(toDBKnowledgeFile(file, projectId));
-    
-    // Update project updatedAt
-    await db.projects.update(projectId, {
-      updatedAt: now,
+    await db.transaction('rw', [db.knowledgeFiles, db.projects], async () => {
+      await db.knowledgeFiles.add(toDBKnowledgeFile(file, projectId));
+
+      // Update project updatedAt
+      await db.projects.update(projectId, {
+        updatedAt: now,
+      });
     });
 
     return file;
@@ -368,11 +372,13 @@ export const projectRepository = {
     const file = await db.knowledgeFiles.get(fileId);
     if (!file) return;
 
-    await db.knowledgeFiles.delete(fileId);
-    
-    // Update project updatedAt
-    await db.projects.update(file.projectId, {
-      updatedAt: new Date(),
+    await db.transaction('rw', [db.knowledgeFiles, db.projects], async () => {
+      await db.knowledgeFiles.delete(fileId);
+
+      // Update project updatedAt
+      await db.projects.update(file.projectId, {
+        updatedAt: new Date(),
+      });
     });
   },
 

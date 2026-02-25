@@ -18,7 +18,7 @@ pub enum TaskOperationResponse {
     Success { task: Box<SystemTask> },
     /// Confirmation required before proceeding
     ConfirmationRequired {
-        confirmation: TaskConfirmationRequest,
+        confirmation: Box<TaskConfirmationRequest>,
     },
     /// Operation failed
     Error { message: String },
@@ -66,7 +66,7 @@ pub async fn scheduler_create_task(
         }
         Ok(Err(confirmation)) => {
             debug!("Task creation requires confirmation: {:?}", confirmation);
-            Ok(TaskOperationResponse::ConfirmationRequired { confirmation })
+            Ok(TaskOperationResponse::ConfirmationRequired { confirmation: Box::new(confirmation) })
         }
         Err(e) => {
             error!("Failed to create system task: {}", e);
@@ -99,7 +99,7 @@ pub async fn scheduler_update_task(
         }
         Ok(Err(confirmation)) => {
             debug!("Task update requires confirmation: {:?}", confirmation);
-            Ok(TaskOperationResponse::ConfirmationRequired { confirmation })
+            Ok(TaskOperationResponse::ConfirmationRequired { confirmation: Box::new(confirmation) })
         }
         Err(e) => {
             error!("Failed to update system task: {}", e);

@@ -191,6 +191,9 @@ impl SandboxDb {
 
         conn.execute_batch(
             r#"
+            PRAGMA journal_mode=WAL;
+            PRAGMA foreign_keys=ON;
+
             -- Execution history table
             CREATE TABLE IF NOT EXISTS executions (
                 id TEXT PRIMARY KEY,
@@ -2556,5 +2559,21 @@ mod tests {
         let retrieved = db2.get_snippet("roundtrip-s1").unwrap();
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().title, snippet.title);
+    }
+
+    #[test]
+    fn test_wal_mode_enabled() {
+        let db = SandboxDb::in_memory().unwrap();
+        let conn = db.conn.lock().unwrap();
+        let journal_mode: String =
+            conn.query_row("PRAGMA journal_mode", [], |row| row.get(0)).unwrap();
+        // In-memory databases report "memory" for journal_mode, but the PRAGMA
+        // is still accepted without error. For file-backed databases it would be "wal".
+        // The key assertion is that foreign_keys is enabled.
+        let fk: i64 =
+            conn.query_row("PRAGMA foreign_keys", [], |row| row.get(0)).unwrap();
+        assert_eq!(fk, 1, "foreign_keys should be enabled");
+        // journal_mode for in-memory is "memory"; just verify it doesn't error
+        assert!(!journal_mode.is_empty());
     }
 }

@@ -1093,6 +1093,7 @@ pub fn run() {
             commands::storage::vector::vector_stats,
             // Chat runtime sqlite commands
             chat_runtime::commands::chat_db_upsert_session,
+            chat_runtime::commands::chat_db_upsert_sessions_batch,
             chat_runtime::commands::chat_db_list_sessions,
             chat_runtime::commands::chat_db_delete_session,
             chat_runtime::commands::chat_db_clear_sessions,

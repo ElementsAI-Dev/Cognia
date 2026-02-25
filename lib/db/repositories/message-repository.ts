@@ -9,7 +9,7 @@ import type { UIMessage } from '@/types';
 import { nanoid } from 'nanoid';
 
 // Convert DBMessage to UIMessage
-function toUIMessage(dbMessage: DBMessage): UIMessage {
+export function toUIMessage(dbMessage: DBMessage): UIMessage {
   return {
     id: dbMessage.id,
     sessionId: dbMessage.sessionId,
@@ -35,7 +35,7 @@ function toUIMessage(dbMessage: DBMessage): UIMessage {
 }
 
 // Convert UIMessage to DBMessage
-function toDBMessage(message: UIMessage, sessionId: string, branchId?: string): DBMessage {
+export function toDBMessage(message: UIMessage, sessionId: string, branchId?: string): DBMessage {
   return {
     id: message.id,
     sessionId,
@@ -96,17 +96,19 @@ export const messageRepository = {
     };
 
     return withRetry(async () => {
-      await db.messages.add(toDBMessage(message, sessionId));
+      await db.transaction('rw', [db.messages, db.sessions], async () => {
+        await db.messages.add(toDBMessage(message, sessionId));
 
-      // Update session message count
-      const session = await db.sessions.get(sessionId);
-      if (session) {
-        await db.sessions.update(sessionId, {
-          messageCount: (session.messageCount || 0) + 1,
-          lastMessagePreview: message.content.slice(0, 100),
-          updatedAt: new Date(),
-        });
-      }
+        // Update session message count
+        const session = await db.sessions.get(sessionId);
+        if (session) {
+          await db.sessions.update(sessionId, {
+            messageCount: (session.messageCount || 0) + 1,
+            lastMessagePreview: message.content.slice(0, 100),
+            updatedAt: new Date(),
+          });
+        }
+      });
 
       return message;
     }, 'messageRepository.create');
@@ -146,16 +148,18 @@ export const messageRepository = {
     if (!message) return;
 
     await withRetry(async () => {
-      await db.messages.delete(id);
+      await db.transaction('rw', [db.messages, db.sessions], async () => {
+        await db.messages.delete(id);
 
-      // Update session message count
-      const session = await db.sessions.get(message.sessionId);
-      if (session && session.messageCount > 0) {
-        await db.sessions.update(message.sessionId, {
-          messageCount: session.messageCount - 1,
-          updatedAt: new Date(),
-        });
-      }
+        // Update session message count
+        const session = await db.sessions.get(message.sessionId);
+        if (session && session.messageCount > 0) {
+          await db.sessions.update(message.sessionId, {
+            messageCount: session.messageCount - 1,
+            updatedAt: new Date(),
+          });
+        }
+      });
     }, 'messageRepository.delete');
   },
 
@@ -173,19 +177,21 @@ export const messageRepository = {
    */
   async bulkCreate(sessionId: string, messages: UIMessage[]): Promise<void> {
     await withRetry(async () => {
-      const dbMessages = messages.map((m) => toDBMessage(m, sessionId));
-      await db.messages.bulkAdd(dbMessages);
+      await db.transaction('rw', [db.messages, db.sessions], async () => {
+        const dbMessages = messages.map((m) => toDBMessage(m, sessionId));
+        await db.messages.bulkAdd(dbMessages);
 
-      // Update session
-      const session = await db.sessions.get(sessionId);
-      if (session) {
-        const lastMessage = messages[messages.length - 1];
-        await db.sessions.update(sessionId, {
-          messageCount: (session.messageCount || 0) + messages.length,
-          lastMessagePreview: lastMessage?.content.slice(0, 100),
-          updatedAt: new Date(),
-        });
-      }
+        // Update session
+        const session = await db.sessions.get(sessionId);
+        if (session) {
+          const lastMessage = messages[messages.length - 1];
+          await db.sessions.update(sessionId, {
+            messageCount: (session.messageCount || 0) + messages.length,
+            lastMessagePreview: lastMessage?.content.slice(0, 100),
+            updatedAt: new Date(),
+          });
+        }
+      });
     }, 'messageRepository.bulkCreate');
   },
 
@@ -345,21 +351,21 @@ export const messageRepository = {
     };
 
     return withRetry(async () => {
-      await db.messages.add(toDBMessage(message, sessionId, branchId));
+      await db.transaction('rw', [db.messages, db.sessions], async () => {
+        await db.messages.add(toDBMessage(message, sessionId, branchId));
 
-      // Update session message count
-      const session = await db.sessions.get(sessionId);
-      if (session) {
-        await db.sessions.update(sessionId, {
-          messageCount: (session.messageCount || 0) + 1,
-          lastMessagePreview: message.content.slice(0, 100),
-          updatedAt: new Date(),
-        });
-      }
+        // Update session message count
+        const session = await db.sessions.get(sessionId);
+        if (session) {
+          await db.sessions.update(sessionId, {
+            messageCount: (session.messageCount || 0) + 1,
+            lastMessagePreview: message.content.slice(0, 100),
+            updatedAt: new Date(),
+          });
+        }
+      });
       return message;
     }, 'messageRepository.createWithBranch');
-
-    return message;
   },
 
   /**
@@ -412,9 +418,8 @@ export const messageRepository = {
       messagesQuery = messagesQuery.filter((m) => roleSet.has(m.role as 'user' | 'assistant' | 'system'));
     }
 
-    // Search through messages
-    await messagesQuery.each((dbMessage) => {
-      if (results.length >= limit) return;
+    // Search through messages - use .until() for early cursor termination
+    await messagesQuery.until(() => results.length >= limit).each((dbMessage) => {
 
       const contentLower = dbMessage.content.toLowerCase();
       const matchIndex = contentLower.indexOf(lowerQuery);
@@ -463,15 +468,25 @@ export const messageRepository = {
     newestMessage: Date | null;
   }> {
     const totalMessages = await db.messages.count();
-    const allMessages = await db.messages.orderBy('sessionId').uniqueKeys();
-    const totalSessions = allMessages.length;
 
+    // Single-query aggregation: get all sessionId keys (sorted by index) and count in one pass
+    const allSessionKeys = await db.messages.orderBy('sessionId').keys();
     const messageCounts: Array<{ sessionId: string; count: number }> = [];
-    for (const sessionId of allMessages) {
-      const count = await db.messages.where('sessionId').equals(sessionId as string).count();
-      messageCounts.push({ sessionId: sessionId as string, count });
+    let currentId = '';
+    let currentCount = 0;
+    for (const key of allSessionKeys) {
+      const id = key as string;
+      if (id !== currentId) {
+        if (currentId) messageCounts.push({ sessionId: currentId, count: currentCount });
+        currentId = id;
+        currentCount = 0;
+      }
+      currentCount++;
     }
+    if (currentId) messageCounts.push({ sessionId: currentId, count: currentCount });
     messageCounts.sort((a, b) => b.count - a.count);
+
+    const totalSessions = messageCounts.length;
 
     let oldestMessage: Date | null = null;
     let newestMessage: Date | null = null;
@@ -510,10 +525,19 @@ export const messageRepository = {
    * Delete messages older than a given date
    */
   async deleteOlderThan(cutoffDate: Date): Promise<number> {
-    const cutoffTime = cutoffDate.getTime();
-    const oldMessages = await db.messages
-      .filter((msg) => new Date(msg.createdAt).getTime() < cutoffTime)
+    // Use indexed query for Date-stored values, with string fallback for environments
+    // where structuredClone converts Dates to ISO strings (e.g. test polyfill)
+    let oldMessages = await db.messages
+      .where('createdAt')
+      .below(cutoffDate)
       .primaryKeys();
+
+    if (oldMessages.length === 0) {
+      oldMessages = await db.messages
+        .where('createdAt')
+        .below(cutoffDate.toISOString())
+        .primaryKeys();
+    }
 
     if (oldMessages.length === 0) return 0;
 
@@ -551,17 +575,19 @@ export const messageRepository = {
     if (messagesToDelete.length === 0) return 0;
 
     return withRetry(async () => {
-      await db.messages.bulkDelete(messagesToDelete);
+      await db.transaction('rw', [db.messages, db.sessions], async () => {
+        await db.messages.bulkDelete(messagesToDelete);
 
-      // Update session message count
-      const session = await db.sessions.get(sessionId);
-      if (session) {
-        const newCount = Math.max(0, (session.messageCount || 0) - messagesToDelete.length);
-        await db.sessions.update(sessionId, {
-          messageCount: newCount,
-          updatedAt: new Date(),
-        });
-      }
+        // Update session message count
+        const session = await db.sessions.get(sessionId);
+        if (session) {
+          const newCount = Math.max(0, (session.messageCount || 0) - messagesToDelete.length);
+          await db.sessions.update(sessionId, {
+            messageCount: newCount,
+            updatedAt: new Date(),
+          });
+        }
+      });
 
       return messagesToDelete.length;
     }, 'messageRepository.deleteMessagesAfterOptimized');

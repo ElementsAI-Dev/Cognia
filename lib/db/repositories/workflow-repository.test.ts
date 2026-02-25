@@ -13,6 +13,7 @@ const mockMigrateWorkflowSchema = jest.fn();
 // Mock db
 jest.mock('../schema', () => ({
   db: {
+    transaction: jest.fn((_mode: string, _tables: unknown[], fn: () => Promise<void>) => fn()),
     workflows: {
       add: jest.fn(),
       get: jest.fn(),

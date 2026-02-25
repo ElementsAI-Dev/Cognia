@@ -210,17 +210,24 @@ export const agentTraceRepository = {
   async deleteOlderThan(days: number): Promise<number> {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
-    const cutoffTime = cutoff.getTime();
 
-    // Use filter with Date normalization for reliable comparison
-    const toDelete = await db.agentTraces
-      .filter((trace) => {
-        const ts = trace.timestamp instanceof Date ? trace.timestamp : new Date(trace.timestamp);
-        return ts.getTime() < cutoffTime;
-      })
-      .toArray();
+    // Use indexed timestamp query instead of full-table filter scan.
+    // Fall back to ISO string comparison for environments where structuredClone
+    // polyfill converts Date to string (e.g. Jest with fake-indexeddb).
+    let ids = await db.agentTraces
+      .where('timestamp')
+      .below(cutoff)
+      .primaryKeys();
 
-    const ids = toDelete.map((t) => t.id);
+    if (ids.length === 0) {
+      ids = await db.agentTraces
+        .where('timestamp')
+        .below(cutoff.toISOString())
+        .primaryKeys();
+    }
+
+    if (ids.length === 0) return 0;
+
     await withRetry(async () => {
       await db.agentTraces.bulkDelete(ids);
     }, 'agentTraceRepository.deleteOlderThan');

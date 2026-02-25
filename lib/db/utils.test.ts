@@ -117,5 +117,51 @@ describe('db/utils', () => {
       expect(warnSpy).toHaveBeenCalled();
       expect(warnSpy.mock.calls[0][0]).toContain('Test operation failed');
     });
+
+    it('should respect custom maxRetries option', async () => {
+      const transientError = new Error('LockContention');
+      const operation = jest.fn().mockRejectedValue(transientError);
+
+      let caughtError: Error | undefined;
+      const promise = withRetry(operation, 'Custom retries', { maxRetries: 2 }).catch((e) => {
+        caughtError = e as Error;
+      });
+      await jest.runAllTimersAsync();
+      await promise;
+
+      expect(caughtError?.message).toBe('LockContention');
+      expect(operation).toHaveBeenCalledTimes(2);
+    });
+
+    it('should respect custom maxRetries=1 (no retry)', async () => {
+      const transientError = new Error('LockContention');
+      const operation = jest.fn().mockRejectedValue(transientError);
+
+      let caughtError: Error | undefined;
+      const promise = withRetry(operation, 'Single attempt', { maxRetries: 1 }).catch((e) => {
+        caughtError = e as Error;
+      });
+      await jest.runAllTimersAsync();
+      await promise;
+
+      expect(caughtError?.message).toBe('LockContention');
+      expect(operation).toHaveBeenCalledTimes(1);
+    });
+
+    it('should use default options when none provided', async () => {
+      const transientError = new Error('LockContention');
+      const operation = jest.fn().mockRejectedValue(transientError);
+
+      let caughtError: Error | undefined;
+      const promise = withRetry(operation, 'Default options').catch((e) => {
+        caughtError = e as Error;
+      });
+      await jest.runAllTimersAsync();
+      await promise;
+
+      expect(caughtError?.message).toBe('LockContention');
+      // Default maxRetries is 5
+      expect(operation).toHaveBeenCalledTimes(5);
+    });
   });
 });

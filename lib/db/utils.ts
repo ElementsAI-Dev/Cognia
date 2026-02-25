@@ -6,8 +6,15 @@ import { loggers } from '@/lib/logger';
 
 const log = loggers.store;
 
-const MAX_RETRIES = 5;
-const BASE_DELAY = 100; // ms
+const DEFAULT_MAX_RETRIES = 5;
+const DEFAULT_BASE_DELAY = 100; // ms
+const DEFAULT_MAX_DELAY = 2000; // ms
+
+export interface RetryOptions {
+  maxRetries?: number;
+  baseDelay?: number;
+  maxDelay?: number;
+}
 
 /**
  * Executes a function with exponential backoff retry logic for specific Dexie/IndexedDB errors.
@@ -15,11 +22,15 @@ const BASE_DELAY = 100; // ms
  */
 export async function withRetry<T>(
   operation: () => Promise<T>,
-  operationName: string = 'Database operation'
+  operationName: string = 'Database operation',
+  options?: RetryOptions
 ): Promise<T> {
+  const maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES;
+  const baseDelay = options?.baseDelay ?? DEFAULT_BASE_DELAY;
+  const maxDelay = options?.maxDelay ?? DEFAULT_MAX_DELAY;
   let lastError: unknown;
 
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       return await operation();
     } catch (error) {
@@ -43,12 +54,12 @@ export async function withRetry<T>(
 
       // Calculate delay with exponential backoff and jitter
       const delay = Math.min(
-        BASE_DELAY * Math.pow(2, attempt) + Math.random() * 50, 
-        2000 // Max delay of 2s
+        baseDelay * Math.pow(2, attempt) + Math.random() * 50, 
+        maxDelay
       );
 
       log.warn(
-        `${operationName} failed (attempt ${attempt + 1}/${MAX_RETRIES}): ${errorMessage}. Retrying in ${delay.toFixed(0)}ms...`
+        `${operationName} failed (attempt ${attempt + 1}/${maxRetries}): ${errorMessage}. Retrying in ${delay.toFixed(0)}ms...`
       );
 
       await new Promise(resolve => setTimeout(resolve, delay));

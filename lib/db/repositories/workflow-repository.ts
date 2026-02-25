@@ -335,9 +335,11 @@ export const workflowRepository = {
     const existing = await db.workflows.get(id);
     if (!existing) return false;
 
-    await db.workflows.delete(id);
-    // Also delete related executions
-    await db.workflowExecutions.where('workflowId').equals(id).delete();
+    await db.transaction('rw', [db.workflows, db.workflowExecutions], async () => {
+      await db.workflows.delete(id);
+      // Also delete related executions
+      await db.workflowExecutions.where('workflowId').equals(id).delete();
+    });
     return true;
   },
 

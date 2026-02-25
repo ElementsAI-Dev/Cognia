@@ -23,10 +23,13 @@ export type {
 
 export {
   messageRepository,
+  toUIMessage,
+  toDBMessage,
   sessionRepository,
   documentRepository,
   mcpServerRepository,
   projectRepository,
+  toDbProject,
   agentTraceRepository,
   videoProjectRepository,
   type CreateDocumentInput,
