@@ -129,6 +129,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "codemirror-lang-latex": "^0.2.0",
+    "convex": "^1.32.0",
     "dagre-d3-es": "^7.0.14",
     "date-fns": "^4.1.0",
     "dexie": "^4.3.0",

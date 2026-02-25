@@ -17,5 +17,6 @@ export * from './appearance-utils';
 export * from './appearance-constants';
 export * from './background-safety';
 export * from './background-activity';
+export * from './background-maps';
 export * from './background-migration';
 export * from './theme-resolver';

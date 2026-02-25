@@ -203,7 +203,9 @@
     "importInvalidRatings": "Invalid model ratings data. Each entry must have modelId, provider, model, and rating.",
     "importParseError": "Failed to parse file. Ensure it is valid JSON.",
     "importSuccess": "Import Successful",
-    "importSuccessDescription": "Imported {count} preferences successfully."
+    "importSuccessDescription": "Imported {count} preferences successfully.",
+    "cleanupOldBattles": "Cleanup Old Battles",
+    "cleanupComplete": "Old battles cleaned up"
   },
   "leaderboard": {
     "title": "Model Leaderboard",

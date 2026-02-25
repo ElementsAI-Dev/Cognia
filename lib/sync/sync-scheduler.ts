@@ -18,6 +18,7 @@ function getActiveConfig(state: SyncState): BaseSyncConfig | null {
     case 'webdav': return state.webdavConfig;
     case 'github': return state.githubConfig;
     case 'googledrive': return state.googleDriveConfig;
+    case 'convex': return state.convexConfig;
     default: return null;
   }
 }

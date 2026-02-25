@@ -19,3 +19,4 @@ pub mod workflow_runtime;
 
 // Standalone module (already organized)
 pub mod academic;
+pub mod cloud;

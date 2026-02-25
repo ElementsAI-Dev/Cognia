@@ -228,11 +228,108 @@ export async function removeGitHubToken(): Promise<boolean> {
   }
 }
 
+// ============================================
+// Convex Deploy Key Storage
+// ============================================
+
+const CONVEX_DEPLOY_KEY = 'sync:convex:deploy_key';
+
+/**
+ * Store Convex deploy key securely
+ */
+export async function storeConvexDeployKey(deployKey: string): Promise<boolean> {
+  if (!isTauri()) {
+    try {
+      const encrypted = await encryptValue(deployKey);
+      localStorage.setItem(CONVEX_DEPLOY_KEY, encrypted);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  try {
+    const stored = await storeSecureValue(CONVEX_DEPLOY_KEY, deployKey);
+    if (!stored) throw new Error('Stronghold store failed');
+    return true;
+  } catch (error) {
+    log.error('Failed to store Convex deploy key', error as Error);
+    try {
+      const encrypted = await encryptValue(deployKey);
+      localStorage.setItem(CONVEX_DEPLOY_KEY, encrypted);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+/**
+ * Get Convex deploy key
+ */
+export async function getConvexDeployKey(): Promise<string | null> {
+  if (!isTauri()) {
+    try {
+      const stored = localStorage.getItem(CONVEX_DEPLOY_KEY);
+      if (!stored) return null;
+      if (isEncrypted(stored)) {
+        const decrypted = await decryptValue(stored);
+        return decrypted || null;
+      }
+      try { return atob(stored); } catch { return stored; }
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    const key = await getSecureValue(CONVEX_DEPLOY_KEY);
+    return key;
+  } catch (error) {
+    log.error('Failed to get Convex deploy key', error as Error);
+    try {
+      const stored = localStorage.getItem(CONVEX_DEPLOY_KEY);
+      if (!stored) return null;
+      if (isEncrypted(stored)) {
+        const decrypted = await decryptValue(stored);
+        return decrypted || null;
+      }
+      try { return atob(stored); } catch { return stored; }
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
+ * Remove Convex deploy key
+ */
+export async function removeConvexDeployKey(): Promise<boolean> {
+  if (!isTauri()) {
+    try {
+      localStorage.removeItem(CONVEX_DEPLOY_KEY);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  try {
+    await removeSecureValue(CONVEX_DEPLOY_KEY);
+    localStorage.removeItem(CONVEX_DEPLOY_KEY);
+    return true;
+  } catch (error) {
+    log.error('Failed to remove Convex deploy key', error as Error);
+    localStorage.removeItem(CONVEX_DEPLOY_KEY);
+    return true;
+  }
+}
+
 /**
  * Check if credentials are stored
  */
 export async function hasStoredCredentials(
-  provider: 'webdav' | 'github' | 'googledrive'
+  provider: 'webdav' | 'github' | 'googledrive' | 'convex'
 ): Promise<boolean> {
   if (provider === 'webdav') {
     const password = await getWebDAVPassword();
@@ -243,6 +340,9 @@ export async function hasStoredCredentials(
   } else if (provider === 'googledrive') {
     const token = await getGoogleAccessToken();
     return token !== null && token.length > 0;
+  } else if (provider === 'convex') {
+    const key = await getConvexDeployKey();
+    return key !== null && key.length > 0;
   }
   return false;
 }

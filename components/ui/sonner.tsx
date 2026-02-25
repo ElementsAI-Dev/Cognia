@@ -27,10 +27,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
             'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
           cancelButton:
             'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
-          success: 'group-[.toaster]:border-green-500/20 group-[.toaster]:bg-green-500/10',
-          error: 'group-[.toaster]:border-red-500/20 group-[.toaster]:bg-red-500/10',
-          warning: 'group-[.toaster]:border-yellow-500/20 group-[.toaster]:bg-yellow-500/10',
-          info: 'group-[.toaster]:border-blue-500/20 group-[.toaster]:bg-blue-500/10',
+          success: 'group-[.toaster]:border-success/20 group-[.toaster]:bg-success/10',
+          error: 'group-[.toaster]:border-destructive/20 group-[.toaster]:bg-destructive/10',
+          warning: 'group-[.toaster]:border-warning/20 group-[.toaster]:bg-warning/10',
+          info: 'group-[.toaster]:border-info/20 group-[.toaster]:bg-info/10',
         },
       }}
       {...props}

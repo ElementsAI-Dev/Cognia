@@ -38,7 +38,7 @@ describe('PromptTemplateManager', () => {
     render(<PromptTemplateManager />);
 
     await user.type(screen.getByPlaceholderText('Search templates'), 'nope');
-    expect(screen.getByText('No templates found. Create one to get started.')).toBeInTheDocument();
+    expect(screen.getByText('No templates found')).toBeInTheDocument();
 
     await user.clear(screen.getByPlaceholderText('Search templates'));
     expect(screen.getByText('First')).toBeInTheDocument();

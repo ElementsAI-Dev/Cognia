@@ -20,8 +20,10 @@ import {
   StarOff,
   PanelLeftClose,
   PanelLeft,
+  Search,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Tooltip,
   TooltipContent,
@@ -55,6 +57,9 @@ export interface ImageStudioHeaderProps {
   onShowSidebarChange: (value: boolean) => void;
   onShowHistoryChange: (value: boolean) => void;
   onExport: () => void;
+  isGenerating?: boolean;
+  searchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
 }
 
 export function ImageStudioHeader({
@@ -74,11 +79,14 @@ export function ImageStudioHeader({
   onShowSidebarChange,
   onShowHistoryChange,
   onExport,
+  isGenerating,
+  searchQuery = '',
+  onSearchQueryChange,
 }: ImageStudioHeaderProps) {
   const t = useTranslations('imageGeneration');
 
   return (
-    <header className="flex items-center justify-between border-b px-4 py-2 shrink-0">
+    <header className="relative flex items-center justify-between border-b px-4 py-2 shrink-0">
       <div className="flex items-center gap-4">
         <Link href="/">
           <Button variant="ghost" size="sm">
@@ -141,6 +149,19 @@ export function ImageStudioHeader({
           </TooltipTrigger>
           <TooltipContent>{filterFavorites ? t('showAll') : t('showFavoritesOnly')}</TooltipContent>
         </Tooltip>
+
+        {/* Search */}
+        {onSearchQueryChange && (
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => onSearchQueryChange(e.target.value)}
+              placeholder={t('searchPlaceholder') ?? 'Search...'}
+              className="h-8 w-40 pl-7 text-xs"
+            />
+          </div>
+        )}
 
         {/* History */}
         <Button
@@ -223,6 +244,11 @@ export function ImageStudioHeader({
           <TooltipContent>{showSidebar ? t('hideSidebar') : t('showSidebar')}</TooltipContent>
         </Tooltip>
       </div>
+      {isGenerating && (
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-muted overflow-hidden">
+          <div className="h-full bg-primary animate-pulse w-full" style={{ animation: 'indeterminate 1.5s infinite linear' }} />
+        </div>
+      )}
     </header>
   );
 }

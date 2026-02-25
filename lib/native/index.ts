@@ -34,6 +34,7 @@ export * as modelDownloadHelpers from './model-download-helpers';
 export * as tray from './tray';
 export * as systemScheduler from './system-scheduler';
 export * as externalAgent from './external-agent';
+export * as convex from './convex';
 
 // Logging integration
 export * from './tauri-log-bridge';

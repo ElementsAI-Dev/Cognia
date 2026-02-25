@@ -4,6 +4,7 @@
  * ImageGalleryGrid - Grid view for displaying generated images
  */
 
+import { useTranslations } from 'next-intl';
 import {
   Download,
   Maximize2,
@@ -23,10 +24,13 @@ import {
   Pencil,
   Split,
   Trash2,
-  Image as ImageIcon,
+  Sparkles,
+  Dices,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   DropdownMenu,
@@ -41,8 +45,16 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { ZOOM_LEVELS } from '@/lib/image-studio';
+import { ZOOM_LEVELS, PROMPT_TEMPLATES } from '@/lib/image-studio';
 import type { GeneratedImageWithMeta, ImageEditAction } from '@/lib/image-studio';
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  nature: '🌿',
+  portrait: '📷',
+  art: '🎨',
+  genre: '✨',
+  commercial: '💼',
+};
 
 export type { ImageEditAction };
 
@@ -56,6 +68,10 @@ export interface ImageGalleryGridProps {
   onDownload: (image: GeneratedImageWithMeta) => void;
   onDelete: (id: string) => void;
   onEditAction: (image: GeneratedImageWithMeta, action: ImageEditAction) => void;
+  onApplyTemplate?: (prompt: string) => void;
+  isGenerating?: boolean;
+  generatingPrompt?: string;
+  onCancelGeneration?: () => void;
 }
 
 function formatTime(timestamp: number): string {
@@ -73,20 +89,69 @@ export function ImageGalleryGrid({
   onDownload,
   onDelete,
   onEditAction,
+  onApplyTemplate,
+  isGenerating,
+  generatingPrompt,
+  onCancelGeneration,
 }: ImageGalleryGridProps) {
+  const t = useTranslations('imageGeneration');
   if (images.length === 0) {
+    const handleRandomInspiration = () => {
+      const random = PROMPT_TEMPLATES[Math.floor(Math.random() * PROMPT_TEMPLATES.length)];
+      onApplyTemplate?.(random.prompt);
+    };
+
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center space-y-4 max-w-md px-4">
-          <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mx-auto">
-            <ImageIcon className="h-8 w-8 text-muted-foreground" />
+      <ScrollArea className="flex-1">
+        <div className="p-6 space-y-6 max-w-3xl mx-auto">
+          {/* Header */}
+          <div className="text-center space-y-2">
+            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+              <Sparkles className="h-7 w-7 text-primary" />
+            </div>
+            <h3 className="text-lg font-semibold">{t('emptyTitle')}</h3>
+            <p className="text-sm text-muted-foreground">
+              {t('emptyDescription')}
+            </p>
           </div>
-          <h3 className="font-medium">No images yet</h3>
-          <p className="text-sm text-muted-foreground">
-            Enter a prompt and click Generate to create your first image
-          </p>
+
+          {/* Random Inspiration Button */}
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRandomInspiration}
+              className="gap-2"
+            >
+              <Dices className="h-4 w-4" />
+              {t('randomInspiration')}
+            </Button>
+          </div>
+
+          {/* Template Cards Grid */}
+          <div className="grid grid-cols-3 gap-3">
+            {PROMPT_TEMPLATES.map((template) => (
+              <button
+                key={template.label}
+                onClick={() => onApplyTemplate?.(template.prompt)}
+                className={cn(
+                  'group text-left p-3 rounded-lg border bg-card transition-all',
+                  'hover:border-primary/50 hover:shadow-md hover:bg-accent/50',
+                  'dark:hover:shadow-primary/5'
+                )}
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-base">{CATEGORY_EMOJI[template.category] || '✨'}</span>
+                  <span className="text-sm font-medium group-hover:text-primary transition-colors">{template.label}</span>
+                </div>
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  {template.prompt}
+                </p>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      </ScrollArea>
     );
   }
 
@@ -98,12 +163,39 @@ export function ImageGalleryGrid({
           gridTemplateColumns: `repeat(${ZOOM_LEVELS[zoomLevel].cols}, minmax(0, 1fr))`,
         }}
       >
+        {/* Skeleton placeholder while generating */}
+        {isGenerating && (
+          <Card className="overflow-hidden border-dashed border-primary/40 animate-in fade-in">
+            <div className="aspect-square relative bg-muted">
+              <Skeleton className="absolute inset-0 rounded-none" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4">
+                <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                <p className="text-xs text-muted-foreground text-center line-clamp-2">
+                  {generatingPrompt}
+                </p>
+                {onCancelGeneration && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs h-6"
+                    onClick={onCancelGeneration}
+                  >
+                    {t('cancel')}
+                  </Button>
+                )}
+              </div>
+            </div>
+            <CardContent className="p-2">
+              <p className="text-xs text-muted-foreground">{t('generating')}</p>
+            </CardContent>
+          </Card>
+        )}
         {images.map((image) => (
           <Card
             key={image.id}
             className={cn(
-              'group cursor-pointer overflow-hidden transition-all hover:shadow-lg',
-              selectedImageId === image.id && 'ring-2 ring-primary'
+              'group cursor-pointer overflow-hidden transition-all hover:shadow-lg dark:border-border/50 dark:shadow-md dark:shadow-black/20 dark:hover:shadow-primary/10',
+              selectedImageId === image.id && 'ring-2 ring-primary shadow-lg shadow-primary/20'
             )}
             onClick={() => onSelectImage(image.id)}
           >
@@ -145,7 +237,7 @@ export function ImageGalleryGrid({
                       {image.isFavorite ? <Star className="h-4 w-4 fill-current text-yellow-400" /> : <StarOff className="h-4 w-4" />}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{image.isFavorite ? 'Remove from favorites' : 'Add to favorites'}</TooltipContent>
+                  <TooltipContent>{image.isFavorite ? t('removeFromFavorites') : t('addToFavorites')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -161,7 +253,7 @@ export function ImageGalleryGrid({
                       <Maximize2 className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Preview</TooltipContent>
+                  <TooltipContent>{t('preview')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -177,7 +269,7 @@ export function ImageGalleryGrid({
                       <Download className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Download</TooltipContent>
+                  <TooltipContent>{t('download')}</TooltipContent>
                 </Tooltip>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -193,48 +285,48 @@ export function ImageGalleryGrid({
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => onEditAction(image, 'use-for-edit')}>
                       <Brush className="h-4 w-4 mr-2" />
-                      Inpaint (Upload Mask)
+                      {t('inpaintUploadMask')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEditAction(image, 'mask')}>
                       <Wand2 className="h-4 w-4 mr-2" />
-                      Draw Mask & Inpaint
+                      {t('drawMaskInpaint')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEditAction(image, 'use-for-variation')}>
                       <Layers className="h-4 w-4 mr-2" />
-                      Create variations
+                      {t('createVariations')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => onEditAction(image, 'crop')}>
                       <Crop className="h-4 w-4 mr-2" />
-                      Crop & Transform
+                      {t('cropTransform')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEditAction(image, 'adjust')}>
                       <SlidersHorizontal className="h-4 w-4 mr-2" />
-                      Adjust Colors
+                      {t('adjustColors')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEditAction(image, 'upscale')}>
                       <ZoomIn className="h-4 w-4 mr-2" />
-                      Upscale
+                      {t('upscale')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEditAction(image, 'remove-bg')}>
                       <Eraser className="h-4 w-4 mr-2" />
-                      Remove Background
+                      {t('removeBackground')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEditAction(image, 'filter')}>
                       <Palette className="h-4 w-4 mr-2" />
-                      Apply Filter
+                      {t('applyFilter')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEditAction(image, 'text')}>
                       <Type className="h-4 w-4 mr-2" />
-                      Add Text/Watermark
+                      {t('addTextWatermark')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEditAction(image, 'draw')}>
                       <Pencil className="h-4 w-4 mr-2" />
-                      Draw & Annotate
+                      {t('drawAnnotate')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEditAction(image, 'compare')}>
                       <Split className="h-4 w-4 mr-2" />
-                      Compare Images
+                      {t('compareImages')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
@@ -242,16 +334,30 @@ export function ImageGalleryGrid({
                       onClick={() => onDelete(image.id)}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
+                      {t('delete')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
             </div>
-            <CardContent className="p-2">
-              <p className="text-xs text-muted-foreground truncate">
-                {image.prompt}
-              </p>
+            <CardContent className="p-2 space-y-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p className="text-xs text-muted-foreground truncate cursor-default">
+                    {image.prompt}
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="text-xs">{image.prompt}</p>
+                </TooltipContent>
+              </Tooltip>
+              <div className="flex items-center gap-1 flex-wrap">
+                <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{image.model}</Badge>
+                <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">{image.settings.size.replace('x', '×')}</Badge>
+                {image.parentId && (
+                  <Badge variant="default" className="text-[10px] px-1 py-0 h-4">v{image.version || 2}</Badge>
+                )}
+              </div>
             </CardContent>
           </Card>
         ))}

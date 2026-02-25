@@ -25,6 +25,9 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
@@ -80,6 +83,10 @@
   /* Sidebar semi-transparent backgrounds using color-mix for proper blending */
   --sidebar-80: color-mix(in oklch, oklch(0.985 0 0) 80%, transparent);
   --sidebar-70: color-mix(in oklch, oklch(0.985 0 0) 70%, transparent);
+  /* Semantic status colors */
+  --success: oklch(0.55 0.15 145);
+  --warning: oklch(0.75 0.18 85);
+  --info: oklch(0.55 0.15 230);
 }
 
 .dark {
@@ -117,6 +124,10 @@
   /* Sidebar semi-transparent backgrounds using color-mix for proper blending */
   --sidebar-80: color-mix(in oklch, oklch(0.205 0 0) 80%, transparent);
   --sidebar-70: color-mix(in oklch, oklch(0.205 0 0) 70%, transparent);
+  /* Semantic status colors */
+  --success: oklch(0.65 0.15 145);
+  --warning: oklch(0.78 0.15 85);
+  --info: oklch(0.65 0.15 230);
 }
 
 /* Color Theme Presets */
@@ -1217,9 +1228,9 @@ html.has-bg-image [data-slot="sheet-content"] {
   backdrop-filter: blur(12px);
 }
 
-/* Tooltip content */
+/* Tooltip content — uses inverted colors (bg-foreground text-background) */
 html.has-bg-image [data-slot="tooltip-content"] {
-  background-color: color-mix(in oklch, var(--popover) 90%, transparent) !important;
+  background-color: color-mix(in oklch, var(--foreground) 90%, transparent) !important;
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
@@ -1323,6 +1334,84 @@ html.has-bg-image [data-slot="sidebar-widget"] {
 /* Badge components */
 html.has-bg-image [data-slot="badge"] {
   background-color: color-mix(in oklch, var(--secondary) 70%, transparent) !important;
+}
+
+/* Table components */
+html.has-bg-image [data-slot="table-footer"] {
+  background-color: color-mix(in oklch, var(--muted) 80%, transparent) !important;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+html.has-bg-image [data-slot="table-row"]:hover {
+  background-color: color-mix(in oklch, var(--muted) 40%, transparent) !important;
+}
+html.has-bg-image [data-slot="table-row"][data-state="selected"] {
+  background-color: color-mix(in oklch, var(--muted) 60%, transparent) !important;
+}
+
+/* Tag Input */
+html.has-bg-image [data-slot="tag-input"] {
+  background-color: color-mix(in oklch, var(--background) 80%, transparent) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Toast (custom toaster) */
+html.has-bg-image [data-slot="toast"] {
+  background-color: color-mix(in oklch, var(--background) 85%, transparent) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* ButtonGroupText */
+html.has-bg-image [data-slot="button-group-text"] {
+  background-color: color-mix(in oklch, var(--muted) 80%, transparent) !important;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+/* Loading overlay */
+html.has-bg-image [data-slot="loading-overlay"] {
+  background-color: color-mix(in oklch, var(--background) 85%, transparent) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* Thinking indicator */
+html.has-bg-image [data-slot="thinking-indicator"] {
+  background-color: color-mix(in oklch, var(--muted) 80%, transparent) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Kbd */
+html.has-bg-image [data-slot="kbd"] {
+  background-color: color-mix(in oklch, var(--muted) 70%, transparent) !important;
+}
+
+/* Separator */
+html.has-bg-image [data-slot="separator"] {
+  background-color: color-mix(in oklch, var(--border) 60%, transparent) !important;
+}
+
+/* Resizable handle */
+html.has-bg-image [data-slot="resizable-handle"] {
+  background-color: color-mix(in oklch, var(--border) 60%, transparent) !important;
+}
+
+/* Avatar fallback */
+html.has-bg-image [data-slot="avatar-fallback"] {
+  background-color: color-mix(in oklch, var(--muted) 80%, transparent) !important;
+}
+
+/* Progress track */
+html.has-bg-image [data-slot="progress"] {
+  background-color: color-mix(in oklch, var(--primary) 15%, transparent) !important;
+}
+
+/* Slider track */
+html.has-bg-image [data-slot="slider-track"] {
+  background-color: color-mix(in oklch, var(--muted) 70%, transparent) !important;
 }
 
 /* Background attachment support */

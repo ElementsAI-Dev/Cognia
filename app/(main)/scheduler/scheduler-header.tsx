@@ -72,7 +72,7 @@ export function SchedulerHeader({
                 </span>
                 {activePluginCount > 0 && (
                   <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
-                    {activePluginCount} plugin
+                    {t('activePlugins', { count: activePluginCount })}
                   </Badge>
                 )}
               </div>

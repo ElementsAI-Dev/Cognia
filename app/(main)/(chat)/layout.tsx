@@ -3,39 +3,18 @@
 /**
  * Chat layout — unified layout wrapping chat pages with sidebar and panels.
  *
- * Uses shadcn/ui SidebarProvider + AppSidebar (feature-rich sidebar) inside
- * AppShell (provides mobile swipe gestures, offline banner, network indicator,
- * mobile bottom nav).
+ * Delegates to ChatShell which composes SidebarProvider, AppShell, AppSidebar,
+ * panels, and error boundary into a single reusable component.
  *
- * All chat route pages rendered as children inherit this layout.
+ * @see components/layout/shell/chat-shell.tsx
  */
 
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { AppShell } from '@/components/layout/shell/app-shell';
-import { AppSidebar } from '@/components/sidebar';
-import { ArtifactPanel } from '@/components/artifacts';
-import { CanvasPanel } from '@/components/canvas';
-import { BackgroundAgentPanel, AgentTeamPanelSheet } from '@/components/agent';
-import { ErrorBoundaryProvider } from '@/components/providers/core';
+import { ChatShell } from '@/components/layout/shell/chat-shell';
 
 export default function ChatLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <ErrorBoundaryProvider>
-      <SidebarProvider>
-        <AppShell sidebar={<AppSidebar />}>
-          <SidebarInset>
-            {children}
-          </SidebarInset>
-          <ArtifactPanel />
-          <CanvasPanel />
-          <BackgroundAgentPanel />
-          <AgentTeamPanelSheet />
-        </AppShell>
-      </SidebarProvider>
-    </ErrorBoundaryProvider>
-  );
+  return <ChatShell>{children}</ChatShell>;
 }

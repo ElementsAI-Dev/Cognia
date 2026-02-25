@@ -11,6 +11,7 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+import { loggers } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -219,7 +220,7 @@ export function BatchExportDialog({
       onExport?.(selectedImages.length);
       onOpenChange(false);
     } catch (error) {
-      console.error('Export failed:', error);
+      loggers.media.error('Export failed', error);
     } finally {
       setIsExporting(false);
       setProgress(0);

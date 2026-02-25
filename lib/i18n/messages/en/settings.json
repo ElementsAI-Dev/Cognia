@@ -598,7 +598,10 @@
     "nameRequired": "Theme name is required",
     "nameTooLong": "Name must be {max} characters or less",
     "nameInvalidChars": "Name contains invalid characters",
-    "nameDuplicate": "A theme with this name already exists"
+    "nameDuplicate": "A theme with this name already exists",
+    "previewUserMessage": "Hello!",
+    "previewAIMessage": "Hi! How can I help?",
+    "previewInputPlaceholder": "Type a message..."
   },
   "customThemeEditor": {
     "editTheme": "Edit Theme",
@@ -1052,6 +1055,9 @@
     "apply": "Apply",
     "supportedFormats": "Supports PNG, JPG, WebP, GIF formats",
     "clickToSelectFile": "Click to select image file",
+    "uploading": "Uploading...",
+    "uploadError": "Failed to upload file",
+    "invalidImageUrl": "Invalid image URL",
     "fit": "Fit",
     "fitCover": "Cover",
     "fitContain": "Contain",
@@ -1295,7 +1301,8 @@
     "hideMessageTimestamps": "Hide message timestamps",
     "hideTokenCount": "Hide token count",
     "shortcutSettings": "Keyboard Shortcut",
-    "shortcutHint": "Press this shortcut to toggle simplified mode"
+    "shortcutHint": "Press this shortcut to toggle simplified mode",
+    "shortcutValue": "Shortcut"
   },
 
   "chatSettings": {

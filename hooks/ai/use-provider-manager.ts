@@ -20,6 +20,7 @@ import {
 } from '@/lib/ai/infrastructure/provider-manager';
 import type { QuotaStatus } from '@/lib/ai/infrastructure/quota-manager';
 import type { AvailabilityStatus } from '@/lib/ai/infrastructure/availability-monitor';
+import type { LoadBalancerState, ProviderLoadMetrics } from '@/types/provider/load-balancer';
 
 export interface QuotaAlertInfo {
   providerId: string;
@@ -72,6 +73,10 @@ export interface UseProviderManagerReturn {
   quotaAlerts: QuotaAlertInfo[];
   /** Provider availability changes */
   availabilityChanges: { providerId: string; status: AvailabilityStatus }[];
+  /** Get load balancer state snapshot for monitoring */
+  getLoadBalancerState: () => LoadBalancerState | null;
+  /** Get load metrics for a specific provider */
+  getProviderLoadMetrics: (providerId: string) => ProviderLoadMetrics | null;
 }
 
 /**
@@ -274,6 +279,54 @@ export function useProviderManager(
     summary,
     quotaAlerts,
     availabilityChanges,
+    getLoadBalancerState: () => {
+      if (!managerInstance) return null;
+      const states = managerInstance.getAllProviderStates();
+      const metrics: Record<string, ProviderLoadMetrics> = {};
+      states.forEach((state, id) => {
+        metrics[id] = {
+          providerId: id,
+          activeConnections: 0,
+          totalRequests: state.metrics?.totalRequests ?? 0,
+          totalErrors: state.metrics?.totalErrors ?? 0,
+          averageLatency: state.metrics?.averageLatency ?? 0,
+          lastLatency: state.metrics?.lastLatency ?? 0,
+          lastRequestTime: state.metrics?.lastRequestTime ?? 0,
+          successRate: state.metrics?.successRate ?? 1,
+          isHealthy: state.circuitState !== 'open',
+          isAvailable: state.enabled && state.circuitState !== 'open',
+        };
+      });
+      const circuitStates: Record<string, 'closed' | 'open' | 'half_open'> = {};
+      states.forEach((state, id) => {
+        circuitStates[id] = state.circuitState as 'closed' | 'open' | 'half_open';
+      });
+      return {
+        activeStrategy: 'adaptive' as const,
+        metrics,
+        currentProvider: null,
+        alternatives: [],
+        circuitStates,
+        lastSelection: Date.now(),
+      };
+    },
+    getProviderLoadMetrics: (providerId: string) => {
+      if (!managerInstance) return null;
+      const state = managerInstance.getProviderState(providerId);
+      if (!state) return null;
+      return {
+        providerId,
+        activeConnections: 0,
+        totalRequests: state.metrics?.totalRequests ?? 0,
+        totalErrors: state.metrics?.totalErrors ?? 0,
+        averageLatency: state.metrics?.averageLatency ?? 0,
+        lastLatency: state.metrics?.lastLatency ?? 0,
+        lastRequestTime: state.metrics?.lastRequestTime ?? 0,
+        successRate: state.metrics?.successRate ?? 1,
+        isHealthy: state.circuitState !== 'open',
+        isAvailable: state.enabled && state.circuitState !== 'open',
+      };
+    },
   };
 }
 

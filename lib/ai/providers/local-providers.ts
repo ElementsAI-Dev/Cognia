@@ -7,6 +7,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import type { ProviderName } from '@/types/provider';
+import { LOCAL_PROVIDER_PORTS, LOCAL_PROVIDER_URLS, isLocalProviderName, type LocalProviderName } from '@/types/provider/local-provider';
 
 /**
  * Check if running in Tauri environment
@@ -180,6 +181,27 @@ export const LOCAL_PROVIDER_CONFIGS: Record<string, LocalProviderConfig> = {
     website: 'https://github.com/theroyallab/tabbyAPI',
   },
 };
+
+/**
+ * Get default base URL for a local provider from canonical type definitions.
+ * Falls back to LOCAL_PROVIDER_CONFIGS if provider is unknown.
+ */
+export function getDefaultLocalProviderUrl(providerId: ProviderName): string {
+  if (isLocalProviderName(providerId)) {
+    return LOCAL_PROVIDER_URLS[providerId as LocalProviderName];
+  }
+  return LOCAL_PROVIDER_CONFIGS[providerId]?.defaultBaseURL || '';
+}
+
+/**
+ * Get default port for a local provider from canonical type definitions.
+ */
+export function getDefaultLocalProviderPort(providerId: ProviderName): number {
+  if (isLocalProviderName(providerId)) {
+    return LOCAL_PROVIDER_PORTS[providerId as LocalProviderName];
+  }
+  return LOCAL_PROVIDER_CONFIGS[providerId]?.defaultPort || 0;
+}
 
 /**
  * Normalize base URL - remove trailing slashes

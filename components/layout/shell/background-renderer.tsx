@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSettingsStore } from '@/stores';
 import { BACKGROUND_PRESETS, getRenderableLayers } from '@/lib/themes';
 import type { BackgroundLayerSettings } from '@/lib/themes';
+import { BACKGROUND_SIZE_MAP, BACKGROUND_POSITION_MAP } from '@/lib/themes/background-maps';
 import { isTauri } from '@/lib/native/utils';
 
 function resolveBackgroundValue(layer: BackgroundLayerSettings): string {
@@ -443,25 +444,6 @@ export function BackgroundRenderer() {
         const backgroundValue = resolveBackgroundValue(effectiveLayer);
         if (!backgroundValue) return null;
 
-        const sizeMap: Record<string, string> = {
-          cover: 'cover',
-          contain: 'contain',
-          fill: '100% 100%',
-          tile: 'auto',
-        };
-
-        const positionMap: Record<string, string> = {
-          center: 'center center',
-          top: 'center top',
-          bottom: 'center bottom',
-          left: 'left center',
-          right: 'right center',
-          'top-left': 'left top',
-          'top-right': 'right top',
-          'bottom-left': 'left bottom',
-          'bottom-right': 'right bottom',
-        };
-
         const attachmentMap: Record<string, string> = {
           fixed: 'fixed',
           scroll: 'scroll',
@@ -488,9 +470,11 @@ export function BackgroundRenderer() {
           backgroundValue.startsWith('linear-gradient') ||
           backgroundValue.startsWith('radial-gradient');
 
-        const backgroundSize = isGradient ? undefined : (sizeMap[layer.fit] ?? 'cover');
+        const fitKey = layer.fit as keyof typeof BACKGROUND_SIZE_MAP;
+        const posKey = layer.position as keyof typeof BACKGROUND_POSITION_MAP;
+        const backgroundSize = isGradient ? undefined : (BACKGROUND_SIZE_MAP[fitKey] ?? 'cover');
         const backgroundRepeat = layer.fit === 'tile' ? 'repeat' : 'no-repeat';
-        const backgroundPosition = positionMap[layer.position] ?? 'center center';
+        const backgroundPosition = BACKGROUND_POSITION_MAP[posKey] ?? 'center center';
 
         return (
           <div key={entry.key} style={{ position: 'absolute', inset: 0 }}>

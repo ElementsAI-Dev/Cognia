@@ -8,6 +8,7 @@ mod chat_runtime;
 mod chat_widget;
 mod commands;
 mod context;
+mod convex;
 mod external_agent;
 mod http;
 mod input_completion;
@@ -929,6 +930,12 @@ pub fn run() {
             app.manage(acp_terminal_state);
             log::info!("ACP terminal state initialized");
 
+            // Initialize Convex State
+            let convex_config_path = app_data_dir.join("convex_config.json");
+            let convex_state = convex::ConvexState::new(convex_config_path);
+            app.manage(convex_state);
+            log::info!("Convex state initialized");
+
             // Setup splash screen and main window with real progress events
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -1091,6 +1098,11 @@ pub fn run() {
             commands::storage::vector::vector_search_points,
             commands::storage::vector::vector_scroll_points,
             commands::storage::vector::vector_stats,
+            // Convex cloud sync commands
+            commands::cloud::convex::convex_get_config,
+            commands::cloud::convex::convex_set_config,
+            commands::cloud::convex::convex_test_connection,
+            commands::cloud::convex::convex_is_connected,
             // Chat runtime sqlite commands
             chat_runtime::commands::chat_db_upsert_session,
             chat_runtime::commands::chat_db_upsert_sessions_batch,

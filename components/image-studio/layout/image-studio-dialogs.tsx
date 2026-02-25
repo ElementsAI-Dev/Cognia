@@ -8,6 +8,7 @@ import {
   Split,
   Wand2,
 } from 'lucide-react';
+import { loggers } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -200,7 +201,7 @@ export function ImageStudioDialogs({
           timestamp: img.timestamp,
         }))}
         onExport={(count) => {
-          console.log(`Exported ${count} images`);
+          loggers.media.info(`Exported ${count} images`);
         }}
       />
     </>

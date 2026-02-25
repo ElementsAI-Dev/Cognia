@@ -21,6 +21,7 @@ import type {
   ProviderHealth,
   EnhancedProvider,
 } from '@/types/provider';
+import { createCogniaProviderRegistry, type CogniaProviderRegistry } from '@/lib/ai/core/provider-registry';
 
 // Re-export types for backward compatibility
 export type {
@@ -303,6 +304,7 @@ export function ProviderProvider({
   const [providers, setProviders] = useState<Record<string, EnhancedProvider>>({});
   const providersRef = useRef<Record<string, EnhancedProvider>>({});
   const healthCheckTimestampsRef = useRef<Record<string, number>>({});
+  const registryRef = useRef<CogniaProviderRegistry | null>(null);
   const MIN_HEALTH_CHECK_INTERVAL = 30000; // Minimum 30 seconds between health checks per provider
 
   // Keep ref in sync with state
@@ -359,7 +361,19 @@ export function ProviderProvider({
 
       return enhancedProviders;
     });
-  }, [providerSettings, customProviders]);
+
+    // Initialize the provider registry from current settings
+    const registryProviders: Partial<Record<string, { apiKey: string; baseURL?: string }>> = {};
+    Object.entries(providerSettings).forEach(([id, settings]) => {
+      if (settings.enabled && settings.apiKey) {
+        registryProviders[id] = { apiKey: settings.apiKey, baseURL: settings.baseURL };
+      }
+    });
+    registryRef.current = createCogniaProviderRegistry({
+      providers: registryProviders as Parameters<typeof createCogniaProviderRegistry>[0]['providers'],
+      defaultProvider: defaultProvider as Parameters<typeof createCogniaProviderRegistry>[0]['defaultProvider'],
+    });
+  }, [providerSettings, customProviders, defaultProvider]);
 
   // Health check function - client-side implementation with rate limiting
   const checkProviderHealth = useCallback(

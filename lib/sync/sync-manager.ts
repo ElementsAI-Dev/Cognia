@@ -181,6 +181,18 @@ class SyncManager {
     this.providerType = 'googledrive';
   }
 
+  /**
+   * Initialize with Convex provider
+   */
+  async initConvex(deployKey: string): Promise<void> {
+    const { useSyncStore } = await import('@/stores/sync');
+    const config = useSyncStore.getState().convexConfig;
+    
+    const { ConvexProvider } = await import('./providers/convex-provider');
+    this.provider = new ConvexProvider(config, deployKey);
+    this.providerType = 'convex';
+  }
+
   private resolveProviderType(stateProvider: SyncProviderType | null): SyncProviderType | null {
     return this.providerType || stateProvider;
   }
@@ -192,6 +204,7 @@ class SyncManager {
     if (provider === 'webdav') return state.webdavConfig;
     if (provider === 'github') return state.githubConfig;
     if (provider === 'googledrive') return state.googleDriveConfig;
+    if (provider === 'convex') return state.convexConfig;
     return null;
   }
 
@@ -228,6 +241,13 @@ class SyncManager {
           return { success: false, error: 'No Google Drive credential configured' };
         }
         await this.initGoogleDrive(token);
+      } else if (provider === 'convex') {
+        const { getConvexDeployKey } = await import('./credential-storage');
+        const deployKey = await getConvexDeployKey();
+        if (!deployKey) {
+          return { success: false, error: 'No Convex deploy key configured' };
+        }
+        await this.initConvex(deployKey);
       }
 
       return { success: true };

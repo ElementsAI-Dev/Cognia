@@ -102,7 +102,12 @@
     "deleteConfirmTitle": "Delete conversation?",
     "deleteConfirmDescription": "\"{title}\" and all its messages will be permanently deleted.",
     "deleteAllConfirmTitle": "Delete all conversations?",
-    "deleteAllConfirmDescription": "{count} conversations and all their messages will be permanently deleted."
+    "deleteAllConfirmDescription": "{count} conversations and all their messages will be permanently deleted.",
+    "selectAll": "Select All",
+    "selectedCount": "{count} selected",
+    "bulkDeleteConfirmTitle": "Delete selected conversations?",
+    "bulkDeleteConfirmDescription": "{count} conversations and all their messages will be permanently deleted.",
+    "multiSelectHint": "Ctrl+click to select, Shift+click for range"
   },
   "mobileNav": {
     "home": "Home",

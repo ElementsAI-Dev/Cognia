@@ -38,7 +38,15 @@
       "learningType": "学习类型",
       "autoDetected": "自动检测",
       "estimatedDuration": "预计学习时长",
-      "journeyHint": "系统学习会创建学习路径，包含里程碑和进度跟踪"
+      "journeyHint": "系统学习会创建学习路径，包含里程碑和进度跟踪",
+      "pathType": "学习路径类型",
+      "pathSocratic": "Socratic",
+      "pathSocraticDesc": "对话式引导理解与拆解",
+      "pathSpeedpass": "SpeedPass",
+      "pathSpeedpassDesc": "目标导向备考与刷题速通",
+      "availableMinutes": "可用时长（分钟）",
+      "targetScore": "目标分数",
+      "examDate": "考试日期"
     },
     "learningType": {
       "quick": "快速学习",

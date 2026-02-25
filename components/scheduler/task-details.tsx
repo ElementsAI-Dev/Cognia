@@ -54,13 +54,13 @@ interface TaskDetailsProps {
   isPluginExecutionActive?: (executionId: string) => boolean;
 }
 
-const executionStatusConfig: Record<TaskExecutionStatus, { label: string; color: string; icon: React.ReactNode }> = {
-  pending: { label: 'Pending', color: 'bg-gray-500/10 text-gray-500', icon: <Clock className="h-3 w-3" /> },
-  running: { label: 'Running', color: 'bg-blue-500/10 text-blue-500', icon: <RefreshCw className="h-3 w-3 animate-spin" /> },
-  completed: { label: 'Completed', color: 'bg-green-500/10 text-green-500', icon: <CheckCircle className="h-3 w-3" /> },
-  failed: { label: 'Failed', color: 'bg-red-500/10 text-red-500', icon: <XCircle className="h-3 w-3" /> },
-  cancelled: { label: 'Cancelled', color: 'bg-yellow-500/10 text-yellow-500', icon: <AlertCircle className="h-3 w-3" /> },
-  skipped: { label: 'Skipped', color: 'bg-orange-500/10 text-orange-500', icon: <AlertCircle className="h-3 w-3" /> },
+const executionStatusConfig: Record<TaskExecutionStatus, { labelKey: string; color: string; icon: React.ReactNode }> = {
+  pending: { labelKey: 'executionStatuses.pending', color: 'bg-gray-500/10 text-gray-500', icon: <Clock className="h-3 w-3" /> },
+  running: { labelKey: 'executionStatuses.running', color: 'bg-blue-500/10 text-blue-500', icon: <RefreshCw className="h-3 w-3 animate-spin" /> },
+  completed: { labelKey: 'executionStatuses.completed', color: 'bg-green-500/10 text-green-500', icon: <CheckCircle className="h-3 w-3" /> },
+  failed: { labelKey: 'executionStatuses.failed', color: 'bg-red-500/10 text-red-500', icon: <XCircle className="h-3 w-3" /> },
+  cancelled: { labelKey: 'executionStatuses.cancelled', color: 'bg-yellow-500/10 text-yellow-500', icon: <AlertCircle className="h-3 w-3" /> },
+  skipped: { labelKey: 'executionStatuses.skipped', color: 'bg-orange-500/10 text-orange-500', icon: <AlertCircle className="h-3 w-3" /> },
 };
 
 export function TaskDetails({
@@ -82,20 +82,20 @@ export function TaskDetails({
       case 'cron':
         return task.trigger.cronExpression 
           ? describeCronExpression(task.trigger.cronExpression)
-          : 'Invalid cron expression';
+          : t('triggerDescCronInvalid');
       case 'interval':
         const minutes = (task.trigger.intervalMs || 0) / 60000;
-        return `Every ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+        return t('triggerDescInterval', { minutes });
       case 'once':
         return task.trigger.runAt 
-          ? `Once at ${task.trigger.runAt.toLocaleString()}`
-          : 'One-time (no date set)';
+          ? t('triggerDescOnce', { time: task.trigger.runAt.toLocaleString() })
+          : t('triggerDescOnceNoDate');
       case 'event':
-        return `On event: ${task.trigger.eventType || 'Not configured'}`;
+        return t('triggerDescEvent', { type: task.trigger.eventType || t('triggerDescEventNotConfigured') });
       default:
-        return 'Unknown trigger type';
+        return t('triggerDescUnknown');
     }
-  }, [task.trigger]);
+  }, [task.trigger, t]);
 
   const successRate = useMemo(() => {
     const total = task.successCount + task.failureCount;
@@ -135,7 +135,7 @@ export function TaskDetails({
                   task.status === 'expired' && 'border-red-500/30 bg-red-500/10 text-red-500'
                 )}
               >
-                {task.status}
+                {t(`statuses.${task.status}`)}
               </Badge>
             </div>
             {task.description && (
@@ -424,7 +424,7 @@ const EXECUTIONS_PAGE_SIZE = 10;
 
 interface ExecutionHistoryProps {
   executions: TaskExecution[];
-  executionStatusConfig: Record<string, { icon: React.ReactNode; label: string; color: string }>;
+  executionStatusConfig: Record<string, { icon: React.ReactNode; labelKey: string; color: string }>;
   isPluginExecutionActive?: (id: string) => boolean;
   onCancelPluginExecution?: (id: string) => void;
   t: ReturnType<typeof useTranslations>;
@@ -467,10 +467,10 @@ function ExecutionHistory({
                 <div className="mt-0.5 shrink-0">{status.icon}</div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className={cn('text-xs font-medium', status.color.split(' ').find(c => c.startsWith('text-')))}>{status.label}</span>
+                    <span className={cn('text-xs font-medium', status.color.split(' ').find(c => c.startsWith('text-')))}>{t(status.labelKey)}</span>
                     {execution.retryAttempt > 0 && (
                       <Badge variant="outline" className="h-4 px-1 text-[10px]">
-                        Retry #{execution.retryAttempt}
+                        {t('retryAttempt', { attempt: execution.retryAttempt })}
                       </Badge>
                     )}
                   </div>

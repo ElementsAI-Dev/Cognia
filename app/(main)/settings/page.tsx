@@ -53,6 +53,7 @@ import {
   InputGroupInput,
   InputGroupButton,
 } from '@/components/ui/input-group';
+import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
 import {
   Dialog,
@@ -223,6 +224,7 @@ function SettingsSidebar({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="text-sm"
+              autoComplete="off"
             />
             {searchQuery && (
               <InputGroupAddon align="inline-end">
@@ -828,7 +830,10 @@ export default function SettingsPage() {
         ) : (
           <ScrollArea className="flex-1 min-h-0">
             <div className="p-4 lg:p-6" data-settings-panel>
-              <div className="mx-auto max-w-5xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <div className={cn(
+                'mx-auto animate-in fade-in slide-in-from-bottom-2 duration-200',
+                activeSection === 'prompt-templates' ? 'max-w-7xl' : 'max-w-5xl'
+              )}>
                 {renderContent()}
               </div>
             </div>

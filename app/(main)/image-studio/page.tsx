@@ -7,7 +7,6 @@
 
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { cn } from '@/lib/utils';
 import { useSettingsStore, useImageStudioStore } from '@/stores';
 import {
   HistoryPanel,
@@ -22,6 +21,8 @@ import { useImageEditorShortcuts, useAdvancedImageEditor, useBatchProcessor } fr
 import { useImageGeneration } from '@/hooks/media';
 import { toHistoryOperationType, type GeneratedImageWithMeta } from '@/lib/image-studio';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { loggers } from '@/lib/logger';
 import {
   downloadImageAsBlob,
   saveImageToFile,
@@ -30,6 +31,8 @@ import {
   type ImageQuality,
   type ImageStyle,
 } from '@/lib/ai';
+import { generateImageWithSDK } from '@/lib/ai/media/image-generation-sdk';
+import type { ImageSizeOption, ImageQualityOption } from '@/lib/ai/media/image-generation-sdk';
 import { useBatchEditStore } from '@/stores/media';
 
 export default function ImageStudioPage() {
@@ -51,19 +54,28 @@ export default function ImageStudioPage() {
     redo: storeRedo,
     canUndo,
     canRedo,
-    prompt: storePrompt,
-    negativePrompt: storeNegativePrompt,
-    setPrompt: setStorePrompt,
-    setNegativePrompt: setStoreNegativePrompt,
+    prompt,
+    negativePrompt,
+    setPrompt,
+    setNegativePrompt,
     activeTab: storeActiveTab,
-    viewMode: storeViewMode,
-    setViewMode: setStoreViewMode,
-    showSidebar: storeShowSidebar,
-    filterFavorites: storeFilterFavorites,
-    setFilterFavorites: setStoreFilterFavorites,
-    gridZoomLevel,
-    setGridZoomLevel,
-    showSettings: storeShowSettings,
+    setActiveTab: setStoreActiveTab,
+    viewMode,
+    setViewMode,
+    showSidebar,
+    setShowSidebar,
+    showSettings,
+    setShowSettings,
+    showHistory,
+    setShowHistory,
+    filterFavorites,
+    setFilterFavorites,
+    gridZoomLevel: zoomLevel,
+    setGridZoomLevel: setZoomLevel,
+    searchQuery,
+    setSearchQuery,
+    generationSettings,
+    updateGenerationSettings,
     // Layers
     layers: storeLayers,
     activeLayerId: storeActiveLayerId,
@@ -74,31 +86,24 @@ export default function ImageStudioPage() {
     reorderLayers,
   } = useImageStudioStore();
 
-  // ─── Local State (synced with store) ───────────────────────────────
-  const [prompt, setPrompt] = useState(storePrompt);
-  const [negativePrompt, setNegativePrompt] = useState(storeNegativePrompt);
-  const [activeTab, setActiveTab] = useState<'generate' | 'edit' | 'variations'>(
-    storeActiveTab === 'generate' || storeActiveTab === 'edit' || storeActiveTab === 'variations'
-      ? storeActiveTab
-      : 'generate'
-  );
-  const [viewMode, setViewMode] = useState<'grid' | 'single'>(storeViewMode);
-  const [showSidebar, setShowSidebar] = useState(storeShowSidebar);
-  const [filterFavorites, setFilterFavorites] = useState(storeFilterFavorites);
-  const [zoomLevel, setZoomLevel] = useState(gridZoomLevel ?? 2);
-  const [showSettings, setShowSettings] = useState(storeShowSettings);
-  const [showHistory, setShowHistory] = useState(false);
+  // Derive activeTab (store has wider union, page only uses 3 values)
+  const activeTab = (storeActiveTab === 'generate' || storeActiveTab === 'edit' || storeActiveTab === 'variations')
+    ? storeActiveTab : 'generate';
+  const setActiveTab = useCallback((tab: 'generate' | 'edit' | 'variations') => setStoreActiveTab(tab), [setStoreActiveTab]);
 
-  // Generation state
+  // Generation state (transient, not persisted)
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Settings
-  const [model, setModel] = useState<'dall-e-3' | 'dall-e-2' | 'gpt-image-1'>('dall-e-3');
-  const [size, setSize] = useState<ImageSize>('1024x1024');
-  const [quality, setQuality] = useState<ImageQuality>('standard');
-  const [style, setStyle] = useState<ImageStyle>('vivid');
-  const [numberOfImages, setNumberOfImages] = useState(1);
+  // Derive generation settings from store
+  const { provider, model, size, quality, style, numberOfImages, seed } = generationSettings;
+  const setProvider = (p: typeof provider) => updateGenerationSettings({ provider: p });
+  const setModel = (m: string) => updateGenerationSettings({ model: m });
+  const setSize = (s: ImageSize) => updateGenerationSettings({ size: s });
+  const setQuality = (q: ImageQuality) => updateGenerationSettings({ quality: q });
+  const setStyle = (s: ImageStyle) => updateGenerationSettings({ style: s });
+  const setNumberOfImages = (n: number) => updateGenerationSettings({ numberOfImages: n });
+  const setSeed = (s: number | null) => updateGenerationSettings({ seed: s });
 
   // Edit mode state
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
@@ -122,13 +127,6 @@ export default function ImageStudioPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const maskInputRef = useRef<HTMLInputElement>(null);
   const variationInputRef = useRef<HTMLInputElement>(null);
-
-  // ─── Sync local state → store ──────────────────────────────────────
-  useEffect(() => { setStorePrompt(prompt); }, [prompt, setStorePrompt]);
-  useEffect(() => { setStoreNegativePrompt(negativePrompt); }, [negativePrompt, setStoreNegativePrompt]);
-  useEffect(() => { setStoreViewMode(viewMode); }, [viewMode, setStoreViewMode]);
-  useEffect(() => { setStoreFilterFavorites(filterFavorites); }, [filterFavorites, setStoreFilterFavorites]);
-  useEffect(() => { setGridZoomLevel(zoomLevel); }, [zoomLevel, setGridZoomLevel]);
 
   // ─── Derived Data ──────────────────────────────────────────────────
   const generatedImages: GeneratedImageWithMeta[] = useMemo(
@@ -155,8 +153,13 @@ export default function ImageStudioPage() {
   }, [generatedImages, selectedImageId]);
 
   const displayedImages = useMemo(() => {
-    return filterFavorites ? generatedImages.filter((img) => img.isFavorite) : generatedImages;
-  }, [generatedImages, filterFavorites]);
+    let filtered = filterFavorites ? generatedImages.filter((img) => img.isFavorite) : generatedImages;
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      filtered = filtered.filter((img) => img.prompt.toLowerCase().includes(q) || img.model.toLowerCase().includes(q));
+    }
+    return filtered;
+  }, [generatedImages, filterFavorites, searchQuery]);
 
   const estimatedCost = estimateImageCost(model, size, quality, model === 'dall-e-3' ? 1 : numberOfImages);
 
@@ -164,17 +167,30 @@ export default function ImageStudioPage() {
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const openaiApiKey = providerSettings.openai?.apiKey;
 
+  // Get API key based on selected provider
+  const getProviderApiKey = useCallback((): string | undefined => {
+    const providerKeyMap: Record<string, string> = {
+      openai: 'openai',
+      xai: 'xai',
+      together: 'together',
+      fireworks: 'fireworks',
+      deepinfra: 'deepinfra',
+    };
+    const settingsKey = providerKeyMap[provider] || provider;
+    return providerSettings[settingsKey]?.apiKey;
+  }, [provider, providerSettings]);
+
   const imageGen = useImageGeneration({ defaultSize: size, defaultQuality: quality, defaultStyle: style });
   const advancedEditor = useAdvancedImageEditor({ useWorker: true, useWebGL: true });
   const batchProcessor = useBatchProcessor({
-    onJobComplete: (jobId) => console.log(`Batch job ${jobId} completed`),
+    onJobComplete: (jobId) => loggers.media.info(`Batch job ${jobId} completed`),
     onImageComplete: (_jobId, _imageId, outputPath) => {
       if (!outputPath) {
         return;
       }
       addImage({ url: outputPath, prompt: 'Batch processed', model, size, quality, style });
     },
-    onImageError: (_jobId, imageId, err) => console.error(`Batch image ${imageId} failed:`, err),
+    onImageError: (_jobId, imageId, err) => loggers.media.error(`Batch image ${imageId} failed`, new Error(err)),
   });
   const { presets: batchPresets } = useBatchEditStore();
 
@@ -198,30 +214,52 @@ export default function ImageStudioPage() {
   // ─── Handlers ──────────────────────────────────────────────────────
 
   const handleGenerate = useCallback(async () => {
-    if (!prompt.trim() || !openaiApiKey) {
-      if (!openaiApiKey) setError(t('noApiKey'));
+    const apiKey = getProviderApiKey();
+    if (!prompt.trim() || !apiKey) {
+      if (!apiKey) setError(t('noApiKey'));
       return;
     }
     setIsGenerating(true); setError(null);
     try {
       const n = model === 'dall-e-3' ? 1 : numberOfImages;
-      const result = await imageGen.generate(
-        prompt.trim() + (negativePrompt ? ` Avoid: ${negativePrompt}` : ''),
-        { model, size, quality, style, n }
-      );
-      if (!result?.length) { setError(imageGen.error || 'Failed to generate image'); return; }
-      const ids: string[] = [];
-      for (const img of result) {
-        ids.push(addImage({ url: img.url, base64: img.base64, revisedPrompt: img.revisedPrompt, prompt: prompt.trim(), model, size, quality, style }));
-      }
-      if (ids.length > 0) {
-        selectImage(ids[0]);
-        addToHistory({ type: 'generate', imageId: ids[0], description: `Generated: ${prompt.trim().substring(0, 50)}...` });
+      const fullPrompt = prompt.trim() + (negativePrompt ? ` Avoid: ${negativePrompt}` : '');
+
+      if (provider === 'openai') {
+        // Use legacy OpenAI hook for backward compatibility
+        const result = await imageGen.generate(fullPrompt, {
+          model: model as 'dall-e-3' | 'dall-e-2' | 'gpt-image-1',
+          size, quality, style, n,
+        });
+        if (!result?.length) { setError(imageGen.error || 'Failed to generate image'); return; }
+        const ids: string[] = [];
+        for (const img of result) {
+          ids.push(addImage({ url: img.url, base64: img.base64, revisedPrompt: img.revisedPrompt, prompt: prompt.trim(), model, size, quality, style }));
+        }
+        if (ids.length > 0) {
+          selectImage(ids[0]);
+          addToHistory({ type: 'generate', imageId: ids[0], description: `Generated: ${prompt.trim().substring(0, 50)}...` });
+        }
+      } else {
+        // Use SDK for non-OpenAI providers (xAI, Together, Fireworks, DeepInfra)
+        const sdkResult = await generateImageWithSDK(
+          { apiKey },
+          { prompt: fullPrompt, provider, model, size: size as ImageSizeOption, quality: quality as ImageQualityOption, n, seed: seed ?? undefined }
+        );
+        if (!sdkResult.images.length) { setError('Failed to generate image'); return; }
+        const ids: string[] = [];
+        for (const img of sdkResult.images) {
+          const base64DataUrl = `data:image/png;base64,${img.base64}`;
+          ids.push(addImage({ url: base64DataUrl, base64: img.base64, revisedPrompt: img.revisedPrompt, prompt: prompt.trim(), model, size, quality, style }));
+        }
+        if (ids.length > 0) {
+          selectImage(ids[0]);
+          addToHistory({ type: 'generate', imageId: ids[0], description: `Generated: ${prompt.trim().substring(0, 50)}...` });
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate image');
     } finally { setIsGenerating(false); }
-  }, [prompt, negativePrompt, model, size, quality, style, numberOfImages, openaiApiKey, t, imageGen, addImage, selectImage, addToHistory]);
+  }, [prompt, negativePrompt, provider, model, size, quality, style, numberOfImages, seed, getProviderApiKey, t, imageGen, addImage, selectImage, addToHistory]);
 
   const handleEditImage = useCallback(async () => {
     if (!editImageFile || !prompt.trim() || !openaiApiKey) {
@@ -273,7 +311,7 @@ export default function ImageStudioPage() {
       const blob = await downloadImageAsBlob(image.url);
       saveImageToFile(blob, `image-${image.id}.png`);
     } catch (err) {
-      console.error('Download error:', err);
+      loggers.media.error('Download error', err as Error);
     }
   }, []);
 
@@ -288,6 +326,21 @@ export default function ImageStudioPage() {
     onZoomOut: () => setPreviewZoom((z) => Math.max(0.1, z / 1.2)),
     onZoomReset: () => { setPreviewZoom(1); setPreviewPan({ x: 0, y: 0 }); },
     onCancel: () => { if (editingImage) { setEditingImage(null); setEditMode(null); } },
+    onNavigateNext: () => {
+      if (!generatedImages.length) return;
+      const idx = generatedImages.findIndex((img) => img.id === selectedImageId);
+      if (idx < generatedImages.length - 1) selectImage(generatedImages[idx + 1].id);
+    },
+    onNavigatePrev: () => {
+      if (!generatedImages.length) return;
+      const idx = generatedImages.findIndex((img) => img.id === selectedImageId);
+      if (idx > 0) selectImage(generatedImages[idx - 1].id);
+    },
+    onPreview: () => {
+      const img = generatedImages.find((i) => i.id === selectedImageId);
+      if (img) setPreviewImage(img);
+    },
+    onToggleFavorite: () => { if (selectedImageId) toggleFavorite(selectedImageId); },
     enabled: true,
   });
 
@@ -299,8 +352,8 @@ export default function ImageStudioPage() {
       setEditImageFile(new File([blob], 'image.png', { type: 'image/png' }));
       setActiveTab('edit');
       setPrompt('');
-    } catch (err) { console.error('Failed to use image for edit:', err); }
-  }, []);
+    } catch (err) { loggers.media.error('Failed to use image for edit', err as Error); }
+  }, [setActiveTab, setPrompt]);
 
   const handleUseForVariation = useCallback(async (image: GeneratedImageWithMeta) => {
     if (!image.url) return;
@@ -309,8 +362,8 @@ export default function ImageStudioPage() {
       const blob = await response.blob();
       setVariationImage(new File([blob], 'image.png', { type: 'image/png' }));
       setActiveTab('variations');
-    } catch (err) { console.error('Failed to use image for variation:', err); }
-  }, []);
+    } catch (err) { loggers.media.error('Failed to use image for variation', err as Error); }
+  }, [setActiveTab]);
 
   const handleEditAction = useCallback((image: GeneratedImageWithMeta, action: ImageEditAction) => {
     switch (action) {
@@ -377,7 +430,7 @@ export default function ImageStudioPage() {
     setPrompt(image.prompt);
     // Trigger generation after prompt is set
     setTimeout(() => handleGenerate(), 0);
-  }, [handleGenerate]);
+  }, [handleGenerate, setPrompt]);
 
   // ─── Render ────────────────────────────────────────────────────────
   return (
@@ -399,48 +452,63 @@ export default function ImageStudioPage() {
         onShowSidebarChange={setShowSidebar}
         onShowHistoryChange={setShowHistory}
         onExport={() => setShowExportDialog(true)}
+        isGenerating={isGenerating}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
       />
 
-      <div className="flex-1 flex overflow-hidden">
-        <ImageGenerationSidebar
-          show={showSidebar}
-          activeTab={activeTab}
-          onActiveTabChange={setActiveTab}
-          prompt={prompt}
-          onPromptChange={setPrompt}
-          negativePrompt={negativePrompt}
-          onNegativePromptChange={setNegativePrompt}
-          model={model}
-          onModelChange={setModel}
-          size={size}
-          onSizeChange={setSize}
-          quality={quality}
-          onQualityChange={setQuality}
-          style={style}
-          onStyleChange={setStyle}
-          numberOfImages={numberOfImages}
-          onNumberOfImagesChange={setNumberOfImages}
-          estimatedCost={estimatedCost}
-          editImageFile={editImageFile}
-          onEditImageFileChange={setEditImageFile}
-          maskFile={maskFile}
-          onMaskFileChange={setMaskFile}
-          variationImage={variationImage}
-          onVariationImageChange={setVariationImage}
-          fileInputRef={fileInputRef}
-          maskInputRef={maskInputRef}
-          variationInputRef={variationInputRef}
-          isGenerating={isGenerating}
-          error={error}
-          onGenerate={handleGenerate}
-          onEdit={handleEditImage}
-          onCreateVariations={handleCreateVariations}
-          showSettings={showSettings}
-          onShowSettingsChange={setShowSettings}
-        />
+      <ResizablePanelGroup direction="horizontal" className="flex-1 overflow-hidden">
+        {showSidebar && (
+          <>
+          <ResizablePanel defaultSize={25} minSize={18} maxSize={40} className="min-w-0">
+            <ImageGenerationSidebar
+              show={showSidebar}
+              activeTab={activeTab}
+              onActiveTabChange={setActiveTab}
+              prompt={prompt}
+              onPromptChange={setPrompt}
+              negativePrompt={negativePrompt}
+              onNegativePromptChange={setNegativePrompt}
+              provider={provider}
+              onProviderChange={setProvider}
+              model={model}
+              onModelChange={setModel}
+              size={size}
+              onSizeChange={setSize}
+              quality={quality}
+              onQualityChange={setQuality}
+              style={style}
+              onStyleChange={setStyle}
+              numberOfImages={numberOfImages}
+              onNumberOfImagesChange={setNumberOfImages}
+              seed={seed}
+              onSeedChange={setSeed}
+              estimatedCost={estimatedCost}
+              editImageFile={editImageFile}
+              onEditImageFileChange={setEditImageFile}
+              maskFile={maskFile}
+              onMaskFileChange={setMaskFile}
+              variationImage={variationImage}
+              onVariationImageChange={setVariationImage}
+              fileInputRef={fileInputRef}
+              maskInputRef={maskInputRef}
+              variationInputRef={variationInputRef}
+              isGenerating={isGenerating}
+              error={error}
+              onGenerate={handleGenerate}
+              onEdit={handleEditImage}
+              onCreateVariations={handleCreateVariations}
+              showSettings={showSettings}
+              onShowSettingsChange={setShowSettings}
+            />
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          </>
+        )}
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <ResizablePanel defaultSize={showSidebar ? 75 : 100} className="min-w-0">
+        <div className="flex-1 flex flex-col overflow-hidden h-full">
           {viewMode === 'grid' || generatedImages.length === 0 ? (
             <ImageGalleryGrid
               images={displayedImages}
@@ -452,6 +520,9 @@ export default function ImageStudioPage() {
               onDownload={handleDownload}
               onDelete={deleteImage}
               onEditAction={handleEditAction}
+              onApplyTemplate={setPrompt}
+              isGenerating={isGenerating}
+              generatingPrompt={prompt}
             />
           ) : selectedImage ? (
             <ImageDetailView
@@ -488,6 +559,8 @@ export default function ImageStudioPage() {
                 onCancel: batchProcessor.cancelJob,
               }}
               batchPresetsCount={batchPresets.length}
+              allImages={generatedImages}
+              onSelectImage={selectImage}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center">
@@ -495,15 +568,13 @@ export default function ImageStudioPage() {
             </div>
           )}
         </div>
+        </ResizablePanel>
 
         {/* Right Panel - History */}
-        <div
-          className={cn(
-            'border-l flex flex-col shrink-0 transition-all duration-300',
-            showHistory ? 'w-72' : 'w-0 overflow-hidden'
-          )}
-        >
-          {showHistory && (
+        {showHistory && (
+          <>
+          <ResizableHandle />
+          <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="min-w-0">
             <HistoryPanel
               entries={editHistory.map((entry, idx) => ({
                 id: `${entry.imageId}-${idx}`,
@@ -523,9 +594,10 @@ export default function ImageStudioPage() {
               canUndo={canUndo()}
               canRedo={canRedo()}
             />
-          )}
-        </div>
-      </div>
+          </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
 
       <ImageStudioDialogs
         previewImage={previewImage}

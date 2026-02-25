@@ -5,6 +5,7 @@ import type { SliceCreator, BulkSliceState, BulkSliceActions } from '../types';
 
 export const bulkSliceInitialState: BulkSliceState = {
   selectedSessionIds: [],
+  lastSelectedSessionId: null,
 };
 
 export const createBulkSlice: SliceCreator<BulkSliceActions> = (set, get) => ({
@@ -13,12 +14,55 @@ export const createBulkSlice: SliceCreator<BulkSliceActions> = (set, get) => ({
       selectedSessionIds: state.selectedSessionIds.includes(id)
         ? state.selectedSessionIds
         : [...state.selectedSessionIds, id],
+      lastSelectedSessionId: id,
     })),
 
   deselectSession: (id) =>
     set((state) => ({
       selectedSessionIds: state.selectedSessionIds.filter((sid) => sid !== id),
     })),
+
+  toggleSelectSession: (id) =>
+    set((state) => {
+      const isSelected = state.selectedSessionIds.includes(id);
+      return {
+        selectedSessionIds: isSelected
+          ? state.selectedSessionIds.filter((sid) => sid !== id)
+          : [...state.selectedSessionIds, id],
+        lastSelectedSessionId: isSelected ? state.lastSelectedSessionId : id,
+      };
+    }),
+
+  rangeSelectSessions: (targetId, visibleSessionIds) =>
+    set((state) => {
+      const anchor = state.lastSelectedSessionId;
+      if (!anchor) {
+        return {
+          selectedSessionIds: [targetId],
+          lastSelectedSessionId: targetId,
+        };
+      }
+
+      const anchorIndex = visibleSessionIds.indexOf(anchor);
+      const targetIndex = visibleSessionIds.indexOf(targetId);
+
+      if (anchorIndex === -1 || targetIndex === -1) {
+        return {
+          selectedSessionIds: [targetId],
+          lastSelectedSessionId: targetId,
+        };
+      }
+
+      const start = Math.min(anchorIndex, targetIndex);
+      const end = Math.max(anchorIndex, targetIndex);
+      const rangeIds = visibleSessionIds.slice(start, end + 1);
+
+      // Union with existing selection
+      const merged = new Set([...state.selectedSessionIds, ...rangeIds]);
+      return {
+        selectedSessionIds: Array.from(merged),
+      };
+    }),
 
   selectAllSessions: () =>
     set((state) => ({
@@ -28,6 +72,7 @@ export const createBulkSlice: SliceCreator<BulkSliceActions> = (set, get) => ({
   clearSelection: () =>
     set(() => ({
       selectedSessionIds: [],
+      lastSelectedSessionId: null,
     })),
 
   bulkDeleteSessions: (ids) => {

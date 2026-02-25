@@ -41,11 +41,14 @@ interface LoadingOverlayProps {
 
 export function LoadingOverlay({ message, className }: LoadingOverlayProps) {
   return (
-    <div className={cn(
-      'absolute inset-0 z-50 flex flex-col items-center justify-center',
-      'bg-background',
-      className
-    )}>
+    <div
+      data-slot="loading-overlay"
+      className={cn(
+        'absolute inset-0 z-50 flex flex-col items-center justify-center',
+        'bg-background',
+        className
+      )}
+    >
       <LoadingSpinner size="lg" />
       {message && (
         <p className="mt-3 text-sm text-muted-foreground">{message}</p>
@@ -72,17 +75,20 @@ export function ThinkingIndicator({
   };
 
   const colors = {
-    default: 'text-purple-500',
-    agent: 'text-blue-500',
-    research: 'text-green-500',
+    default: 'text-primary',
+    agent: 'text-info',
+    research: 'text-success',
   };
 
   return (
-    <div className={cn(
-      'flex items-center gap-2 px-3 py-2 rounded-lg',
-      'bg-muted border border-border/50',
-      className
-    )}>
+    <div
+      data-slot="thinking-indicator"
+      className={cn(
+        'flex items-center gap-2 px-3 py-2 rounded-lg',
+        'bg-muted border border-border/50',
+        className
+      )}
+    >
       <span className={cn('animate-pulse', colors[variant])}>
         {icons[variant]}
       </span>

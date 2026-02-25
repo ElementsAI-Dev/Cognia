@@ -203,6 +203,15 @@
     "acceptChanges": "Accept Changes",
     "rejectChanges": "Reject Changes",
     "linesAdded": "{count} lines added",
-    "linesRemoved": "{count} lines removed"
+    "linesRemoved": "{count} lines removed",
+    "comments": "Comments",
+    "addComment": "Add comment",
+    "noComments": "No comments yet",
+    "showResolved": "Show resolved",
+    "hideResolved": "Hide resolved",
+    "resolve": "Resolve",
+    "unresolve": "Unresolve",
+    "reply": "Reply",
+    "writeReply": "Write a reply..."
   }
 }

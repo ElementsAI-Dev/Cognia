@@ -74,8 +74,11 @@ export interface AspectRatioPreset {
 
 export const ASPECT_RATIOS: AspectRatioPreset[] = [
   { label: '1:1', size: '1024x1024' as ImageSize, icon: '⬜' },
+  { label: '3:4', size: '1024x1536' as ImageSize, icon: '📋' },
+  { label: '4:3', size: '1536x1024' as ImageSize, icon: '🖼️' },
   { label: '9:16', size: '1024x1792' as ImageSize, icon: '📱' },
   { label: '16:9', size: '1792x1024' as ImageSize, icon: '🖥️' },
+  { label: '21:9', size: '2048x896' as ImageSize, icon: '🎬' },
 ];
 
 // ============================================================================

@@ -388,6 +388,14 @@ describe('useImageStudioStore', () => {
   });
 
   describe('Settings', () => {
+    it('should have correct default generation settings including provider', () => {
+      const { result } = renderHook(() => useImageStudioStore());
+
+      expect(result.current.generationSettings.provider).toBe('openai');
+      expect(result.current.generationSettings.model).toBe('dall-e-3');
+      expect(result.current.generationSettings.size).toBe('1024x1024');
+    });
+
     it('should update generation settings', () => {
       const { result } = renderHook(() => useImageStudioStore());
 
@@ -402,6 +410,20 @@ describe('useImageStudioStore', () => {
       expect(result.current.generationSettings.model).toBe('dall-e-2');
       expect(result.current.generationSettings.size).toBe('512x512');
       expect(result.current.generationSettings.numberOfImages).toBe(4);
+    });
+
+    it('should update provider in generation settings', () => {
+      const { result } = renderHook(() => useImageStudioStore());
+
+      act(() => {
+        result.current.updateGenerationSettings({
+          provider: 'xai',
+          model: 'grok-2-image',
+        });
+      });
+
+      expect(result.current.generationSettings.provider).toBe('xai');
+      expect(result.current.generationSettings.model).toBe('grok-2-image');
     });
 
     it('should update brush settings', () => {
@@ -508,6 +530,11 @@ describe('useImageStudioStore', () => {
   });
 
   describe('UI State', () => {
+    it('should default showSettings to false', () => {
+      const { result } = renderHook(() => useImageStudioStore());
+      expect(result.current.showSettings).toBe(false);
+    });
+
     it('should toggle sidebar', () => {
       const { result } = renderHook(() => useImageStudioStore());
 

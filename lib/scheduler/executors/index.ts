@@ -337,11 +337,12 @@ async function executeBackupTask(
 
         if (destination === 'all') {
           const syncState = useSyncStore.getState();
-          const providerCandidates: SyncProviderType[] = ['webdav', 'github', 'googledrive'];
+          const providerCandidates: SyncProviderType[] = ['webdav', 'github', 'googledrive', 'convex'];
           const activeByConfig: Record<SyncProviderType, boolean> = {
             webdav: syncState.webdavConfig.enabled,
             github: syncState.githubConfig.enabled,
             googledrive: syncState.googleDriveConfig.enabled,
+            convex: syncState.convexConfig.enabled,
           };
 
           for (const provider of providerCandidates) {

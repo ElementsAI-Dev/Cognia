@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { useSafeTheme } from '@/hooks/ui/use-safe-theme';
@@ -12,6 +12,8 @@ interface AppLoadingScreenProps {
   visible: boolean;
   /** Called when the exit animation completes */
   onExitComplete?: () => void;
+  /** Called when internal progress reaches 100% */
+  onProgressComplete?: () => void;
 }
 
 interface LoadingStage {
@@ -40,12 +42,14 @@ const LOADING_STAGES: LoadingStage[] = [
  * - Tauri real progress events (when available)
  * - Performance-aware animations
  */
-export function AppLoadingScreen({ visible, onExitComplete }: AppLoadingScreenProps) {
+export function AppLoadingScreen({ visible, onExitComplete, onProgressComplete }: AppLoadingScreenProps) {
   const t = useTranslations('splashscreen');
   const { resolvedTheme } = useSafeTheme();
   const prefersReducedMotion = useReducedMotion();
   const [progress, setProgress] = useState(0);
   const [stageKey, setStageKey] = useState('initializing');
+  const onProgressCompleteRef = useRef(onProgressComplete);
+  onProgressCompleteRef.current = onProgressComplete;
 
   const colors = useMemo(() => getThemeColors(resolvedTheme), [resolvedTheme]);
 
@@ -65,6 +69,9 @@ export function AppLoadingScreen({ visible, onExitComplete }: AppLoadingScreenPr
             (event) => {
               setProgress(event.payload.progress);
               setStageKey(event.payload.stage);
+              if (event.payload.progress >= 100) {
+                onProgressCompleteRef.current?.();
+              }
             }
           );
           return;
@@ -80,6 +87,9 @@ export function AppLoadingScreen({ visible, onExitComplete }: AppLoadingScreenPr
           const stage = LOADING_STAGES[currentStage];
           setProgress(stage.progress);
           setStageKey(stage.messageKey);
+          if (stage.progress >= 100) {
+            onProgressCompleteRef.current?.();
+          }
           currentStage++;
         } else {
           clearInterval(fallbackInterval);

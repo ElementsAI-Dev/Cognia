@@ -16,6 +16,9 @@ out/
 .swc/
 build/
 
+# Convex
+convex/_generated/
+
 # Tauri / Rust
 src-tauri/target/
 src-tauri/gen/*

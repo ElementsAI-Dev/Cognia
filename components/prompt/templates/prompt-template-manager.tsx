@@ -2,7 +2,8 @@
 
 /**
  * PromptTemplateManager - Main template management component
- * Modern design with improved responsive layout and better space utilization
+ * Layout aligned with SkillSettings: Card wrapper, InputGroup search,
+ * Select category filter, category grouping, skeleton loading, delete confirmation.
  */
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
@@ -16,29 +17,65 @@ import {
   FileText,
   Grid3X3,
   List,
-  Sparkles,
   Settings2,
+  Zap,
+  ArrowUpDown,
+  Clock,
+  SortAsc,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupButton,
+} from '@/components/ui/input-group';
+import { EmptyState } from '@/components/layout/feedback/empty-state';
 import { cn } from '@/lib/utils';
 import { usePromptTemplateStore } from '@/stores';
 import { PromptTemplateCard } from './prompt-template-card';
+import { PromptTemplateCardSkeleton } from './prompt-template-card-skeleton';
 import { PromptTemplateEditor } from './prompt-template-editor';
 import { PromptTemplateAdvancedEditor } from './prompt-template-advanced-editor';
 import type { PromptTemplate } from '@/types/content/prompt-template';
 
 type ViewMode = 'grid' | 'list';
+type SortMode = 'name' | 'updated' | 'usage';
 
 export function PromptTemplateManager() {
   const t = useTranslations('promptTemplate.manager');
+  const tCommon = useTranslations('common');
   const templates = usePromptTemplateStore((state) => state.templates);
   const categories = usePromptTemplateStore((state) => state.categories);
+  const isInitialized = usePromptTemplateStore((state) => state.isInitialized);
   const createTemplate = usePromptTemplateStore((state) => state.createTemplate);
   const updateTemplate = usePromptTemplateStore((state) => state.updateTemplate);
   const deleteTemplate = usePromptTemplateStore((state) => state.deleteTemplate);
@@ -49,13 +86,15 @@ export function PromptTemplateManager() {
   const initializeDefaults = usePromptTemplateStore((state) => state.initializeDefaults);
 
   const [search, setSearch] = useState('');
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [activeCategory, setActiveCategory] = useState<string>('all');
   const [editing, setEditing] = useState<PromptTemplate | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [importPayload, setImportPayload] = useState('');
   const [useAdvancedEditor, setUseAdvancedEditor] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [sortMode, setSortMode] = useState<SortMode>('updated');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Keyboard shortcuts
@@ -90,9 +129,19 @@ export function PromptTemplateManager() {
 
   const filtered = useMemo(() => {
     const list = search ? searchTemplates(search) : templates;
-    if (activeCategory === 'all') return list;
-    return list.filter((tpl) => tpl.category === activeCategory);
-  }, [search, searchTemplates, templates, activeCategory]);
+    const byCategory = activeCategory === 'all' ? list : list.filter((tpl) => tpl.category === activeCategory);
+    return [...byCategory].sort((a, b) => {
+      switch (sortMode) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'usage':
+          return b.usageCount - a.usageCount;
+        case 'updated':
+        default:
+          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      }
+    });
+  }, [search, searchTemplates, templates, activeCategory, sortMode]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { all: templates.length };
@@ -103,6 +152,30 @@ export function PromptTemplateManager() {
     });
     return counts;
   }, [templates]);
+
+  const groupedTemplates = useMemo(() =>
+    filtered.reduce(
+      (acc, tpl) => {
+        const cat = tpl.category || 'custom';
+        if (!acc[cat]) {
+          acc[cat] = [];
+        }
+        acc[cat].push(tpl);
+        return acc;
+      },
+      {} as Record<string, PromptTemplate[]>
+    ),
+    [filtered]
+  );
+
+  const templateStats = useMemo(() => {
+    const recentlyUsed = templates.filter((tpl) => tpl.lastUsedAt).length;
+    return {
+      total: templates.length,
+      categories: Object.keys(categoryCounts).length - 1,
+      recentlyUsed,
+    };
+  }, [templates, categoryCounts]);
 
   useEffect(() => {
     initializeDefaults();
@@ -129,183 +202,184 @@ export function PromptTemplateManager() {
     return added;
   };
 
-  return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-background via-background to-muted/20">
-      {/* Header Section */}
-      <div className="shrink-0 px-4 lg:px-6 py-4 border-b bg-background/80 backdrop-blur-sm space-y-4">
-        {/* Title & Actions Row */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 text-indigo-600 dark:text-indigo-400 shadow-sm">
-              <FileText className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
-              <p className="text-xs text-muted-foreground">{t('subtitle')}</p>
-            </div>
-            <Badge variant="secondary" className="ml-2 font-mono text-xs tabular-nums">
-              {templates.length}
-            </Badge>
-          </div>
+  const handleDeleteRequest = useCallback((id: string) => {
+    setDeleteConfirmId(id);
+  }, []);
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 h-9"
-              onClick={() => setIsImportOpen(true)}
+  const confirmDelete = useCallback(() => {
+    if (deleteConfirmId) {
+      deleteTemplate(deleteConfirmId);
+    }
+    setDeleteConfirmId(null);
+  }, [deleteConfirmId, deleteTemplate]);
+
+  const isLoading = !isInitialized && templates.length === 0;
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-primary/10">
+                  <FileText className="h-5 w-5 text-primary" />
+                </div>
+                {t('title')}
+              </CardTitle>
+              <CardDescription className="mt-1.5">{t('subtitle')}</CardDescription>
+            </div>
+            {templates.length > 0 && (
+              <div className="hidden sm:flex items-center gap-3 text-sm text-muted-foreground">
+                <span className="tabular-nums">{templateStats.total} {t('total')}</span>
+                <Separator orientation="vertical" className="h-4" />
+                <span className="tabular-nums">{templateStats.categories} {t('categoriesCount')}</span>
+                <Separator orientation="vertical" className="h-4" />
+                <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                  <Zap className="h-3.5 w-3.5" />
+                  <span className="tabular-nums">{templateStats.recentlyUsed}</span>
+                </span>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Compact toolbar - single row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <InputGroup className="flex-1 min-w-[180px]">
+              <InputGroupAddon align="inline-start">
+                <Search className="h-4 w-4" />
+              </InputGroupAddon>
+              <InputGroupInput
+                ref={searchInputRef}
+                placeholder={t('searchPlaceholder')}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="text-sm"
+              />
+              {search && (
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton size="icon-xs" onClick={() => setSearch('')}>
+                    <X className="h-3 w-3" />
+                  </InputGroupButton>
+                </InputGroupAddon>
+              )}
+            </InputGroup>
+
+            <Select
+              value={activeCategory}
+              onValueChange={setActiveCategory}
             >
-              <Upload className="h-4 w-4" />
+              <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-sm">
+                <SelectValue placeholder={t('allCategory')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('allCategory')}</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Sort dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs shrink-0">
+                  <ArrowUpDown className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">
+                    {sortMode === 'name' ? 'A-Z' : sortMode === 'usage' ? t('sortUsage') : t('sortRecent')}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem onClick={() => setSortMode('updated')} className="gap-2 text-xs">
+                  <Clock className="h-3.5 w-3.5" />
+                  {t('sortRecent')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortMode('name')} className="gap-2 text-xs">
+                  <SortAsc className="h-3.5 w-3.5" />
+                  A-Z
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortMode('usage')} className="gap-2 text-xs">
+                  <Zap className="h-3.5 w-3.5" />
+                  {t('sortUsage')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* View toggle */}
+            <div className="flex items-center border rounded-md shrink-0">
+              <Button
+                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                size="icon"
+                className="h-9 w-9 rounded-r-none"
+                onClick={() => setViewMode('grid')}
+              >
+                <Grid3X3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                size="icon"
+                className="h-9 w-9 rounded-l-none"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Actions */}
+            <Button size="sm" className="h-9" onClick={handleCreate}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              <span className="hidden sm:inline">{t('newTemplate')}</span>
+              <span className="sm:hidden">{t('create')}</span>
+            </Button>
+            <Button variant="outline" size="sm" className="h-9" onClick={() => setIsImportOpen(true)}>
+              <Upload className="h-4 w-4 mr-1.5" />
               <span className="hidden sm:inline">{t('import')}</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5 h-9"
+              className="h-9"
               onClick={() => navigator.clipboard.writeText(exportTemplates())}
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-4 w-4 mr-1.5" />
               <span className="hidden sm:inline">{t('copyExport')}</span>
             </Button>
-            <Button
-              size="sm"
-              className="gap-1.5 h-9 shadow-sm"
-              onClick={handleCreate}
-            >
-              <Plus className="h-4 w-4" />
-              {t('newTemplate')}
-            </Button>
           </div>
-        </div>
 
-        {/* Search & Filter Row */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          {/* Search Input */}
-          <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              ref={searchInputRef}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t('searchPlaceholder')}
-              className="pl-9 pr-9 h-10 bg-muted/30 border-muted-foreground/20 focus-visible:bg-background focus-visible:border-primary/40 transition-all"
+          {/* Skeleton loading */}
+          {isLoading ? (
+            <div className={cn(
+              viewMode === 'grid'
+                ? 'grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                : 'space-y-2',
+            )}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <PromptTemplateCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title={t('noTemplates')}
+              description={search || activeCategory !== 'all' ? t('noMatchingTemplates') : t('createFirstTemplate')}
+              actions={
+                search || activeCategory !== 'all'
+                  ? [{ label: t('clearFilters'), onClick: () => { setSearch(''); setActiveCategory('all'); }, variant: 'outline' as const, icon: X }]
+                  : [{ label: t('newTemplate'), onClick: handleCreate, icon: Plus }]
+              }
             />
-            {search && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={() => setSearch('')}
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-
-          {/* Category Tabs */}
-          <ScrollArea className="w-full sm:w-auto sm:flex-1">
-            <Tabs value={activeCategory} onValueChange={setActiveCategory}>
-              <TabsList className="bg-muted/50 p-1 h-auto inline-flex w-auto">
-                <TabsTrigger
-                  value="all"
-                  className="gap-1.5 px-3 py-2 data-[state=active]:shadow-sm"
-                >
-                  {t('allCategory')}
-                  <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-[10px] font-semibold">
-                    {categoryCounts.all || 0}
-                  </Badge>
-                </TabsTrigger>
-                {categories.map((cat) => (
-                  <TabsTrigger
-                    key={cat}
-                    value={cat}
-                    className="gap-1.5 px-3 py-2 data-[state=active]:shadow-sm"
-                  >
-                    <span className="truncate max-w-24">{cat}</span>
-                    {categoryCounts[cat] && (
-                      <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-[10px] font-semibold">
-                        {categoryCounts[cat]}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-            <ScrollBar orientation="horizontal" className="invisible" />
-          </ScrollArea>
-
-          {/* View Mode Toggle */}
-          <div className="hidden sm:flex items-center gap-0.5 border rounded-lg p-0.5 bg-muted/30 shrink-0">
-            <Button
-              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-              size="icon"
-              className={cn('h-8 w-8 transition-all', viewMode === 'grid' && 'shadow-sm')}
-              onClick={() => setViewMode('grid')}
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-              size="icon"
-              className={cn('h-8 w-8 transition-all', viewMode === 'list' && 'shadow-sm')}
-              onClick={() => setViewMode('list')}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Active Filters */}
-        {(search || activeCategory !== 'all') && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-muted-foreground">{t('activeFilters')}:</span>
-            {search && (
-              <Badge
-                variant="secondary"
-                className="gap-1.5 pl-2 pr-1 py-1 cursor-pointer hover:bg-secondary/80"
-                onClick={() => setSearch('')}
-              >
-                &ldquo;{search}&rdquo;
-                <X className="h-3 w-3" />
-              </Badge>
-            )}
-            {activeCategory !== 'all' && (
-              <Badge
-                variant="secondary"
-                className="gap-1.5 pl-2 pr-1 py-1 cursor-pointer hover:bg-secondary/80"
-                onClick={() => setActiveCategory('all')}
-              >
-                {activeCategory}
-                <X className="h-3 w-3" />
-              </Badge>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-xs text-muted-foreground"
-              onClick={() => {
-                setSearch('');
-                setActiveCategory('all');
-              }}
-            >
-              {t('clearAll')}
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Content Section */}
-      <ScrollArea className="flex-1">
-        <div className="p-4 lg:p-6 xl:p-8">
-          {filtered.length > 0 ? (
-            <div
-              className={cn(
-                'gap-4',
-                viewMode === 'grid'
-                  ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5'
-                  : 'flex flex-col'
-              )}
-            >
+          ) : activeCategory !== 'all' ? (
+            /* Single category flat grid */
+            <div className={cn(
+              'gap-3',
+              viewMode === 'grid'
+                ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                : 'flex flex-col space-y-2',
+            )}>
               {filtered.map((template) => (
                 <PromptTemplateCard
                   key={template.id}
@@ -315,41 +389,64 @@ export function PromptTemplateManager() {
                     setIsEditorOpen(true);
                   }}
                   onDuplicate={duplicateTemplate}
-                  onDelete={deleteTemplate}
+                  onDelete={handleDeleteRequest}
                 />
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-center border-2 border-dashed rounded-2xl bg-muted/20">
-              <div className="p-4 rounded-2xl bg-indigo-500/10 mb-4 shadow-sm">
-                <Sparkles className="h-10 w-10 text-indigo-500/50" />
-              </div>
-              <h3 className="font-semibold text-lg">{t('noTemplates')}</h3>
-              <p className="text-muted-foreground mt-2 text-sm max-w-sm">
-                {search || activeCategory !== 'all' ? t('noMatchingTemplates') : t('createFirstTemplate')}
-              </p>
-              {search || activeCategory !== 'all' ? (
-                <Button
-                  variant="outline"
-                  className="mt-6 gap-2"
-                  onClick={() => {
-                    setSearch('');
-                    setActiveCategory('all');
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                  {t('clearFilters')}
-                </Button>
-              ) : (
-                <Button className="mt-6 gap-2" onClick={handleCreate}>
-                  <Plus className="h-4 w-4" />
-                  {t('newTemplate')}
-                </Button>
-              )}
+            /* Grouped by category */
+            <div className="space-y-5">
+              {Object.entries(groupedTemplates).map(([category, categoryTemplates]) => (
+                <div key={category}>
+                  {/* Category group header */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <Badge variant="secondary" className="text-xs font-medium">
+                      {category}
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs tabular-nums">
+                      {categoryTemplates.length}
+                    </Badge>
+                    <Separator className="flex-1" />
+                  </div>
+
+                  {/* Templates grid/list */}
+                  {viewMode === 'grid' ? (
+                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                      {categoryTemplates.map((template) => (
+                        <PromptTemplateCard
+                          key={template.id}
+                          template={template}
+                          onEdit={(tpl) => {
+                            setEditing(tpl);
+                            setIsEditorOpen(true);
+                          }}
+                          onDuplicate={duplicateTemplate}
+                          onDelete={handleDeleteRequest}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {categoryTemplates.map((template) => (
+                        <PromptTemplateCard
+                          key={template.id}
+                          template={template}
+                          onEdit={(tpl) => {
+                            setEditing(tpl);
+                            setIsEditorOpen(true);
+                          }}
+                          onDuplicate={duplicateTemplate}
+                          onDelete={handleDeleteRequest}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
-        </div>
-      </ScrollArea>
+        </CardContent>
+      </Card>
 
       <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
         <DialogContent className="max-w-4xl">
@@ -406,6 +503,23 @@ export function PromptTemplateManager() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={!!deleteConfirmId}
+        onOpenChange={(open) => !open && setDeleteConfirmId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('deleteTemplate')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('deleteConfirmation')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>{tCommon('delete')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

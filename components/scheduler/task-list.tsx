@@ -214,7 +214,7 @@ export function TaskList({
                 {task.description ? (
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">{task.description}</p>
                 ) : (
-                  <p className="mt-0.5 text-xs capitalize text-muted-foreground/70">{task.type}</p>
+                  <p className="mt-0.5 text-xs capitalize text-muted-foreground/70">{t(`taskTypes.${task.type}`)}</p>
                 )}
 
                 {/* Row 3: Next run + Stats */}

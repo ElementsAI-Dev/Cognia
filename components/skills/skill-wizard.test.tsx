@@ -10,27 +10,44 @@ const renderWithProviders = (ui: React.ReactElement) => {
 jest.mock('@/stores/skills', () => ({
   useSkillStore: jest.fn(),
 }));
+const mockTemplates = [
+  {
+    id: 'code-review',
+    name: 'Code Review',
+    description: 'Template for code review skills',
+    category: 'development',
+    icon: '👀',
+    tags: ['code', 'review'],
+    defaultContent: '# Code Review\n\nReview code for best practices.',
+  },
+  {
+    id: 'writing-helper',
+    name: 'Writing Helper',
+    description: 'Template for writing assistance',
+    category: 'communication',
+    icon: '✍️',
+    tags: ['writing'],
+    defaultContent: '# Writing Helper\n\nHelp with writing tasks.',
+  },
+];
 jest.mock('@/lib/skills/templates', () => ({
-  getAllTemplates: jest.fn(() => [
-    {
-      id: 'code-review',
-      name: 'Code Review',
-      description: 'Template for code review skills',
-      category: 'development',
-      icon: '👀',
-      tags: ['code', 'review'],
-      defaultContent: '# Code Review\n\nReview code for best practices.',
-    },
-    {
-      id: 'writing-helper',
-      name: 'Writing Helper',
-      description: 'Template for writing assistance',
-      category: 'communication',
-      icon: '✍️',
-      tags: ['writing'],
-      defaultContent: '# Writing Helper\n\nHelp with writing tasks.',
-    },
+  getAllTemplates: jest.fn(() => mockTemplates),
+  searchTemplates: jest.fn((query: string) => mockTemplates.filter(t => t.name.toLowerCase().includes(query.toLowerCase()))),
+  getTemplateCategoriesWithCounts: jest.fn(() => [
+    { category: 'development', count: 1 },
+    { category: 'communication', count: 1 },
   ]),
+}));
+jest.mock('@/hooks/skills/use-skill-ai', () => ({
+  useSkillAI: jest.fn(() => jest.fn().mockResolvedValue('generated content')),
+}));
+jest.mock('./skill-resource-manager', () => ({
+  SkillResourceManager: ({ resources }: { resources: unknown[] }) => (
+    <div data-testid="skill-resource-manager">Resources: {resources.length}</div>
+  ),
+}));
+jest.mock('./skill-ai-assistant', () => ({
+  SkillAIAssistant: () => <div data-testid="skill-ai-assistant">AI Assistant</div>,
 }));
 jest.mock('@/lib/skills/parser', () => ({
   parseSkillMd: jest.fn((content) => ({
@@ -316,7 +333,8 @@ describe('SkillWizard', () => {
       const textarea = screen.getByLabelText(/instructions/i);
       fireEvent.change(textarea, { target: { value: 'Line 1\nLine 2\nLine 3' } });
 
-      expect(screen.getByText(/3.*lines/i)).toBeInTheDocument();
+      const lineElements = screen.getAllByText(/3.*lines/i);
+      expect(lineElements.length).toBeGreaterThan(0);
     });
 
     it('enables Next when content provided', () => {
@@ -344,6 +362,9 @@ describe('SkillWizard', () => {
       const textarea = screen.getByLabelText(/instructions/i);
       fireEvent.change(textarea, { target: { value: '# Test Content' } });
 
+      // Next to resources step
+      fireEvent.click(screen.getByRole('button', { name: /next/i }));
+      // Next to preview step
       fireEvent.click(screen.getByRole('button', { name: /next/i }));
     });
 
@@ -360,7 +381,8 @@ describe('SkillWizard', () => {
     });
 
     it('displays category badge in preview', () => {
-      expect(screen.getByText('custom')).toBeInTheDocument();
+      const customElements = screen.getAllByText(/Custom/i);
+      expect(customElements.length).toBeGreaterThan(0);
     });
 
     it('shows Create Skill button', () => {
@@ -406,6 +428,8 @@ describe('SkillWizard', () => {
       const textarea = screen.getByLabelText(/instructions/i);
       fireEvent.change(textarea, { target: { value: '# Test Content' } });
 
+      // Next to resources, then next to preview
+      fireEvent.click(screen.getByRole('button', { name: /next/i }));
       fireEvent.click(screen.getByRole('button', { name: /next/i }));
       fireEvent.click(screen.getByRole('button', { name: /Create Skill/i }));
 

@@ -1,39 +1,17 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import {
+  BackgroundImageLayer,
+  type ComponentBackgroundFit,
+  type ComponentBackgroundProps,
+} from "@/lib/themes/background-maps"
+import type { BackgroundImagePosition } from "@/lib/themes/background-maps"
 
-export type CardImageFit = 'cover' | 'contain' | 'fill' | 'none' | 'scale-down';
-export type CardImagePosition = 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+export type CardImageFit = ComponentBackgroundFit;
+export type CardImagePosition = BackgroundImagePosition;
 
-const BACKGROUND_FIT_MAP: Record<CardImageFit, string> = {
-  'cover': 'cover',
-  'contain': 'contain',
-  'fill': '100% 100%',
-  'none': 'auto',
-  'scale-down': 'contain',
-};
-
-const BACKGROUND_POSITION_MAP: Record<CardImagePosition, string> = {
-  'center': 'center center',
-  'top': 'center top',
-  'bottom': 'center bottom',
-  'left': 'left center',
-  'right': 'right center',
-  'top-left': 'left top',
-  'top-right': 'right top',
-  'bottom-left': 'left bottom',
-  'bottom-right': 'right bottom',
-};
-
-interface CardProps extends React.ComponentProps<"div"> {
-  backgroundImage?: string;
-  backgroundFit?: CardImageFit;
-  backgroundPosition?: CardImagePosition;
-  backgroundOpacity?: number;
-  backgroundOverlay?: boolean;
-  backgroundOverlayColor?: string;
-  backgroundBlur?: number;
-}
+interface CardProps extends React.ComponentProps<"div">, ComponentBackgroundProps {}
 
 function Card({
   className,
@@ -44,18 +22,10 @@ function Card({
   backgroundOverlay = false,
   backgroundOverlayColor = 'rgba(0,0,0,0.4)',
   backgroundBlur = 0,
-  style,
   children,
   ...props
 }: CardProps) {
   const hasBackground = !!backgroundImage;
-
-  const backgroundStyle: React.CSSProperties = hasBackground ? {
-    backgroundImage: `url(${backgroundImage})`,
-    backgroundSize: BACKGROUND_FIT_MAP[backgroundFit],
-    backgroundPosition: BACKGROUND_POSITION_MAP[backgroundPosition],
-    backgroundRepeat: 'no-repeat',
-  } : {};
 
   return (
     <div
@@ -65,26 +35,18 @@ function Card({
         hasBackground && "relative overflow-hidden",
         className
       )}
-      style={{ ...style, ...(!hasBackground ? {} : {}) }}
       {...props}
     >
-      {hasBackground && (
-        <>
-          <div
-            className="absolute inset-0 -z-10"
-            style={{
-              ...backgroundStyle,
-              opacity: backgroundOpacity,
-              filter: backgroundBlur > 0 ? `blur(${backgroundBlur}px)` : undefined,
-            }}
-          />
-          {backgroundOverlay && (
-            <div
-              className="absolute inset-0 -z-10"
-              style={{ backgroundColor: backgroundOverlayColor }}
-            />
-          )}
-        </>
+      {hasBackground && backgroundImage && (
+        <BackgroundImageLayer
+          image={backgroundImage}
+          fit={backgroundFit}
+          position={backgroundPosition}
+          opacity={backgroundOpacity}
+          blur={backgroundBlur}
+          overlay={backgroundOverlay}
+          overlayColor={backgroundOverlayColor}
+        />
       )}
       {children}
     </div>
@@ -163,6 +125,7 @@ const IMAGE_FIT_CLASSES: Record<CardImageFit, string> = {
   'fill': 'object-fill',
   'none': 'object-none',
   'scale-down': 'object-scale-down',
+  'tile': 'object-none',
 };
 
 const IMAGE_POSITION_CLASSES: Record<CardImagePosition, string> = {

@@ -166,7 +166,7 @@ export function SystemSchedulerView({
                   <Badge variant="outline" className={`shrink-0 capitalize ${
                     task.status === 'disabled' ? 'text-gray-500' : 'text-green-500'
                   }`}>
-                    {task.status}
+                    {t(`statuses.${task.status}`)}
                   </Badge>
                 </div>
                 {task.metadata_state === 'degraded' && (

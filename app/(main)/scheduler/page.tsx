@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { RefreshCw } from 'lucide-react';
 import { useScheduler, useSystemScheduler } from '@/hooks/scheduler';
 import type {
@@ -75,6 +76,8 @@ export default function SchedulerPage() {
     requestElevation,
     clearError: clearSystemError,
   } = useSystemScheduler();
+
+  const t = useTranslations('scheduler');
 
   // UI state
   const [showCreateSheet, setShowCreateSheet] = useState(false);
@@ -363,7 +366,7 @@ export default function SchedulerPage() {
         <div className="text-center">
           <RefreshCw className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
           <p className="mt-2 text-sm text-muted-foreground">
-            Initializing scheduler...
+            {t('initializing')}
           </p>
         </div>
       </div>

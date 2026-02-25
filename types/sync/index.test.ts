@@ -6,6 +6,7 @@ import {
   DEFAULT_WEBDAV_CONFIG,
   DEFAULT_GITHUB_CONFIG,
   DEFAULT_GOOGLE_DRIVE_CONFIG,
+  DEFAULT_CONVEX_CONFIG,
   type SyncProviderType,
   type SyncStatus,
   type ConflictResolution,
@@ -356,6 +357,7 @@ describe('Sync Types', () => {
         webdavConfig: DEFAULT_WEBDAV_CONFIG,
         githubConfig: DEFAULT_GITHUB_CONFIG,
         googleDriveConfig: DEFAULT_GOOGLE_DRIVE_CONFIG,
+        convexConfig: DEFAULT_CONVEX_CONFIG,
         activeProvider: null,
         status: 'idle',
         progress: null,
@@ -376,6 +378,7 @@ describe('Sync Types', () => {
         webdavConfig: DEFAULT_WEBDAV_CONFIG,
         githubConfig: DEFAULT_GITHUB_CONFIG,
         googleDriveConfig: DEFAULT_GOOGLE_DRIVE_CONFIG,
+        convexConfig: DEFAULT_CONVEX_CONFIG,
         activeProvider: 'webdav',
         status: 'syncing',
         progress: {

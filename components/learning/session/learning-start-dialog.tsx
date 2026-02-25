@@ -265,7 +265,7 @@ export const LearningStartDialog = memo(function LearningStartDialog({
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <Sparkles className="h-4 w-4" />
-              学习路径类型
+              {t('startDialog.pathType')}
             </Label>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -278,8 +278,8 @@ export const LearningStartDialog = memo(function LearningStartDialog({
                     : 'border-border hover:border-primary/50'
                 )}
               >
-                <span className="text-sm font-medium">Socratic</span>
-                <span className="text-xs text-muted-foreground">对话式引导理解与拆解</span>
+                <span className="text-sm font-medium">{t('startDialog.pathSocratic')}</span>
+                <span className="text-xs text-muted-foreground">{t('startDialog.pathSocraticDesc')}</span>
               </button>
               <button
                 type="button"
@@ -291,8 +291,8 @@ export const LearningStartDialog = memo(function LearningStartDialog({
                     : 'border-border hover:border-primary/50'
                 )}
               >
-                <span className="text-sm font-medium">SpeedPass</span>
-                <span className="text-xs text-muted-foreground">目标导向备考与刷题速通</span>
+                <span className="text-sm font-medium">{t('startDialog.pathSpeedpass')}</span>
+                <span className="text-xs text-muted-foreground">{t('startDialog.pathSpeedpassDesc')}</span>
               </button>
             </div>
           </div>
@@ -301,7 +301,7 @@ export const LearningStartDialog = memo(function LearningStartDialog({
             <div className="space-y-3 p-3 rounded-lg bg-muted/50">
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label htmlFor="speedpass-minutes">可用时长(分钟)</Label>
+                  <Label htmlFor="speedpass-minutes">{t('startDialog.availableMinutes')}</Label>
                   <Input
                     id="speedpass-minutes"
                     type="number"
@@ -312,7 +312,7 @@ export const LearningStartDialog = memo(function LearningStartDialog({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="speedpass-target">目标分数</Label>
+                  <Label htmlFor="speedpass-target">{t('startDialog.targetScore')}</Label>
                   <Input
                     id="speedpass-target"
                     type="number"
@@ -325,7 +325,7 @@ export const LearningStartDialog = memo(function LearningStartDialog({
                 </div>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="speedpass-exam-date">考试日期</Label>
+                <Label htmlFor="speedpass-exam-date">{t('startDialog.examDate')}</Label>
                 <Input
                   id="speedpass-exam-date"
                   type="date"

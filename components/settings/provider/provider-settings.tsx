@@ -10,16 +10,10 @@ import dynamic from 'next/dynamic';
 import {
   Check,
   AlertCircle,
-  Plus,
-  Edit2,
   Loader2,
-  Zap,
   RefreshCw,
   ChevronDown,
   ChevronUp,
-  Search,
-  LayoutGrid,
-  TableIcon,
   Wrench,
   ImageIcon,
   ArrowUpDown,
@@ -27,15 +21,10 @@ import {
   ArrowDown,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import {
   Alert,
@@ -43,8 +32,6 @@ import {
   AlertTitle,
 } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -66,6 +53,9 @@ import { ProviderSkeleton } from './provider-skeleton';
 import { OpenRouterSettings } from './openrouter-settings';
 import { OpenRouterKeyManagement } from './openrouter-key-management';
 import { CLIProxyAPISettings } from './cliproxyapi-settings';
+import { BatchTestProgress, TestResultsSummary } from './batch-test-progress';
+import { ProviderFilters, type CapabilityFilter } from './provider-filters';
+import { CustomProvidersList } from './custom-providers-list';
 
 // Dynamic imports for heavy dialog components (code splitting)
 const CustomProviderDialog = dynamic(() => import('./custom-provider-dialog').then(mod => ({ default: mod.CustomProviderDialog })), { ssr: false });
@@ -76,7 +66,6 @@ import { testCustomProviderConnectionByProtocol, testProviderConnection, type Ap
 import { toast } from '@/components/ui/sonner';
 import {
   getCategoryIcon,
-  CATEGORY_CONFIG,
   PROVIDER_CATEGORIES,
   type ProviderCategory,
 } from '@/lib/ai/providers/provider-helpers';
@@ -85,8 +74,6 @@ import { getCurrencyForLocale, CURRENCIES } from '@/types/system/usage';
 
 export function ProviderSettings() {
   const t = useTranslations('providers');
-  const tPlaceholders = useTranslations('placeholders');
-  const tModelPicker = useTranslations('modelPicker');
 
   const [isMounted, setIsMounted] = useState(false);
 
@@ -133,6 +120,7 @@ export function ProviderSettings() {
   const [customTestResults, setCustomTestResults] = useState<Record<string, 'success' | 'error' | null>>({});
   const [testingCustomProviders, setTestingCustomProviders] = useState<Record<string, boolean>>({});
   const [customTestMessages, setCustomTestMessages] = useState<Record<string, string | null>>({});
+  const [capabilityFilters, setCapabilityFilters] = useState<CapabilityFilter[]>([]);
 
   const toggleExpanded = useCallback((providerId: string) => {
     setExpandedProviders((prev) => ({ ...prev, [providerId]: !prev[providerId] }));
@@ -356,6 +344,16 @@ export function ProviderSettings() {
         );
         if (!matchesName && !matchesModel) return false;
       }
+      // Capability filters from ProviderFilters component
+      if (capabilityFilters.length > 0) {
+        const hasVision = capabilityFilters.includes('vision') && provider.models.some(m => m.supportsVision);
+        const hasTools = capabilityFilters.includes('tools') && provider.models.some(m => m.supportsTools);
+        const hasAudio = capabilityFilters.includes('audio') && provider.models.some(m => m.supportsAudio);
+        const matchesAny = (capabilityFilters.includes('vision') ? hasVision : true) &&
+          (capabilityFilters.includes('tools') ? hasTools : true) &&
+          (capabilityFilters.includes('audio') ? hasAudio : true);
+        if (!matchesAny) return false;
+      }
       return true;
     });
 
@@ -405,22 +403,7 @@ export function ProviderSettings() {
     }
 
     return filtered;
-  }, [categoryFilter, deferredSearchQuery, viewMode, sortBy, sortOrder, providerSettings]);
-
-  const filteredCustomProviders = useMemo(() => {
-    if (!deferredSearchQuery.trim()) return customProviders;
-    const query = deferredSearchQuery.toLowerCase();
-    return Object.fromEntries(
-      Object.entries(customProviders).filter(([_providerId, provider]) => {
-        const matchesName = (provider.customName || '').toLowerCase().includes(query);
-        const matchesUrl = (provider.baseURL || '').toLowerCase().includes(query);
-        const matchesModel = (provider.customModels || []).some((m: string) =>
-          m.toLowerCase().includes(query)
-        );
-        return matchesName || matchesUrl || matchesModel;
-      })
-    );
-  }, [customProviders, deferredSearchQuery]);
+  }, [categoryFilter, deferredSearchQuery, viewMode, sortBy, sortOrder, providerSettings, capabilityFilters]);
 
   const visibleProviderIds = useMemo(
     () => filteredProviders.map(([providerId]) => providerId),
@@ -693,46 +676,20 @@ export function ProviderSettings() {
       </div>
 
       {/* Batch test progress */}
-      {isBatchTesting && (
-        <div className="space-y-2">
-          <Progress value={batchTestProgress} className="h-2" />
-          <div className="flex items-center justify-center gap-2">
-            <p className="text-xs text-muted-foreground text-center">
-              {t('testingProviders', { progress: Math.round(batchTestProgress) })}
-            </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={handleCancelBatchTest}
-              disabled={batchTestCancelRequested}
-            >
-              {t('cancel')}
-            </Button>
-          </div>
-        </div>
-      )}
+      <BatchTestProgress
+        isRunning={isBatchTesting}
+        progress={batchTestProgress}
+        onCancel={handleCancelBatchTest}
+        cancelRequested={batchTestCancelRequested}
+      />
 
       {/* Test results summary */}
-      {testResultsSummary.total > 0 && !isBatchTesting && (
-        <div className="flex items-center gap-4 rounded-lg border p-3 bg-muted/30">
-          <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">{t('testResults')}:</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1 text-sm text-green-600">
-              <Check className="h-4 w-4" />
-              {t('passedCount', { count: testResultsSummary.success })}
-            </span>
-            {testResultsSummary.failed > 0 && (
-              <span className="flex items-center gap-1 text-sm text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                {t('failedCount', { count: testResultsSummary.failed })}
-              </span>
-            )}
-          </div>
-        </div>
+      {!isBatchTesting && (
+        <TestResultsSummary
+          success={testResultsSummary.success}
+          failed={testResultsSummary.failed}
+          total={testResultsSummary.total}
+        />
       )}
 
       <Alert>
@@ -744,71 +701,16 @@ export function ProviderSettings() {
       </Alert>
 
       {/* Category Filter Tabs and Search */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Tabs value={categoryFilter} onValueChange={(v) => setProviderCategoryFilter(v as ProviderCategoryFilter)} className="w-full sm:w-auto">
-          <TabsList className="h-8 p-0.5 bg-muted/50">
-            {(Object.keys(CATEGORY_CONFIG) as ProviderCategory[]).map((cat) => {
-              const config = CATEGORY_CONFIG[cat];
-              const label =
-                cat === 'specialized'
-                  ? tModelPicker('fast')
-                  : cat === 'all'
-                    ? tModelPicker('all')
-                    : tModelPicker(cat);
-              const count = cat === 'all'
-                ? Object.keys(PROVIDERS).length
-                : Object.keys(PROVIDERS).filter(id => PROVIDER_CATEGORIES[id] === cat).length;
-              return (
-                <TabsTrigger
-                  key={cat}
-                  value={cat}
-                  className="h-7 px-2.5 text-xs gap-1 data-[state=active]:bg-background"
-                >
-                  {config.icon}
-                  <span className="hidden sm:inline">{label}</span>
-                  <span className="sm:hidden max-w-[56px] truncate">{label}</span>
-                  <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[10px]">
-                    {count}
-                  </Badge>
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-        </Tabs>
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 sm:flex-none sm:w-48">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            <Input
-              placeholder={tPlaceholders('searchProviders')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 text-sm pl-10 sm:h-8"
-              autoComplete="off"
-              data-form-type="other"
-              data-lpignore="true"
-            />
-          </div>
-          {/* Hide table view toggle on mobile - cards only */}
-          <div className="hidden sm:flex items-center border rounded-md">
-            <Button
-              variant={viewMode === 'cards' ? 'secondary' : 'ghost'}
-              size="sm"
-              className="h-8 px-2 rounded-r-none"
-              onClick={() => setProviderViewMode('cards')}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-              size="sm"
-              className="h-8 px-2 rounded-l-none"
-              onClick={() => setProviderViewMode('table')}
-            >
-              <TableIcon className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
+      <ProviderFilters
+        categoryFilter={categoryFilter as ProviderCategory}
+        onCategoryChange={(cat) => setProviderCategoryFilter(cat as ProviderCategoryFilter)}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        viewMode={viewMode}
+        onViewModeChange={setProviderViewMode}
+        capabilityFilters={capabilityFilters}
+        onCapabilityFilterChange={setCapabilityFilters}
+      />
 
       {/* Local Providers Section - Show when local category is selected */}
       {categoryFilter === 'local' && (
@@ -1169,130 +1071,26 @@ export function ProviderSettings() {
       )}
 
       {/* Custom Providers Section */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="space-y-0.5 min-w-0">
-              <CardTitle className="flex items-center gap-2 text-base">
-                {t('customProviders')}
-                <Badge variant="outline" className="text-[10px]">{t('openaiCompatible')}</Badge>
-              </CardTitle>
-              <CardDescription className="text-xs">
-                {t('customProvidersDescription')}
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="default"
-                size="sm"
-                className="shrink-0"
-                onClick={() => setShowQuickAddDialog(true)}
-              >
-                <Zap className="h-4 w-4 mr-1.5" />
-                {t('quickAdd')}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0"
-                onClick={() => {
-                  setEditingProviderId(null);
-                  setShowCustomDialog(true);
-                }}
-              >
-                <Plus className="h-4 w-4 mr-1.5" />
-                {t('addCustom')}
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        {Object.keys(customProviders).length === 0 ? (
-          <CardContent className="py-6 text-center text-sm text-muted-foreground">
-            {t('noCustomProviders')}
-          </CardContent>
-        ) : Object.keys(filteredCustomProviders).length === 0 && searchQuery.trim() ? (
-          <CardContent className="py-6 text-center text-sm text-muted-foreground">
-            {t('noProvidersFound')}
-          </CardContent>
-        ) : Object.keys(filteredCustomProviders).length > 0 ? (
-          <CardContent className="space-y-4">
-            {Object.entries(filteredCustomProviders).map(([providerId, provider]) => {
-              const isTesting = testingCustomProviders[providerId];
-              const testResult = customTestResults[providerId];
-              const testMessage = customTestMessages[providerId];
-              const canTest = !!provider.baseURL && !!provider.apiKey && !!provider.enabled;
-
-              return (
-                <div
-                  key={providerId}
-                  className="flex items-center justify-between rounded-lg border p-4"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{provider.customName}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {provider.customModels?.length || 0} {t('modelsCount')}
-                      </Badge>
-                      {testResult === 'success' && (
-                        <Check className="h-4 w-4 text-green-500" />
-                      )}
-                      {testResult === 'error' && (
-                        <AlertCircle className="h-4 w-4 text-destructive" />
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {provider.baseURL}
-                    </p>
-                    {testMessage && (
-                      <p
-                        className={cn(
-                          'text-xs',
-                          testResult === 'error' ? 'text-destructive' : 'text-muted-foreground'
-                        )}
-                      >
-                        {testMessage}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleTestCustomProvider(providerId)}
-                      disabled={!canTest || isTesting}
-                      title={t('testConnection')}
-                    >
-                      {isTesting ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <RefreshCw className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setCustomTestResults((prev) => ({ ...prev, [providerId]: null }));
-                        setCustomTestMessages((prev) => ({ ...prev, [providerId]: null }));
-                        setEditingProviderId(providerId);
-                        setShowCustomDialog(true);
-                      }}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Switch
-                      checked={provider.enabled}
-                      onCheckedChange={(checked) =>
-                        updateCustomProvider(providerId, { enabled: checked })
-                      }
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </CardContent>
-        ) : null}
-      </Card>
+      <CustomProvidersList
+        providers={customProviders}
+        testResults={customTestResults}
+        testMessages={customTestMessages}
+        testingProviders={testingCustomProviders}
+        onTestProvider={handleTestCustomProvider}
+        onEditProvider={(providerId) => {
+          setCustomTestResults((prev) => ({ ...prev, [providerId]: null }));
+          setCustomTestMessages((prev) => ({ ...prev, [providerId]: null }));
+          setEditingProviderId(providerId);
+          setShowCustomDialog(true);
+        }}
+        onToggleProvider={(providerId, enabled) => updateCustomProvider(providerId, { enabled })}
+        onAddProvider={() => {
+          setEditingProviderId(null);
+          setShowCustomDialog(true);
+        }}
+        onQuickAdd={() => setShowQuickAddDialog(true)}
+        searchQuery={searchQuery}
+      />
 
       {/* Custom Provider Dialog */}
       <CustomProviderDialog

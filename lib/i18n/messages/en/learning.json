@@ -38,7 +38,15 @@
       "learningType": "Learning Type",
       "autoDetected": "Auto-detected",
       "estimatedDuration": "Estimated Duration",
-      "journeyHint": "Systematic learning creates a learning path with milestones and progress tracking"
+      "journeyHint": "Systematic learning creates a learning path with milestones and progress tracking",
+      "pathType": "Learning Path Type",
+      "pathSocratic": "Socratic",
+      "pathSocraticDesc": "Guided understanding through dialogue",
+      "pathSpeedpass": "SpeedPass",
+      "pathSpeedpassDesc": "Goal-oriented exam prep & drill",
+      "availableMinutes": "Available Time (minutes)",
+      "targetScore": "Target Score",
+      "examDate": "Exam Date"
     },
     "learningType": {
       "quick": "Quick Learning",

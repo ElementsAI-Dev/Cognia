@@ -1,6 +1,6 @@
 {
   "cloudSync": "云同步",
-  "cloudSyncDesc": "通过 WebDAV、GitHub 或 Google Drive 跨设备同步数据",
+  "cloudSyncDesc": "通过 WebDAV、GitHub、Google Drive 或 Convex 跨设备同步数据",
   "syncProvider": "同步服务",
   "selectProvider": "选择服务",
   "disabled": "已禁用",
@@ -115,5 +115,22 @@
   "useAppDataFolderDesc": "将备份存储在隐藏的应用专属文件夹中（推荐）",
   "folderName": "文件夹名称",
   "resumableUpload": "断点续传",
-  "resumableUploadDesc": "适用于大型备份和不稳定的网络连接"
+  "resumableUploadDesc": "适用于大型备份和不稳定的网络连接",
+
+  "convex": "Convex",
+  "convexConfig": "Convex 配置",
+  "convexConfigDesc": "连接 Convex 云数据库进行实时同步",
+  "convexDeploymentUrl": "部署 URL",
+  "convexDeploymentUrlDesc": "您的 Convex 部署 URL（例如 https://your-app.convex.cloud）",
+  "convexDeployKey": "部署密钥",
+  "convexDeployKeyDesc": "来自 Convex 控制台的生产部署密钥",
+  "convexDeployKeyStored": "部署密钥已安全存储。输入新值以更新。",
+  "convexDeployKeyRequired": "需要部署密钥",
+  "convexProjectSlug": "项目标识",
+  "convexProjectSlugDesc": "您的 Convex 项目名称",
+  "convexConnected": "已连接到 Convex",
+  "convexNotConnected": "未连接",
+  "convexDescription": "Convex 提供实时云数据库同步，支持自动冲突解决",
+  "enableConvexSync": "启用 Convex 同步",
+  "enableConvexSyncDesc": "将数据同步到 Convex 云数据库"
 }

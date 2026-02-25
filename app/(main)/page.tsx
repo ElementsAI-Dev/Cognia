@@ -1,18 +1,23 @@
 'use client';
 
 /**
- * Root page — delegates to the ChatContainer.
+ * Root page — renders ChatContainer with the full chat layout.
  *
- * The primary chat UI lives at (main)/(chat)/page.tsx with its own layout
- * that provides sidebar, panels, and error boundary. This root page exists
- * as a fallback for the (main) route group and renders the same component.
+ * Both this page and (chat)/page.tsx map to `/`, but Next.js resolves the
+ * direct page.tsx first, bypassing the (chat) layout. We therefore use
+ * ChatShell here to get the same sidebar, panels, and error boundary.
  *
- * @see app/(main)/(chat)/layout.tsx  — Unified layout with sidebar & panels
- * @see app/(main)/(chat)/page.tsx    — Primary chat page
+ * @see components/layout/shell/chat-shell.tsx — Shared layout component
+ * @see app/(main)/(chat)/layout.tsx           — Chat route layout (same shell)
  */
 
+import { ChatShell } from '@/components/layout/shell/chat-shell';
 import { ChatContainer } from '@/components/chat';
 
 export default function Home() {
-  return <ChatContainer />;
+  return (
+    <ChatShell>
+      <ChatContainer />
+    </ChatShell>
+  );
 }

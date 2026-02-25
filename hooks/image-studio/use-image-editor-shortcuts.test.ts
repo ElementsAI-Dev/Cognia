@@ -16,6 +16,10 @@ describe('useImageEditorShortcuts', () => {
     onPaste: jest.fn(),
     onSelectAll: jest.fn(),
     onDeselect: jest.fn(),
+    onNavigateNext: jest.fn(),
+    onNavigatePrev: jest.fn(),
+    onPreview: jest.fn(),
+    onToggleFavorite: jest.fn(),
   };
 
   beforeEach(() => {
@@ -219,6 +223,67 @@ describe('useImageEditorShortcuts', () => {
     window.dispatchEvent(event);
 
     expect(mockCallbacks.onDeselect).toHaveBeenCalled();
+  });
+
+  it('should call onNavigateNext when ArrowRight is pressed', () => {
+    renderHook(() => useImageEditorShortcuts(mockCallbacks));
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowRight',
+      bubbles: true,
+    });
+    window.dispatchEvent(event);
+
+    expect(mockCallbacks.onNavigateNext).toHaveBeenCalled();
+  });
+
+  it('should call onNavigatePrev when ArrowLeft is pressed', () => {
+    renderHook(() => useImageEditorShortcuts(mockCallbacks));
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      bubbles: true,
+    });
+    window.dispatchEvent(event);
+
+    expect(mockCallbacks.onNavigatePrev).toHaveBeenCalled();
+  });
+
+  it('should call onPreview when Space is pressed', () => {
+    renderHook(() => useImageEditorShortcuts(mockCallbacks));
+
+    const event = new KeyboardEvent('keydown', {
+      key: ' ',
+      bubbles: true,
+    });
+    window.dispatchEvent(event);
+
+    expect(mockCallbacks.onPreview).toHaveBeenCalled();
+  });
+
+  it('should call onToggleFavorite when F is pressed without modifier', () => {
+    renderHook(() => useImageEditorShortcuts(mockCallbacks));
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'f',
+      bubbles: true,
+    });
+    window.dispatchEvent(event);
+
+    expect(mockCallbacks.onToggleFavorite).toHaveBeenCalled();
+  });
+
+  it('should NOT call onToggleFavorite when Ctrl+F is pressed', () => {
+    renderHook(() => useImageEditorShortcuts(mockCallbacks));
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'f',
+      ctrlKey: true,
+      bubbles: true,
+    });
+    window.dispatchEvent(event);
+
+    expect(mockCallbacks.onToggleFavorite).not.toHaveBeenCalled();
   });
 
   it('should not call callbacks when disabled', () => {
@@ -788,6 +853,26 @@ describe('getShortcutDisplay', () => {
   it('returns correct shortcut for deselect', () => {
     const result = getShortcutDisplay('deselect');
     expect(result).toMatch(/Ctrl\+D|⌘\+D/);
+  });
+
+  it('returns correct shortcut for navigateNext', () => {
+    const result = getShortcutDisplay('navigateNext');
+    expect(result).toBe('→');
+  });
+
+  it('returns correct shortcut for navigatePrev', () => {
+    const result = getShortcutDisplay('navigatePrev');
+    expect(result).toBe('←');
+  });
+
+  it('returns correct shortcut for preview', () => {
+    const result = getShortcutDisplay('preview');
+    expect(result).toBe('Space');
+  });
+
+  it('returns correct shortcut for toggleFavorite', () => {
+    const result = getShortcutDisplay('toggleFavorite');
+    expect(result).toBe('F');
   });
 
   describe('Mac platform display', () => {

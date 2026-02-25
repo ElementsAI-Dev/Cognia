@@ -27,10 +27,10 @@ export { PPTPreview, PPTPreviewWithErrorBoundary, SingleSlideView, GridView, Out
 export { SlideshowView, SlideshowControls, KeyboardHelpModal, ThumbnailNavigator, PresenterMode } from './slideshow';
 
 // Generation components
-export { PPTGenerationDialog, PPTQuickAction, PPTOutlinePreview } from './generation';
+export { PPTGenerationDialog, PPTQuickAction, PPTOutlinePreview, PPTCreationHub, PPTGenerationLivePreview, PPTTemplateGallery } from './generation';
 
 // Theme components
-export { ThemeCustomizer, ThemeMenuItem } from './theme';
+export { ThemeCustomizer, ThemeMenuItem, ThemePreviewCard } from './theme';
 
 // Rendering components
 export { SlideElementRenderer, SlideContent, PPTPreviewErrorBoundary } from './rendering';
@@ -80,6 +80,6 @@ export type {
 
 // Re-export types from submodules
 export type { AlignmentToolbarProps } from './editor';
-export type { PPTGenerationDialogProps, PPTQuickActionProps, PPTOutlinePreviewProps, PPTOutline, OutlineSlide } from './generation';
-export type { ThemeCustomizerProps } from './theme';
+export type { PPTGenerationDialogProps, PPTQuickActionProps, PPTOutlinePreviewProps, PPTOutline, OutlineSlide, PPTCreationHubProps, CreationMode, PPTGenerationLivePreviewProps, PPTTemplateGalleryProps } from './generation';
+export type { ThemeCustomizerProps, ThemePreviewCardProps } from './theme';
 export type { SlideContentProps } from './rendering';

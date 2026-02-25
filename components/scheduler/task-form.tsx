@@ -435,7 +435,7 @@ export function TaskForm({
                       : 'border-border bg-background text-muted-foreground'
                   )}
                 >
-                  {type.label}
+                  {t(`taskTypes.${type.value}`)}
                 </button>
               ))}
             </div>
@@ -479,7 +479,7 @@ export function TaskForm({
                     'text-sm font-medium truncate',
                     f.triggerType === type.value ? 'text-blue-600 dark:text-blue-400' : 'text-foreground'
                   )}>
-                    {type.label}
+                    {t(`triggerTypes.${type.value}`)}
                   </div>
                 </div>
               </button>

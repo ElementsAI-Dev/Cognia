@@ -598,7 +598,10 @@
     "nameRequired": "主题名称不能为空",
     "nameTooLong": "名称不能超过 {max} 个字符",
     "nameInvalidChars": "名称包含无效字符",
-    "nameDuplicate": "已存在同名主题"
+    "nameDuplicate": "已存在同名主题",
+    "previewUserMessage": "你好！",
+    "previewAIMessage": "嗨！有什么可以帮你的？",
+    "previewInputPlaceholder": "输入消息..."
   },
   "customThemeEditor": {
     "editTheme": "编辑主题",
@@ -1051,6 +1054,9 @@
     "apply": "应用",
     "supportedFormats": "支持 PNG, JPG, WebP, GIF 格式",
     "clickToSelectFile": "点击选择图片文件",
+    "uploading": "上传中...",
+    "uploadError": "文件上传失败",
+    "invalidImageUrl": "无效的图片URL",
     "fit": "填充方式",
     "fitCover": "覆盖",
     "fitContain": "包含",
@@ -1582,7 +1588,8 @@
     "hideMessageTimestamps": "隐藏消息时间戳",
     "hideTokenCount": "隐藏令牌计数",
     "shortcutSettings": "键盘快捷键",
-    "shortcutHint": "按此快捷键切换简洁模式"
+    "shortcutHint": "按此快捷键切换简洁模式",
+    "shortcutValue": "快捷键"
   },
   "inputCompletion": {
     "title": "输入补全",

@@ -2,7 +2,7 @@
 
 /**
  * PromptTemplateCard - Card component for displaying a prompt template
- * Modern design with glassmorphism, smooth animations, and responsive layout
+ * Clean design aligned with SkillCard: subtle hover effects, compact layout
  */
 
 import { useState } from 'react';
@@ -16,7 +16,6 @@ import {
   Zap,
   Clock,
   Target,
-  ArrowUpRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,32 +57,17 @@ export function PromptTemplateCard({
   return (
     <Card
       className={cn(
-        'group relative h-full overflow-hidden transition-all duration-300',
-        'border-border/50 bg-card/60 backdrop-blur-sm',
-        'hover:bg-card hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5',
-        'hover:-translate-y-1'
+        'group relative h-full overflow-hidden transition-all duration-200',
+        'hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5'
       )}
     >
-      {/* Corner Accent */}
-      <div
-        className="absolute -top-12 -right-12 w-24 h-24 rounded-full opacity-20 blur-2xl transition-opacity duration-500 group-hover:opacity-40"
-        style={{ backgroundColor: iconColor }}
-      />
-
-      {/* View Detail Arrow */}
-      <div className="absolute top-4 left-4 z-10 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-[-4px] group-hover:translate-x-0">
-        <div className="p-1.5 rounded-full bg-primary/10 text-primary">
-          <ArrowUpRight className="h-3.5 w-3.5" />
-        </div>
-      </div>
-
-      <CardContent className="p-5 space-y-4 relative z-0">
+      <CardContent className="p-4 space-y-3">
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             {/* Icon */}
             <div
-              className="flex items-center justify-center w-12 h-12 rounded-xl text-xl shrink-0 shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-md group-hover:rotate-3"
+              className="flex items-center justify-center w-10 h-10 rounded-lg text-lg shrink-0 transition-transform duration-200 group-hover:scale-105"
               style={{
                 backgroundColor: `${iconColor}15`,
                 color: iconColor,
@@ -155,14 +139,14 @@ export function PromptTemplateCard({
 
         {/* Description */}
         {template.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+          <p className="text-sm text-muted-foreground line-clamp-1 leading-relaxed">
             {template.description}
           </p>
         )}
 
         {/* Content Preview */}
-        <div className="p-3 rounded-lg bg-muted/40 border border-border/50">
-          <p className="text-xs text-muted-foreground line-clamp-2 font-mono">
+        <div className="p-2 rounded-md bg-muted/40 border border-border/50">
+          <p className="text-xs text-muted-foreground line-clamp-1 font-mono">
             {template.content || t('noContent')}
           </p>
         </div>
@@ -170,7 +154,7 @@ export function PromptTemplateCard({
         {/* Tags */}
         {template.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {template.tags.slice(0, 4).map((tag) => (
+            {template.tags.slice(0, 3).map((tag) => (
               <span
                 key={tag}
                 className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-secondary/50 text-secondary-foreground border border-transparent group-hover:border-border/50 transition-all"
@@ -178,16 +162,16 @@ export function PromptTemplateCard({
                 {tag}
               </span>
             ))}
-            {template.tags.length > 4 && (
+            {template.tags.length > 3 && (
               <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] text-muted-foreground bg-muted/50">
-                +{template.tags.length - 4}
+                +{template.tags.length - 3}
               </span>
             )}
           </div>
         )}
 
         {/* Stats Row */}
-        <div className="flex items-center gap-4 pt-2 border-t border-border/40 text-xs text-muted-foreground">
+        <div className="flex items-center gap-3 pt-2 border-t border-border/40 text-xs text-muted-foreground">
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="flex items-center gap-1.5">

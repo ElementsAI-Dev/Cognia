@@ -504,7 +504,7 @@ export function DataSettings() {
                   onChange={(event) => setExportPassphrase(event.target.value)}
                   placeholder={t('optionalPassphrasePlaceholder') || 'Leave empty to use the automatic backup key'}
                   className="h-8 text-xs"
-                  autoComplete="off"
+                  autoComplete="new-password"
                 />
                 <p className="text-[10px] text-muted-foreground">
                   {t('optionalPassphraseDesc') || 'Set a manual passphrase when you need cross-device restore.'}
@@ -644,7 +644,7 @@ export function DataSettings() {
             <Input
               id="import-backup-passphrase"
               type="password"
-              autoComplete="off"
+              autoComplete="new-password"
               value={importPassphrase}
               onChange={(event) => setImportPassphrase(event.target.value)}
               onKeyDown={(event) => {

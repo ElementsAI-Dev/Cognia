@@ -1,5 +1,5 @@
 /**
- * Sync Store - Zustand store for WebDAV and GitHub sync state management
+ * Sync Store - Zustand store for WebDAV, GitHub, Google Drive, and Convex sync state management
  */
 
 import { create } from 'zustand';
@@ -11,6 +11,7 @@ import type {
   WebDAVConfig,
   GitHubSyncConfig,
   GoogleDriveConfig,
+  ConvexSyncConfig,
   SyncProviderType,
   SyncStatus,
   SyncProgress,
@@ -22,13 +23,14 @@ import {
   DEFAULT_WEBDAV_CONFIG,
   DEFAULT_GITHUB_CONFIG,
   DEFAULT_GOOGLE_DRIVE_CONFIG,
+  DEFAULT_CONVEX_CONFIG,
 } from '@/types/sync';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.store;
 
 // Re-export defaults for convenience
-export { DEFAULT_WEBDAV_CONFIG, DEFAULT_GITHUB_CONFIG, DEFAULT_GOOGLE_DRIVE_CONFIG };
+export { DEFAULT_WEBDAV_CONFIG, DEFAULT_GITHUB_CONFIG, DEFAULT_GOOGLE_DRIVE_CONFIG, DEFAULT_CONVEX_CONFIG };
 
 /**
  * Generate a unique device ID
@@ -68,6 +70,7 @@ const initialState: SyncState = {
   webdavConfig: { ...DEFAULT_WEBDAV_CONFIG },
   githubConfig: { ...DEFAULT_GITHUB_CONFIG },
   googleDriveConfig: { ...DEFAULT_GOOGLE_DRIVE_CONFIG },
+  convexConfig: { ...DEFAULT_CONVEX_CONFIG },
   activeProvider: null,
   
   // Sync status
@@ -114,6 +117,12 @@ export const useSyncStore = create<SyncStore>()(
       setGoogleDriveConfig: (config: Partial<GoogleDriveConfig>) => {
         set((state) => ({
           googleDriveConfig: { ...state.googleDriveConfig, ...config },
+        }));
+      },
+
+      setConvexConfig: (config: Partial<ConvexSyncConfig>) => {
+        set((state) => ({
+          convexConfig: { ...state.convexConfig, ...config },
         }));
       },
 
@@ -183,6 +192,10 @@ export const useSyncStore = create<SyncStore>()(
             } else if (activeProvider === 'googledrive') {
               set((state) => ({
                 googleDriveConfig: { ...state.googleDriveConfig, lastSyncAt: timestamp },
+              }));
+            } else if (activeProvider === 'convex') {
+              set((state) => ({
+                convexConfig: { ...state.convexConfig, lastSyncAt: timestamp },
               }));
             }
           }
@@ -351,11 +364,11 @@ export const useSyncStore = create<SyncStore>()(
     }),
     {
       name: 'cognia-sync',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState: unknown, version: number) => {
         const state = persistedState as Record<string, unknown>;
-        if (version === 0) {
+        if (version < 1) {
           // v0 -> v1: Ensure googleDriveConfig and device fields exist
           if (!state.googleDriveConfig) {
             state.googleDriveConfig = initialState.googleDriveConfig;
@@ -367,12 +380,19 @@ export const useSyncStore = create<SyncStore>()(
             state.deviceName = initialState.deviceName;
           }
         }
+        if (version < 2) {
+          // v1 -> v2: Ensure convexConfig exists
+          if (!state.convexConfig) {
+            state.convexConfig = { ...DEFAULT_CONVEX_CONFIG };
+          }
+        }
         return state;
       },
       partialize: (state) => ({
         webdavConfig: state.webdavConfig,
         githubConfig: state.githubConfig,
         googleDriveConfig: state.googleDriveConfig,
+        convexConfig: state.convexConfig,
         activeProvider: state.activeProvider,
         syncHistory: state.syncHistory.slice(0, 20), // Only persist last 20
         deviceId: state.deviceId,
@@ -392,6 +412,7 @@ export const selectActiveProvider = (state: SyncStore) => state.activeProvider;
 export const selectWebDAVConfig = (state: SyncStore) => state.webdavConfig;
 export const selectGitHubConfig = (state: SyncStore) => state.githubConfig;
 export const selectGoogleDriveConfig = (state: SyncStore) => state.googleDriveConfig;
+export const selectConvexConfig = (state: SyncStore) => state.convexConfig;
 export const selectSyncHistory = (state: SyncStore) => state.syncHistory;
 export const selectPendingConflicts = (state: SyncStore) => state.pendingConflicts;
 export const selectLastError = (state: SyncStore) => state.lastError;
@@ -405,9 +426,10 @@ export const selectHasConflicts = (state: SyncStore) =>
   state.pendingConflicts.some((c) => !c.resolved);
 
 export const selectLastSyncTime = (state: SyncStore) => {
-  const { activeProvider, webdavConfig, githubConfig, googleDriveConfig } = state;
+  const { activeProvider, webdavConfig, githubConfig, googleDriveConfig, convexConfig } = state;
   if (activeProvider === 'webdav') return webdavConfig.lastSyncAt;
   if (activeProvider === 'github') return githubConfig.lastSyncAt;
   if (activeProvider === 'googledrive') return googleDriveConfig.lastSyncAt;
+  if (activeProvider === 'convex') return convexConfig.lastSyncAt;
   return null;
 };

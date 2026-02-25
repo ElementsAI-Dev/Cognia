@@ -84,6 +84,7 @@ export interface ModeSliceState {
 /** Bulk operations state: selected session IDs */
 export interface BulkSliceState {
   selectedSessionIds: string[];
+  lastSelectedSessionId: string | null;
 }
 
 // ============================================================================
@@ -245,6 +246,10 @@ export interface BulkSliceActions {
   selectSession: (id: string) => void;
   /** Deselect a session */
   deselectSession: (id: string) => void;
+  /** Toggle selection of a session (Ctrl+click behavior) */
+  toggleSelectSession: (id: string) => void;
+  /** Range-select sessions between last selected and target (Shift+click behavior) */
+  rangeSelectSessions: (targetId: string, visibleSessionIds: string[]) => void;
   /** Select all sessions */
   selectAllSessions: () => void;
   /** Clear all selections */

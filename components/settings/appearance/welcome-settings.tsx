@@ -283,7 +283,7 @@ export function WelcomeSettings() {
 
   // Get simplified suggestions text for current mode (joined by newlines for textarea)
   const simplifiedSuggestionsText = useMemo(
-    () => (welcomeSettings.simplifiedSuggestions[selectedSimplifiedMode] || []).join('\n'),
+    () => (welcomeSettings.simplifiedSuggestions?.[selectedSimplifiedMode] || []).join('\n'),
     [welcomeSettings.simplifiedSuggestions, selectedSimplifiedMode]
   );
 
@@ -784,12 +784,12 @@ export function WelcomeSettings() {
                   <Label>{t('enableCustomSimplifiedSuggestions')}</Label>
                 </div>
                 <Switch
-                  checked={welcomeSettings.useCustomSimplifiedSuggestions}
+                  checked={welcomeSettings.useCustomSimplifiedSuggestions ?? false}
                   onCheckedChange={setWelcomeUseCustomSimplifiedSuggestions}
                 />
               </div>
 
-              {welcomeSettings.useCustomSimplifiedSuggestions && (
+              {welcomeSettings.useCustomSimplifiedSuggestions === true && (
                 <>
                   {/* Mode Selector */}
                   <div className="space-y-2">

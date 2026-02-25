@@ -50,6 +50,7 @@ export function TagInput({
 
   return (
     <div
+      data-slot="tag-input"
       className={cn(
         'flex flex-wrap gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
         disabled && 'cursor-not-allowed opacity-50',

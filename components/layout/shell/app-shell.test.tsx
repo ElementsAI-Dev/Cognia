@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { AppShell } from './app-shell';
 
 // Mock useNetworkStatus hook to prevent act() warnings from async state updates
@@ -20,49 +20,6 @@ jest.mock('@/hooks/network/use-network-status', () => ({
   }),
 }));
 
-// Mock stores
-const mockSetSidebarCollapsed = jest.fn();
-const mockSetSidebarOpen = jest.fn();
-
-const mockSimplifiedModeSettings = {
-  enabled: false,
-  autoHideSidebar: false,
-};
-
-jest.mock('@/stores', () => ({
-  useUIStore: (selector: (state: Record<string, unknown>) => unknown) => {
-    const state = {
-      sidebarOpen: true,
-      setSidebarOpen: mockSetSidebarOpen,
-    };
-    return selector(state);
-  },
-  useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
-    const state = {
-      sidebarCollapsed: false,
-      setSidebarCollapsed: mockSetSidebarCollapsed,
-      simplifiedModeSettings: mockSimplifiedModeSettings,
-    };
-    return selector(state);
-  },
-}));
-
-// Mock UI components
-jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} {...props}>
-      {children}
-    </button>
-  ),
-}));
-
-jest.mock('@/components/ui/tooltip', () => ({
-  Tooltip: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TooltipProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
-
 describe('AppShell', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -73,50 +30,12 @@ describe('AppShell', () => {
     expect(screen.getByText('Content')).toBeInTheDocument();
   });
 
-  it('renders children in main area', () => {
+  it('renders children', () => {
     render(
       <AppShell>
         <div data-testid="main-content">Main Content</div>
       </AppShell>
     );
     expect(screen.getByTestId('main-content')).toBeInTheDocument();
-  });
-
-  it('renders sidebar when provided', () => {
-    render(<AppShell sidebar={<div data-testid="sidebar">Sidebar</div>}>Content</AppShell>);
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
-  });
-
-  it('does not render sidebar when not provided', () => {
-    const { container } = render(<AppShell>Content</AppShell>);
-    const aside = container.querySelector('aside');
-    expect(aside).toBeNull();
-  });
-
-  it('renders collapse toggle button when sidebar is open', () => {
-    render(<AppShell sidebar={<div>Sidebar</div>}>Content</AppShell>);
-    expect(screen.getByRole('button')).toBeInTheDocument();
-  });
-
-  it('calls setSidebarCollapsed when collapse button is clicked', () => {
-    render(<AppShell sidebar={<div>Sidebar</div>}>Content</AppShell>);
-    fireEvent.click(screen.getByRole('button'));
-    expect(mockSetSidebarCollapsed).toHaveBeenCalledWith(true);
-  });
-
-  describe('autoHideSidebar', () => {
-    it('renders sidebar when simplified mode is disabled', () => {
-      mockSimplifiedModeSettings.enabled = false;
-      mockSimplifiedModeSettings.autoHideSidebar = false;
-      render(<AppShell sidebar={<div data-testid="sidebar">Sidebar</div>}>Content</AppShell>);
-      expect(screen.getByTestId('sidebar')).toBeInTheDocument();
-    });
-
-    it('renders sidebar when simplified mode is enabled but autoHideSidebar is false', () => {
-      mockSimplifiedModeSettings.enabled = true;
-      mockSimplifiedModeSettings.autoHideSidebar = false;
-      render(<AppShell sidebar={<div data-testid="sidebar">Sidebar</div>}>Content</AppShell>);
-      expect(screen.getByTestId('sidebar')).toBeInTheDocument();
-    });
   });
 });

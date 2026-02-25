@@ -1,5 +1,5 @@
 /**
- * Sync Types - Type definitions for WebDAV, GitHub, and Google Drive sync features
+ * Sync Types - Type definitions for WebDAV, GitHub, Google Drive, and Convex sync features
  */
 
 import type { Session, Artifact } from '@/types';
@@ -9,7 +9,7 @@ import type { DBMessage } from '@/lib/db';
 // Base Sync Configuration
 // ============================================
 
-export type SyncProviderType = 'webdav' | 'github' | 'googledrive';
+export type SyncProviderType = 'webdav' | 'github' | 'googledrive' | 'convex';
 export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error' | 'conflict';
 export type ConflictResolution = 'local' | 'remote' | 'newest' | 'manual';
 export type SyncDirection = 'upload' | 'download' | 'bidirectional';
@@ -132,6 +132,37 @@ export const DEFAULT_GOOGLE_DRIVE_CONFIG: GoogleDriveConfig = {
 };
 
 // ============================================
+// Convex Configuration
+// ============================================
+
+export interface ConvexSyncConfig extends BaseSyncConfig {
+  type: 'convex';
+  deploymentUrl: string;
+  projectSlug: string;
+  // Deploy key stored in Stronghold, not here
+}
+
+export const DEFAULT_CONVEX_CONFIG: ConvexSyncConfig = {
+  type: 'convex',
+  enabled: false,
+  autoSync: false,
+  syncInterval: 15,
+  lastSyncAt: null,
+  syncOnStartup: false,
+  syncOnExit: false,
+  conflictResolution: 'newest',
+  syncDirection: 'bidirectional',
+  maxBackups: 10,
+  syncDataTypes: [],
+  deploymentUrl: '',
+  projectSlug: '',
+};
+
+export interface ConvexCredentials {
+  deployKey: string;
+}
+
+// ============================================
 // Sync Data Structures
 // ============================================
 
@@ -246,6 +277,7 @@ export interface SyncState {
   webdavConfig: WebDAVConfig;
   githubConfig: GitHubSyncConfig;
   googleDriveConfig: GoogleDriveConfig;
+  convexConfig: ConvexSyncConfig;
   activeProvider: SyncProviderType | null;
   
   // Sync status
@@ -269,6 +301,7 @@ export interface SyncActions {
   setWebDAVConfig: (config: Partial<WebDAVConfig>) => void;
   setGitHubConfig: (config: Partial<GitHubSyncConfig>) => void;
   setGoogleDriveConfig: (config: Partial<GoogleDriveConfig>) => void;
+  setConvexConfig: (config: Partial<ConvexSyncConfig>) => void;
   setActiveProvider: (provider: SyncProviderType | null) => void;
   
   // Operations

@@ -4,6 +4,7 @@
  */
 
 import { BACKGROUND_LIMITS } from './appearance-constants';
+import { BACKGROUND_SIZE_MAP, BACKGROUND_POSITION_MAP } from './background-maps';
 
 export type ColorThemePreset = 'default' | 'ocean' | 'forest' | 'sunset' | 'lavender' | 'rose' | 'slate' | 'amber';
 
@@ -962,30 +963,13 @@ export function applyBackgroundSettings(settings: BackgroundSettings): void {
   root.style.setProperty('--bg-grayscale', `${settings.grayscale ?? 0}%`);
   
   // Set background size based on fit
-  const sizeMap: Record<BackgroundImageFit, string> = {
-    cover: 'cover',
-    contain: 'contain',
-    fill: '100% 100%',
-    tile: 'auto',
-  };
-  root.style.setProperty('--bg-image-size', sizeMap[settings.fit]);
+  root.style.setProperty('--bg-image-size', BACKGROUND_SIZE_MAP[settings.fit] ?? 'cover');
   
   // Set background repeat
   root.style.setProperty('--bg-image-repeat', settings.fit === 'tile' ? 'repeat' : 'no-repeat');
   
   // Set background position
-  const positionMap: Record<BackgroundImagePosition, string> = {
-    center: 'center center',
-    top: 'center top',
-    bottom: 'center bottom',
-    left: 'left center',
-    right: 'right center',
-    'top-left': 'left top',
-    'top-right': 'right top',
-    'bottom-left': 'left bottom',
-    'bottom-right': 'right bottom',
-  };
-  root.style.setProperty('--bg-image-position', positionMap[settings.position]);
+  root.style.setProperty('--bg-image-position', BACKGROUND_POSITION_MAP[settings.position] ?? 'center center');
   
   // New: background attachment
   const attachmentMap: Record<BackgroundAttachment, string> = {

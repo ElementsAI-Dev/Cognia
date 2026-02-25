@@ -492,7 +492,11 @@ export const selectActiveJob = (state: SkillSeekersStore) =>
 export const selectJobs = (state: SkillSeekersStore) => Object.values(state.jobs);
 export const selectJobById = (jobId: string) => (state: SkillSeekersStore) => state.jobs[jobId];
 export const selectPresets = (state: SkillSeekersStore) => state.presets;
+let _presetsByCategoryCache: { presets: PresetConfig[]; result: Record<string, PresetConfig[]> } | null = null;
 export const selectPresetsByCategory = (state: SkillSeekersStore) => {
+  if (_presetsByCategoryCache && _presetsByCategoryCache.presets === state.presets) {
+    return _presetsByCategoryCache.result;
+  }
   const categories: Record<string, PresetConfig[]> = {};
   state.presets.forEach((preset) => {
     if (!categories[preset.category]) {
@@ -500,6 +504,7 @@ export const selectPresetsByCategory = (state: SkillSeekersStore) => {
     }
     categories[preset.category].push(preset);
   });
+  _presetsByCategoryCache = { presets: state.presets, result: categories };
   return categories;
 };
 export const selectGeneratedSkills = (state: SkillSeekersStore) =>

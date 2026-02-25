@@ -18,6 +18,7 @@ export function useSync() {
     webdavConfig,
     githubConfig,
     googleDriveConfig,
+    convexConfig,
     status,
     progress,
     lastError,
@@ -53,10 +54,12 @@ export function useSync() {
         return githubConfig;
       case 'googledrive':
         return googleDriveConfig;
+      case 'convex':
+        return convexConfig;
       default:
         return null;
     }
-  }, [activeProvider, webdavConfig, githubConfig, googleDriveConfig]);
+  }, [activeProvider, webdavConfig, githubConfig, googleDriveConfig, convexConfig]);
 
   const lastSyncTime = activeConfig?.lastSyncAt ?? null;
 

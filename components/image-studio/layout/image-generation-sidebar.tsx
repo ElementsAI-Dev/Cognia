@@ -4,7 +4,7 @@
  * ImageGenerationSidebar - Left sidebar with generate/edit/variations tabs and settings
  */
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Sparkles,
@@ -15,9 +15,13 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  Dices,
+  Wand2,
 } from 'lucide-react';
+import { PromptOptimizerDialog } from '@/components/prompt/optimization/prompt-optimizer-dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -48,6 +52,8 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { PROMPT_TEMPLATES, STYLE_PRESETS, ASPECT_RATIOS } from '@/lib/image-studio';
+import { getAvailableImageModels, type ImageProviderType } from '@/lib/ai/media/image-generation-sdk';
+import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 import type { ImageSize, ImageQuality, ImageStyle } from '@/lib/ai';
 
 export interface ImageGenerationSidebarProps {
@@ -62,8 +68,10 @@ export interface ImageGenerationSidebarProps {
   negativePrompt: string;
   onNegativePromptChange: (value: string) => void;
   // Settings
-  model: 'dall-e-3' | 'dall-e-2' | 'gpt-image-1';
-  onModelChange: (model: 'dall-e-3' | 'dall-e-2' | 'gpt-image-1') => void;
+  provider: ImageProviderType;
+  onProviderChange: (provider: ImageProviderType) => void;
+  model: string;
+  onModelChange: (model: string) => void;
   size: ImageSize;
   onSizeChange: (size: ImageSize) => void;
   quality: ImageQuality;
@@ -72,6 +80,8 @@ export interface ImageGenerationSidebarProps {
   onStyleChange: (style: ImageStyle) => void;
   numberOfImages: number;
   onNumberOfImagesChange: (n: number) => void;
+  seed: number | null;
+  onSeedChange: (seed: number | null) => void;
   estimatedCost: number;
   // Edit mode
   editImageFile: File | null;
@@ -104,6 +114,8 @@ export function ImageGenerationSidebar({
   onPromptChange,
   negativePrompt,
   onNegativePromptChange,
+  provider,
+  onProviderChange,
   model,
   onModelChange,
   size,
@@ -114,6 +126,8 @@ export function ImageGenerationSidebar({
   onStyleChange,
   numberOfImages,
   onNumberOfImagesChange,
+  seed,
+  onSeedChange,
   estimatedCost,
   editImageFile,
   onEditImageFileChange,
@@ -133,8 +147,9 @@ export function ImageGenerationSidebar({
   onShowSettingsChange,
   className,
 }: ImageGenerationSidebarProps) {
-  const _t = useTranslations('imageGeneration');
+  const t = useTranslations('imageGeneration');
   const [showMoreTemplates, setShowMoreTemplates] = useState(false);
+  const [showOptimizer, setShowOptimizer] = useState(false);
 
   const handleApplyTemplate = (templatePrompt: string) => {
     onPromptChange(templatePrompt);
@@ -144,6 +159,32 @@ export function ImageGenerationSidebar({
     onPromptChange(prompt ? `${prompt}, ${styleValue}` : styleValue);
   };
 
+  const availableModels = useMemo(() => getAvailableImageModels(provider), [provider]);
+
+  // Drag-drop state
+  const [isDraggingEdit, setIsDraggingEdit] = useState(false);
+  const [isDraggingVariation, setIsDraggingVariation] = useState(false);
+
+  const handleDrop = useCallback((e: React.DragEvent, onFileChange: (file: File | null) => void, setDragging: (v: boolean) => void) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file?.type.startsWith('image/')) onFileChange(file);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, setDragging: (v: boolean) => void) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent, setDragging: (v: boolean) => void) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(false);
+  }, []);
+
   const isDisabled =
     isGenerating ||
     (activeTab === 'generate' && !prompt.trim()) ||
@@ -151,10 +192,11 @@ export function ImageGenerationSidebar({
     (activeTab === 'variations' && !variationImage);
 
   return (
+    <>
     <div
       className={cn(
-        'border-r flex flex-col shrink-0 transition-all duration-300',
-        show ? 'w-80' : 'w-0 overflow-hidden',
+        'border-r flex flex-col shrink-0 transition-all duration-300 h-full',
+        show ? 'w-full' : 'w-0 overflow-hidden',
         className
       )}
     >
@@ -166,15 +208,15 @@ export function ImageGenerationSidebar({
         <TabsList className="w-full justify-start rounded-none border-b h-10 px-2">
           <TabsTrigger value="generate" className="text-xs">
             <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-            Generate
+            {t('tabGenerate')}
           </TabsTrigger>
           <TabsTrigger value="edit" className="text-xs">
             <Brush className="h-3.5 w-3.5 mr-1.5" />
-            Edit
+            {t('tabEdit')}
           </TabsTrigger>
           <TabsTrigger value="variations" className="text-xs">
             <Layers className="h-3.5 w-3.5 mr-1.5" />
-            Variations
+            {t('tabVariations')}
           </TabsTrigger>
         </TabsList>
 
@@ -184,19 +226,40 @@ export function ImageGenerationSidebar({
             <TabsContent value="generate" className="mt-0 space-y-3">
               {/* Prompt */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Prompt</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium">{t('prompt')}</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-1.5 text-xs gap-1 text-muted-foreground hover:text-primary"
+                    onClick={() => setShowOptimizer(true)}
+                    disabled={!prompt.trim()}
+                  >
+                    <Wand2 className="h-3 w-3" />
+                    Enhance
+                  </Button>
+                </div>
                 <Textarea
                   value={prompt}
                   onChange={(e) => onPromptChange(e.target.value)}
-                  placeholder="Describe the image you want to create..."
-                  className="min-h-[80px] resize-none text-sm"
+                  placeholder={t('promptPlaceholder')}
+                  className="min-h-[100px] resize-none text-sm"
+                  onKeyDown={(e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                      e.preventDefault();
+                      if (!isDisabled) {
+                        (activeTab === 'generate' ? onGenerate : activeTab === 'edit' ? onEdit : onCreateVariations)();
+                      }
+                    }
+                  }}
                 />
+                <span className="text-[10px] text-muted-foreground text-right block">{prompt.length}/4000</span>
               </div>
 
               {/* Aspect Ratio Quick Select */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Aspect Ratio</Label>
-                <div className="flex gap-1">
+                <Label className="text-xs font-medium">{t('aspectRatio')}</Label>
+                <div className="flex flex-wrap gap-1">
                   {ASPECT_RATIOS.map((ratio) => (
                     <Button
                       key={ratio.label}
@@ -216,10 +279,10 @@ export function ImageGenerationSidebar({
               <Collapsible open={showMoreTemplates} onOpenChange={setShowMoreTemplates}>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium">Templates</Label>
+                    <Label className="text-xs font-medium">{t('templates')}</Label>
                     <CollapsibleTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-5 px-1 text-xs text-muted-foreground">
-                        {showMoreTemplates ? 'Less' : 'More'}
+                        {showMoreTemplates ? t('lessTemplates') : t('moreTemplates')}
                       </Button>
                     </CollapsibleTrigger>
                   </div>
@@ -254,7 +317,7 @@ export function ImageGenerationSidebar({
 
               {/* Style Presets - Compact Grid */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Style</Label>
+                <Label className="text-xs font-medium">{t('style')}</Label>
                 <div className="grid grid-cols-5 gap-1">
                   {STYLE_PRESETS.map((preset) => (
                     <Tooltip key={preset.label}>
@@ -278,7 +341,7 @@ export function ImageGenerationSidebar({
               <Collapsible>
                 <CollapsibleTrigger asChild>
                   <Button variant="ghost" size="sm" className="w-full justify-between p-0 h-6">
-                    <span className="text-xs font-medium">Negative Prompt</span>
+                    <span className="text-xs font-medium">{t('negativePrompt')}</span>
                     <ChevronDown className="h-3 w-3" />
                   </Button>
                 </CollapsibleTrigger>
@@ -286,7 +349,7 @@ export function ImageGenerationSidebar({
                   <Textarea
                     value={negativePrompt}
                     onChange={(e) => onNegativePromptChange(e.target.value)}
-                    placeholder="What to avoid..."
+                    placeholder={t('negativePromptPlaceholder')}
                     className="min-h-[50px] resize-none text-sm"
                   />
                 </CollapsibleContent>
@@ -296,7 +359,7 @@ export function ImageGenerationSidebar({
             {/* Edit Tab */}
             <TabsContent value="edit" className="mt-0 space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs font-medium">Upload Image</Label>
+                <Label className="text-xs font-medium">{t('uploadImage')}</Label>
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -305,18 +368,29 @@ export function ImageGenerationSidebar({
                   aria-label="Upload image for editing"
                   onChange={(e) => onEditImageFileChange(e.target.files?.[0] || null)}
                 />
-                <Button
-                  variant="outline"
-                  className="w-full"
+                <div
+                  className={cn(
+                    'border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors',
+                    isDraggingEdit ? 'border-primary bg-primary/10' : 'hover:bg-muted/50'
+                  )}
                   onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => handleDragOver(e, setIsDraggingEdit)}
+                  onDragLeave={(e) => handleDragLeave(e, setIsDraggingEdit)}
+                  onDrop={(e) => handleDrop(e, onEditImageFileChange, setIsDraggingEdit)}
                 >
-                  <Upload className="h-4 w-4 mr-2" />
-                  {editImageFile ? editImageFile.name : 'Select Image (PNG)'}
-                </Button>
+                  {editImageFile ? (
+                    <p className="text-xs font-medium truncate">{editImageFile.name}</p>
+                  ) : (
+                    <>
+                      <Upload className="h-6 w-6 mx-auto text-muted-foreground mb-1" />
+                      <p className="text-xs text-muted-foreground">{t('selectImagePng')}</p>
+                    </>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-medium">Mask (Optional)</Label>
+                <Label className="text-xs font-medium">{t('maskOptional')}</Label>
                 <input
                   type="file"
                   ref={maskInputRef}
@@ -331,19 +405,19 @@ export function ImageGenerationSidebar({
                   onClick={() => maskInputRef.current?.click()}
                 >
                   <Brush className="h-4 w-4 mr-2" />
-                  {maskFile ? maskFile.name : 'Select Mask (PNG)'}
+                  {maskFile ? maskFile.name : t('selectMaskPng')}
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  Upload a mask where transparent areas will be edited
+                  {t('maskDescription')}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-medium">Edit Prompt</Label>
+                <Label className="text-xs font-medium">{t('editPrompt')}</Label>
                 <Textarea
                   value={prompt}
                   onChange={(e) => onPromptChange(e.target.value)}
-                  placeholder="Describe what to add or change..."
+                  placeholder={t('editPromptPlaceholder')}
                   className="min-h-[80px] resize-none text-sm"
                 />
               </div>
@@ -352,7 +426,7 @@ export function ImageGenerationSidebar({
             {/* Variations Tab */}
             <TabsContent value="variations" className="mt-0 space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs font-medium">Source Image</Label>
+                <Label className="text-xs font-medium">{t('sourceImage')}</Label>
                 <input
                   type="file"
                   ref={variationInputRef}
@@ -361,16 +435,27 @@ export function ImageGenerationSidebar({
                   aria-label="Upload source image for variations"
                   onChange={(e) => onVariationImageChange(e.target.files?.[0] || null)}
                 />
-                <Button
-                  variant="outline"
-                  className="w-full"
+                <div
+                  className={cn(
+                    'border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors',
+                    isDraggingVariation ? 'border-primary bg-primary/10' : 'hover:bg-muted/50'
+                  )}
                   onClick={() => variationInputRef.current?.click()}
+                  onDragOver={(e) => handleDragOver(e, setIsDraggingVariation)}
+                  onDragLeave={(e) => handleDragLeave(e, setIsDraggingVariation)}
+                  onDrop={(e) => handleDrop(e, onVariationImageChange, setIsDraggingVariation)}
                 >
-                  <Upload className="h-4 w-4 mr-2" />
-                  {variationImage ? variationImage.name : 'Select Image (PNG)'}
-                </Button>
+                  {variationImage ? (
+                    <p className="text-xs font-medium truncate">{variationImage.name}</p>
+                  ) : (
+                    <>
+                      <Upload className="h-6 w-6 mx-auto text-muted-foreground mb-1" />
+                      <p className="text-xs text-muted-foreground">{t('selectImagePng')}</p>
+                    </>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Create variations of an existing image
+                  {t('variationDescription')}
                 </p>
               </div>
             </TabsContent>
@@ -381,30 +466,57 @@ export function ImageGenerationSidebar({
                 <Button variant="ghost" size="sm" className="w-full justify-between">
                   <span className="flex items-center gap-2">
                     <Settings2 className="h-4 w-4" />
-                    <span className="text-xs font-medium">Settings</span>
+                    <span className="text-xs font-medium">{t('settings')}</span>
                   </span>
                   {showSettings ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-4 pt-2">
+                {/* Provider */}
+                <div className="space-y-2">
+                  <Label className="text-xs">{t('provider')}</Label>
+                  <Select value={provider} onValueChange={(v) => {
+                    const newProvider = v as ImageProviderType;
+                    onProviderChange(newProvider);
+                    const models = getAvailableImageModels(newProvider);
+                    if (models.length > 0 && !models.find(m => m.id === model)) {
+                      onModelChange(models[0].id);
+                    }
+                  }}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <ProviderIcon providerId={provider} size={14} />
+                        <SelectValue />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="openai">OpenAI</SelectItem>
+                      <SelectItem value="xai">xAI (Grok)</SelectItem>
+                      <SelectItem value="together">Together AI</SelectItem>
+                      <SelectItem value="fireworks">Fireworks AI</SelectItem>
+                      <SelectItem value="deepinfra">DeepInfra</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Model */}
                 <div className="space-y-2">
-                  <Label className="text-xs">Model</Label>
-                  <Select value={model} onValueChange={(v) => onModelChange(v as typeof model)}>
+                  <Label className="text-xs">{t('model')}</Label>
+                  <Select value={model} onValueChange={(v) => onModelChange(v)}>
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="gpt-image-1">GPT Image 1 (Latest)</SelectItem>
-                      <SelectItem value="dall-e-3">DALL-E 3 (Best Quality)</SelectItem>
-                      <SelectItem value="dall-e-2">DALL-E 2 (Faster, Multiple)</SelectItem>
+                      {availableModels.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 {/* Size */}
                 <div className="space-y-2">
-                  <Label className="text-xs">Size</Label>
+                  <Label className="text-xs">{t('size')}</Label>
                   <Select value={size} onValueChange={(v) => onSizeChange(v as ImageSize)}>
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
@@ -426,7 +538,7 @@ export function ImageGenerationSidebar({
                 {/* Quality */}
                 {(model === 'dall-e-3' || model === 'gpt-image-1') && (
                   <div className="space-y-2">
-                    <Label className="text-xs">Quality</Label>
+                    <Label className="text-xs">{t('quality')}</Label>
                     <Select value={quality} onValueChange={(v) => onQualityChange(v as ImageQuality)}>
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue />
@@ -434,14 +546,14 @@ export function ImageGenerationSidebar({
                       <SelectContent>
                         {model === 'dall-e-3' ? (
                           <>
-                            <SelectItem value="standard">Standard</SelectItem>
-                            <SelectItem value="hd">HD (More Detail)</SelectItem>
+                            <SelectItem value="standard">{t('standardQuality')}</SelectItem>
+                            <SelectItem value="hd">{t('hdQuality')}</SelectItem>
                           </>
                         ) : (
                           <>
-                            <SelectItem value="low">Low (Fastest)</SelectItem>
-                            <SelectItem value="medium">Medium (Balanced)</SelectItem>
-                            <SelectItem value="high">High (Best Detail)</SelectItem>
+                            <SelectItem value="low">{t('lowQuality')}</SelectItem>
+                            <SelectItem value="medium">{t('mediumQuality')}</SelectItem>
+                            <SelectItem value="high">{t('highQuality')}</SelectItem>
                           </>
                         )}
                       </SelectContent>
@@ -452,14 +564,14 @@ export function ImageGenerationSidebar({
                 {/* Style (DALL-E 3 only) */}
                 {model === 'dall-e-3' && (
                   <div className="space-y-2">
-                    <Label className="text-xs">Style</Label>
+                    <Label className="text-xs">{t('style')}</Label>
                     <Select value={style} onValueChange={(v) => onStyleChange(v as ImageStyle)}>
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="vivid">Vivid (Dramatic)</SelectItem>
-                        <SelectItem value="natural">Natural (Realistic)</SelectItem>
+                        <SelectItem value="vivid">{t('vividStyle')}</SelectItem>
+                        <SelectItem value="natural">{t('naturalStyle')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -469,7 +581,7 @@ export function ImageGenerationSidebar({
                 {model !== 'dall-e-3' && (
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <Label className="text-xs">Number of Images</Label>
+                      <Label className="text-xs">{t('numberOfImages')}</Label>
                       <span className="text-xs text-muted-foreground">{numberOfImages}</span>
                     </div>
                     <Slider
@@ -482,10 +594,36 @@ export function ImageGenerationSidebar({
                   </div>
                 )}
 
+                {/* Seed */}
+                <div className="space-y-2">
+                  <Label className="text-xs">{t('seed')}</Label>
+                  <div className="flex gap-1">
+                    <Input
+                      type="number"
+                      placeholder={t('seedPlaceholder')}
+                      value={seed ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        onSeedChange(val === '' ? null : parseInt(val, 10));
+                      }}
+                      className="h-8 text-xs flex-1"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      onClick={() => onSeedChange(null)}
+                      title={t('randomize')}
+                    >
+                      <Dices className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+
                 {/* Cost estimate */}
                 <div className="pt-2 border-t">
                   <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Estimated cost:</span>
+                    <span className="text-muted-foreground">{t('estimatedCost')}:</span>
                     <span className="font-medium">${estimatedCost.toFixed(3)}</span>
                   </div>
                 </div>
@@ -508,12 +646,12 @@ export function ImageGenerationSidebar({
               {isGenerating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating...
+                  {t('generating')}
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4 mr-2" />
-                  {activeTab === 'generate' ? 'Generate Image' : activeTab === 'edit' ? 'Edit Image' : 'Create Variations'}
+                  {activeTab === 'generate' ? t('generateImage') : activeTab === 'edit' ? t('editImage') : t('createVariations')}
                 </>
               )}
             </Button>
@@ -521,5 +659,13 @@ export function ImageGenerationSidebar({
         </ScrollArea>
       </Tabs>
     </div>
+
+    <PromptOptimizerDialog
+      open={showOptimizer}
+      onOpenChange={setShowOptimizer}
+      initialPrompt={prompt}
+      onApply={(optimized) => onPromptChange(optimized)}
+    />
+  </>
   );
 }

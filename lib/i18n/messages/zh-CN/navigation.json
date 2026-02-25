@@ -102,7 +102,12 @@
     "deleteConfirmTitle": "删除对话？",
     "deleteConfirmDescription": "「{title}」及其所有消息将被永久删除。",
     "deleteAllConfirmTitle": "删除所有对话？",
-    "deleteAllConfirmDescription": "{count} 个对话及其所有消息将被永久删除。"
+    "deleteAllConfirmDescription": "{count} 个对话及其所有消息将被永久删除。",
+    "selectAll": "全选",
+    "selectedCount": "已选 {count} 项",
+    "bulkDeleteConfirmTitle": "删除选中的对话？",
+    "bulkDeleteConfirmDescription": "{count} 个对话及其所有消息将被永久删除。",
+    "multiSelectHint": "Ctrl+点击选择，Shift+点击范围选择"
   },
   "mobileNav": {
     "home": "首页",

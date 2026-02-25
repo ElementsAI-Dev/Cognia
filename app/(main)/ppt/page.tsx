@@ -71,13 +71,16 @@ import {
 } from '@/components/ui/select';
 import {
   PPTEditor,
-  PPTGenerationDialog,
+  PPTCreationHub,
   PPTQuickAction,
   PPTPreview,
   SlideshowView,
   SlideContent,
+  PPTTemplateGallery,
 } from '@/components/ppt';
-import { usePPTGeneration, type PPTGenerationConfig } from '@/hooks/ppt';
+import type { CreationMode } from '@/components/ppt';
+import { usePPTGeneration } from '@/hooks/ppt';
+import type { WorkflowTemplate } from '@/types/workflow';
 import { useWorkflowStore, selectActivePresentation, usePPTEditorStore } from '@/stores';
 import type { PPTPresentation } from '@/types/workflow';
 import { cn } from '@/lib/utils';
@@ -92,7 +95,9 @@ function PPTPageContent() {
   const router = useRouter();
   const t = useTranslations('pptGenerator');
   
-  const [showGenerationDialog, setShowGenerationDialog] = useState(false);
+  const [showCreationHub, setShowCreationHub] = useState(false);
+  const [creationMode, setCreationMode] = useState<CreationMode>('generate');
+  const [_viewMode, _setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedPresentationId, setSelectedPresentationId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
@@ -105,8 +110,8 @@ function PPTPageContent() {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   
-  // PPT generation hook
-  const { generate, isGenerating } = usePPTGeneration();
+  // PPT generation hook (used for QuickAction fallback)
+  const _pptGeneration = usePPTGeneration();
   
   // Get presentations from workflow store
   const presentations = useWorkflowStore((state) => state.presentations);
@@ -168,8 +173,9 @@ function PPTPageContent() {
   const activeTitle = activePresentation?.title || presentation?.title;
   
   // Handle new presentation
-  const handleNewPresentation = useCallback(() => {
-    setShowGenerationDialog(true);
+  const handleNewPresentation = useCallback((mode: CreationMode = 'generate') => {
+    setCreationMode(mode);
+    setShowCreationHub(true);
   }, []);
   
   // Handle select presentation
@@ -180,18 +186,15 @@ function PPTPageContent() {
   
   // Handle generation complete
   const handleGenerationComplete = useCallback((id: string) => {
-    setShowGenerationDialog(false);
+    setShowCreationHub(false);
     router.push(`/ppt?id=${id}`);
   }, [router]);
   
-  // Handle generate from dialog
-  const handleGenerate = useCallback(async (config: PPTGenerationConfig) => {
-    const result = await generate(config);
-    if (result) {
-      setShowGenerationDialog(false);
-      router.push(`/ppt?id=${result.id}`);
-    }
-  }, [generate, router]);
+  // Handle template selection
+  const handleTemplateSelect = useCallback((_template: WorkflowTemplate) => {
+    setCreationMode('generate');
+    setShowCreationHub(true);
+  }, []);
   
   // Handle delete presentation with confirmation
   const handleDeletePresentation = useCallback((id: string) => {
@@ -467,27 +470,72 @@ function PPTPageContent() {
         <ScrollArea className="h-full">
           <div className="p-6">
             {presentationList.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-4">
-                  <Presentation className="h-10 w-10 text-muted-foreground" />
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                  <Presentation className="h-8 w-8 text-primary" />
                 </div>
-                <h2 className="text-lg font-semibold mb-2">
+                <h2 className="text-xl font-semibold mb-2">
                   {t('emptyState') || 'No presentations yet'}
                 </h2>
-                <p className="text-sm text-muted-foreground mb-6 max-w-md">
-                  {t('emptyStateDesc') || 'Create your first AI-powered presentation to get started.'}
+                <p className="text-sm text-muted-foreground mb-8 max-w-md">
+                  {t('getStarted') || 'Get started by choosing how to create your presentation'}
                 </p>
-                <Button onClick={handleNewPresentation} className="gap-2">
-                  <Sparkles className="h-4 w-4" />
-                  {t('createNew') || 'Create New Presentation'}
-                </Button>
+
+                {/* Three-mode creation cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-2xl w-full mb-8">
+                  <Card
+                    className="cursor-pointer hover:border-primary/50 transition-colors text-center"
+                    onClick={() => handleNewPresentation('generate')}
+                  >
+                    <CardContent className="flex flex-col items-center gap-2 py-6">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Sparkles className="h-5 w-5 text-primary" />
+                      </div>
+                      <span className="text-sm font-medium">{t('createFromTopic') || 'Create from Topic'}</span>
+                      <span className="text-xs text-muted-foreground">{t('modeGenerateDesc') || 'Create from a topic or prompt'}</span>
+                    </CardContent>
+                  </Card>
+                  <Card
+                    className="cursor-pointer hover:border-primary/50 transition-colors text-center"
+                    onClick={() => handleNewPresentation('import')}
+                  >
+                    <CardContent className="flex flex-col items-center gap-2 py-6">
+                      <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                        <FileText className="h-5 w-5 text-blue-500" />
+                      </div>
+                      <span className="text-sm font-medium">{t('createFromImport') || 'Import Content'}</span>
+                      <span className="text-xs text-muted-foreground">{t('modeImportDesc') || 'Upload a document or enter a URL'}</span>
+                    </CardContent>
+                  </Card>
+                  <Card
+                    className="cursor-pointer hover:border-primary/50 transition-colors text-center"
+                    onClick={() => handleNewPresentation('paste')}
+                  >
+                    <CardContent className="flex flex-col items-center gap-2 py-6">
+                      <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                        <Edit className="h-5 w-5 text-green-500" />
+                      </div>
+                      <span className="text-sm font-medium">{t('createFromPaste') || 'Paste Content'}</span>
+                      <span className="text-xs text-muted-foreground">{t('modePasteDesc') || 'Paste your text content'}</span>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Template gallery */}
+                <div className="max-w-2xl w-full text-left">
+                  <h3 className="text-sm font-semibold mb-3">{t('fromTemplate') || 'Start from Template'}</h3>
+                  <PPTTemplateGallery
+                    onSelect={handleTemplateSelect}
+                    compact
+                  />
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {/* New presentation card */}
                 <Card
                   className="cursor-pointer hover:border-primary/50 transition-colors border-dashed"
-                  onClick={handleNewPresentation}
+                  onClick={() => handleNewPresentation()}
                 >
                   <CardContent className="flex flex-col items-center justify-center h-48 gap-2">
                     <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -639,12 +687,12 @@ function PPTPageContent() {
         </ScrollArea>
       </main>
       
-      {/* Generation Dialog */}
-      <PPTGenerationDialog
-        open={showGenerationDialog}
-        onOpenChange={setShowGenerationDialog}
-        onGenerate={handleGenerate}
-        isGenerating={isGenerating}
+      {/* Creation Hub Dialog */}
+      <PPTCreationHub
+        open={showCreationHub}
+        onOpenChange={setShowCreationHub}
+        initialMode={creationMode}
+        onCreated={handleGenerationComplete}
       />
       
       {/* Delete Confirmation Dialog */}

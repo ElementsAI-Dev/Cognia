@@ -38,6 +38,7 @@ import {
   calculateRequestCost,
 } from '../infrastructure';
 import { getPluginWorkflowIntegration } from '@/lib/plugin';
+import { createTelemetryConfig, toExperimentalTelemetry, TELEMETRY_PRESETS } from '../infrastructure/telemetry';
 import {
   filterMessagesForContext,
   filterMessagesForContextAsync,
@@ -715,6 +716,13 @@ export function useAIChat({
         ...(topP !== undefined && { topP }),
         ...(frequencyPenalty !== undefined && { frequencyPenalty }),
         ...(presencePenalty !== undefined && { presencePenalty }),
+        experimental_telemetry: toExperimentalTelemetry(
+          createTelemetryConfig({
+            ...TELEMETRY_PRESETS.minimal,
+            functionId: `chat-${provider}-${model}`,
+            metadata: { provider, model, ...(options.sessionId ? { sessionId: options.sessionId } : {}) },
+          })
+        ),
       };
 
       // Helper function to extract and normalize usage info

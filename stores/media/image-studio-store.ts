@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import type { ImageSize, ImageQuality, ImageStyle } from '@/lib/ai';
+import type { ImageProviderType } from '@/lib/ai/media/image-generation-sdk';
 import type {
   ImageAdjustments,
   CropRegion,
@@ -57,6 +58,7 @@ export interface StudioImage {
   size: ImageSize;
   quality: ImageQuality;
   style: ImageStyle;
+  seed?: number;
   width?: number;
   height?: number;
   timestamp: number;
@@ -98,11 +100,13 @@ export interface EditOperation {
  * Generation settings
  */
 export interface GenerationSettings {
-  model: 'dall-e-3' | 'dall-e-2' | 'gpt-image-1';
+  provider: ImageProviderType;
+  model: string;
   size: ImageSize;
   quality: ImageQuality;
   style: ImageStyle;
   numberOfImages: number;
+  seed: number | null;
 }
 
 /**
@@ -190,9 +194,11 @@ interface ImageStudioState {
   // UI state
   showSidebar: boolean;
   showSettings: boolean;
+  showHistory: boolean;
   viewMode: 'grid' | 'single';
   gridZoomLevel: number;
   filterFavorites: boolean;
+  searchQuery: string;
 
   // Actions - Tab & Tool
   setActiveTab: (tab: ImageStudioState['activeTab']) => void;
@@ -276,9 +282,13 @@ interface ImageStudioState {
   // Actions - UI
   toggleSidebar: () => void;
   toggleSettings: () => void;
+  setShowSidebar: (show: boolean) => void;
+  setShowSettings: (show: boolean) => void;
+  setShowHistory: (show: boolean) => void;
   setViewMode: (mode: 'grid' | 'single') => void;
   setGridZoomLevel: (level: number) => void;
   setFilterFavorites: (filter: boolean) => void;
+  setSearchQuery: (query: string) => void;
 
   // Bulk actions
   deleteAllImages: () => void;
@@ -296,11 +306,13 @@ const DEFAULT_TRANSFORM: ImageTransform = {
 };
 
 const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
+  provider: 'openai',
   model: 'dall-e-3',
   size: '1024x1024',
   quality: 'standard',
   style: 'vivid',
   numberOfImages: 1,
+  seed: null,
 };
 
 const DEFAULT_BRUSH_SETTINGS: BrushSettings = {
@@ -366,10 +378,12 @@ export const useImageStudioStore = create<ImageStudioState>()(
       negativePrompt: '',
 
       showSidebar: true,
-      showSettings: true,
+      showSettings: false,
+      showHistory: false,
       viewMode: 'grid',
       gridZoomLevel: 2,
       filterFavorites: false,
+      searchQuery: '',
 
       // Actions - Tab & Tool
       setActiveTab: (tab) => set({ activeTab: tab }),
@@ -699,9 +713,13 @@ export const useImageStudioStore = create<ImageStudioState>()(
       // Actions - UI
       toggleSidebar: () => set((state) => ({ showSidebar: !state.showSidebar })),
       toggleSettings: () => set((state) => ({ showSettings: !state.showSettings })),
+      setShowSidebar: (show) => set({ showSidebar: show }),
+      setShowSettings: (show) => set({ showSettings: show }),
+      setShowHistory: (show) => set({ showHistory: show }),
       setViewMode: (mode) => set({ viewMode: mode }),
       setGridZoomLevel: (level) => set({ gridZoomLevel: level }),
       setFilterFavorites: (filter) => set({ filterFavorites: filter }),
+      setSearchQuery: (query) => set({ searchQuery: query }),
 
       // Bulk actions
       deleteAllImages: () => set({ images: [], selectedImageId: null }),

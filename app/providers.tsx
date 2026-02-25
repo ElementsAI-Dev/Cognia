@@ -254,6 +254,7 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   const themeSchedule = useSettingsStore((state) => state.themeSchedule);
   const setTheme = useSettingsStore((state) => state.setTheme);
   const [mounted, setMounted] = useState(false);
+  const [appReady, setAppReady] = useState(false);
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
   const [resolvedLocalBgUrl, setResolvedLocalBgUrl] = useState<string | null>(null);
 
@@ -456,7 +457,7 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <AppLoadingScreen visible={!mounted} />
+      <AppLoadingScreen visible={!appReady} onProgressComplete={() => setAppReady(true)} />
       {mounted && (
         <>
           <BackgroundRenderer />

@@ -203,6 +203,15 @@
     "acceptChanges": "接受更改",
     "rejectChanges": "拒绝更改",
     "linesAdded": "新增 {count} 行",
-    "linesRemoved": "删除 {count} 行"
+    "linesRemoved": "删除 {count} 行",
+    "comments": "评论",
+    "addComment": "添加评论",
+    "noComments": "暂无评论",
+    "showResolved": "显示已解决",
+    "hideResolved": "隐藏已解决",
+    "resolve": "标记为已解决",
+    "unresolve": "取消解决",
+    "reply": "回复",
+    "writeReply": "写一条回复..."
   }
 }

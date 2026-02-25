@@ -48,6 +48,7 @@ import type { LocalProviderName } from '@/types/provider/local-provider';
 import { LOCAL_PROVIDER_CONFIGS } from '@/lib/ai/providers/local-providers';
 import { getProviderCapabilities, checkAllProvidersInstallation, type InstallCheckResult } from '@/lib/ai/providers/local-provider-service';
 import { useSettingsStore } from '@/stores';
+import { useLocalProvidersScan } from '@/hooks/provider/use-local-provider';
 import { LocalProviderCard } from './local-provider-card';
 import { LocalProviderModelManager } from './local-provider-model-manager';
 import { LocalProviderSetupWizard } from './local-provider-setup-wizard';
@@ -77,6 +78,9 @@ export function LocalProviderSettings(_props: LocalProviderSettingsProps) {
   const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [setupWizardProvider, setSetupWizardProvider] = useState<LocalProviderName | null>(null);
 
+  // Use the unified hook for quick server status scan
+  const { results: serverStatusResults, isScanning: isServerScanning, scan: serverScan } = useLocalProvidersScan();
+
   // Scan for installed providers
   const scanProviders = useCallback(async () => {
     setIsScanning(true);
@@ -85,35 +89,41 @@ export function LocalProviderSettings(_props: LocalProviderSettingsProps) {
       const resultMap = new Map<LocalProviderName, InstallCheckResult>();
       results.forEach(r => resultMap.set(r.providerId, r));
       setScanResults(resultMap);
+      // Also trigger the hook-based server status scan
+      serverScan();
     } catch (error) {
       console.error('Failed to scan providers:', error);
     } finally {
       setIsScanning(false);
     }
-  }, []);
+  }, [serverScan]);
 
   // Initial scan on mount
   useEffect(() => {
     scanProviders();
   }, [scanProviders]);
 
-  // Get provider status
+  // Get provider status - enriched with hook-based server status
   const getProviderStatus = (providerId: LocalProviderName) => {
     const result = scanResults.get(providerId);
+    const serverStatus = serverStatusResults.get(providerId);
     const settings = providerSettings[providerId];
     return {
-      isConnected: result?.running ?? false,
+      isConnected: result?.running ?? serverStatus?.connected ?? false,
       isInstalled: result?.installed ?? false,
-      version: result?.version,
-      error: result?.error,
+      version: result?.version ?? serverStatus?.version,
+      error: result?.error ?? serverStatus?.error,
       enabled: settings?.enabled ?? false,
       baseUrl: settings?.baseURL || LOCAL_PROVIDER_CONFIGS[providerId].defaultBaseURL,
+      latency: serverStatus?.latency_ms,
+      modelsCount: serverStatus?.models_count,
     };
   };
 
   // Count running providers
   const runningCount = Array.from(scanResults.values()).filter(r => r.running).length;
   const installedCount = Array.from(scanResults.values()).filter(r => r.installed).length;
+  const _isAnyScanning = isScanning || isServerScanning;
 
   // Handle provider toggle
   const handleToggleProvider = (providerId: LocalProviderName, enabled: boolean) => {

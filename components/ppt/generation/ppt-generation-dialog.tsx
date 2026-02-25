@@ -24,12 +24,15 @@ import {
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+// ToggleGroup replaced by ThemePreviewCard grid
 import { LoadingSpinner } from '@/components/ui/loading-states';
 import { Sparkles, Users, Target, MessageSquare, Palette } from 'lucide-react';
 import { DEFAULT_PPT_THEMES } from '@/types/workflow';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PPT_WORKFLOW_TEMPLATES } from '@/lib/ai/workflows/ppt-workflow';
+import { ThemePreviewCard } from '../theme/theme-preview-card';
+import { PPTTemplateGallery } from './ppt-template-gallery';
+import type { WorkflowTemplate } from '@/types/workflow';
 import type { PPTGenerationConfig } from '@/hooks/ppt';
 
 // Re-export for convenience
@@ -159,19 +162,10 @@ export function PPTGenerationDialog({
 
         <div className="space-y-6 py-4">
           {/* Quick Templates */}
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {PPT_WORKFLOW_TEMPLATES.map((tpl) => (
-              <button
-                key={tpl.id}
-                type="button"
-                onClick={() => handleSelectTemplate(tpl.id)}
-                className="shrink-0 flex flex-col items-center gap-1 rounded-lg border px-3 py-2 text-xs hover:bg-accent hover:border-primary/50 transition-colors"
-              >
-                <span className="font-medium">{tpl.name}</span>
-                <span className="text-[10px] text-muted-foreground max-w-[100px] truncate">{tpl.description}</span>
-              </button>
-            ))}
-          </div>
+          <PPTTemplateGallery
+            onSelect={(tpl: WorkflowTemplate) => handleSelectTemplate(tpl.id)}
+            compact
+          />
 
           {/* Topic */}
           <div className="space-y-2">
@@ -312,47 +306,30 @@ export function PPTGenerationDialog({
             </div>
           </div>
 
-          {/* Theme — grouped by category, showing all available themes */}
+          {/* Theme — grouped by category with preview cards */}
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <Palette className="h-4 w-4" />
               {t('theme')}
             </Label>
-            <ScrollArea className="max-h-48">
-              <ToggleGroup
-                type="single"
-                value={config.theme.id}
-                onValueChange={(value) => {
-                  const found = DEFAULT_PPT_THEMES.find((th) => th.id === value);
-                  if (found) setConfig((prev) => ({ ...prev, theme: found }));
-                }}
-                className="flex flex-col gap-2"
-              >
-                {THEME_GROUPS.filter((group) => group.themes.length > 0).map((group) => (
-                  <div key={group.label}>
-                    <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">
-                      {group.label}
-                    </div>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {group.themes.map((theme) => (
-                        <ToggleGroupItem
-                          key={theme.id}
-                          value={theme.id}
-                          className="p-1.5 h-auto data-[state=on]:border-primary data-[state=on]:ring-2 data-[state=on]:ring-primary/20"
-                        >
-                          <div className="flex items-center gap-1">
-                            <div
-                              className="w-3 h-3 rounded-full shrink-0 ring-1 ring-black/10"
-                              style={{ backgroundColor: theme.primaryColor }}
-                            />
-                            <span className="text-[10px] truncate">{theme.name}</span>
-                          </div>
-                        </ToggleGroupItem>
-                      ))}
-                    </div>
+            <ScrollArea className="max-h-56 overflow-hidden">
+              {THEME_GROUPS.filter((group) => group.themes.length > 0).map((group) => (
+                <div key={group.label} className="mb-3">
+                  <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+                    {group.label}
                   </div>
-                ))}
-              </ToggleGroup>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {group.themes.map((theme) => (
+                      <ThemePreviewCard
+                        key={theme.id}
+                        theme={theme}
+                        selected={config.theme.id === theme.id}
+                        onSelect={() => setConfig((prev) => ({ ...prev, theme }))}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </ScrollArea>
           </div>
 

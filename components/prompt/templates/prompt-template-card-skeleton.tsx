@@ -29,16 +29,14 @@ export function PromptTemplateCardSkeleton({ showFooter = false }: PromptTemplat
         </div>
 
         {/* Content Preview */}
-        <div className="p-3 rounded-lg bg-muted/40 border border-border/50 space-y-1.5">
+        <div className="p-2 rounded-md bg-muted/40 border border-border/50">
           <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-4/5" />
         </div>
 
         {/* Tags */}
         <div className="flex flex-wrap gap-1.5">
           <Skeleton className="h-5 w-14 rounded-md" />
-          <Skeleton className="h-5 w-18 rounded-md" />
-          <Skeleton className="h-5 w-12 rounded-md" />
+          <Skeleton className="h-5 w-16 rounded-md" />
         </div>
 
         {/* Stats Row */}

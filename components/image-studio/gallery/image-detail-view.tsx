@@ -13,8 +13,10 @@ import {
   BarChart3,
   Loader2,
   RotateCcw,
+  GitBranch,
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -63,6 +65,8 @@ export interface ImageDetailViewProps {
     onCancel: () => void;
   };
   batchPresetsCount: number;
+  allImages?: GeneratedImageWithMeta[];
+  onSelectImage?: (id: string) => void;
 }
 
 export function ImageDetailView({
@@ -87,7 +91,10 @@ export function ImageDetailView({
   isLoadingHistogram,
   batchProcessing,
   batchPresetsCount,
+  allImages = [],
+  onSelectImage,
 }: ImageDetailViewProps) {
+  const t = useTranslations('imageGeneration');
   const [copied, setCopied] = useState(false);
   const [showLayersPanel, setShowLayersPanel] = useState(false);
 
@@ -148,7 +155,7 @@ export function ImageDetailView({
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center">
-            <p className="text-muted-foreground">No image to display</p>
+            <p className="text-muted-foreground">{t('noImageToDisplay')}</p>
           </div>
         )}
       </div>
@@ -156,7 +163,7 @@ export function ImageDetailView({
       {/* Details panel */}
       <div className="w-64 border-l p-4 space-y-4">
         <div className="space-y-2">
-          <Label className="text-xs font-medium">Prompt</Label>
+          <Label className="text-xs font-medium">{t('prompt')}</Label>
           <div className="flex gap-2">
             <p className="text-sm text-muted-foreground flex-1">
               {image.prompt}
@@ -174,7 +181,7 @@ export function ImageDetailView({
 
         {image.revisedPrompt && image.revisedPrompt !== image.prompt && (
           <div className="space-y-2">
-            <Label className="text-xs font-medium">Revised Prompt</Label>
+            <Label className="text-xs font-medium">{t('revisedPrompt')}</Label>
             <p className="text-xs text-muted-foreground">
               {image.revisedPrompt}
             </p>
@@ -182,26 +189,53 @@ export function ImageDetailView({
         )}
 
         <div className="space-y-2">
-          <Label className="text-xs font-medium">Details</Label>
+          <Label className="text-xs font-medium">{t('details')}</Label>
           <div className="space-y-1 text-xs">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Model:</span>
+              <span className="text-muted-foreground">{t('model')}:</span>
               <span>{image.model}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Size:</span>
+              <span className="text-muted-foreground">{t('size')}:</span>
               <span>{image.settings.size}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Quality:</span>
+              <span className="text-muted-foreground">{t('quality')}:</span>
               <span>{image.settings.quality}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Style:</span>
+              <span className="text-muted-foreground">{t('style')}:</span>
               <span>{image.settings.style}</span>
             </div>
           </div>
         </div>
+
+        {/* Version Timeline */}
+        {allImages.length > 0 && image.parentId && (
+          <div className="space-y-2 pt-2 border-t">
+            <div className="flex items-center gap-1.5">
+              <GitBranch className="h-3 w-3 text-muted-foreground" />
+              <Label className="text-xs font-medium">Versions</Label>
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {allImages
+                .filter((img) => img.id === image.parentId || img.parentId === image.parentId || img.id === image.id)
+                .sort((a, b) => (a.version || 1) - (b.version || 1))
+                .map((img) => (
+                  <button
+                    key={img.id}
+                    onClick={() => onSelectImage?.(img.id)}
+                    className={`shrink-0 w-10 h-10 rounded border overflow-hidden transition-all ${img.id === image.id ? 'ring-2 ring-primary' : 'opacity-60 hover:opacity-100'}`}
+                  >
+                    {img.url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={img.url} alt={`v${img.version || 1}`} className="w-full h-full object-cover" />
+                    )}
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-2 pt-4">
           <Button
@@ -211,7 +245,7 @@ export function ImageDetailView({
             onClick={() => onDownload(image)}
           >
             <Download className="h-4 w-4 mr-2" />
-            Download
+            {t('download')}
           </Button>
           <Button
             variant="outline"
@@ -220,7 +254,7 @@ export function ImageDetailView({
             onClick={() => onRegenerate(image)}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
-            Regenerate
+            {t('regenerate')}
           </Button>
         </div>
 
@@ -233,7 +267,7 @@ export function ImageDetailView({
             onClick={() => setShowLayersPanel(!showLayersPanel)}
           >
             <Layers className="h-4 w-4 mr-2" />
-            {showLayersPanel ? 'Hide Layers' : 'Show Layers'}
+            {showLayersPanel ? t('hideLayers') : t('showLayers')}
           </Button>
         </div>
 
@@ -261,7 +295,7 @@ export function ImageDetailView({
             onClick={() => onShowHistogramChange(!showHistogram)}
           >
             <BarChart3 className="h-4 w-4 mr-2" />
-            {showHistogram ? 'Hide Histogram' : 'Show Histogram'}
+            {showHistogram ? t('hideHistogram') : t('showHistogram')}
           </Button>
           {showHistogram && histogramData && (
             <div className="bg-black/80 rounded-lg p-2">
@@ -300,9 +334,9 @@ export function ImageDetailView({
                 />
               </svg>
               <div className="flex justify-between text-[10px] text-white/50 mt-1">
-                <span>Shadows</span>
-                <span>Midtones</span>
-                <span>Highlights</span>
+                <span>{t('shadows')}</span>
+                <span>{t('midtones')}</span>
+                <span>{t('highlights')}</span>
               </div>
             </div>
           )}
@@ -317,7 +351,7 @@ export function ImageDetailView({
         {batchProcessing.isProcessing && (
           <div className="pt-2 border-t space-y-2">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-medium">Batch Processing</span>
+              <span className="font-medium">{t('batchProcessing')}</span>
               <Badge variant="outline" className="text-[10px]">
                 {batchProcessing.processedCount} / {batchProcessing.processedCount + batchProcessing.errorCount}
               </Badge>
@@ -330,10 +364,10 @@ export function ImageDetailView({
             </div>
             <div className="flex gap-1">
               <Button size="sm" variant="outline" className="h-6 text-[10px] flex-1" onClick={batchProcessing.onPause}>
-                Pause
+                {t('pause')}
               </Button>
               <Button size="sm" variant="destructive" className="h-6 text-[10px] flex-1" onClick={batchProcessing.onCancel}>
-                Cancel
+                {t('cancel')}
               </Button>
             </div>
           </div>
@@ -343,7 +377,7 @@ export function ImageDetailView({
         {batchPresetsCount > 0 && !batchProcessing.isProcessing && (
           <div className="pt-2 border-t">
             <p className="text-[10px] text-muted-foreground">
-              {batchPresetsCount} batch preset(s) available
+              {t('batchPresetsAvailable', { count: batchPresetsCount })}
             </p>
           </div>
         )}

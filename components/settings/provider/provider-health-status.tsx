@@ -28,6 +28,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
 import { testProviderConnection } from '@/lib/ai/infrastructure/api-test';
+import { useProviderHealth } from '@/hooks/ai/use-provider-manager';
 
 interface ProviderHealthStatusProps {
   providerId: string;
@@ -69,6 +70,9 @@ export function ProviderHealthStatus({
   const quotaUsed = settings?.quotaUsed;
   const quotaLimit = settings?.quotaLimit;
   const rateLimitRemaining = settings?.rateLimitRemaining;
+
+  // Wire infrastructure health data (circuit breaker, availability)
+  const { circuitState, availability, resetCircuit } = useProviderHealth(providerId);
   const baseURL = settings?.baseURL;
   const activeApiKey =
     settings?.apiKey ||
@@ -231,6 +235,31 @@ export function ProviderHealthStatus({
           <span className="text-muted-foreground">{t('rateLimitRemaining')}</span>
           <Badge variant={rateLimitRemaining < 10 ? 'destructive' : 'outline'}>
             {rateLimitRemaining} {t('requests')}
+          </Badge>
+        </div>
+      )}
+
+      {/* Circuit Breaker State (from infrastructure) */}
+      {circuitState !== 'closed' && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">{t('circuitBreaker')}</span>
+          <div className="flex items-center gap-2">
+            <Badge variant={circuitState === 'open' ? 'destructive' : 'secondary'}>
+              {circuitState === 'open' ? t('circuitOpen') : t('circuitHalfOpen')}
+            </Badge>
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={resetCircuit}>
+              {t('resetCircuit')}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Availability (from infrastructure) */}
+      {availability && availability.status !== 'available' && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">{t('availability')}</span>
+          <Badge variant={availability.status === 'unavailable' ? 'destructive' : 'secondary'}>
+            {availability.status}
           </Badge>
         </div>
       )}

@@ -76,17 +76,17 @@ toast.info = (title: string, description?: string) =>
   toast({ type: 'info', title, description });
 
 const icons: Record<ToastType, React.ReactNode> = {
-  success: <CheckCircle className="h-5 w-5 text-green-500" />,
-  error: <AlertCircle className="h-5 w-5 text-red-500" />,
-  warning: <AlertTriangle className="h-5 w-5 text-yellow-500" />,
-  info: <Info className="h-5 w-5 text-blue-500" />,
+  success: <CheckCircle className="h-5 w-5 text-success" />,
+  error: <AlertCircle className="h-5 w-5 text-destructive" />,
+  warning: <AlertTriangle className="h-5 w-5 text-warning" />,
+  info: <Info className="h-5 w-5 text-info" />,
 };
 
 const toastStyles: Record<ToastType, string> = {
-  success: 'border-green-500/20 bg-green-500/10',
-  error: 'border-red-500/20 bg-red-500/10',
-  warning: 'border-yellow-500/20 bg-yellow-500/10',
-  info: 'border-blue-500/20 bg-blue-500/10',
+  success: 'border-success/20 bg-success/10',
+  error: 'border-destructive/20 bg-destructive/10',
+  warning: 'border-warning/20 bg-warning/10',
+  info: 'border-info/20 bg-info/10',
 };
 
 export function Toaster({ position = 'bottom-right' }: ToasterProps) {
@@ -121,6 +121,7 @@ export function Toaster({ position = 'bottom-right' }: ToasterProps) {
       {currentToasts.map((t) => (
         <div
           key={t.id}
+          data-slot="toast"
           className={cn(
             'flex items-start gap-3 rounded-lg border p-4 shadow-lg bg-background',
             'animate-in slide-in-from-right-full fade-in-0 duration-300',

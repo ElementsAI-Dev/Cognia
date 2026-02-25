@@ -44,6 +44,8 @@ import {
   Terminal,
   List,
   LayoutList,
+  Check,
+  CheckSquare,
 } from 'lucide-react';
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
@@ -96,6 +98,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { messageRepository } from '@/lib/db';
 import { KeyboardShortcutsDialog } from '@/components/layout/overlays/keyboard-shortcuts-dialog';
 import { ObservabilityButton } from '@/components/observability';
@@ -165,6 +177,15 @@ export function AppSidebar() {
   const folders = useSessionStore((state) => state.folders) || [];
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const createFolder = useSessionStore((state) => state.createFolder);
+
+  // Multi-select state
+  const selectedSessionIds = useSessionStore((state) => state.selectedSessionIds);
+  const clearSelection = useSessionStore((state) => state.clearSelection);
+  const selectAllSessions = useSessionStore((state) => state.selectAllSessions);
+  const bulkDeleteSessions = useSessionStore((state) => state.bulkDeleteSessions);
+  const bulkPinSessions = useSessionStore((state) => state.bulkPinSessions);
+  const bulkArchiveSessions = useSessionStore((state) => state.bulkArchiveSessions);
+  const _bulkMoveSessions = useSessionStore((state) => state.bulkMoveSessions);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -367,6 +388,40 @@ export function AppSidebar() {
     return groups;
   }, [searchQuery, searchResults, sortedSessions]);
 
+  // Flat list of visible session IDs in display order (for Shift+click range selection)
+  const visibleSessionIds = useMemo(() => {
+    const ids: string[] = [];
+    // Folder sessions first
+    for (const folder of folders) {
+      const folderSessions = sessions.filter((s) => s.folderId === folder.id);
+      for (const s of folderSessions) ids.push(s.id);
+    }
+    // Then grouped sessions
+    for (const [, groupSessions] of Object.entries(groupedSessions)) {
+      for (const r of groupSessions) ids.push(r.session.id);
+    }
+    return ids;
+  }, [folders, sessions, groupedSessions]);
+
+  // Bulk action confirm state
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const isMultiSelectMode = selectedSessionIds.length > 0;
+
+  // Escape key clears selection
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isMultiSelectMode) {
+        clearSelection();
+      }
+      if (e.key === 'a' && (e.ctrlKey || e.metaKey) && isMultiSelectMode) {
+        e.preventDefault();
+        selectAllSessions();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMultiSelectMode, clearSelection, selectAllSessions]);
+
   // Collapsed state for each group
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
     if (typeof window === 'undefined') return { system: true };
@@ -485,6 +540,90 @@ export function AppSidebar() {
       <SidebarSeparator />
 
       <SidebarContent>
+        {/* Bulk action toolbar — shown when sessions are selected */}
+        {isMultiSelectMode && !isCollapsed && (
+          <div className="flex items-center gap-1 px-2 py-1.5 bg-primary/5 border-b border-primary/20 animate-in slide-in-from-top-1 duration-200">
+            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={selectAllSessions}
+                title={t('selectAll') || 'Select All'}
+              >
+                <CheckSquare className="h-3.5 w-3.5" />
+              </Button>
+              <span className="text-xs font-medium text-primary truncate">
+                {t('selectedCount', { count: selectedSessionIds.length }) || `${selectedSessionIds.length} selected`}
+              </span>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                onClick={() => bulkPinSessions(selectedSessionIds, true)}
+                title={t('pinToTop') || 'Pin'}
+              >
+                <Pin className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                onClick={() => bulkArchiveSessions(selectedSessionIds)}
+                title={t('archive') || 'Archive'}
+              >
+                <Archive className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-destructive hover:text-destructive"
+                onClick={() => setShowBulkDeleteConfirm(true)}
+                title={t('delete') || 'Delete'}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                onClick={clearSelection}
+                title={t('cancel') || 'Cancel'}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Bulk delete confirmation dialog */}
+        <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {t('bulkDeleteConfirmTitle') || 'Delete selected conversations?'}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('bulkDeleteConfirmDescription', { count: selectedSessionIds.length }) || `${selectedSessionIds.length} conversations and all their messages will be permanently deleted.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t('cancel') || 'Cancel'}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  bulkDeleteSessions(selectedSessionIds);
+                  setShowBulkDeleteConfirm(false);
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {t('delete') || 'Delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         {/* Collapsible Conversations Section */}
         {!isCollapsed && !searchQuery && sessions.length > 0 ? (
           <Collapsible
@@ -587,6 +726,7 @@ export function AppSidebar() {
                   key={folder.id}
                   folder={folder}
                   sessions={sessions.filter((s) => s.folderId === folder.id)}
+                  visibleSessionIds={visibleSessionIds}
                 />
               ))}
 
@@ -619,9 +759,11 @@ export function AppSidebar() {
                               key={result.session.id}
                               session={result.session}
                               isActive={result.session.id === activeSessionId}
+                              isSelected={selectedSessionIds.includes(result.session.id)}
                               snippet={result.snippet}
                               matchType={result.matchType}
                               searchQuery={searchQuery}
+                              visibleSessionIds={visibleSessionIds}
                             />
                           ))}
                         </SidebarMenu>
@@ -691,9 +833,11 @@ export function AppSidebar() {
                             key={result.session.id}
                             session={result.session}
                             isActive={result.session.id === activeSessionId}
+                            isSelected={selectedSessionIds.includes(result.session.id)}
                             snippet={result.snippet}
                             matchType={result.matchType}
                             searchQuery={searchQuery}
+                            visibleSessionIds={visibleSessionIds}
                           />
                         ))}
                       </SidebarMenu>
@@ -727,11 +871,9 @@ export function AppSidebar() {
             {t('noResults') || 'No results'}
           </div>
         )}
-      </SidebarContent>
 
-      <SidebarSeparator />
+        <SidebarSeparator />
 
-      <SidebarFooter>
         {/* Usage Stats Widget */}
         {!isCollapsed && (
           <div className="px-2 pb-2">
@@ -847,8 +989,7 @@ export function AppSidebar() {
             </CollapsibleContent>
           </Collapsible>
         )}
-        {/* Quick access buttons - highlighted */}
-        {/* Quick access buttons - highlighted */}
+        {/* Apps section */}
         {!isCollapsed && (
           <Collapsible
             open={!collapsedGroups['apps']}
@@ -944,100 +1085,103 @@ export function AppSidebar() {
           </Collapsible>
         )}
 
+        {/* Collapsed state: show app items in scrollable content */}
+        {isCollapsed && (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip={t('projects')}>
+                <Link href="/projects">
+                  <FolderKanban className="h-4 w-4 text-blue-500" />
+                  <span>Projects</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip={t('designer')}>
+                <Link href="/designer">
+                  <Wand2 className="h-4 w-4 text-purple-500" />
+                  <span>Designer</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip={t('skills')}>
+                <Link href="/skills">
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                  <span>Skills</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip={t('workflows')}>
+                <Link href="/workflows">
+                  <Workflow className="h-4 w-4 text-green-500" />
+                  <span>Workflows</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip={t('nativeTools') || 'Native Tools'}>
+                <Link href="/native-tools">
+                  <Wrench className="h-4 w-4 text-orange-500" />
+                  <span>Native Tools</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Git">
+                <Link href="/git">
+                  <GitBranch className="h-4 w-4 text-cyan-500" />
+                  <span>Git</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip={t('latex') || 'LaTeX'}>
+                <Link href="/latex">
+                  <FileCode className="h-4 w-4 text-teal-500" />
+                  <span>LaTeX</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip={t('scheduler') || 'Scheduler'}>
+                <Link href="/scheduler">
+                  <Calendar className="h-4 w-4 text-rose-500" />
+                  <span>Scheduler</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip={t('speedPass') || 'SpeedPass'}>
+                <Link href="/speedpass">
+                  <GraduationCap className="h-4 w-4 text-indigo-500" />
+                  <span>SpeedPass</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip={t('academic') || 'Academic'}>
+                <Link href="/academic">
+                  <BookOpen className="h-4 w-4 text-emerald-500" />
+                  <span>Academic</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip={t('sandbox') || 'Sandbox'}>
+                <Link href="/sandbox">
+                  <Terminal className="h-4 w-4 text-lime-500" />
+                  <span>Sandbox</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        )}
+      </SidebarContent>
+
+      <SidebarFooter>
         <SidebarMenu>
-          {/* Collapsed state: show Projects, Designer, and Skills as menu items */}
-          {isCollapsed && (
-            <>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={t('projects')}>
-                  <Link href="/projects">
-                    <FolderKanban className="h-4 w-4 text-blue-500" />
-                    <span>Projects</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={t('designer')}>
-                  <Link href="/designer">
-                    <Wand2 className="h-4 w-4 text-purple-500" />
-                    <span>Designer</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={t('skills')}>
-                  <Link href="/skills">
-                    <Sparkles className="h-4 w-4 text-amber-500" />
-                    <span>Skills</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={t('workflows')}>
-                  <Link href="/workflows">
-                    <Workflow className="h-4 w-4 text-green-500" />
-                    <span>Workflows</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={t('nativeTools') || 'Native Tools'}>
-                  <Link href="/native-tools">
-                    <Wrench className="h-4 w-4 text-orange-500" />
-                    <span>Native Tools</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Git">
-                  <Link href="/git">
-                    <GitBranch className="h-4 w-4 text-cyan-500" />
-                    <span>Git</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={t('latex') || 'LaTeX'}>
-                  <Link href="/latex">
-                    <FileCode className="h-4 w-4 text-teal-500" />
-                    <span>LaTeX</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={t('scheduler') || 'Scheduler'}>
-                  <Link href="/scheduler">
-                    <Calendar className="h-4 w-4 text-rose-500" />
-                    <span>Scheduler</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={t('speedPass') || 'SpeedPass'}>
-                  <Link href="/speedpass">
-                    <GraduationCap className="h-4 w-4 text-indigo-500" />
-                    <span>SpeedPass</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={t('academic') || 'Academic'}>
-                  <Link href="/academic">
-                    <BookOpen className="h-4 w-4 text-emerald-500" />
-                    <span>Academic</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={t('sandbox') || 'Sandbox'}>
-                  <Link href="/sandbox">
-                    <Terminal className="h-4 w-4 text-lime-500" />
-                    <span>Sandbox</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </>
-          )}
           <Collapsible open={!collapsedGroups['system']} onOpenChange={() => toggleGroup('system')}>
             <CollapsibleContent>
               <SidebarMenuItem>
@@ -1101,14 +1245,17 @@ export function AppSidebar() {
 function SidebarFolder({
   folder,
   sessions,
+  visibleSessionIds = [],
 }: {
   folder: import('@/types').ChatFolder;
   sessions: Session[];
+  visibleSessionIds?: string[];
 }) {
   const t = useTranslations('sidebar');
   const updateFolder = useSessionStore((state) => state.updateFolder);
   const deleteFolder = useSessionStore((state) => state.deleteFolder);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
+  const selectedSessionIds = useSessionStore((state) => state.selectedSessionIds);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(folder.name);
 
@@ -1201,6 +1348,8 @@ function SidebarFolder({
                 key={session.id}
                 session={session}
                 isActive={session.id === activeSessionId}
+                isSelected={selectedSessionIds.includes(session.id)}
+                visibleSessionIds={visibleSessionIds}
               />
             ))}
             {sessions.length === 0 && (
@@ -1219,17 +1368,21 @@ function SidebarFolder({
 interface SessionMenuItemProps {
   session: Session;
   isActive: boolean;
+  isSelected?: boolean;
   snippet?: string;
   matchType?: 'title' | 'content';
   searchQuery?: string;
+  visibleSessionIds?: string[];
 }
 
 function SessionMenuItem({
   session,
   isActive,
+  isSelected = false,
   snippet,
   matchType,
   searchQuery,
+  visibleSessionIds = [],
 }: SessionMenuItemProps) {
   const t = useTranslations('sidebar');
   const [isEditing, setIsEditing] = useState(false);
@@ -1244,6 +1397,9 @@ function SessionMenuItem({
   const setSessionCustomIcon = useSessionStore((state) => state.setSessionCustomIcon);
   const folders = useSessionStore((state) => state.folders) || [];
   const moveSessionToFolder = useSessionStore((state) => state.moveSessionToFolder);
+  const toggleSelectSession = useSessionStore((state) => state.toggleSelectSession);
+  const rangeSelectSessions = useSessionStore((state) => state.rangeSelectSessions);
+  const selectedSessionIds = useSessionStore((state) => state.selectedSessionIds);
 
   const [showIconPicker, setShowIconPicker] = useState(false);
 
@@ -1255,10 +1411,33 @@ function SessionMenuItem({
   const linkedProject = session.projectId ? getProject(session.projectId) : null;
   const activeProjects = useMemo(() => getActiveProjects(), [getActiveProjects]);
 
-  const handleClick = () => {
-    if (!isEditing) {
-      setActiveSession(session.id);
+  const isMultiSelectMode = selectedSessionIds.length > 0;
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (isEditing) return;
+
+    if (e.shiftKey) {
+      // Shift+click: range select
+      e.preventDefault();
+      rangeSelectSessions(session.id, visibleSessionIds);
+      return;
     }
+
+    if (e.ctrlKey || e.metaKey) {
+      // Ctrl/Cmd+click: toggle individual selection
+      e.preventDefault();
+      toggleSelectSession(session.id);
+      return;
+    }
+
+    if (isMultiSelectMode) {
+      // In multi-select mode, plain click toggles selection
+      toggleSelectSession(session.id);
+      return;
+    }
+
+    // Normal click: set active session
+    setActiveSession(session.id);
   };
 
   const handleRename = () => {
@@ -1326,11 +1505,31 @@ function SessionMenuItem({
     <>
       <SidebarMenuItem>
         <SidebarMenuButton
-          isActive={isActive}
+          isActive={isActive && !isMultiSelectMode}
           onClick={handleClick}
           tooltip={session.title}
-          className={snippet ? 'h-auto py-2' : undefined}
+          className={cn(
+            snippet ? 'h-auto py-2' : undefined,
+            isSelected && 'ring-1 ring-primary/50 bg-primary/10',
+          )}
         >
+          {/* Selection checkbox — visible in multi-select mode or on hover */}
+          {(isMultiSelectMode || isSelected) && (
+            <div
+              className={cn(
+                'shrink-0 flex items-center justify-center h-4 w-4 rounded-sm border transition-colors',
+                isSelected
+                  ? 'bg-primary border-primary text-primary-foreground'
+                  : 'border-muted-foreground/40',
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleSelectSession(session.id);
+              }}
+            >
+              {isSelected && <Check className="h-3 w-3" />}
+            </div>
+          )}
           <div className="relative shrink-0">
             {session.customIcon ? (
               session.customIcon.startsWith('lucide:') ? (

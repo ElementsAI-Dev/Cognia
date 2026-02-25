@@ -14,10 +14,13 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { CustomProviderSettings } from '@/types/provider';
+import type { CustomProviderSettings as TypesCustomProviderSettings } from '@/types/provider';
+import type { CustomProviderSettings as StoreCustomProviderSettings } from '@/stores/settings/settings-store';
+
+type AnyCustomProvider = TypesCustomProviderSettings | StoreCustomProviderSettings;
 
 interface CustomProvidersListProps {
-  providers: Record<string, CustomProviderSettings>;
+  providers: Record<string, AnyCustomProvider>;
   testResults: Record<string, 'success' | 'error' | null>;
   testMessages: Record<string, string | null>;
   testingProviders: Record<string, boolean>;
@@ -25,7 +28,20 @@ interface CustomProvidersListProps {
   onEditProvider: (providerId: string) => void;
   onToggleProvider: (providerId: string, enabled: boolean) => void;
   onAddProvider: () => void;
+  onQuickAdd?: () => void;
   searchQuery?: string;
+}
+
+function getProviderName(provider: AnyCustomProvider): string {
+  if ('customName' in provider && provider.customName) return provider.customName;
+  if ('name' in provider && provider.name) return provider.name;
+  return '';
+}
+
+function getProviderModels(provider: AnyCustomProvider): string[] {
+  if ('customModels' in provider && provider.customModels) return provider.customModels;
+  if ('models' in provider && Array.isArray(provider.models)) return provider.models;
+  return [];
 }
 
 export const CustomProvidersListItem = React.memo(function CustomProvidersListItem({
@@ -39,7 +55,7 @@ export const CustomProvidersListItem = React.memo(function CustomProvidersListIt
   onToggle,
 }: {
   providerId: string;
-  provider: CustomProviderSettings;
+  provider: AnyCustomProvider;
   testResult: 'success' | 'error' | null;
   testMessage: string | null;
   isTesting: boolean;
@@ -54,9 +70,9 @@ export const CustomProvidersListItem = React.memo(function CustomProvidersListIt
     <div className="flex items-center justify-between rounded-lg border p-4">
       <div className="space-y-1">
         <div className="flex items-center gap-2">
-          <span className="font-medium">{provider.name}</span>
+          <span className="font-medium">{getProviderName(provider)}</span>
           <Badge variant="secondary" className="text-xs">
-            {provider.models?.length || 0} {t('modelsCount')}
+            {getProviderModels(provider).length} {t('modelsCount')}
           </Badge>
           {testResult === 'success' && <Check className="h-4 w-4 text-green-500" />}
           {testResult === 'error' && <AlertCircle className="h-4 w-4 text-destructive" />}
@@ -101,6 +117,7 @@ export const CustomProvidersList = React.memo(function CustomProvidersList({
   onEditProvider,
   onToggleProvider,
   onAddProvider,
+  onQuickAdd,
   searchQuery = '',
 }: CustomProvidersListProps) {
   const t = useTranslations('providers');
@@ -111,9 +128,11 @@ export const CustomProvidersList = React.memo(function CustomProvidersList({
     const query = searchQuery.toLowerCase();
     return Object.fromEntries(
       Object.entries(providers).filter(([_id, provider]) => {
-        const matchesName = (provider.name || '').toLowerCase().includes(query);
+        const name = getProviderName(provider);
+        const models = getProviderModels(provider);
+        const matchesName = name.toLowerCase().includes(query);
         const matchesUrl = (provider.baseURL || '').toLowerCase().includes(query);
-        const matchesModel = (provider.models || []).some((m: string) =>
+        const matchesModel = models.some((m: string) =>
           m.toLowerCase().includes(query)
         );
         return matchesName || matchesUrl || matchesModel;
@@ -152,10 +171,18 @@ export const CustomProvidersList = React.memo(function CustomProvidersList({
             </CardTitle>
             <CardDescription className="text-xs">{t('customProvidersDescription')}</CardDescription>
           </div>
-          <Button variant="outline" size="sm" className="shrink-0" onClick={onAddProvider}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            {t('addProvider')}
-          </Button>
+          <div className="flex items-center gap-2">
+            {onQuickAdd && (
+              <Button variant="default" size="sm" className="shrink-0" onClick={onQuickAdd}>
+                <Plus className="h-4 w-4 mr-1.5" />
+                {t('quickAdd')}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="shrink-0" onClick={onAddProvider}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              {t('addCustom')}
+            </Button>
+          </div>
         </div>
       </CardHeader>
 

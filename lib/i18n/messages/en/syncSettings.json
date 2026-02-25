@@ -1,6 +1,6 @@
 {
   "cloudSync": "Cloud Sync",
-  "cloudSyncDesc": "Sync your data across devices using WebDAV, GitHub, or Google Drive",
+  "cloudSyncDesc": "Sync your data across devices using WebDAV, GitHub, Google Drive, or Convex",
   "syncProvider": "Sync Provider",
   "selectProvider": "Select provider",
   "disabled": "Disabled",
@@ -115,5 +115,22 @@
   "useAppDataFolderDesc": "Store backups in a hidden app-specific folder (recommended)",
   "folderName": "Folder Name",
   "resumableUpload": "Resumable Upload",
-  "resumableUploadDesc": "Enable for large backups and unstable connections"
+  "resumableUploadDesc": "Enable for large backups and unstable connections",
+
+  "convex": "Convex",
+  "convexConfig": "Convex Configuration",
+  "convexConfigDesc": "Connect to a Convex cloud database for real-time sync",
+  "convexDeploymentUrl": "Deployment URL",
+  "convexDeploymentUrlDesc": "Your Convex deployment URL (e.g. https://your-app.convex.cloud)",
+  "convexDeployKey": "Deploy Key",
+  "convexDeployKeyDesc": "Production deploy key from your Convex dashboard",
+  "convexDeployKeyStored": "Deploy key is securely stored. Enter new value to update.",
+  "convexDeployKeyRequired": "Deploy key is required",
+  "convexProjectSlug": "Project Slug",
+  "convexProjectSlugDesc": "Your Convex project name",
+  "convexConnected": "Connected to Convex",
+  "convexNotConnected": "Not connected",
+  "convexDescription": "Convex provides real-time cloud database sync with automatic conflict resolution",
+  "enableConvexSync": "Enable Convex Sync",
+  "enableConvexSyncDesc": "Sync data to Convex cloud database"
 }

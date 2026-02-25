@@ -21,6 +21,9 @@ export {
   getGoogleTokenExpiry,
   isGoogleTokenExpired,
   removeGoogleTokens,
+  storeConvexDeployKey,
+  getConvexDeployKey,
+  removeConvexDeployKey,
   hasStoredCredentials,
 } from './credential-storage';
 
@@ -28,6 +31,7 @@ export {
 export { WebDAVProvider } from './providers/webdav-provider';
 export { GitHubProvider } from './providers/github-provider';
 export { GoogleDriveProvider } from './providers/googledrive-provider';
+export { ConvexProvider } from './providers/convex-provider';
 export { BaseSyncProvider } from './providers/sync-provider';
 export type { SyncProvider } from './providers/sync-provider';
 

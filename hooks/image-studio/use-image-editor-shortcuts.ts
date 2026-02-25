@@ -14,6 +14,10 @@ export interface ImageEditorShortcuts {
   onPaste?: () => void;
   onSelectAll?: () => void;
   onDeselect?: () => void;
+  onNavigateNext?: () => void;
+  onNavigatePrev?: () => void;
+  onPreview?: () => void;
+  onToggleFavorite?: () => void;
   enabled?: boolean;
 }
 
@@ -35,6 +39,10 @@ export function useImageEditorShortcuts({
   onPaste,
   onSelectAll,
   onDeselect,
+  onNavigateNext,
+  onNavigatePrev,
+  onPreview,
+  onToggleFavorite,
   enabled = true,
 }: ImageEditorShortcuts) {
   const handleKeyDown = useCallback(
@@ -140,6 +148,34 @@ export function useImageEditorShortcuts({
         onDeselect?.();
         return;
       }
+
+      // Navigate next: ArrowRight
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        onNavigateNext?.();
+        return;
+      }
+
+      // Navigate prev: ArrowLeft
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        onNavigatePrev?.();
+        return;
+      }
+
+      // Preview: Space
+      if (e.key === ' ') {
+        e.preventDefault();
+        onPreview?.();
+        return;
+      }
+
+      // Toggle favorite: F
+      if (e.key === 'f' && !modKey) {
+        e.preventDefault();
+        onToggleFavorite?.();
+        return;
+      }
     },
     [
       enabled,
@@ -156,6 +192,10 @@ export function useImageEditorShortcuts({
       onPaste,
       onSelectAll,
       onDeselect,
+      onNavigateNext,
+      onNavigatePrev,
+      onPreview,
+      onToggleFavorite,
     ]
   );
 
@@ -189,6 +229,10 @@ export function getShortcutDisplay(action: string): string {
     paste: `${mod}+V`,
     selectAll: `${mod}+A`,
     deselect: `${mod}+D`,
+    navigateNext: '→',
+    navigatePrev: '←',
+    preview: 'Space',
+    toggleFavorite: 'F',
   };
 
   return shortcuts[action] || '';

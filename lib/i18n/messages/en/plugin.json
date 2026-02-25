@@ -43,7 +43,8 @@
       "health": "Health",
       "updates": "Updates",
       "favorites": "Favorites",
-      "settings": "Settings"
+      "settings": "Settings",
+      "more": "More"
     },
     "marketplace": {
       "installSuccess": "Plugin installed successfully",
@@ -54,7 +55,9 @@
       "enabled": "Enabled",
       "tools": "Tools",
       "health": "Health",
-      "errors": "Errors"
+      "errors": "Errors",
+      "plugins": "plugins",
+      "updates": "updates"
     },
     "filters": {
       "searchPlaceholder": "Search plugins...",
@@ -93,6 +96,16 @@
       "errors": "{count} errors",
       "enabledCount": "{count} enabled",
       "disabledCount": "{count} disabled"
+    },
+    "searchTitle": "Search Plugins",
+    "searchPlaceholder": "Search plugins...",
+    "pluginsAvailable": "plugins available",
+    "selectPlugins": "Select Plugins",
+    "exitSelection": "Exit Selection",
+    "sidebar": {
+      "main": "Main",
+      "quickLinks": "Quick Links",
+      "advanced": "Advanced"
     },
     "settingsTab": {
       "title": "General Settings",

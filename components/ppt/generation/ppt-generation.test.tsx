@@ -7,6 +7,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PPTGenerationDialog } from './ppt-generation-dialog';
 import { PPTOutlinePreview, type PPTOutline } from './ppt-outline-preview';
+import { PPT_WORKFLOW_TEMPLATES } from '@/lib/ai/workflows/ppt-workflow';
 import type { PPTTheme } from '@/types/workflow';
 
 // Mock next-intl
@@ -225,25 +226,23 @@ describe('PPTGenerationDialog', () => {
   });
 
   describe('workflow template selector', () => {
-    it('should render workflow template buttons', () => {
+    it('should render workflow template cards', () => {
       render(<PPTGenerationDialog {...defaultProps} />);
-      // PPT_WORKFLOW_TEMPLATES should render at least one template
-      const templateButtons = screen.getAllByRole('button').filter(
-        (btn) => btn.closest('.overflow-x-auto')
-      );
-      expect(templateButtons.length).toBeGreaterThan(0);
+      const firstTemplate = PPT_WORKFLOW_TEMPLATES[0];
+      expect(firstTemplate).toBeDefined();
+      expect(screen.getByText(firstTemplate.name)).toBeInTheDocument();
     });
 
     it('should apply template preset when clicked', async () => {
       render(<PPTGenerationDialog {...defaultProps} />);
-      // Find a template button inside the scrollable area
-      const templateArea = document.querySelector('.overflow-x-auto');
-      const firstTemplate = templateArea?.querySelector('button');
-      if (firstTemplate) {
-        await userEvent.click(firstTemplate);
-        // Template should apply without crashing
-        expect(screen.getByText('generatePPT')).toBeInTheDocument();
+      const firstTemplate = PPT_WORKFLOW_TEMPLATES[0];
+      expect(firstTemplate).toBeDefined();
+      const slideCount = firstTemplate.presetInputs?.slideCount;
+      await userEvent.click(screen.getByText(firstTemplate.name));
+      if (typeof slideCount === 'number') {
+        expect(screen.getByRole('slider')).toHaveAttribute('aria-valuenow', String(slideCount));
       }
+      expect(screen.getByText('generatePPT')).toBeInTheDocument();
     });
   });
 });

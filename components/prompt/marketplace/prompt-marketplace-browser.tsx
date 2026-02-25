@@ -61,23 +61,33 @@ export function PromptMarketplaceBrowser({
 }: PromptMarketplaceBrowserProps) {
   const t = useTranslations('promptMarketplace');
 
-  // Store state — grouped selectors to reduce subscription fragmentation
-  const { prompts, featuredIds, trendingIds, isLoading, collections } = usePromptMarketplaceStore(
+  // Store state — select raw records (referentially stable) to avoid infinite loop
+  const { promptsMap, featuredIds, trendingIds, isLoading, collectionsMap } = usePromptMarketplaceStore(
     useShallow((state) => ({
-      prompts: Object.values(state.prompts),
+      promptsMap: state.prompts,
       featuredIds: state.featuredIds,
       trendingIds: state.trendingIds,
       isLoading: state.isLoading,
-      collections: Object.values(state.collections),
+      collectionsMap: state.collections,
     }))
   );
 
-  const { installedPrompts, favoriteIds, recentlyViewed } = usePromptMarketplaceStore(
+  const { installedPrompts, favoriteIds, recentlyViewedEntries } = usePromptMarketplaceStore(
     useShallow((state) => ({
       installedPrompts: state.userActivity.installed,
       favoriteIds: state.userActivity.favorites,
-      recentlyViewed: state.getRecentlyViewed(),
+      recentlyViewedEntries: state.userActivity.recentlyViewed,
     }))
+  );
+
+  // Derive arrays from stable record references
+  const prompts = useMemo(() => Object.values(promptsMap), [promptsMap]);
+  const collections = useMemo(() => Object.values(collectionsMap), [collectionsMap]);
+  const recentlyViewed = useMemo(
+    () => recentlyViewedEntries
+      .map((v) => promptsMap[v.promptId])
+      .filter((p): p is MarketplacePrompt => p !== undefined),
+    [recentlyViewedEntries, promptsMap]
   );
 
   const {

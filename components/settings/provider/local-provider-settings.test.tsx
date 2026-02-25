@@ -223,6 +223,16 @@ jest.mock('./local-provider-setup-wizard', () => ({
   ),
 }));
 
+// Mock useLocalProvidersScan hook - stable reference to avoid infinite re-render loop
+const mockServerScan = jest.fn();
+jest.mock('@/hooks/provider/use-local-provider', () => ({
+  useLocalProvidersScan: () => ({
+    results: new Map(),
+    isScanning: false,
+    scan: mockServerScan,
+  }),
+}));
+
 describe('LocalProviderSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
