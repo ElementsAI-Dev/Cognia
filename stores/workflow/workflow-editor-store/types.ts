@@ -145,6 +145,8 @@ export interface WorkflowSliceActions {
   updateWorkflowVariables: (variables: Record<string, unknown>) => void;
   setWorkflowVariable: (name: string, value: unknown) => void;
   deleteWorkflowVariable: (name: string) => void;
+  publishWorkflow: () => void;
+  unpublishWorkflow: () => void;
 }
 
 export interface NodeSliceActions {
@@ -208,6 +210,8 @@ export interface ExecutionSliceActions {
   clearExecutionState: () => void;
   persistExecution: () => Promise<void>;
   replayExecution: (executionId: string) => Promise<void>;
+  executeSingleNode: (nodeId: string, mockInput?: Record<string, unknown>) => Promise<void>;
+  retryFromNode: (nodeId: string) => Promise<void>;
 }
 
 export interface DebugSliceActions {
@@ -267,6 +271,8 @@ export interface ImportExportSliceActions {
   importWorkflow: (data: WorkflowExport) => void;
   exportToFile: () => void;
   importFromFile: (file: File) => Promise<void>;
+  exportToYaml: () => void;
+  importFromYaml: (file: File) => Promise<void>;
 }
 
 export interface StatisticsSliceActions {

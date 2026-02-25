@@ -89,6 +89,8 @@ export interface TaskTrigger {
   eventSource?: string;
   /** Timezone for cron expressions */
   timezone?: string;
+  /** Task IDs that must complete successfully before this task runs */
+  dependsOn?: string[];
 }
 
 /**

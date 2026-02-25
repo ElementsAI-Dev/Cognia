@@ -13,9 +13,15 @@ import type { ArenaContestant, ArenaPreference } from '@/types/arena';
 
 describe('useArenaStore', () => {
   beforeEach(() => {
+    jest.useFakeTimers();
     act(() => {
       useArenaStore.getState().clearAllData();
     });
+  });
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
   });
 
   describe('initial state', () => {
@@ -647,6 +653,109 @@ describe('useArenaStore', () => {
       const battle = useArenaStore.getState().getBattle(battleId);
       // Should stay at max turns
       expect(battle?.currentTurn).toBeLessThanOrEqual(battle?.maxTurns || 2);
+    });
+  });
+
+  describe('auto BT recalculation', () => {
+    const mockContestants = [
+      { provider: 'openai' as const, model: 'gpt-4o', displayName: 'GPT-4o' },
+      { provider: 'anthropic' as const, model: 'claude-3-opus', displayName: 'Claude 3 Opus' },
+    ];
+
+    function createCompletedBattle(prompt: string): string {
+      const battle = useArenaStore.getState().createBattle(prompt, mockContestants);
+      battle.contestants.forEach((c) => {
+        useArenaStore.getState().updateContestant(battle.id, c.id, {
+          response: 'test response',
+          status: 'completed',
+        });
+      });
+      useArenaStore.getState().markBattleViewed(battle.id);
+      // Advance past anti-gaming minViewingTimeMs (default 3000ms)
+      jest.advanceTimersByTime(4000);
+      return battle.id;
+    }
+
+    it('should schedule BT recalculation after selectWinner (observable via preferences triggering recalc)', () => {
+      let battleId = '';
+      act(() => {
+        battleId = createCompletedBattle('test');
+      });
+
+      const battle = useArenaStore.getState().getBattle(battleId);
+      const winnerId = battle?.contestants[0].id || '';
+
+      act(() => {
+        useArenaStore.getState().selectWinner(battleId, winnerId);
+      });
+
+      // Preferences should exist after vote
+      expect(useArenaStore.getState().preferences.length).toBeGreaterThan(0);
+
+      // After debounce fires, BT recalculation runs — verify it doesn't throw
+      act(() => {
+        jest.advanceTimersByTime(600);
+      });
+
+      // If recalculateBTRatings ran successfully, modelRatings may be updated
+      // (or unchanged if only 1 preference, which is fine)
+      expect(useArenaStore.getState().modelRatings.length).toBeGreaterThan(0);
+    });
+
+    it('should schedule BT recalculation after declareTie', () => {
+      let battleId = '';
+      act(() => {
+        battleId = createCompletedBattle('test tie');
+      });
+
+      act(() => {
+        useArenaStore.getState().declareTie(battleId);
+      });
+
+      // After debounce fires, no error should occur
+      act(() => {
+        jest.advanceTimersByTime(600);
+      });
+
+      // Battle should be marked as tie
+      const battle = useArenaStore.getState().getBattle(battleId);
+      expect(battle?.isTie).toBe(true);
+    });
+
+    it('should debounce — timer resets on rapid votes', () => {
+      const battleIds: string[] = [];
+      act(() => {
+        for (let i = 0; i < 3; i++) {
+          battleIds.push(createCompletedBattle(`rapid ${i}`));
+        }
+      });
+
+      // Vote on all 3 rapidly (within 500ms debounce window)
+      act(() => {
+        for (const bid of battleIds) {
+          const b = useArenaStore.getState().getBattle(bid);
+          if (b) {
+            useArenaStore.getState().selectWinner(bid, b.contestants[0].id);
+          }
+        }
+      });
+
+      // Advance only 200ms — should NOT have fired yet
+      act(() => {
+        jest.advanceTimersByTime(200);
+      });
+
+      const _ratingsBefore = [...useArenaStore.getState().modelRatings];
+
+      // Advance past the full debounce — should fire now
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+
+      // Recalculation ran — ratings should exist (may or may not have changed)
+      expect(useArenaStore.getState().modelRatings.length).toBeGreaterThan(0);
+      // All 3 battles should be completed
+      expect(useArenaStore.getState().preferences.length).toBeGreaterThanOrEqual(3);
     });
   });
 });

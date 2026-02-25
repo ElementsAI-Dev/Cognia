@@ -4,3 +4,4 @@ export * from './cleanup';
 export * from './cost-estimator';
 export * from './checkpoint-manager';
 export * from './blame-provider';
+export * from './log-adapter';

@@ -36,7 +36,7 @@ export default function SandboxPage() {
   const t = useTranslations('sandboxPage');
 
   const { isAvailable, isLoading: statusLoading, languages, runtimes, error: statusError, refreshStatus } = useSandbox();
-  const { result, executing, error: execError, execute, reset } = useCodeExecution();
+  const { result, executing, error: execError, execute, reset, cancel } = useCodeExecution();
 
   // Zustand store for persistent state
   const storeLanguage = useSandboxStore((s) => s.selectedLanguage);
@@ -91,26 +91,26 @@ export default function SandboxPage() {
 
   const hasLanguageSettings = useMemo(() => ['c', 'cpp', 'rust', 'python'].includes(selectedLanguage), [selectedLanguage]);
 
-  const buildEnvVars = useCallback((): Record<string, string> => {
-    const env: Record<string, string> = {};
-    if (selectedLanguage === 'python') {
-      if (compilerSettings.pythonUnbuffered) env['PYTHONUNBUFFERED'] = '1';
-      if (compilerSettings.pythonOptimize) env['PYTHONOPTIMIZE'] = '1';
-    }
-    return env;
-  }, [selectedLanguage, compilerSettings]);
-
   const handleExecute = useCallback(async () => {
     if (!code.trim() || !selectedLanguage) return;
-    const envVars = buildEnvVars();
     const customArgs = args.trim() ? args.trim().split(/\s+/) : undefined;
     await execute({
       language: selectedLanguage, code,
       stdin: stdin.trim() || undefined,
       args: customArgs,
-      env: Object.keys(envVars).length > 0 ? envVars : undefined,
+      compiler_settings: {
+        cpp_standard: compilerSettings.cppStandard,
+        optimization: compilerSettings.optimization,
+        c_compiler: compilerSettings.cCompiler,
+        cpp_compiler: compilerSettings.cppCompiler,
+        enable_warnings: compilerSettings.enableWarnings,
+        rust_edition: compilerSettings.rustEdition,
+        rust_release: compilerSettings.rustRelease,
+        python_unbuffered: compilerSettings.pythonUnbuffered,
+        python_optimize: compilerSettings.pythonOptimize,
+      },
     });
-  }, [code, selectedLanguage, stdin, args, buildEnvVars, execute]);
+  }, [code, selectedLanguage, stdin, args, compilerSettings, execute]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleExecute(); }
@@ -287,6 +287,7 @@ export default function SandboxPage() {
               onSaveSnippet={() => setSaveSnippetOpen(true)}
               onCopyOutput={handleCopyOutput}
               executionElapsed={executionElapsed}
+              onCancel={cancel}
             />
           </TabsContent>
 

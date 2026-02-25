@@ -10,14 +10,32 @@ import type {
   SearchProviderType,
   SearchProviderSettings,
 } from '@/types/search';
+import { getEnabledProviders } from '@/types/search';
 
-import { searchWithBrave, searchNewsWithBrave, searchImagesWithBrave, searchVideosWithBrave } from './providers/brave';
+import {
+  searchWithBrave,
+  searchNewsWithBrave,
+  searchImagesWithBrave,
+  searchVideosWithBrave,
+} from './providers/brave';
 import { searchWithBing, searchNewsWithBing, searchImagesWithBing } from './providers/bing';
-import { searchWithGoogle, searchImagesWithGoogle } from './providers/google';
-import { searchWithSearchAPI, searchNewsWithSearchAPI, searchImagesWithSearchAPI, searchScholarWithSearchAPI } from './providers/searchapi';
+import { searchWithGoogle, searchImagesWithGoogle, type GoogleSearchOptions } from './providers/google';
+import {
+  searchWithSearchAPI,
+  searchNewsWithSearchAPI,
+  searchImagesWithSearchAPI,
+  searchScholarWithSearchAPI,
+} from './providers/searchapi';
 import { searchWithSerpAPI, searchNewsWithSerpAPI, searchImagesWithSerpAPI } from './providers/serpapi';
+import {
+  searchWithSerper,
+  searchNewsWithSerper,
+  searchImagesWithSerper,
+  searchVideosWithSerper,
+  searchScholarWithSerper,
+} from './providers/serper';
 import { searchWithExa, findSimilarWithExa, getContentsWithExa } from './providers/exa';
-import { searchWithTavily } from './providers/tavily';
+import { searchWithTavily, type TavilySearchOptions } from './providers/tavily';
 import { searchWithPerplexity } from './providers/perplexity';
 import { searchWithGoogleAI } from './providers/google-ai';
 import { createLogger } from '@/lib/logger';
@@ -29,63 +47,101 @@ export interface SearchTypeRouterOptions extends SearchOptions {
   contentUrls?: string[];
 }
 
-type SearchFunction = (
+type RoutedSearchFunction = (
   query: string,
-  apiKey: string,
+  settings: SearchProviderSettings,
   options?: SearchOptions
 ) => Promise<SearchResponse>;
 
 interface ProviderCapabilities {
-  general: SearchFunction;
-  news?: SearchFunction;
-  images?: SearchFunction;
-  videos?: SearchFunction;
-  academic?: SearchFunction;
+  general: RoutedSearchFunction;
+  news?: RoutedSearchFunction;
+  images?: RoutedSearchFunction;
+  videos?: RoutedSearchFunction;
+  academic?: RoutedSearchFunction;
 }
 
 const PROVIDER_CAPABILITIES: Record<SearchProviderType, ProviderCapabilities> = {
   brave: {
-    general: searchWithBrave,
-    news: searchNewsWithBrave,
-    images: searchImagesWithBrave,
-    videos: searchVideosWithBrave,
+    general: (query, settings, options) => searchWithBrave(query, settings.apiKey, options),
+    news: (query, settings, options) => searchNewsWithBrave(query, settings.apiKey, options),
+    images: (query, settings, options) => searchImagesWithBrave(query, settings.apiKey, options),
+    videos: (query, settings, options) => searchVideosWithBrave(query, settings.apiKey, options),
   },
   bing: {
-    general: searchWithBing,
-    news: searchNewsWithBing,
-    images: searchImagesWithBing,
+    general: (query, settings, options) => searchWithBing(query, settings.apiKey, options),
+    news: (query, settings, options) => searchNewsWithBing(query, settings.apiKey, options),
+    images: (query, settings, options) => searchImagesWithBing(query, settings.apiKey, options),
   },
   google: {
-    general: searchWithGoogle,
-    images: searchImagesWithGoogle,
+    general: (query, settings, options) =>
+      searchWithGoogle(query, settings.apiKey, buildGoogleOptions(settings, options)),
+    images: (query, settings, options) =>
+      searchImagesWithGoogle(query, settings.apiKey, buildGoogleOptions(settings, options)),
   },
   'google-ai': {
-    general: searchWithGoogleAI,
+    general: (query, settings, options) => searchWithGoogleAI(query, settings.apiKey, options),
   },
   searchapi: {
-    general: searchWithSearchAPI,
-    news: searchNewsWithSearchAPI,
-    images: searchImagesWithSearchAPI,
-    academic: searchScholarWithSearchAPI,
+    general: (query, settings, options) => searchWithSearchAPI(query, settings.apiKey, options),
+    news: (query, settings, options) => searchNewsWithSearchAPI(query, settings.apiKey, options),
+    images: (query, settings, options) => searchImagesWithSearchAPI(query, settings.apiKey, options),
+    academic: (query, settings, options) => searchScholarWithSearchAPI(query, settings.apiKey, options),
+  },
+  serper: {
+    general: (query, settings, options) => searchWithSerper(query, settings.apiKey, options),
+    news: (query, settings, options) => searchNewsWithSerper(query, settings.apiKey, options),
+    images: (query, settings, options) => searchImagesWithSerper(query, settings.apiKey, options),
+    videos: (query, settings, options) => searchVideosWithSerper(query, settings.apiKey, options),
+    academic: (query, settings, options) => searchScholarWithSerper(query, settings.apiKey, options),
   },
   serpapi: {
-    general: searchWithSerpAPI,
-    news: searchNewsWithSerpAPI,
-    images: searchImagesWithSerpAPI,
+    general: (query, settings, options) => searchWithSerpAPI(query, settings.apiKey, options),
+    news: (query, settings, options) => searchNewsWithSerpAPI(query, settings.apiKey, options),
+    images: (query, settings, options) => searchImagesWithSerpAPI(query, settings.apiKey, options),
   },
   exa: {
-    general: searchWithExa,
-    academic: searchWithExa,
+    general: (query, settings, options) => searchWithExa(query, settings.apiKey, options),
+    academic: (query, settings, options) => searchWithExa(query, settings.apiKey, options),
   },
   tavily: {
-    general: searchWithTavily as unknown as SearchFunction,
-    news: searchWithTavily as unknown as SearchFunction,
+    general: (query, settings, options) =>
+      searchWithTavily(query, settings.apiKey, normalizeTavilyOptions(options)),
+    news: (query, settings, options) =>
+      searchWithTavily(query, settings.apiKey, normalizeTavilyOptions(options)),
   },
   perplexity: {
-    general: searchWithPerplexity,
-    news: searchWithPerplexity,
+    general: (query, settings, options) => searchWithPerplexity(query, settings.apiKey, options),
+    news: (query, settings, options) => searchWithPerplexity(query, settings.apiKey, options),
   },
 };
+
+function normalizeTavilyOptions(options?: SearchOptions): TavilySearchOptions {
+  if (!options) return {};
+
+  const includeRawContent =
+    options.includeRawContent === true ? 'text' : options.includeRawContent;
+
+  return { ...options, includeRawContent };
+}
+
+function buildGoogleOptions(
+  settings: SearchProviderSettings,
+  options?: SearchOptions
+): GoogleSearchOptions {
+  const cx = settings.cx?.trim();
+  if (!cx) {
+    throw new Error('Google Custom Search Engine ID (cx) is required');
+  }
+
+  return {
+    cx,
+    maxResults: options?.maxResults,
+    country: options?.country,
+    language: options?.language,
+    recency: options?.recency,
+  };
+}
 
 /**
  * Get providers that support a specific search type
@@ -121,19 +177,18 @@ export function providerSupportsType(
  */
 export function getBestProviderForType(
   searchType: SearchType,
-  providerSettings: Record<SearchProviderType, SearchProviderSettings>
+  providerSettings: Partial<Record<SearchProviderType, SearchProviderSettings>>
 ): SearchProviderType | null {
-  const enabledProviders = Object.entries(providerSettings)
-    .filter(([_, settings]) => settings.enabled && settings.apiKey)
-    .sort((a, b) => a[1].priority - b[1].priority);
+  const enabledProviders = getEnabledProviders(providerSettings);
 
-  for (const [providerId] of enabledProviders) {
-    if (providerSupportsType(providerId as SearchProviderType, searchType)) {
-      return providerId as SearchProviderType;
+  for (const settings of enabledProviders) {
+    if (providerSupportsType(settings.providerId, searchType)) {
+      return settings.providerId;
     }
   }
 
-  return null;
+  // If no provider supports the requested type, fall back to the best general provider.
+  return enabledProviders[0]?.providerId ?? null;
 }
 
 /**
@@ -142,21 +197,36 @@ export function getBestProviderForType(
 export async function routeSearch(
   query: string,
   provider: SearchProviderType,
-  apiKey: string,
+  settings: SearchProviderSettings,
   options: SearchTypeRouterOptions = {}
 ): Promise<SearchResponse> {
-  const searchType = options.searchType || 'general';
   const capabilities = PROVIDER_CAPABILITIES[provider];
 
   if (!capabilities) {
     throw new Error(`Unknown provider: ${provider}`);
   }
 
-  const searchFn = capabilities[searchType] || capabilities.general;
+  const mergedOptions: SearchTypeRouterOptions = {
+    ...(settings.defaultOptions || {}),
+    ...options,
+  };
+
+  const searchType = mergedOptions.searchType || 'general';
+
+  const searchFn =
+    searchType === 'news'
+      ? capabilities.news ?? capabilities.general
+      : searchType === 'images'
+        ? capabilities.images ?? capabilities.general
+        : searchType === 'videos'
+          ? capabilities.videos ?? capabilities.general
+          : searchType === 'academic'
+            ? capabilities.academic ?? capabilities.general
+            : capabilities.general;
 
   log.debug(`Routing ${searchType} search to ${provider}`);
 
-  return searchFn(query, apiKey, options);
+  return searchFn(query, settings, mergedOptions);
 }
 
 /**
@@ -165,10 +235,10 @@ export async function routeSearch(
 export async function searchNews(
   query: string,
   provider: SearchProviderType,
-  apiKey: string,
+  settings: SearchProviderSettings,
   options?: SearchOptions
 ): Promise<SearchResponse> {
-  return routeSearch(query, provider, apiKey, { ...options, searchType: 'news' });
+  return routeSearch(query, provider, settings, { ...options, searchType: 'news' });
 }
 
 /**
@@ -177,36 +247,34 @@ export async function searchNews(
 export async function searchImages(
   query: string,
   provider: SearchProviderType,
-  apiKey: string,
+  settings: SearchProviderSettings,
   options?: SearchOptions
 ): Promise<SearchResponse> {
-  return routeSearch(query, provider, apiKey, { ...options, searchType: 'images' });
+  return routeSearch(query, provider, settings, { ...options, searchType: 'images' });
 }
 
 /**
- * Search videos (Brave only)
+ * Search videos across providers (falls back to general when unsupported)
  */
 export async function searchVideos(
   query: string,
-  apiKey: string,
+  provider: SearchProviderType,
+  settings: SearchProviderSettings,
   options?: SearchOptions
 ): Promise<SearchResponse> {
-  return searchVideosWithBrave(query, apiKey, options);
+  return routeSearch(query, provider, settings, { ...options, searchType: 'videos' });
 }
 
 /**
- * Search academic content (SearchAPI or Exa)
+ * Search academic content (falls back to general when unsupported)
  */
 export async function searchAcademic(
   query: string,
-  provider: 'searchapi' | 'exa',
-  apiKey: string,
+  provider: 'searchapi' | 'exa' | 'serper',
+  settings: SearchProviderSettings,
   options?: SearchOptions
 ): Promise<SearchResponse> {
-  if (provider === 'searchapi') {
-    return searchScholarWithSearchAPI(query, apiKey, options);
-  }
-  return searchWithExa(query, apiKey, { ...options, searchType: 'academic' });
+  return routeSearch(query, provider, settings, { ...options, searchType: 'academic' });
 }
 
 /**
@@ -230,7 +298,7 @@ export async function getContents(
 ): Promise<SearchResponse> {
   const startTime = Date.now();
   const results = await getContentsWithExa(urls, apiKey, options);
-  
+
   return {
     provider: 'exa',
     query: urls.join(', '),
@@ -246,7 +314,7 @@ export async function getContents(
 export async function autoRouteSearch(
   query: string,
   searchType: SearchType,
-  providerSettings: Record<SearchProviderType, SearchProviderSettings>,
+  providerSettings: Partial<Record<SearchProviderType, SearchProviderSettings>>,
   options?: SearchOptions
 ): Promise<SearchResponse> {
   const provider = getBestProviderForType(searchType, providerSettings);
@@ -257,10 +325,15 @@ export async function autoRouteSearch(
 
   const settings = providerSettings[provider];
 
+  if (!settings) {
+    throw new Error(`Provider settings not found for: ${provider}`);
+  }
+
   log.debug(`Auto-routing ${searchType} search to ${provider}`);
 
-  return routeSearch(query, provider, settings.apiKey, {
+  return routeSearch(query, provider, settings, {
     ...options,
     searchType,
   });
 }
+

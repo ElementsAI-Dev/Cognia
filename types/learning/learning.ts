@@ -378,6 +378,36 @@ export interface CreateLearningPathInput {
 }
 
 /**
+ * Teaching approach preset
+ */
+export type TeachingApproach = 'socratic' | 'semi-socratic' | 'cognitive' | 'codeaid' | 'custom';
+
+/**
+ * Prompt language preference
+ */
+export type PromptLanguage = 'en' | 'zh-CN' | 'auto';
+
+/**
+ * Customizable prompt template for learning mode
+ */
+export interface PromptTemplate {
+  id: string;
+  name: string;
+  description: string;
+  approach: TeachingApproach;
+  basePrompt: string;
+  phaseOverrides?: Partial<Record<LearningPhase, string>>;
+  difficultyOverrides?: Partial<Record<DifficultyLevel, string>>;
+  styleOverrides?: Partial<Record<LearningStyle, string>>;
+  scenarioOverrides?: Partial<Record<string, string>>;
+  understandingOverrides?: Partial<Record<UnderstandingLevel, string>>;
+  language: PromptLanguage;
+  isBuiltIn: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
  * Learning mode configuration
  */
 export interface LearningModeConfig {
@@ -408,6 +438,17 @@ export interface LearningModeConfig {
   // AI analysis settings
   enableAIAnalysis: boolean;
   analysisDepth: 'basic' | 'standard' | 'deep';
+
+  // Custom message overrides
+  customEncouragementMessages?: Partial<Record<string, string[]>>;
+  customCelebrationMessages?: Partial<Record<string, string[]>>;
+
+  // Prompt customization settings
+  activeTemplateId: string;
+  promptLanguage: PromptLanguage;
+  responseLanguage: 'match-ui' | 'en' | 'zh-CN';
+  mentorPersonality?: string;
+  subjectContext?: string;
 }
 
 /**
@@ -428,6 +469,9 @@ export const DEFAULT_LEARNING_CONFIG: LearningModeConfig = {
   autoHighlightInsights: true,
   enableAIAnalysis: true,
   analysisDepth: 'standard',
+  activeTemplateId: 'builtin-socratic',
+  promptLanguage: 'auto',
+  responseLanguage: 'match-ui',
 };
 
 /**

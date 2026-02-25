@@ -47,6 +47,8 @@ interface SchedulerState {
   filter: TaskFilter;
   isLoading: boolean;
   error: string | null;
+  hasMoreExecutions: boolean;
+  executionsCursor: string | null;
   
   // System State
   schedulerStatus: SchedulerStatus;
@@ -70,6 +72,7 @@ interface SchedulerActions {
   // Data Loading
   loadTasks: () => Promise<void>;
   loadTaskExecutions: (taskId: string) => Promise<void>;
+  loadMoreExecutions: () => Promise<void>;
   loadStatistics: () => Promise<void>;
   loadRecentExecutions: (limit?: number) => Promise<void>;
   loadUpcomingTasks: (limit?: number) => Promise<void>;
@@ -79,6 +82,13 @@ interface SchedulerActions {
   bulkPause: (taskIds: string[]) => Promise<number>;
   bulkResume: (taskIds: string[]) => Promise<number>;
   bulkDelete: (taskIds: string[]) => Promise<number>;
+
+  // Import/Export
+  exportTasks: (taskIds?: string[]) => Promise<string>;
+  importTasks: (json: string, mode?: 'merge' | 'replace') => Promise<{ imported: number; skipped: number; errors: string[] }>;
+  
+  // Clone
+  cloneTask: (taskId: string) => Promise<ScheduledTask | null>;
 
   // Maintenance
   cleanupOldExecutions: (maxAgeDays?: number) => Promise<number>;
@@ -119,6 +129,8 @@ const initialState: SchedulerState = {
   filter: {},
   isLoading: false,
   error: null,
+  hasMoreExecutions: true,
+  executionsCursor: null,
   schedulerStatus: 'idle',
   isInitialized: false,
   autoRefreshInterval: 60,
@@ -302,10 +314,42 @@ export const useSchedulerStore = create<SchedulerStore>()(
 
       loadTaskExecutions: async (taskId) => {
         try {
-          const executions = await schedulerDb.getTaskExecutions(taskId, 50);
-          set({ executions });
+          const PAGE_SIZE = 50;
+          const executions = await schedulerDb.getTaskExecutions(taskId, PAGE_SIZE);
+          const cursor = executions.length > 0
+            ? executions[executions.length - 1].startedAt.toISOString()
+            : null;
+          set({
+            executions,
+            hasMoreExecutions: executions.length >= PAGE_SIZE,
+            executionsCursor: cursor,
+          });
         } catch (error) {
           log.error('SchedulerStore: Load executions failed', error as Error);
+        }
+      },
+
+      loadMoreExecutions: async () => {
+        const { selectedTaskId, executionsCursor, hasMoreExecutions } = get();
+        if (!selectedTaskId || !executionsCursor || !hasMoreExecutions) return;
+
+        try {
+          const PAGE_SIZE = 50;
+          const moreExecutions = await schedulerDb.getTaskExecutions(
+            selectedTaskId,
+            PAGE_SIZE,
+            executionsCursor
+          );
+          const newCursor = moreExecutions.length > 0
+            ? moreExecutions[moreExecutions.length - 1].startedAt.toISOString()
+            : null;
+          set((state) => ({
+            executions: [...state.executions, ...moreExecutions],
+            hasMoreExecutions: moreExecutions.length >= PAGE_SIZE,
+            executionsCursor: newCursor,
+          }));
+        } catch (error) {
+          log.error('SchedulerStore: Load more executions failed', error as Error);
         }
       },
 
@@ -480,6 +524,72 @@ export const useSchedulerStore = create<SchedulerStore>()(
           set({ error: 'Failed to delete tasks' });
         }
         return count;
+      },
+
+      // ========== Import/Export ==========
+
+      exportTasks: async (taskIds) => {
+        try {
+          const scheduler = getTaskScheduler();
+          const data = await scheduler.exportTasks(taskIds);
+          return JSON.stringify(data, null, 2);
+        } catch (error) {
+          log.error('SchedulerStore: Export tasks failed', error as Error);
+          set({ error: 'Failed to export tasks' });
+          return '{}';
+        }
+      },
+
+      importTasks: async (json, mode = 'merge') => {
+        set({ isLoading: true, error: null });
+        try {
+          const data = JSON.parse(json);
+          const scheduler = getTaskScheduler();
+          const result = await scheduler.importTasks(data, mode);
+          if (result.imported > 0) {
+            await get().refreshAll();
+          }
+          if (result.errors.length > 0) {
+            set({ error: `Import completed with ${result.errors.length} error(s)` });
+          }
+          return result;
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : 'Failed to import tasks';
+          log.error('SchedulerStore: Import tasks failed', error as Error);
+          set({ error: msg });
+          return { imported: 0, skipped: 0, errors: [msg] };
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      // ========== Clone ==========
+
+      cloneTask: async (taskId) => {
+        try {
+          const scheduler = getTaskScheduler();
+          const originalTask = await scheduler.getTask(taskId);
+          if (!originalTask) {
+            set({ error: 'Task not found' });
+            return null;
+          }
+          const clonedTask = await scheduler.createTask({
+            name: `${originalTask.name} (Copy)`,
+            description: originalTask.description,
+            type: originalTask.type,
+            trigger: originalTask.trigger,
+            payload: originalTask.payload,
+            config: originalTask.config,
+            notification: originalTask.notification,
+            tags: originalTask.tags,
+          });
+          await get().loadTasks();
+          return clonedTask;
+        } catch (error) {
+          log.error('SchedulerStore: Clone task failed', error as Error);
+          set({ error: 'Failed to clone task' });
+          return null;
+        }
       },
 
       // ========== Maintenance ==========

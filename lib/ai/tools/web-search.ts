@@ -39,6 +39,13 @@ async function executeSearchDirect(
     providerSettings?: Record<SearchProviderType, SearchProviderSettings>;
     maxResults?: number;
     searchDepth?: string;
+    searchType?: string;
+    recency?: string;
+    country?: string;
+    language?: string;
+    includeDomains?: string[];
+    excludeDomains?: string[];
+    includeRawContent?: boolean | 'text' | 'markdown';
     includeAnswer?: boolean;
   }
 ): Promise<SearchApiResponse> {
@@ -48,6 +55,13 @@ async function executeSearchDirect(
   const searchOptions: SearchOptions = {
     maxResults: options.maxResults,
     searchDepth: (options.searchDepth as SearchOptions['searchDepth']) || 'basic',
+    searchType: options.searchType as SearchOptions['searchType'],
+    recency: options.recency as SearchOptions['recency'],
+    country: options.country,
+    language: options.language,
+    includeDomains: options.includeDomains,
+    excludeDomains: options.excludeDomains,
+    includeRawContent: options.includeRawContent === true ? 'text' : options.includeRawContent,
     includeAnswer: options.includeAnswer,
   };
 
@@ -114,6 +128,13 @@ async function callSearchApi(
     providerSettings?: Record<SearchProviderType, SearchProviderSettings>;
     maxResults?: number;
     searchDepth?: string;
+    searchType?: string;
+    recency?: string;
+    country?: string;
+    language?: string;
+    includeDomains?: string[];
+    excludeDomains?: string[];
+    includeRawContent?: boolean | 'text' | 'markdown';
     includeAnswer?: boolean;
   }
 ): Promise<SearchApiResponse> {
@@ -128,6 +149,13 @@ async function callSearchApi(
       options: {
         maxResults: options.maxResults,
         searchDepth: options.searchDepth,
+        searchType: options.searchType,
+        recency: options.recency,
+        country: options.country,
+        language: options.language,
+        includeDomains: options.includeDomains,
+        excludeDomains: options.excludeDomains,
+        includeRawContent: options.includeRawContent,
         includeAnswer: options.includeAnswer,
       },
     }),
@@ -152,6 +180,13 @@ async function smartSearchExecute(
     providerSettings?: Record<SearchProviderType, SearchProviderSettings>;
     maxResults?: number;
     searchDepth?: string;
+    searchType?: string;
+    recency?: string;
+    country?: string;
+    language?: string;
+    includeDomains?: string[];
+    excludeDomains?: string[];
+    includeRawContent?: boolean | 'text' | 'markdown';
     includeAnswer?: boolean;
   }
 ): Promise<SearchApiResponse> {
@@ -179,14 +214,31 @@ export const webSearchInputSchema = z.object({
     .default(5)
     .describe('Maximum number of search results to return'),
   provider: z
-    .enum(['tavily', 'perplexity', 'exa', 'searchapi', 'serpapi', 'bing', 'google', 'google-ai', 'brave'])
+    .enum(['tavily', 'perplexity', 'exa', 'searchapi', 'serper', 'serpapi', 'bing', 'google', 'google-ai', 'brave'])
     .optional()
     .describe('Search provider to use (optional, uses default if not specified)'),
+  searchType: z
+    .enum(['general', 'news', 'images', 'videos', 'academic'])
+    .optional()
+    .describe('Specialized search type (optional)'),
   searchDepth: z
     .enum(['basic', 'advanced', 'deep'])
     .optional()
     .default('basic')
     .describe('Search depth/quality level'),
+  recency: z
+    .enum(['day', 'week', 'month', 'year', 'any'])
+    .optional()
+    .describe('Time range filter for search results'),
+  country: z.string().optional().describe('Country code for regional results (provider-dependent)'),
+  language: z.string().optional().describe('Language code for results (provider-dependent)'),
+  includeDomains: z.array(z.string()).optional().describe('Only include results from these domains (provider-dependent)'),
+  excludeDomains: z.array(z.string()).optional().describe('Exclude results from these domains (provider-dependent)'),
+  includeRawContent: z
+    .union([z.boolean(), z.enum(['text', 'markdown'])])
+    .optional()
+    .describe('Include raw page content when supported (provider-dependent)'),
+  includeAnswer: z.boolean().optional().describe('Request an AI answer/summary when supported'),
 });
 
 export type WebSearchToolInput = z.infer<typeof webSearchInputSchema>;
@@ -234,7 +286,14 @@ export async function executeWebSearch(
       providerSettings,
       maxResults: input.maxResults,
       searchDepth: input.searchDepth,
-      includeAnswer: true,
+      searchType: input.searchType,
+      recency: input.recency,
+      country: input.country,
+      language: input.language,
+      includeDomains: input.includeDomains,
+      excludeDomains: input.excludeDomains,
+      includeRawContent: input.includeRawContent,
+      includeAnswer: input.includeAnswer ?? true,
     });
 
     return {

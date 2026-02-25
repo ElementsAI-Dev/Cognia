@@ -4,7 +4,7 @@
  * LaTeX Editor Page - Full-featured LaTeX editing with preview, templates, and AI assistance
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -62,12 +62,15 @@ import {
   LatexAISidebar,
   type LaTeXEditorHandle,
 } from '@/components/academic/latex-editor';
+import { LatexSettingsDialog } from '@/components/academic/latex-editor/settings-dialog';
+import { VersionPanel } from '@/components/academic/latex-editor/version-panel';
 import { LaTeXExportDialog } from '@/components/latex';
 import { useLatexAI } from '@/hooks/latex';
 import { useLatex } from '@/hooks/latex';
 import { useLatexStore } from '@/stores/latex';
 import { cn } from '@/lib/utils';
 import type { LatexAITextAction } from '@/hooks/latex/use-latex-ai';
+import type { LaTeXEditorConfig } from '@/types/latex';
 
 type LaTeXTab = 'editor' | 'templates' | 'history';
 
@@ -106,7 +109,22 @@ export default function LaTeXPage() {
     renameDocument,
     duplicateDocument,
     deleteDocument,
+    settings,
+    initVersionControl,
+    createVersion,
+    restoreVersion,
+    getVersionHistory,
+    documents,
   } = useLatexStore();
+
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+
+  // Initialize version control when current document changes
+  useEffect(() => {
+    if (currentDocumentId) {
+      initVersionControl(currentDocumentId);
+    }
+  }, [currentDocumentId, initVersionControl]);
 
   const handleContentChange = useCallback(
     (newContent: string) => {
@@ -117,7 +135,34 @@ export default function LaTeXPage() {
 
   const handleSave = useCallback(() => {
     saveDocument(content);
+    setLastSavedAt(new Date());
   }, [content, saveDocument]);
+
+  // Auto-save timer — use ref so the interval doesn't reset on every keystroke
+  const contentRef = useRef(content);
+  useEffect(() => { contentRef.current = content; }, [content]);
+
+  useEffect(() => {
+    if (!settings.autoSave) return;
+    const timer = setInterval(() => {
+      if (contentRef.current) {
+        saveDocument(contentRef.current);
+        setLastSavedAt(new Date());
+      }
+    }, settings.autoSaveIntervalMs);
+    return () => clearInterval(timer);
+  }, [settings.autoSave, settings.autoSaveIntervalMs, saveDocument]);
+
+  // Convert store settings to editor config (memoized to avoid CM6 editor recreation)
+  const editorConfig = useMemo<Partial<LaTeXEditorConfig>>(() => ({
+    theme: settings.theme,
+    fontFamily: settings.fontFamily,
+    fontSize: settings.fontSize,
+    tabSize: settings.tabSize,
+    lineNumbers: settings.lineNumbers,
+    wordWrap: settings.wordWrap,
+    spellCheck: settings.spellCheck,
+  }), [settings.theme, settings.fontFamily, settings.fontSize, settings.tabSize, settings.lineNumbers, settings.wordWrap, settings.spellCheck]);
 
 
   const handleTemplateSelect = useCallback(
@@ -246,7 +291,18 @@ export default function LaTeXPage() {
             {t('voice', { defaultValue: 'Voice' })}
           </Button>
 
+          {/* Settings */}
+          <LatexSettingsDialog />
+
           <Separator orientation="vertical" className="h-6" />
+
+          {/* Auto-save indicator */}
+          {lastSavedAt && (
+            <span className="text-xs text-muted-foreground">
+              {t('autoSave.lastSaved', { defaultValue: 'Saved' })}{' '}
+              {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
 
           {/* Copy Button */}
           <Button variant="ghost" size="sm" onClick={handleCopyContent} className="gap-2">
@@ -288,6 +344,7 @@ export default function LaTeXPage() {
           <LaTeXEditor
             ref={editorRef}
             initialContent={content}
+            config={editorConfig}
             onChange={handleContentChange}
             onSave={handleSave}
             onOpenAIChat={() => setAiPanelOpen(true)}
@@ -314,7 +371,25 @@ export default function LaTeXPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="history" className="flex-1 mt-0 overflow-auto p-4">
+        <TabsContent value="history" className="flex-1 mt-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
+          {/* Version Control Panel */}
+          <div className="border-b">
+            <VersionPanel
+              versions={getVersionHistory()}
+              onCreateVersion={(msg) => createVersion(msg)}
+              onRestoreVersion={(id) => {
+                const success = restoreVersion(id);
+                if (success && currentDocumentId) {
+                  const doc = documents[currentDocumentId];
+                  if (doc) setContent(doc.content);
+                }
+              }}
+              className="max-h-[40vh]"
+            />
+          </div>
+
+          {/* Document History */}
+          <div className="flex-1 overflow-auto p-4">
           <div className="max-w-3xl mx-auto">
             <h2 className="text-lg font-semibold mb-4">
               {t('documentHistory', { defaultValue: 'Document History' })}
@@ -430,6 +505,7 @@ export default function LaTeXPage() {
                 ))}
               </div>
             )}
+          </div>
           </div>
         </TabsContent>
       </Tabs>

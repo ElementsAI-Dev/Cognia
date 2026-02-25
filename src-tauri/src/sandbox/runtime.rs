@@ -74,6 +74,19 @@ pub enum ExecutionStatus {
     Cancelled,
 }
 
+/// A single line of output streamed during execution
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OutputLine {
+    /// Execution ID this line belongs to
+    pub execution_id: String,
+    /// Stream type: "stdout" or "stderr"
+    pub stream: String,
+    /// The text content of this line
+    pub text: String,
+    /// Timestamp in milliseconds since execution started
+    pub timestamp_ms: u64,
+}
+
 /// Execution request
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionRequest {
@@ -112,6 +125,135 @@ pub struct ExecutionRequest {
 
     /// Whether to allow network access
     pub network_enabled: Option<bool>,
+
+    /// Compiler/interpreter settings (optional)
+    #[serde(default)]
+    pub compiler_settings: Option<CompilerSettings>,
+}
+
+/// Compiler and interpreter settings for fine-tuning execution
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CompilerSettings {
+    /// C++ standard: "c++11", "c++14", "c++17", "c++20", "c++23"
+    pub cpp_standard: Option<String>,
+
+    /// Optimization level: "-O0", "-O1", "-O2", "-O3", "-Os"
+    pub optimization: Option<String>,
+
+    /// C compiler: "gcc", "clang"
+    pub c_compiler: Option<String>,
+
+    /// C++ compiler: "g++", "clang++"
+    pub cpp_compiler: Option<String>,
+
+    /// Enable warnings (-Wall -Wextra)
+    pub enable_warnings: Option<bool>,
+
+    /// Rust edition: "2015", "2018", "2021", "2024"
+    pub rust_edition: Option<String>,
+
+    /// Rust release mode (optimized build)
+    pub rust_release: Option<bool>,
+
+    /// Python unbuffered output (PYTHONUNBUFFERED=1)
+    pub python_unbuffered: Option<bool>,
+
+    /// Python optimize bytecode (PYTHONOPTIMIZE=1)
+    pub python_optimize: Option<bool>,
+
+    /// Additional custom compiler/interpreter arguments
+    pub custom_args: Option<Vec<String>>,
+}
+
+impl CompilerSettings {
+    /// Apply compiler settings to a compile command string, returning the modified command.
+    /// Handles C, C++, and Rust compile commands.
+    pub fn apply_to_compile_cmd(&self, compile_cmd: &str, language: &str) -> String {
+        let mut cmd = compile_cmd.to_string();
+
+        match language {
+            "c" => {
+                // C compiler swap: gcc -> clang
+                if let Some(compiler) = &self.c_compiler {
+                    if compiler == "clang" {
+                        cmd = cmd.replacen("gcc ", "clang ", 1);
+                    }
+                }
+                // Optimization
+                if let Some(opt) = &self.optimization {
+                    cmd = format!("{} {}", cmd, opt);
+                }
+                // Warnings
+                if self.enable_warnings == Some(true) {
+                    cmd = format!("{} -Wall -Wextra", cmd);
+                }
+            }
+            "cpp" | "c++" => {
+                // C++ compiler swap: g++ -> clang++
+                if let Some(compiler) = &self.cpp_compiler {
+                    if compiler == "clang++" {
+                        cmd = cmd.replacen("g++ ", "clang++ ", 1);
+                    }
+                }
+                // C++ standard: replace the default -std=c++20
+                if let Some(std) = &self.cpp_standard {
+                    if cmd.contains("-std=") {
+                        // Replace existing -std= flag
+                        let re_start = cmd.find("-std=").unwrap();
+                        let re_end = cmd[re_start..]
+                            .find(' ')
+                            .map(|i| re_start + i)
+                            .unwrap_or(cmd.len());
+                        cmd.replace_range(re_start..re_end, &format!("-std={}", std));
+                    } else {
+                        cmd = format!("{} -std={}", cmd, std);
+                    }
+                }
+                // Optimization
+                if let Some(opt) = &self.optimization {
+                    cmd = format!("{} {}", cmd, opt);
+                }
+                // Warnings
+                if self.enable_warnings == Some(true) {
+                    cmd = format!("{} -Wall -Wextra", cmd);
+                }
+            }
+            "rust" => {
+                // Rust edition
+                if let Some(edition) = &self.rust_edition {
+                    cmd = format!("{} --edition {}", cmd, edition);
+                }
+                // Release mode optimization
+                if self.rust_release == Some(true) {
+                    cmd = format!("{} -O", cmd);
+                }
+            }
+            _ => {}
+        }
+
+        // Append custom args
+        if let Some(extra) = &self.custom_args {
+            for arg in extra {
+                cmd = format!("{} {}", cmd, arg);
+            }
+        }
+
+        cmd
+    }
+
+    /// Build extra environment variables based on settings (e.g., Python flags).
+    pub fn env_vars(&self, language: &str) -> HashMap<String, String> {
+        let mut env = HashMap::new();
+        if language == "python" {
+            if self.python_unbuffered == Some(true) {
+                env.insert("PYTHONUNBUFFERED".to_string(), "1".to_string());
+            }
+            if self.python_optimize == Some(true) {
+                env.insert("PYTHONOPTIMIZE".to_string(), "1".to_string());
+            }
+        }
+        env
+    }
 }
 
 impl ExecutionRequest {
@@ -129,6 +271,7 @@ impl ExecutionRequest {
             runtime: None,
             files: HashMap::new(),
             network_enabled: None,
+            compiler_settings: None,
         }
     }
 
@@ -281,6 +424,19 @@ pub trait SandboxRuntime: Send + Sync {
 
     /// Clean up any resources (containers, temp files, etc.)
     async fn cleanup(&self) -> Result<(), SandboxError>;
+
+    /// Execute code with a sender for streaming output lines.
+    /// Default implementation calls `execute` and ignores the sender.
+    async fn execute_with_sender(
+        &self,
+        request: &ExecutionRequest,
+        language_config: &LanguageConfig,
+        exec_config: &ExecutionConfig,
+        output_tx: Option<tokio::sync::mpsc::Sender<OutputLine>>,
+    ) -> Result<ExecutionResult, SandboxError> {
+        let _ = output_tx;
+        self.execute(request, language_config, exec_config).await
+    }
 
     /// Pull/prepare the image for a language (for container runtimes)
     async fn prepare_image(&self, language: &str) -> Result<(), SandboxError> {
@@ -589,6 +745,72 @@ impl SandboxManager {
                     e.to_string(),
                     runtime.runtime_type(),
                     request.language.clone(),
+                ))
+            }
+        }
+    }
+
+    /// Execute code with streaming output via mpsc sender
+    pub async fn execute_streaming(
+        &self,
+        request: ExecutionRequest,
+        output_tx: tokio::sync::mpsc::Sender<OutputLine>,
+    ) -> Result<ExecutionResult, SandboxError> {
+        log::debug!(
+            "SandboxManager.execute_streaming: language={}, id={}",
+            request.language, request.id
+        );
+
+        let timeout_secs = request.timeout_secs.unwrap_or(self.config.default_timeout_secs);
+        if timeout_secs == 0 {
+            return Err(SandboxError::Timeout(0));
+        }
+        let memory_mb = request.memory_limit_mb.unwrap_or(self.config.default_memory_limit_mb);
+        if memory_mb == 0 {
+            return Err(SandboxError::ResourceLimit("Memory limit cannot be 0".to_string()));
+        }
+        let network_enabled = request.network_enabled.unwrap_or(self.config.network_enabled);
+        if network_enabled && !self.config.network_enabled {
+            return Err(SandboxError::SecurityViolation(
+                "Network access is disabled in sandbox configuration".to_string(),
+            ));
+        }
+
+        let language_config = LANGUAGE_CONFIGS
+            .iter()
+            .find(|l| l.id == request.language || l.aliases.contains(&request.language.as_str()))
+            .ok_or_else(|| SandboxError::LanguageNotSupported(request.language.clone()))?;
+
+        if !self.config.enabled_languages.contains(&language_config.id.to_string()) {
+            return Err(SandboxError::LanguageNotSupported(format!(
+                "{} is disabled in configuration", language_config.name
+            )));
+        }
+
+        let runtime = self.get_runtime(request.runtime).ok_or_else(|| {
+            SandboxError::RuntimeNotAvailable("No runtime available".to_string())
+        })?;
+
+        let cpu_percent = request.cpu_limit_percent.unwrap_or(self.config.default_cpu_limit_percent);
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(timeout_secs),
+            memory_limit_mb: memory_mb,
+            cpu_limit_percent: cpu_percent,
+            network_enabled,
+            max_output_size: self.config.max_output_size,
+            workspace_dir: self.config.workspace_dir.clone(),
+        };
+
+        match runtime
+            .execute_with_sender(&request, language_config, &exec_config, Some(output_tx))
+            .await
+        {
+            Ok(result) => Ok(result),
+            Err(e) => {
+                log::error!("Streaming execution failed: id={}, error={}", request.id, e);
+                Ok(ExecutionResult::error(
+                    request.id.clone(), e.to_string(),
+                    runtime.runtime_type(), request.language.clone(),
                 ))
             }
         }
@@ -1522,5 +1744,327 @@ mod tests {
             .iter()
             .find(|l| l.id == "python" || l.aliases.contains(&"py"));
         assert!(found.is_some());
+    }
+
+    // ==================== CompilerSettings Tests ====================
+
+    #[test]
+    fn test_compiler_settings_default() {
+        let settings = CompilerSettings::default();
+        assert!(settings.cpp_standard.is_none());
+        assert!(settings.optimization.is_none());
+        assert!(settings.c_compiler.is_none());
+        assert!(settings.cpp_compiler.is_none());
+        assert!(settings.enable_warnings.is_none());
+        assert!(settings.rust_edition.is_none());
+        assert!(settings.rust_release.is_none());
+        assert!(settings.python_unbuffered.is_none());
+        assert!(settings.python_optimize.is_none());
+        assert!(settings.custom_args.is_none());
+    }
+
+    #[test]
+    fn test_compiler_settings_serialization() {
+        let settings = CompilerSettings {
+            cpp_standard: Some("c++20".to_string()),
+            optimization: Some("-O2".to_string()),
+            enable_warnings: Some(true),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&settings).unwrap();
+        assert!(json.contains("\"cpp_standard\":\"c++20\""));
+        assert!(json.contains("\"-O2\""));
+        assert!(json.contains("\"enable_warnings\":true"));
+    }
+
+    #[test]
+    fn test_compiler_settings_deserialization() {
+        let json = r#"{
+            "cpp_standard": "c++17",
+            "optimization": "-O3",
+            "rust_edition": "2021"
+        }"#;
+        let settings: CompilerSettings = serde_json::from_str(json).unwrap();
+        assert_eq!(settings.cpp_standard, Some("c++17".to_string()));
+        assert_eq!(settings.optimization, Some("-O3".to_string()));
+        assert_eq!(settings.rust_edition, Some("2021".to_string()));
+        assert!(settings.c_compiler.is_none());
+    }
+
+    #[test]
+    fn test_compiler_settings_apply_c_clang() {
+        let settings = CompilerSettings {
+            c_compiler: Some("clang".to_string()),
+            optimization: Some("-O2".to_string()),
+            enable_warnings: Some(true),
+            ..Default::default()
+        };
+        let result = settings.apply_to_compile_cmd("gcc -o main {file}", "c");
+        assert!(result.contains("clang"));
+        assert!(!result.contains("gcc"));
+        assert!(result.contains("-O2"));
+        assert!(result.contains("-Wall -Wextra"));
+    }
+
+    #[test]
+    fn test_compiler_settings_apply_cpp_standard() {
+        let settings = CompilerSettings {
+            cpp_standard: Some("c++17".to_string()),
+            ..Default::default()
+        };
+        let result = settings.apply_to_compile_cmd("g++ -std=c++20 -o main {file}", "cpp");
+        assert!(result.contains("-std=c++17"));
+        assert!(!result.contains("-std=c++20"));
+    }
+
+    #[test]
+    fn test_compiler_settings_apply_cpp_clang() {
+        let settings = CompilerSettings {
+            cpp_compiler: Some("clang++".to_string()),
+            ..Default::default()
+        };
+        let result = settings.apply_to_compile_cmd("g++ -o main {file}", "cpp");
+        assert!(result.contains("clang++"));
+        assert!(!result.contains("g++"));
+    }
+
+    #[test]
+    fn test_compiler_settings_apply_rust_edition() {
+        let settings = CompilerSettings {
+            rust_edition: Some("2021".to_string()),
+            rust_release: Some(true),
+            ..Default::default()
+        };
+        let result = settings.apply_to_compile_cmd("rustc {file}", "rust");
+        assert!(result.contains("--edition 2021"));
+        assert!(result.contains("-O"));
+    }
+
+    #[test]
+    fn test_compiler_settings_apply_custom_args() {
+        let settings = CompilerSettings {
+            custom_args: Some(vec!["-DFOO=1".to_string(), "-lm".to_string()]),
+            ..Default::default()
+        };
+        let result = settings.apply_to_compile_cmd("gcc -o main {file}", "c");
+        assert!(result.contains("-DFOO=1"));
+        assert!(result.contains("-lm"));
+    }
+
+    #[test]
+    fn test_compiler_settings_apply_noop_for_unknown_language() {
+        let settings = CompilerSettings {
+            optimization: Some("-O2".to_string()),
+            ..Default::default()
+        };
+        let result = settings.apply_to_compile_cmd("javac {file}", "java");
+        // Should not modify the base command (except custom_args)
+        assert!(result.contains("javac"));
+        // Java doesn't match C/C++/Rust branches, so -O2 is not appended
+        assert!(!result.contains("-O2"));
+    }
+
+    #[test]
+    fn test_compiler_settings_env_vars_python() {
+        let settings = CompilerSettings {
+            python_unbuffered: Some(true),
+            python_optimize: Some(true),
+            ..Default::default()
+        };
+        let env = settings.env_vars("python");
+        assert_eq!(env.get("PYTHONUNBUFFERED"), Some(&"1".to_string()));
+        assert_eq!(env.get("PYTHONOPTIMIZE"), Some(&"1".to_string()));
+    }
+
+    #[test]
+    fn test_compiler_settings_env_vars_non_python() {
+        let settings = CompilerSettings {
+            python_unbuffered: Some(true),
+            ..Default::default()
+        };
+        let env = settings.env_vars("rust");
+        assert!(env.is_empty());
+    }
+
+    #[test]
+    fn test_compiler_settings_env_vars_disabled() {
+        let settings = CompilerSettings {
+            python_unbuffered: Some(false),
+            python_optimize: Some(false),
+            ..Default::default()
+        };
+        let env = settings.env_vars("python");
+        assert!(env.is_empty());
+    }
+
+    // ==================== OutputLine Tests ====================
+
+    #[test]
+    fn test_output_line_creation() {
+        let line = OutputLine {
+            execution_id: "exec-1".to_string(),
+            stream: "stdout".to_string(),
+            text: "Hello, World!".to_string(),
+            timestamp_ms: 42,
+        };
+        assert_eq!(line.execution_id, "exec-1");
+        assert_eq!(line.stream, "stdout");
+        assert_eq!(line.text, "Hello, World!");
+        assert_eq!(line.timestamp_ms, 42);
+    }
+
+    #[test]
+    fn test_output_line_serialization() {
+        let line = OutputLine {
+            execution_id: "exec-1".to_string(),
+            stream: "stderr".to_string(),
+            text: "error: something failed".to_string(),
+            timestamp_ms: 100,
+        };
+        let json = serde_json::to_string(&line).unwrap();
+        assert!(json.contains("\"execution_id\":\"exec-1\""));
+        assert!(json.contains("\"stream\":\"stderr\""));
+        assert!(json.contains("\"timestamp_ms\":100"));
+    }
+
+    #[test]
+    fn test_output_line_deserialization() {
+        let json = r#"{
+            "execution_id": "exec-2",
+            "stream": "stdout",
+            "text": "line content",
+            "timestamp_ms": 250
+        }"#;
+        let line: OutputLine = serde_json::from_str(json).unwrap();
+        assert_eq!(line.execution_id, "exec-2");
+        assert_eq!(line.stream, "stdout");
+        assert_eq!(line.text, "line content");
+        assert_eq!(line.timestamp_ms, 250);
+    }
+
+    #[test]
+    fn test_output_line_clone() {
+        let line = OutputLine {
+            execution_id: "exec-1".to_string(),
+            stream: "stdout".to_string(),
+            text: "data".to_string(),
+            timestamp_ms: 10,
+        };
+        let cloned = line.clone();
+        assert_eq!(line.execution_id, cloned.execution_id);
+        assert_eq!(line.text, cloned.text);
+    }
+
+    // ==================== ExecutionRequest with CompilerSettings Tests ====================
+
+    #[test]
+    fn test_execution_request_compiler_settings_none_by_default() {
+        let request = ExecutionRequest::new("python", "print('hello')");
+        assert!(request.compiler_settings.is_none());
+    }
+
+    #[test]
+    fn test_execution_request_with_compiler_settings() {
+        let mut request = ExecutionRequest::new("cpp", "int main() {}");
+        request.compiler_settings = Some(CompilerSettings {
+            cpp_standard: Some("c++20".to_string()),
+            optimization: Some("-O2".to_string()),
+            ..Default::default()
+        });
+        assert!(request.compiler_settings.is_some());
+        let settings = request.compiler_settings.unwrap();
+        assert_eq!(settings.cpp_standard, Some("c++20".to_string()));
+    }
+
+    #[test]
+    fn test_execution_request_deserialization_with_compiler_settings() {
+        let json = r#"{
+            "id": "test-id",
+            "language": "cpp",
+            "code": "int main() {}",
+            "args": [],
+            "env": {},
+            "files": {},
+            "compiler_settings": {
+                "cpp_standard": "c++17",
+                "optimization": "-O2"
+            }
+        }"#;
+        let request: ExecutionRequest = serde_json::from_str(json).unwrap();
+        assert!(request.compiler_settings.is_some());
+        let settings = request.compiler_settings.unwrap();
+        assert_eq!(settings.cpp_standard, Some("c++17".to_string()));
+        assert_eq!(settings.optimization, Some("-O2".to_string()));
+    }
+
+    #[test]
+    fn test_execution_request_deserialization_without_compiler_settings() {
+        let json = r#"{
+            "id": "test-id",
+            "language": "python",
+            "code": "print('hello')",
+            "args": [],
+            "env": {},
+            "files": {}
+        }"#;
+        let request: ExecutionRequest = serde_json::from_str(json).unwrap();
+        assert!(request.compiler_settings.is_none());
+    }
+
+    // ==================== Streaming Validation Tests ====================
+
+    #[tokio::test]
+    async fn test_sandbox_manager_execute_streaming_zero_timeout() {
+        let config = SandboxConfig {
+            preferred_runtime: RuntimeType::Native,
+            enable_docker: false,
+            enable_podman: false,
+            enable_native: true,
+            default_timeout_secs: 30,
+            default_memory_limit_mb: 256,
+            default_cpu_limit_percent: 50,
+            max_output_size: 1024 * 1024,
+            custom_images: HashMap::new(),
+            network_enabled: false,
+            workspace_dir: None,
+            enabled_languages: vec!["python".to_string()],
+        };
+
+        let manager = SandboxManager::new(config).await.unwrap();
+        let request = ExecutionRequest::new("python", "print('hello')").with_timeout(0);
+        let (tx, _rx) = tokio::sync::mpsc::channel(16);
+        let result = manager.execute_streaming(request, tx).await;
+
+        assert!(result.is_err());
+        match result {
+            Err(SandboxError::Timeout(0)) => {}
+            _ => panic!("Expected Timeout(0) error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_manager_execute_streaming_disabled_language() {
+        let config = SandboxConfig {
+            preferred_runtime: RuntimeType::Native,
+            enable_docker: false,
+            enable_podman: false,
+            enable_native: true,
+            default_timeout_secs: 30,
+            default_memory_limit_mb: 256,
+            default_cpu_limit_percent: 50,
+            max_output_size: 1024 * 1024,
+            custom_images: HashMap::new(),
+            network_enabled: false,
+            workspace_dir: None,
+            enabled_languages: vec![], // No languages
+        };
+
+        let manager = SandboxManager::new(config).await.unwrap();
+        let request = ExecutionRequest::new("python", "print('hello')");
+        let (tx, _rx) = tokio::sync::mpsc::channel(16);
+        let result = manager.execute_streaming(request, tx).await;
+
+        assert!(result.is_err());
     }
 }

@@ -13,9 +13,11 @@ import type {
   SandboxStatus,
 } from '@/types/system/sandbox';
 import {
+  cancelExecution,
   checkRuntime,
   cleanupSandbox,
   executeCode,
+  executeCodeStreaming,
   executeCodeWithOptions,
   executeWithLimits,
   executeWithStdin,
@@ -41,8 +43,10 @@ import {
 } from './sandbox-core';
 
 export {
+  cancelExecution,
   checkRuntime,
   executeCode,
+  executeCodeStreaming,
   executeCodeWithOptions as executeWithOptions,
   executeWithLimits,
   executeWithStdin,
@@ -77,6 +81,11 @@ export async function exportData(): Promise<string> {
   return invokeSandboxCommand<string>('sandbox_export_data');
 }
 
+export async function importData(jsonData: string): Promise<{ imported_snippets: number; skipped_snippets: number }> {
+  const { importData: coreImportData } = await import('./sandbox-core');
+  return coreImportData(jsonData);
+}
+
 export async function getDatabaseSize(): Promise<number> {
   return invokeSandboxCommand<number>('sandbox_get_db_size');
 }
@@ -109,9 +118,12 @@ export const sandboxService = {
   setTimeout: setDefaultTimeout,
   setMemoryLimit,
   setNetworkEnabled,
+  cancelExecution,
+  executeStreaming: executeCodeStreaming,
   cleanup: cleanupRuntimes,
   isAvailable: isSandboxAvailable,
   exportData,
+  importData,
   getDatabaseSize,
   vacuumDatabase,
 };

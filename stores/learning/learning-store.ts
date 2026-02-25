@@ -25,6 +25,7 @@ import type {
   LearningDurationType,
   CreateLearningPathInput,
   QuickLearningSession,
+  PromptTemplate,
 } from '@/types/learning';
 import { DEFAULT_LEARNING_CONFIG, DEFAULT_LEARNING_STATISTICS } from '@/types/learning';
 import { detectLearningType, getSuggestedMilestones } from '@/lib/learning/learning-type-detector';
@@ -45,6 +46,8 @@ interface LearningState {
   activeLearningPathId: string | null;
   // Quick learning sessions history
   quickSessions: Record<string, QuickLearningSession>;
+  // User-defined prompt templates (built-in templates are not stored here)
+  promptTemplates: Record<string, PromptTemplate>;
   globalStats: {
     totalSessions: number;
     totalTimeSpentMs: number;
@@ -159,6 +162,13 @@ interface LearningState {
   detectType: (topic: string) => LearningDurationType;
   getSessionsByType: (type: LearningDurationType) => LearningSession[];
 
+  // Prompt template CRUD
+  addPromptTemplate: (template: Omit<PromptTemplate, 'id' | 'createdAt' | 'isBuiltIn'>) => PromptTemplate;
+  updatePromptTemplate: (id: string, updates: Partial<Omit<PromptTemplate, 'id' | 'isBuiltIn'>>) => void;
+  deletePromptTemplate: (id: string) => void;
+  exportPromptTemplates: () => string;
+  importPromptTemplates: (json: string) => { imported: number; errors: string[] };
+
   // Configuration
   updateConfig: (config: Partial<LearningModeConfig>) => void;
   resetConfig: () => void;
@@ -243,6 +253,7 @@ const initialState = {
   learningPaths: {} as Record<string, LearningPath>,
   activeLearningPathId: null as string | null,
   quickSessions: {} as Record<string, QuickLearningSession>,
+  promptTemplates: {} as Record<string, PromptTemplate>,
   globalStats: {
     totalSessions: 0,
     totalTimeSpentMs: 0,
@@ -1434,6 +1445,134 @@ export const useLearningStore = create<LearningState>()(
         return Object.values(get().sessions).filter((s) => s.durationType === type);
       },
 
+      // Prompt template CRUD
+      addPromptTemplate: (template) => {
+        const id = nanoid();
+        const now = new Date().toISOString();
+        const newTemplate: PromptTemplate = {
+          ...template,
+          id,
+          isBuiltIn: false,
+          createdAt: now,
+          updatedAt: now,
+        };
+        set((state) => ({
+          promptTemplates: { ...state.promptTemplates, [id]: newTemplate },
+        }));
+        return newTemplate;
+      },
+
+      updatePromptTemplate: (id, updates) => {
+        set((state) => {
+          const existing = state.promptTemplates[id];
+          if (!existing || existing.isBuiltIn) return state;
+          return {
+            promptTemplates: {
+              ...state.promptTemplates,
+              [id]: { ...existing, ...updates, updatedAt: new Date().toISOString() },
+            },
+          };
+        });
+      },
+
+      deletePromptTemplate: (id) => {
+        set((state) => {
+          const { [id]: _, ...rest } = state.promptTemplates;
+          const config =
+            state.config.activeTemplateId === id
+              ? { ...state.config, activeTemplateId: 'builtin-socratic' }
+              : state.config;
+          return { promptTemplates: rest, config };
+        });
+      },
+
+      exportPromptTemplates: () => {
+        const state = get();
+        const exportData = {
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          templates: Object.values(state.promptTemplates).filter((t) => !t.isBuiltIn),
+          config: {
+            activeTemplateId: state.config.activeTemplateId,
+            promptLanguage: state.config.promptLanguage,
+            responseLanguage: state.config.responseLanguage,
+            mentorPersonality: state.config.mentorPersonality,
+            subjectContext: state.config.subjectContext,
+            customEncouragementMessages: state.config.customEncouragementMessages,
+            customCelebrationMessages: state.config.customCelebrationMessages,
+          },
+        };
+        return JSON.stringify(exportData, null, 2);
+      },
+
+      importPromptTemplates: (json: string) => {
+        const errors: string[] = [];
+        let imported = 0;
+        try {
+          const data = JSON.parse(json);
+          if (!data || typeof data !== 'object') {
+            return { imported: 0, errors: ['Invalid JSON format'] };
+          }
+
+          const templates = Array.isArray(data.templates) ? data.templates : [];
+          const MAX_PROMPT_LENGTH = 10000;
+
+          for (const tpl of templates) {
+            if (!tpl.name || !tpl.basePrompt) {
+              errors.push(`Skipped template: missing name or basePrompt`);
+              continue;
+            }
+            if (tpl.basePrompt.length > MAX_PROMPT_LENGTH) {
+              errors.push(`Skipped "${tpl.name}": basePrompt exceeds ${MAX_PROMPT_LENGTH} characters`);
+              continue;
+            }
+            get().addPromptTemplate({
+              name: tpl.name,
+              description: tpl.description || '',
+              approach: tpl.approach || 'custom',
+              basePrompt: tpl.basePrompt,
+              phaseOverrides: tpl.phaseOverrides,
+              difficultyOverrides: tpl.difficultyOverrides,
+              styleOverrides: tpl.styleOverrides,
+              scenarioOverrides: tpl.scenarioOverrides,
+              understandingOverrides: tpl.understandingOverrides,
+              language: tpl.language || 'en',
+            });
+            imported++;
+          }
+
+          if (data.config && typeof data.config === 'object') {
+            const configUpdates: Partial<LearningModeConfig> = {};
+            if (data.config.mentorPersonality) configUpdates.mentorPersonality = String(data.config.mentorPersonality);
+            if (data.config.subjectContext) configUpdates.subjectContext = String(data.config.subjectContext);
+            if (data.config.customEncouragementMessages && typeof data.config.customEncouragementMessages === 'object') {
+              const validated: Record<string, string[]> = {};
+              for (const [key, val] of Object.entries(data.config.customEncouragementMessages)) {
+                if (Array.isArray(val) && val.every((v: unknown) => typeof v === 'string')) {
+                  validated[key] = val as string[];
+                }
+              }
+              if (Object.keys(validated).length > 0) configUpdates.customEncouragementMessages = validated;
+            }
+            if (data.config.customCelebrationMessages && typeof data.config.customCelebrationMessages === 'object') {
+              const validated: Record<string, string[]> = {};
+              for (const [key, val] of Object.entries(data.config.customCelebrationMessages)) {
+                if (Array.isArray(val) && val.every((v: unknown) => typeof v === 'string')) {
+                  validated[key] = val as string[];
+                }
+              }
+              if (Object.keys(validated).length > 0) configUpdates.customCelebrationMessages = validated;
+            }
+            if (Object.keys(configUpdates).length > 0) {
+              get().updateConfig(configUpdates);
+            }
+          }
+        } catch (e) {
+          errors.push(`Parse error: ${e instanceof Error ? e.message : 'Unknown error'}`);
+        }
+        return { imported, errors };
+      },
+
       // Configuration
       updateConfig: (config: Partial<LearningModeConfig>) => {
         set((state) => ({
@@ -1461,7 +1600,7 @@ export const useLearningStore = create<LearningState>()(
     }),
     {
       name: 'cognia-learning-storage',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState, version) => {
         const state = (persistedState || {}) as Record<string, unknown>;
@@ -1483,6 +1622,15 @@ export const useLearningStore = create<LearningState>()(
             journeySessionsCount: Number(globalStats.journeySessionsCount ?? 0),
             pathsCompleted: Number(globalStats.pathsCompleted ?? 0),
           };
+        }
+
+        if (version < 3) {
+          const config = (state.config as Record<string, unknown>) || {};
+          config.activeTemplateId = config.activeTemplateId ?? 'builtin-socratic';
+          config.promptLanguage = config.promptLanguage ?? 'auto';
+          config.responseLanguage = config.responseLanguage ?? 'match-ui';
+          state.config = config;
+          state.promptTemplates = state.promptTemplates ?? {};
         }
 
         return state;
@@ -1511,6 +1659,7 @@ export const useLearningStore = create<LearningState>()(
           quickSessions: limitedQuickSessions,
           achievements: state.achievements,
           globalStats: state.globalStats,
+          promptTemplates: state.promptTemplates,
         };
       },
       onRehydrateStorage: () => (state) => {

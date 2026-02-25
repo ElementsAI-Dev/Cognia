@@ -84,6 +84,8 @@
     "descLoggingConfig": "Configure log levels, transports, and retention policies",
     "tabInputCompletion": "Input Completion",
     "descInputCompletion": "AI-powered Tab completion settings",
+    "tabLearning": "Learning Mode",
+    "descLearning": "Customize teaching templates and learning behavior",
     "exportSettings": "Export Settings",
     "importSettings": "Import Settings",
     "resetAllSettings": "Reset All Settings",
@@ -408,6 +410,9 @@
     "priority": "Priority",
     "selected": "selected",
     "apiKey": "API Key",
+    "googleCx": "Programmable Search Engine ID (cx)",
+    "googleCxPlaceholder": "Enter your Google Programmable Search Engine ID",
+    "googleCxHelp": "Required for Google Custom Search. Find it in your Programmable Search Engine settings.",
     "features": {
       "aiAnswer": "AI Answer",
       "news": "News",

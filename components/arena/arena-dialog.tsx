@@ -5,7 +5,7 @@
  * Allows users to select models and start multi-model comparison
  */
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Swords,
@@ -49,7 +49,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { getProviderColor } from '@/lib/arena';
-import { useArena } from '@/hooks/arena';
+import { useArena, useSmartModelPair } from '@/hooks/arena';
+import { useArenaStore } from '@/stores/arena';
 
 import { ARENA_MODEL_PRESETS } from '@/types/arena';
 import type { ModelSelection } from '@/types/arena';
@@ -58,6 +59,7 @@ interface ArenaDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialPrompt?: string;
+  initialModels?: ModelSelection[];
   sessionId?: string;
   systemPrompt?: string;
   onBattleStart?: () => void;
@@ -68,6 +70,7 @@ export function ArenaDialog({
   open,
   onOpenChange,
   initialPrompt = '',
+  initialModels,
   sessionId,
   systemPrompt,
   onBattleStart,
@@ -90,13 +93,40 @@ export function ArenaDialog({
   const [maxTokens, setMaxTokens] = useState(2048);
   const [taskCategory, setTaskCategory] = useState<string>('auto');
 
+  const arenaSettings = useArenaStore((state) => state.settings);
   const { isExecuting, error, startBattle, getAvailableModels } = useArena({
     onBattleComplete: () => {
       onBattleComplete?.();
     },
   });
+  const { getSmartModelPair } = useSmartModelPair();
 
   const availableModels = useMemo(() => getAvailableModels(), [getAvailableModels]);
+
+  // Track whether auto-selection already ran for this dialog session
+  const autoSelectedRef = useRef(false);
+
+  // Reset auto-select tracking when dialog closes
+  useEffect(() => {
+    if (!open) {
+      autoSelectedRef.current = false;
+    }
+  }, [open]);
+
+  // Pre-populate models from initialModels (rematch) or auto-select
+  useEffect(() => {
+    if (!open) return;
+    if (initialModels && initialModels.length >= 2) {
+      setSelectedModels(initialModels);
+      autoSelectedRef.current = true;
+    } else if (arenaSettings.autoSelectModels && !autoSelectedRef.current) {
+      const smartPair = getSmartModelPair();
+      if (smartPair.length >= 2) {
+        setSelectedModels(smartPair);
+        autoSelectedRef.current = true;
+      }
+    }
+  }, [open, initialModels, arenaSettings.autoSelectModels, getSmartModelPair]);
 
   // Toggle model selection
   const toggleModel = useCallback((model: ModelSelection) => {

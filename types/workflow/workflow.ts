@@ -15,7 +15,8 @@ export type WorkflowType =
   | 'data-analysis' // Data analysis workflow
   | 'content-creation' // General content creation
   | 'research' // Research and summarization
-  | 'custom'; // Custom user-defined workflow
+  | 'custom'
+  | 'chatflow'; // Custom user-defined workflow
 
 /**
  * Workflow step status

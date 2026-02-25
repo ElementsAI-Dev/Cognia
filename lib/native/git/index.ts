@@ -137,6 +137,19 @@ export {
   git2FetchRemote,
 } from './git2';
 
+// File History
+export {
+  getFileHistory,
+  type GitFileHistoryEntry,
+} from './file-history';
+
+// Commit Search
+export {
+  searchCommits,
+  type GitSearchMode,
+  type GitSearchOptions,
+} from './search';
+
 // Graph, Stats, Checkpoints
 export {
   getLogGraph,

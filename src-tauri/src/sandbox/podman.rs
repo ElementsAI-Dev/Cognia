@@ -6,13 +6,14 @@ use async_trait::async_trait;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Instant;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 use tokio::time::timeout;
 
 use super::languages::LanguageConfig;
 use super::runtime::{
-    ExecutionConfig, ExecutionRequest, ExecutionResult, RuntimeType, SandboxError, SandboxRuntime,
+    ExecutionConfig, ExecutionRequest, ExecutionResult, OutputLine, RuntimeType, SandboxError,
+    SandboxRuntime,
 };
 use super::workspace::{create_workspace, write_execution_files};
 
@@ -99,9 +100,16 @@ impl PodmanRuntime {
         // Working directory
         cmd.arg("-w").arg("/code");
 
-        // Environment variables
+        // Environment variables (from request)
         for (key, value) in &request.env {
             cmd.arg("-e").arg(format!("{}={}", key, value));
+        }
+
+        // Environment variables from compiler settings (e.g., Python flags)
+        if let Some(settings) = &request.compiler_settings {
+            for (key, value) in settings.env_vars(&request.language) {
+                cmd.arg("-e").arg(format!("{}={}", key, value));
+            }
         }
 
         // Image
@@ -116,9 +124,15 @@ impl PodmanRuntime {
             .unwrap_or("main");
 
         if let Some(compile_cmd) = language_config.compile_cmd {
-            let compile = compile_cmd
+            let mut compile = compile_cmd
                 .replace("{file}", &file_path)
                 .replace("{basename}", basename);
+
+            // Apply compiler settings to the compile command
+            if let Some(settings) = &request.compiler_settings {
+                compile = settings.apply_to_compile_cmd(&compile, &request.language);
+            }
+
             let run = language_config
                 .run_cmd
                 .replace("{file}", &file_path)
@@ -343,6 +357,113 @@ impl SandboxRuntime for PodmanRuntime {
                     exec_config.timeout.as_secs(),
                     RuntimeType::Podman,
                     request.language.clone(),
+                ))
+            }
+        }
+    }
+
+    async fn execute_with_sender(
+        &self,
+        request: &ExecutionRequest,
+        language_config: &LanguageConfig,
+        exec_config: &ExecutionConfig,
+        output_tx: Option<tokio::sync::mpsc::Sender<OutputLine>>,
+    ) -> Result<ExecutionResult, SandboxError> {
+        let Some(tx) = output_tx else {
+            return self.execute(request, language_config, exec_config).await;
+        };
+
+        log::debug!("Podman streaming execute: id={}, language={}", request.id, request.language);
+        let start = Instant::now();
+
+        let workspace = create_workspace(exec_config.workspace_dir.as_deref(), &request.id).await?;
+        let work_dir = workspace.path().to_path_buf();
+        let _ = write_execution_files(&work_dir, request, language_config).await?;
+
+        let mut cmd = self.build_command(request, language_config, exec_config, &work_dir);
+        let mut child = cmd.spawn().map_err(|e| {
+            SandboxError::ContainerError(format!("Failed to start Podman container: {}", e))
+        })?;
+
+        if let Some(stdin_data) = &request.stdin {
+            if let Some(mut stdin) = child.stdin.take() {
+                let _ = stdin.write_all(stdin_data.as_bytes()).await;
+                drop(stdin);
+            }
+        }
+
+        let stdout_pipe = child.stdout.take()
+            .ok_or_else(|| SandboxError::ExecutionFailed("failed to capture stdout".into()))?;
+        let stderr_pipe = child.stderr.take()
+            .ok_or_else(|| SandboxError::ExecutionFailed("failed to capture stderr".into()))?;
+
+        let exec_id_out = request.id.clone();
+        let exec_id_err = request.id.clone();
+        let tx_err = tx.clone();
+
+        let stdout_task = tokio::spawn(async move {
+            let mut lines = BufReader::new(stdout_pipe).lines();
+            let mut collected = String::new();
+            while let Ok(Some(line)) = lines.next_line().await {
+                let elapsed = start.elapsed().as_millis() as u64;
+                let _ = tx.send(OutputLine {
+                    execution_id: exec_id_out.clone(),
+                    stream: "stdout".into(),
+                    text: line.clone(),
+                    timestamp_ms: elapsed,
+                }).await;
+                if !collected.is_empty() { collected.push('\n'); }
+                collected.push_str(&line);
+            }
+            collected
+        });
+
+        let stderr_task = tokio::spawn(async move {
+            let mut lines = BufReader::new(stderr_pipe).lines();
+            let mut collected = String::new();
+            while let Ok(Some(line)) = lines.next_line().await {
+                let elapsed = start.elapsed().as_millis() as u64;
+                let _ = tx_err.send(OutputLine {
+                    execution_id: exec_id_err.clone(),
+                    stream: "stderr".into(),
+                    text: line.clone(),
+                    timestamp_ms: elapsed,
+                }).await;
+                if !collected.is_empty() { collected.push('\n'); }
+                collected.push_str(&line);
+            }
+            collected
+        });
+
+        let result = timeout(exec_config.timeout, child.wait()).await;
+        let execution_time_ms = start.elapsed().as_millis() as u64;
+
+        match result {
+            Ok(Ok(status)) => {
+                let exit_code = status.code().unwrap_or(-1);
+                let stdout = stdout_task.await.unwrap_or_default();
+                let stderr = stderr_task.await.unwrap_or_default();
+                Ok(ExecutionResult::success(
+                    request.id.clone(), stdout, stderr, exit_code,
+                    execution_time_ms, RuntimeType::Podman, request.language.clone(),
+                ))
+            }
+            Ok(Err(e)) => {
+                let _ = stdout_task.await;
+                let _ = stderr_task.await;
+                Err(SandboxError::ExecutionFailed(e.to_string()))
+            }
+            Err(_) => {
+                let container_name = Self::container_name(request);
+                let _ = Command::new(&self.podman_path).arg("kill").arg(&container_name).output().await;
+                let _ = Command::new(&self.podman_path).args(["rm", "-f"]).arg(&container_name).output().await;
+                let _ = child.start_kill();
+                let _ = child.wait().await;
+                let _ = stdout_task.await;
+                let _ = stderr_task.await;
+                Ok(ExecutionResult::timeout(
+                    request.id.clone(), String::new(), String::new(),
+                    exec_config.timeout.as_secs(), RuntimeType::Podman, request.language.clone(),
                 ))
             }
         }

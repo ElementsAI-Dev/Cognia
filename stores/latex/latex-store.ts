@@ -44,6 +44,8 @@ export interface LaTeXEditorSettings {
   fontFamily: string;
   lineNumbers: boolean;
   wordWrap: boolean;
+  spellCheck: boolean;
+  tabSize: number;
   autoSave: boolean;
   autoSaveIntervalMs: number;
   previewEnabled: boolean;
@@ -110,6 +112,8 @@ const DEFAULT_SETTINGS: LaTeXEditorSettings = {
   fontFamily: 'JetBrains Mono, Fira Code, monospace',
   lineNumbers: true,
   wordWrap: true,
+  spellCheck: false,
+  tabSize: 2,
   autoSave: true,
   autoSaveIntervalMs: 30000,
   previewEnabled: true,

@@ -142,6 +142,18 @@ interface ArenaState {
   clearAllData: () => void;
 }
 
+const _btRecalcState = { timer: null as ReturnType<typeof setTimeout> | null };
+
+function scheduleBTRecalculation(recalcFn: () => void) {
+  if (_btRecalcState.timer) {
+    clearTimeout(_btRecalcState.timer);
+  }
+  _btRecalcState.timer = setTimeout(() => {
+    _btRecalcState.timer = null;
+    recalcFn();
+  }, 500);
+}
+
 export const useArenaStore = create<ArenaState>()(
   persist(
     (set, get) => ({
@@ -410,6 +422,8 @@ export const useArenaStore = create<ArenaState>()(
             };
           });
         }
+
+        scheduleBTRecalculation(() => get().recalculateBTRatings());
       },
 
       declareTie: (battleId, notes) => {
@@ -475,6 +489,8 @@ export const useArenaStore = create<ArenaState>()(
             };
           });
         }
+
+        scheduleBTRecalculation(() => get().recalculateBTRatings());
       },
 
       declareBothBad: (battleId, notes) => {
@@ -567,6 +583,8 @@ export const useArenaStore = create<ArenaState>()(
             };
           });
         }
+
+        scheduleBTRecalculation(() => get().recalculateBTRatings());
       },
 
       getModelRating: (provider, model, category) => {

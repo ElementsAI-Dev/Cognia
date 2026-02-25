@@ -5,9 +5,9 @@
  * Features leaderboard, heatmap, history, and quick battle
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Scale, Trophy, Grid3X3, History, Zap, Settings, BarChart3, Eye, EyeOff, Wifi, WifiOff } from 'lucide-react';
+import { Scale, Trophy, Grid3X3, History, Zap, Settings, BarChart3, Eye, EyeOff, Wifi, WifiOff, Shuffle, Clock } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,8 +30,12 @@ import {
   selectSettings as selectArenaSettings,
   selectTotalBattleCount,
   selectCompletedBattleCount,
+  selectBattles,
 } from '@/stores/arena';
 import { useArena, useLeaderboardSync, useLeaderboardOnlineStatus } from '@/hooks/arena';
+import { getRandomPrompts, getRecentBattlePrompts } from '@/lib/arena';
+import type { ArenaPrompt } from '@/lib/arena';
+import type { ArenaBattle, ModelSelection } from '@/types/arena';
 import Link from 'next/link';
 
 export default function ArenaPage() {
@@ -41,7 +45,10 @@ export default function ArenaPage() {
   const [showArenaDialog, setShowArenaDialog] = useState(false);
   const [selectedBattleId, setSelectedBattleId] = useState<string | null>(null);
   const [quickPrompt, setQuickPrompt] = useState('');
+  const [suggestedPrompts, setSuggestedPrompts] = useState<ArenaPrompt[]>(() => getRandomPrompts(4));
+  const [rematchModels, setRematchModels] = useState<ModelSelection[] | undefined>(undefined);
 
+  const battles = useArenaStore(selectBattles);
   const totalBattles = useArenaStore(selectTotalBattleCount);
   const completedBattleCount = useArenaStore(selectCompletedBattleCount);
   const activeBattle = useArenaStore(selectActiveBattle);
@@ -56,6 +63,24 @@ export default function ArenaPage() {
     autoFetch: activeTab === 'leaderboard',
   });
   const { isOnline } = useLeaderboardOnlineStatus();
+
+  const recentPrompts = useMemo(() => getRecentBattlePrompts(battles, 5), [battles]);
+
+  const handleRefreshSuggestions = useCallback(() => {
+    setSuggestedPrompts(getRandomPrompts(4));
+  }, []);
+
+  const handleRematch = useCallback((battle: ArenaBattle) => {
+    setQuickPrompt(battle.prompt);
+    setRematchModels(
+      battle.contestants.map((c) => ({
+        provider: c.provider,
+        model: c.model,
+        displayName: c.displayName,
+      }))
+    );
+    setShowArenaDialog(true);
+  }, []);
 
   const currentBattleId = selectedBattleId || activeBattleId;
 
@@ -86,12 +111,12 @@ export default function ArenaPage() {
             {arenaSettings.defaultMode === 'blind' ? (
               <Badge variant="secondary" className="gap-1">
                 <EyeOff className="h-3 w-3" />
-                {t('blindMode', { fallback: 'Blind' })}
+                {t('blindMode')}
               </Badge>
             ) : (
               <Badge variant="outline" className="gap-1">
                 <Eye className="h-3 w-3" />
-                {t('normalMode', { fallback: 'Normal' })}
+                {t('normalMode')}
               </Badge>
             )}
             {activeBattle && (
@@ -101,9 +126,9 @@ export default function ArenaPage() {
             )}
             <Badge variant="outline" className="gap-1">
               {isOnline ? (
-                <><Wifi className="h-3 w-3 text-green-500" /> {t('online', { fallback: 'Online' })}</>
+                <><Wifi className="h-3 w-3 text-green-500" /> {t('online')}</>
               ) : (
-                <><WifiOff className="h-3 w-3 text-red-500" /> {t('offline', { fallback: 'Offline' })}</>
+                <><WifiOff className="h-3 w-3 text-red-500" /> {t('offline')}</>
               )}
             </Badge>
           </div>
@@ -141,7 +166,7 @@ export default function ArenaPage() {
             </TabsTrigger>
             <TabsTrigger value="stats" className="gap-2">
               <BarChart3 className="h-4 w-4" />
-              {t('stats.title', { fallback: 'Stats' })}
+              {t('stats.title')}
             </TabsTrigger>
           </TabsList>
 
@@ -165,6 +190,54 @@ export default function ArenaPage() {
                   </Button>
                 </div>
               </div>
+
+              {/* Suggested Prompts */}
+              <div className="rounded-lg border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">{t('prompts.suggested')}</p>
+                  <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={handleRefreshSuggestions}>
+                    <Shuffle className="h-3 w-3" />
+                    {t('prompts.refresh')}
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {suggestedPrompts.map((sp) => (
+                    <button
+                      key={sp.id}
+                      className="p-3 rounded-lg border text-left hover:bg-muted/50 transition-colors"
+                      onClick={() => setQuickPrompt(sp.prompt)}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="outline" className="text-[10px] capitalize">{sp.category}</Badge>
+                        <Badge variant="secondary" className="text-[10px]">{sp.difficulty}</Badge>
+                      </div>
+                      <p className="text-sm font-medium line-clamp-1">{sp.title}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{sp.prompt}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Recent Prompts */}
+              {recentPrompts.length > 0 && (
+                <div className="rounded-lg border bg-card p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium">{t('prompts.recent')}</p>
+                  </div>
+                  <div className="space-y-1">
+                    {recentPrompts.map((rp, i) => (
+                      <button
+                        key={i}
+                        className="w-full p-2 rounded text-left hover:bg-muted/50 transition-colors"
+                        onClick={() => setQuickPrompt(rp)}
+                      >
+                        <p className="text-sm line-clamp-1">{rp}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
 
@@ -184,6 +257,7 @@ export default function ArenaPage() {
             <ArenaErrorBoundary sectionName="History">
               <ArenaHistory
                 onViewBattle={(battleId) => setSelectedBattleId(battleId)}
+                onRematch={handleRematch}
               />
             </ArenaErrorBoundary>
           </TabsContent>
@@ -199,10 +273,15 @@ export default function ArenaPage() {
       {/* Arena Dialog */}
       <ArenaDialog
         open={showArenaDialog}
-        onOpenChange={setShowArenaDialog}
+        onOpenChange={(open) => {
+          setShowArenaDialog(open);
+          if (!open) setRematchModels(undefined);
+        }}
         initialPrompt={quickPrompt}
+        initialModels={rematchModels}
         onBattleComplete={() => {
           setQuickPrompt('');
+          setRematchModels(undefined);
         }}
       />
 

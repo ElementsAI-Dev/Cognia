@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -93,6 +94,50 @@ export function LoopNodeConfig({ data, onUpdate }: NodeConfigProps<LoopNodeData>
             />
           </div>
         </div>
+      )}
+
+      {/* Enhanced: Parallel execution, batch size, error handling */}
+      {data.loopType === 'forEach' && (
+        <>
+          <Separator />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Parallel Execution</Label>
+              <Switch
+                checked={data.parallelExecution || false}
+                onCheckedChange={(v) => onUpdate({ parallelExecution: v })}
+              />
+            </div>
+            {data.parallelExecution && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Batch Size</Label>
+                <Input
+                  type="number"
+                  value={data.batchSize || 5}
+                  onChange={(e) => onUpdate({ batchSize: parseInt(e.target.value) || 5 })}
+                  className="h-8 text-sm"
+                  min={1}
+                />
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Error Handling</Label>
+              <Select
+                value={data.errorHandling || 'stop'}
+                onValueChange={(v) => onUpdate({ errorHandling: v as 'stop' | 'skip' | 'continue' })}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="stop">Stop on Error</SelectItem>
+                  <SelectItem value="skip">Skip Failed Items</SelectItem>
+                  <SelectItem value="continue">Continue on Error</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </>
       )}
 
       {data.loopType === 'while' && (

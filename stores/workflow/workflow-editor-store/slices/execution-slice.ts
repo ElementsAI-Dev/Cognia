@@ -573,6 +573,224 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
       }
     },
 
+    executeSingleNode: async (nodeId, mockInput) => {
+      const { currentWorkflow } = get();
+      if (!currentWorkflow) {
+        return;
+      }
+
+      const targetNode = currentWorkflow.nodes.find((n) => n.id === nodeId);
+      if (!targetNode) {
+        toast.error('Node not found');
+        return;
+      }
+
+      // Collect input from upstream nodes' executionOutput or pinnedData
+      const input: Record<string, unknown> = mockInput || {};
+      if (!mockInput) {
+        currentWorkflow.edges
+          .filter((edge) => edge.target === nodeId)
+          .forEach((edge) => {
+            const sourceNode = currentWorkflow.nodes.find((n) => n.id === edge.source);
+            if (sourceNode?.data) {
+              const pinnedData = sourceNode.data.pinnedData;
+              if (pinnedData && typeof pinnedData === 'object' && 'isPinned' in pinnedData && pinnedData.isPinned && 'data' in pinnedData) {
+                Object.assign(input, pinnedData.data as Record<string, unknown>);
+              } else if (sourceNode.data.executionOutput) {
+                if (typeof sourceNode.data.executionOutput === 'object' && sourceNode.data.executionOutput !== null) {
+                  Object.assign(input, sourceNode.data.executionOutput as Record<string, unknown>);
+                }
+              }
+            }
+          });
+      }
+
+      // Create a mini workflow with just this node
+      const startNode = currentWorkflow.nodes.find((n) => n.type === 'start');
+      const singleNodeWorkflow: VisualWorkflow = {
+        ...currentWorkflow,
+        id: `${currentWorkflow.id}-single-${nodeId}`,
+        nodes: [
+          ...(startNode ? [startNode] : []),
+          targetNode,
+        ],
+        edges: startNode
+          ? [{ id: `edge-start-${nodeId}`, source: startNode.id, target: nodeId, type: 'default', data: {} as import('@/types/workflow/workflow-editor').WorkflowEdgeData }]
+          : [],
+      };
+
+      // Set up execution state for the single node
+      const executionId = `exec-single-${nanoid(8)}`;
+      const singleExecState: WorkflowExecutionState = {
+        executionId,
+        workflowId: currentWorkflow.id,
+        runtime: workflowOrchestrator.runtime,
+        status: 'running',
+        progress: 0,
+        nodeStates: {
+          [nodeId]: { nodeId, status: 'running', logs: [], retryCount: 0, startedAt: new Date() },
+        },
+        startedAt: new Date(),
+        input,
+        logs: [{ timestamp: new Date(), level: 'info', message: `Testing node: ${targetNode.data.label}` }],
+      };
+
+      set({ isExecuting: true, executionState: singleExecState, showExecutionPanel: true });
+
+      try {
+        const result = await workflowOrchestrator.run({
+          workflow: singleNodeWorkflow,
+          input,
+          onEvent: (event) => {
+            if (event.stepId === nodeId) {
+              const currentState = get().executionState;
+              if (!currentState) return;
+              if (event.type === 'step_completed') {
+                get().updateNodeExecutionState(nodeId, {
+                  status: 'completed',
+                  completedAt: event.timestamp,
+                  output: event.data,
+                });
+              } else if (event.type === 'step_failed') {
+                get().updateNodeExecutionState(nodeId, {
+                  status: 'failed',
+                  completedAt: event.timestamp,
+                  error: event.error,
+                });
+              }
+            }
+          },
+        });
+
+        const nodeResult = result.nodeStates[nodeId];
+        // Write executionOutput back to the node data in the workflow
+        if (nodeResult?.output) {
+          get().updateNode(nodeId, { executionOutput: nodeResult.output, executionStatus: 'completed' });
+        }
+
+        const finalState = get().executionState;
+        set({
+          isExecuting: false,
+          executionState: finalState
+            ? { ...finalState, status: result.status === 'completed' ? 'completed' : 'failed', completedAt: new Date(), progress: 100 }
+            : null,
+        });
+
+        if (result.status === 'completed') {
+          toast.success(`Node "${targetNode.data.label}" executed successfully`);
+        } else {
+          toast.error(`Node "${targetNode.data.label}" execution failed`);
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        get().updateNode(nodeId, { executionStatus: 'failed' });
+
+        const currentState = get().executionState;
+        set({
+          isExecuting: false,
+          executionState: currentState
+            ? { ...currentState, status: 'failed', error: errorMessage, completedAt: new Date() }
+            : null,
+        });
+
+        toast.error(`Node test failed: ${errorMessage}`);
+      }
+    },
+
+    retryFromNode: async (nodeId) => {
+      const { currentWorkflow, executionState } = get();
+      if (!currentWorkflow || !executionState) {
+        return;
+      }
+
+      // Collect all nodes downstream of (and including) the failed node
+      const downstreamIds = new Set<string>([nodeId]);
+      const queue = [nodeId];
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        currentWorkflow.edges
+          .filter((edge) => edge.source === current)
+          .forEach((edge) => {
+            if (!downstreamIds.has(edge.target)) {
+              downstreamIds.add(edge.target);
+              queue.push(edge.target);
+            }
+          });
+      }
+
+      // Reset downstream node states to pending, keep upstream as-is
+      const resetNodeStates = { ...executionState.nodeStates };
+      downstreamIds.forEach((id) => {
+        resetNodeStates[id] = {
+          nodeId: id,
+          status: 'pending',
+          logs: [],
+          retryCount: (resetNodeStates[id]?.retryCount || 0) + 1,
+        };
+      });
+
+      // Build input from the original execution input + completed upstream outputs
+      const input: Record<string, unknown> = { ...executionState.input };
+
+      const retryState: WorkflowExecutionState = {
+        ...executionState,
+        executionId: `exec-retry-${nanoid(8)}`,
+        status: 'running',
+        nodeStates: resetNodeStates,
+        completedAt: undefined,
+        error: undefined,
+        logs: [
+          ...executionState.logs,
+          { timestamp: new Date(), level: 'info', message: `Retrying from node: ${nodeId}` },
+        ],
+      };
+
+      set({ isExecuting: true, executionState: retryState, showExecutionPanel: true });
+
+      try {
+        const result = await workflowOrchestrator.run({
+          workflow: currentWorkflow,
+          input,
+          onEvent: (event) => {
+            const currentState = get().executionState;
+            if (!currentState) return;
+
+            if (event.type === 'step_started' && event.stepId) {
+              get().updateNodeExecutionState(event.stepId, { status: 'running', startedAt: event.timestamp });
+            } else if (event.type === 'step_completed' && event.stepId) {
+              get().updateNodeExecutionState(event.stepId, { status: 'completed', completedAt: event.timestamp, output: event.data });
+            } else if (event.type === 'step_failed' && event.stepId) {
+              get().updateNodeExecutionState(event.stepId, { status: 'failed', completedAt: event.timestamp, error: event.error });
+            }
+          },
+        });
+
+        const finalState = get().executionState;
+        set({
+          isExecuting: false,
+          executionState: finalState
+            ? { ...finalState, status: result.status, completedAt: new Date(), progress: 100 }
+            : null,
+        });
+
+        if (result.status === 'completed') {
+          toast.success('Retry completed successfully');
+        } else {
+          toast.error('Retry failed', { description: result.error });
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const currentState = get().executionState;
+        set({
+          isExecuting: false,
+          executionState: currentState
+            ? { ...currentState, status: 'failed', error: errorMessage, completedAt: new Date() }
+            : null,
+        });
+        toast.error('Retry failed', { description: errorMessage });
+      }
+    },
+
     clearExecutionState: () => {
       const { executionState, currentWorkflow, recordExecution } = get();
 

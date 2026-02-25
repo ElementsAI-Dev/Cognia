@@ -10,6 +10,9 @@
   "modelsSelected": "个模型已选择",
   "available": "可用",
   "blindMode": "盲选模式",
+  "normalMode": "普通",
+  "online": "在线",
+  "offline": "离线",
   "blindModeDescription": "在比较时隐藏模型名称以进行无偏选择",
   "battleOptions": "对战选项",
   "modelParameters": "模型参数",
@@ -112,7 +115,8 @@
     "deleteTitle": "删除对战",
     "deleteDescription": "确定要删除此对战吗？此操作无法撤销。",
     "cancel": "取消",
-    "delete": "删除"
+    "delete": "删除",
+    "rematch": "重新对战"
   },
   "stats": {
     "title": "统计",
@@ -212,6 +216,7 @@
     "stability": "稳定性",
     "ci": "95% 置信区间",
     "ciTooltip": "基于 Bootstrap 重采样的 95% 置信区间。区间越窄，评分越可靠。",
+    "globalModels": "{count} 个全球模型",
     "provider": "提供商",
     "filterByProvider": "按提供商筛选",
     "allProviders": "全部提供商",
@@ -298,6 +303,7 @@
     "winRate": "胜率",
     "gamesPlayed": "已进行 {count} 场",
     "noBattlesYet": "暂无对战",
+    "expectedWinRate": "预期",
     "winRateVs": "{modelA} vs {modelB}",
     "battles": "{count} 场对战",
     "legend": "胜率",
@@ -312,6 +318,53 @@
     "shuffle": "随机选择",
     "blindMode": "盲选模式",
     "multiTurn": "多轮对话"
+  },
+  "prompts": {
+    "suggested": "推荐提示词",
+    "recent": "最近使用的提示词",
+    "refresh": "刷新",
+    "random": "随机",
+    "difficulty": {
+      "easy": "简单",
+      "medium": "中等",
+      "hard": "困难"
+    },
+    "coding": {
+      "1": "FizzBuzz 变体",
+      "2": "二分搜索修复",
+      "3": "React 自定义 Hook",
+      "4": "SQL 查询优化"
+    },
+    "math": {
+      "1": "概率谜题",
+      "2": "微积分应用题",
+      "3": "组合数学挑战",
+      "4": "统计分析"
+    },
+    "analysis": {
+      "1": "优缺点对比",
+      "2": "数据摘要",
+      "3": "论证评估",
+      "4": "趋势分析"
+    },
+    "creative": {
+      "1": "短篇故事",
+      "2": "俳句集",
+      "3": "营销标语",
+      "4": "对话写作"
+    },
+    "research": {
+      "1": "解释量子计算",
+      "2": "框架对比",
+      "3": "主题深入",
+      "4": "事实核查"
+    },
+    "translation": {
+      "1": "技术文档 EN→ZH",
+      "2": "文学翻译 ZH→EN",
+      "3": "多语言习语",
+      "4": "界面本地化"
+    }
   },
   "addModel": "添加模型",
   "selectAtLeast2Models": "至少选择2个模型开始对比",

@@ -42,6 +42,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { getRankBadgeClass, CATEGORY_IDS, exportLeaderboardData } from '@/lib/arena';
+import { groupIntoTiers } from '@/lib/ai/arena/bootstrap';
 import { useArenaStore } from '@/stores/arena';
 import { useLeaderboardData } from '@/hooks/arena';
 import { remoteToLocalRating } from '@/types/arena';
@@ -193,6 +194,26 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
     exportLeaderboardData(sortedRatings, activeCategory);
   };
 
+  // Compute tier groupings from CI overlap
+  const tierMap = useMemo(() => {
+    const ratingsWithCI = sortedRatings
+      .filter((r) => r.ci95Lower != null && r.ci95Upper != null)
+      .map((r) => ({
+        modelId: r.modelId,
+        rating: r.rating,
+        ci95Lower: r.ci95Lower!,
+        ci95Upper: r.ci95Upper!,
+      }));
+    const tiers = groupIntoTiers(ratingsWithCI);
+    const map = new Map<string, string>();
+    const tierLabels = ['S', 'A', 'B', 'C', 'D'];
+    tiers.forEach((tier, i) => {
+      const label = tierLabels[Math.min(i, tierLabels.length - 1)];
+      tier.models.forEach((modelId) => map.set(modelId, label));
+    });
+    return map;
+  }, [sortedRatings]);
+
   // Compute dynamic min/max scale from rating CI bounds (with padding)
   const ciScale = useMemo(() => {
     if (sortedRatings.length === 0) return { min: 1200, max: 1800 };
@@ -244,12 +265,12 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
           </Badge>
           {remoteRatings.length > 0 && (
             <Badge variant="outline" className="text-xs">
-              {t('leaderboard.globalModels', { fallback: `${remoteRatings.length} global`, count: remoteRatings.length })}
+              {t('leaderboard.globalModels', { count: remoteRatings.length })}
             </Badge>
           )}
           {syncStatus === 'fetching' && (
             <Badge variant="outline" className="text-xs animate-pulse">
-              {t('leaderboard.syncing', { fallback: 'Syncing...' })}
+              {t('leaderboard.sync.syncing')}
             </Badge>
           )}
         </div>
@@ -312,6 +333,9 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-12">#</TableHead>
+                    {!compact && (
+                      <TableHead className="w-16">{t('leaderboard.tier')}</TableHead>
+                    )}
                     <TableHead>Model</TableHead>
                     <TableHead className="text-right">
                       <SortHeader field="rating">Rating</SortHeader>
@@ -367,6 +391,26 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
                             {index + 1}
                           </Badge>
                         </TableCell>
+                        {!compact && (
+                          <TableCell>
+                            {(() => {
+                              const tier = tierMap.get(rating.modelId);
+                              if (!tier) return <span className="text-muted-foreground">-</span>;
+                              const tierColors: Record<string, string> = {
+                                S: 'bg-yellow-500/15 text-yellow-700 border-yellow-300 dark:text-yellow-400',
+                                A: 'bg-blue-500/15 text-blue-700 border-blue-300 dark:text-blue-400',
+                                B: 'bg-green-500/15 text-green-700 border-green-300 dark:text-green-400',
+                                C: 'bg-gray-500/15 text-gray-600 border-gray-300 dark:text-gray-400',
+                                D: 'bg-muted text-muted-foreground border-muted',
+                              };
+                              return (
+                                <Badge variant="outline" className={cn('text-[10px] font-bold', tierColors[tier])}>
+                                  {t(`leaderboard.tiers.${tier}`)}
+                                </Badge>
+                              );
+                            })()}
+                          </TableCell>
+                        )}
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div>

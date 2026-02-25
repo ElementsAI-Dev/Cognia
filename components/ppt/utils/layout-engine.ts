@@ -108,25 +108,32 @@ export function calculateOptimalFontSize(
 export function suggestLayout(content: {
   title?: string;
   subtitle?: string;
+  content?: string;
   bullets?: string[];
   images?: string[];
   hasChart?: boolean;
   hasTable?: boolean;
+  previousLayouts?: PPTSlideLayout[];
 }): PPTSlideLayout {
-  const { title, subtitle, bullets, images, hasChart, hasTable } = content;
+  const { title, subtitle, bullets, images, hasChart, hasTable, previousLayouts } = content;
+  const textContent = content.content || '';
+
+  // Chart/table from structured data
+  if (hasChart) return 'chart';
+  if (hasTable) return 'table';
   
   // Title slide - only title and subtitle
-  if (title && subtitle && !bullets?.length && !images?.length && !hasChart && !hasTable) {
+  if (title && subtitle && !bullets?.length && !images?.length && !textContent) {
     return 'title';
   }
   
   // Section header
-  if (title && !bullets?.length && !images?.length && !hasChart && !hasTable) {
+  if (title && !bullets?.length && !images?.length && !textContent) {
     return 'section';
   }
   
   // Full image - image only, no text content
-  if (images?.length === 1 && !bullets?.length && !hasChart && !hasTable) {
+  if (images?.length === 1 && !bullets?.length) {
     return 'full-image';
   }
   
@@ -137,19 +144,67 @@ export function suggestLayout(content: {
     }
     return 'image-right';
   }
+
+  // Text content keyword analysis (merged from suggestLayoutFromContent)
+  if (textContent) {
+    const lower = textContent.toLowerCase();
+    if (lower.includes('vs') || lower.includes('versus') || lower.includes('compare') || lower.includes('difference')) {
+      return avoidRepeat('comparison', previousLayouts);
+    }
+    if (lower.includes('step') || lower.includes('process') || lower.includes('timeline') || lower.includes('phase')) {
+      return avoidRepeat('timeline', previousLayouts);
+    }
+    if (lower.includes('data') || lower.includes('chart') || lower.includes('graph') || lower.includes('statistics') || /\d+%/.test(textContent)) {
+      return avoidRepeat('chart', previousLayouts);
+    }
+    if (lower.includes('"') || lower.includes('quote') || lower.includes('said') || lower.includes('according to')) {
+      return avoidRepeat('quote', previousLayouts);
+    }
+    if (lower.includes('image') || lower.includes('photo') || lower.includes('picture') || lower.includes('visual')) {
+      return avoidRepeat('image-right', previousLayouts);
+    }
+
+    // List pattern detection (from text content)
+    const bulletIndicators = (textContent.match(/[-•*]\s/g) || []).length;
+    const numberIndicators = (textContent.match(/\d+\.\s/g) || []).length;
+    if (bulletIndicators >= 3 || numberIndicators >= 3) {
+      return avoidRepeat(numberIndicators > bulletIndicators ? 'numbered' : 'bullets', previousLayouts);
+    }
+
+    if (textContent.length > 500) {
+      return avoidRepeat('two-column', previousLayouts);
+    }
+  }
   
   // Comparison layout
   if (bullets && bullets.length >= 4 && bullets.length % 2 === 0) {
-    return 'comparison';
+    return avoidRepeat('comparison', previousLayouts);
   }
   
   // Bullet points
   if (bullets && bullets.length > 0) {
-    return 'bullets';
+    return avoidRepeat('bullets', previousLayouts);
   }
   
   // Default
-  return 'title-content';
+  return avoidRepeat('title-content', previousLayouts);
+}
+
+// Avoid 3+ consecutive identical layouts by falling back to alternatives
+function avoidRepeat(
+  preferred: PPTSlideLayout,
+  previousLayouts?: PPTSlideLayout[]
+): PPTSlideLayout {
+  if (!previousLayouts || previousLayouts.length < 2) return preferred;
+  const lastTwo = previousLayouts.slice(-2);
+  if (lastTwo[0] === preferred && lastTwo[1] === preferred) {
+    // Rotate through alternatives based on slide position for variety
+    const alternatives: PPTSlideLayout[] = ['title-content', 'bullets', 'two-column', 'image-right', 'quote', 'timeline'];
+    const viable = alternatives.filter((alt) => alt !== preferred);
+    // Use previousLayouts length as a rotation index to avoid always picking the same fallback
+    return viable[previousLayouts.length % viable.length] || preferred;
+  }
+  return preferred;
 }
 
 // Calculate element positions with smart snapping

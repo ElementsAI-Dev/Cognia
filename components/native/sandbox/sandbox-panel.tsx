@@ -169,48 +169,27 @@ export function SandboxPanel({ className, onExecutionComplete }: SandboxPanelPro
     return ['c', 'cpp', 'rust', 'python'].includes(selectedLanguage);
   }, [selectedLanguage]);
 
-  // Build environment variables based on compiler settings
-  const buildEnvVars = useCallback((): Record<string, string> => {
-    const env: Record<string, string> = {};
-
-    if (selectedLanguage === 'python') {
-      if (compilerSettings.pythonUnbuffered) {
-        env['PYTHONUNBUFFERED'] = '1';
-      }
-      if (compilerSettings.pythonOptimize) {
-        env['PYTHONOPTIMIZE'] = '1';
-      }
-    }
-
-    return env;
-  }, [selectedLanguage, compilerSettings]);
-
-  // Build custom args based on compiler settings
-  const buildCustomArgs = useCallback((): string[] => {
-    const customArgs: string[] = [];
-
-    // Parse user-provided args
-    if (args.trim()) {
-      customArgs.push(...args.trim().split(/\s+/));
-    }
-
-    return customArgs;
-  }, [args]);
-
   const handleExecute = useCallback(async () => {
     if (!code.trim() || !selectedLanguage) return;
 
-    // Build execution request with settings
-    const envVars = buildEnvVars();
-    const customArgs = buildCustomArgs();
+    const customArgs = args.trim() ? args.trim().split(/\s+/) : undefined;
 
-    // Use execute with full ExecutionRequest for stdin/args/env support
     const execResult = await execute({
       language: selectedLanguage,
       code: code,
       stdin: stdin.trim() || undefined,
-      args: customArgs.length > 0 ? customArgs : undefined,
-      env: Object.keys(envVars).length > 0 ? envVars : undefined,
+      args: customArgs,
+      compiler_settings: {
+        cpp_standard: compilerSettings.cppStandard,
+        optimization: compilerSettings.optimization,
+        c_compiler: compilerSettings.cCompiler,
+        cpp_compiler: compilerSettings.cppCompiler,
+        enable_warnings: compilerSettings.enableWarnings,
+        rust_edition: compilerSettings.rustEdition,
+        rust_release: compilerSettings.rustRelease,
+        python_unbuffered: compilerSettings.pythonUnbuffered,
+        python_optimize: compilerSettings.pythonOptimize,
+      },
     });
 
     if (execResult && onExecutionComplete) {
@@ -220,7 +199,7 @@ export function SandboxPanel({ className, onExecutionComplete }: SandboxPanelPro
         success: execResult.status === 'completed' && execResult.exit_code === 0,
       });
     }
-  }, [code, selectedLanguage, stdin, buildEnvVars, buildCustomArgs, execute, onExecutionComplete]);
+  }, [code, selectedLanguage, stdin, args, compilerSettings, execute, onExecutionComplete]);
 
   // Keyboard shortcut handler
   const handleKeyDown = useCallback(

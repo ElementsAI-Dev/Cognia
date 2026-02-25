@@ -17,7 +17,8 @@ import {
   generateCelebrationMessage,
   getEncouragementMessage,
 } from './prompts';
-import type { LearningSession, LearningPhase, DifficultyLevel, LearningStyle, UnderstandingLevel } from '@/types/learning';
+import type { LearningSession, LearningPhase, DifficultyLevel, LearningStyle, UnderstandingLevel, LearningModeConfig } from '@/types/learning';
+import { DEFAULT_LEARNING_CONFIG } from '@/types/learning';
 
 // Helper to create a minimal learning session for testing
 function createMockSession(overrides: Partial<LearningSession> = {}): LearningSession {
@@ -703,5 +704,89 @@ describe('edge cases', () => {
         expect(result).toContain(phase);
       });
     });
+  });
+});
+
+describe('getEncouragementMessage with config overrides', () => {
+  it('should use custom messages when provided in config', () => {
+    const config: LearningModeConfig = {
+      ...DEFAULT_LEARNING_CONFIG,
+      customEncouragementMessages: {
+        goodProgress: ['Custom progress message!'],
+      },
+    };
+    const result = getEncouragementMessage('goodProgress', config);
+    expect(result).toBe('Custom progress message!');
+  });
+
+  it('should fall back to default when custom messages array is empty', () => {
+    const config: LearningModeConfig = {
+      ...DEFAULT_LEARNING_CONFIG,
+      customEncouragementMessages: {
+        goodProgress: [],
+      },
+    };
+    const result = getEncouragementMessage('goodProgress', config);
+    expect(ENCOURAGEMENT_MESSAGES.goodProgress).toContain(result);
+  });
+
+  it('should fall back to default when custom messages key is missing', () => {
+    const config: LearningModeConfig = {
+      ...DEFAULT_LEARNING_CONFIG,
+      customEncouragementMessages: {
+        breakthrough: ['Only breakthrough is custom'],
+      },
+    };
+    const result = getEncouragementMessage('goodProgress', config);
+    expect(ENCOURAGEMENT_MESSAGES.goodProgress).toContain(result);
+  });
+
+  it('should fall back to default when no config is provided', () => {
+    const result = getEncouragementMessage('struggling');
+    expect(ENCOURAGEMENT_MESSAGES.struggling).toContain(result);
+  });
+
+  it('should fall back to default when config has no custom messages', () => {
+    const result = getEncouragementMessage('completion', DEFAULT_LEARNING_CONFIG);
+    expect(ENCOURAGEMENT_MESSAGES.completion).toContain(result);
+  });
+});
+
+describe('generateCelebrationMessage with config overrides', () => {
+  const session = createMockSession({ currentPhase: 'questioning' });
+
+  it('should use custom celebration messages when provided', () => {
+    const config: LearningModeConfig = {
+      ...DEFAULT_LEARNING_CONFIG,
+      customCelebrationMessages: {
+        concept_mastered: ['You mastered it! Custom!'],
+      },
+    };
+    const result = generateCelebrationMessage('concept_mastered', session, config);
+    expect(result).toBe('You mastered it! Custom!');
+  });
+
+  it('should fall back to default when custom messages array is empty', () => {
+    const config: LearningModeConfig = {
+      ...DEFAULT_LEARNING_CONFIG,
+      customCelebrationMessages: {
+        concept_mastered: [],
+      },
+    };
+    const result = generateCelebrationMessage('concept_mastered', session, config);
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it('should fall back to default when config has no custom celebration messages', () => {
+    const result = generateCelebrationMessage('session_complete', session, DEFAULT_LEARNING_CONFIG);
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it('should fall back to default when no config is provided', () => {
+    const result = generateCelebrationMessage('question_solved', session);
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
   });
 });

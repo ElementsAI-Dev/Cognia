@@ -37,6 +37,7 @@ export type SettingsSection =
   | 'logging-config'
   | 'editor'
   | 'input-completion'
-  | 'transformersjs';
+  | 'transformersjs'
+  | 'learning';
 
 export type SettingsGroup = 'ai' | 'interface' | 'data' | 'system';

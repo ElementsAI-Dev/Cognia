@@ -43,7 +43,13 @@ export type WorkflowNodeType =
   | 'pieChart'
   | 'areaChart'
   | 'scatterChart'
-  | 'radarChart';
+  | 'radarChart'
+  // Integration nodes
+  | 'httpRequest'
+  // Variable nodes
+  | 'variableAssigner'
+  // Chatflow nodes
+  | 'answer';
 
 /**
  * Node execution status for visualization
@@ -135,6 +141,7 @@ export interface BaseNodeData {
   nodeType: WorkflowNodeType;
   executionStatus: NodeExecutionStatus;
   isConfigured: boolean;
+  isDisabled?: boolean;
   hasError: boolean;
   errorMessage?: string;
   executionTime?: number;
@@ -261,6 +268,9 @@ export interface LoopNodeData extends BaseNodeData {
   collection?: string;
   condition?: string;
   maxIterations: number;
+  parallelExecution?: boolean;
+  batchSize?: number;
+  errorHandling?: 'stop' | 'skip' | 'continue';
   inputs: Record<string, WorkflowIOSchema>;
   outputs: Record<string, WorkflowIOSchema>;
 }
@@ -460,6 +470,48 @@ export interface ChartNodeData extends BaseNodeData {
 }
 
 /**
+ * HTTP Request node data - Outbound HTTP requests
+ */
+export interface HttpRequestNodeData extends BaseNodeData {
+  nodeType: 'httpRequest';
+  url: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  headers: Record<string, string>;
+  body?: string;
+  bodyType: 'none' | 'json' | 'form' | 'raw';
+  auth: {
+    type: 'none' | 'basic' | 'bearer' | 'api-key';
+    credentials?: Record<string, string>;
+  };
+  timeout: number;
+  responseMapping?: Record<string, string>;
+  followRedirects: boolean;
+}
+
+/**
+ * Variable Assigner node data - Runtime variable assignment
+ */
+export interface VariableAssignerNodeData extends BaseNodeData {
+  nodeType: 'variableAssigner';
+  assignments: Array<{
+    targetVariable: string;
+    sourceType: 'variable' | 'constant' | 'expression';
+    sourceValue: string;
+    sourceVariableRef?: VariableReference;
+  }>;
+}
+
+/**
+ * Answer node data - Direct text output in Chatflow mode
+ */
+export interface AnswerNodeData extends BaseNodeData {
+  nodeType: 'answer';
+  template: string;
+  variableRefs: VariableReference[];
+}
+
+
+/**
  * Union type for all node data types
  */
 export type WorkflowNodeData =
@@ -484,7 +536,10 @@ export type WorkflowNodeData =
   | VariableAggregatorNodeData
   | QuestionClassifierNodeData
   | TemplateTransformNodeData
-  | ChartNodeData;
+  | ChartNodeData
+  | HttpRequestNodeData
+  | VariableAssignerNodeData
+  | AnswerNodeData;
 
 /**
  * Workflow node (React Flow node with workflow data)
@@ -546,6 +601,9 @@ export interface VisualWorkflow {
   createdBy?: string;
   isTemplate?: boolean;
   templateId?: string;
+  isPublished?: boolean;
+  publishedAt?: Date;
+  publishedVersion?: number;
 }
 
 /**
@@ -867,6 +925,9 @@ export const NODE_TYPE_COLORS: Record<WorkflowNodeType, string> = {
   pieChart: '#f59e0b',
   areaChart: '#06b6d4',
   scatterChart: '#ec4899',
+  httpRequest: '#f97316',
+  variableAssigner: '#06b6d4',
+  answer: '#10b981',
   radarChart: '#14b8a6',
 };
 
@@ -904,6 +965,9 @@ export const NODE_TYPE_ICONS: Record<WorkflowNodeType, string> = {
   areaChart: 'AreaChart',
   scatterChart: 'ScatterChart',
   radarChart: 'Radar',
+  httpRequest: 'Globe',
+  variableAssigner: 'PenLine',
+  answer: 'MessageSquareText',
 };
 
 /**
@@ -915,6 +979,7 @@ export function createDefaultNodeData(type: WorkflowNodeType, label?: string): W
     nodeType: type,
     executionStatus: 'idle',
     isConfigured: false,
+    isDisabled: false,
     hasError: false,
   };
 
@@ -1200,6 +1265,9 @@ export function getDefaultNodeLabel(type: WorkflowNodeType): string {
     pieChart: 'Pie Chart',
     areaChart: 'Area Chart',
     scatterChart: 'Scatter Chart',
+    httpRequest: 'HTTP Request',
+    variableAssigner: 'Variable Assigner',
+    answer: 'Answer',
     radarChart: 'Radar Chart',
   };
   return labels[type] || 'Node';

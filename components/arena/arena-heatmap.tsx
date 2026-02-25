@@ -224,7 +224,7 @@ function ArenaHeatmapComponent({ className, maxModels = 15 }: ArenaHeatmapProps)
                             {t('heatmap.winRate')}: {getWinRateText(data.winRate)}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {t('heatmap.expectedWinRate', { fallback: 'Expected' })}:{' '}
+                            {t('heatmap.expectedWinRate')}:{' '}
                             {(expectedWinProbability(rowModel.rating, colModel.rating) * 100).toFixed(0)}%
                           </p>
                           <p className="text-xs text-muted-foreground">
@@ -235,7 +235,7 @@ function ArenaHeatmapComponent({ className, maxModels = 15 }: ArenaHeatmapProps)
                         <div className="space-y-1">
                           <p className="text-xs">{t('heatmap.noBattlesYet')}</p>
                           <p className="text-xs text-muted-foreground">
-                            {t('heatmap.expectedWinRate', { fallback: 'Expected' })}:{' '}
+                            {t('heatmap.expectedWinRate')}:{' '}
                             {(expectedWinProbability(rowModel.rating, colModel.rating) * 100).toFixed(0)}%
                           </p>
                         </div>

@@ -15,15 +15,16 @@ mod runtime;
 mod workspace;
 
 pub use db::{
-    CodeSnippet, ExecutionFilter, ExecutionRecord, ExecutionSession, LanguageStats, SandboxDb,
-    SandboxStats, SnippetFilter,
+    CodeSnippet, ExecutionFilter, ExecutionRecord, ExecutionSession, ImportResult, LanguageStats,
+    SandboxDb, SandboxStats, SnippetFilter,
 };
 pub use docker::DockerRuntime;
 pub use languages::{Language, LANGUAGE_CONFIGS};
 pub use native::NativeRuntime;
 pub use podman::PodmanRuntime;
 pub use runtime::{
-    ExecutionRequest, ExecutionResult, RuntimeType, SandboxError, SandboxManager, SandboxRuntime,
+    CompilerSettings, ExecutionRequest, ExecutionResult, ExecutionStatus, OutputLine, RuntimeType,
+    SandboxError, SandboxManager, SandboxRuntime,
 };
 
 use serde::{Deserialize, Serialize};
@@ -31,6 +32,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tokio_util::sync::CancellationToken;
 
 /// Maximum execution time in seconds (default)
 pub const DEFAULT_TIMEOUT_SECS: u64 = 30;
@@ -143,6 +145,9 @@ pub struct SandboxState {
     /// Current active session ID
     pub current_session: Arc<RwLock<Option<String>>>,
 
+    /// Active executions tracked for cancellation (execution_id -> CancellationToken)
+    pub active_executions: Arc<RwLock<HashMap<String, CancellationToken>>>,
+
     /// Config file path
     config_path: PathBuf,
 }
@@ -203,6 +208,7 @@ impl SandboxState {
             manager: Arc::new(RwLock::new(manager)),
             db: Arc::new(db),
             current_session: Arc::new(RwLock::new(None)),
+            active_executions: Arc::new(RwLock::new(HashMap::new())),
             config_path,
         })
     }
@@ -368,7 +374,40 @@ impl SandboxState {
         let execution_id = request.id.clone();
         let language = request.language.clone();
 
-        let result = manager.execute(request).await?;
+        // Register cancellation token for this execution
+        let cancel_token = CancellationToken::new();
+        {
+            let mut active = self.active_executions.write().await;
+            active.insert(execution_id.clone(), cancel_token.clone());
+        }
+
+        // Execute with cancellation support
+        let result = tokio::select! {
+            exec_result = manager.execute(request) => exec_result,
+            _ = cancel_token.cancelled() => {
+                log::info!("Execution cancelled: id={}", execution_id);
+                Ok(ExecutionResult {
+                    id: execution_id.clone(),
+                    status: ExecutionStatus::Cancelled,
+                    stdout: String::new(),
+                    stderr: String::new(),
+                    exit_code: None,
+                    execution_time_ms: 0,
+                    memory_used_bytes: None,
+                    error: Some("Execution cancelled by user".to_string()),
+                    runtime: RuntimeType::Native,
+                    language: language.clone(),
+                })
+            }
+        };
+
+        // Remove from active executions
+        {
+            let mut active = self.active_executions.write().await;
+            active.remove(&execution_id);
+        }
+
+        let result = result?;
 
         log::info!(
             "Execution completed: id={}, language={}, status={:?}, exit_code={:?}, time={}ms",
@@ -404,6 +443,108 @@ impl SandboxState {
             ) {
                 log::warn!("Failed to save execution to history: {}", e);
             }
+        }
+
+        Ok(result)
+    }
+
+    /// Cancel a running execution by ID
+    pub async fn cancel_execution(&self, execution_id: &str) -> Result<bool, SandboxError> {
+        log::info!("Cancelling execution: id={}", execution_id);
+
+        let active = self.active_executions.read().await;
+        if let Some(token) = active.get(execution_id) {
+            token.cancel();
+            log::info!("Cancellation signal sent for execution: id={}", execution_id);
+
+            // Also attempt to kill the Docker/Podman container directly
+            let container_name = format!(
+                "cognia-sandbox-{}",
+                execution_id
+                    .chars()
+                    .filter(|c| c.is_ascii_alphanumeric())
+                    .take(16)
+                    .collect::<String>()
+                    .to_lowercase()
+            );
+
+            // Try docker kill (best-effort, ignore errors)
+            let _ = tokio::process::Command::new("docker")
+                .arg("kill")
+                .arg(&container_name)
+                .output()
+                .await;
+            // Try podman kill (best-effort, ignore errors)
+            let _ = tokio::process::Command::new("podman")
+                .arg("kill")
+                .arg(&container_name)
+                .output()
+                .await;
+
+            Ok(true)
+        } else {
+            log::warn!("No active execution found with id={}", execution_id);
+            Ok(false)
+        }
+    }
+
+    /// Execute code with streaming output, returning the final result
+    /// The caller provides an mpsc sender to receive OutputLine events.
+    pub async fn execute_streaming(
+        &self,
+        request: ExecutionRequest,
+        output_tx: tokio::sync::mpsc::Sender<OutputLine>,
+    ) -> Result<ExecutionResult, SandboxError> {
+        log::info!(
+            "Streaming execute: language={}, id={}",
+            request.language, request.id
+        );
+
+        let manager = self.manager.read().await;
+        let code = request.code.clone();
+        let stdin = request.stdin.clone();
+        let execution_id = request.id.clone();
+        let language = request.language.clone();
+
+        // Register cancellation token
+        let cancel_token = CancellationToken::new();
+        {
+            let mut active = self.active_executions.write().await;
+            active.insert(execution_id.clone(), cancel_token.clone());
+        }
+
+        let result = tokio::select! {
+            exec_result = manager.execute_streaming(request, output_tx) => exec_result,
+            _ = cancel_token.cancelled() => {
+                log::info!("Streaming execution cancelled: id={}", execution_id);
+                Ok(ExecutionResult {
+                    id: execution_id.clone(),
+                    status: ExecutionStatus::Cancelled,
+                    stdout: String::new(),
+                    stderr: String::new(),
+                    exit_code: None,
+                    execution_time_ms: 0,
+                    memory_used_bytes: None,
+                    error: Some("Execution cancelled by user".to_string()),
+                    runtime: RuntimeType::Native,
+                    language: language.clone(),
+                })
+            }
+        };
+
+        {
+            let mut active = self.active_executions.write().await;
+            active.remove(&execution_id);
+        }
+
+        let result = result?;
+
+        // Save to history
+        let session_id = self.current_session.read().await.clone();
+        if let Err(e) = self.db.save_execution(
+            &result, &code, stdin.as_deref(), session_id.as_deref(), &[],
+        ) {
+            log::warn!("Failed to save streaming execution to history: {}", e);
         }
 
         Ok(result)
@@ -838,6 +979,13 @@ impl SandboxState {
         self.db
             .export_to_json()
             .map_err(|e| SandboxError::Config(format!("Failed to export: {}", e)))
+    }
+
+    /// Import data from JSON (merges with existing, skips duplicates)
+    pub async fn import_data(&self, json_data: &str) -> Result<ImportResult, SandboxError> {
+        self.db
+            .import_from_json(json_data)
+            .map_err(|e| SandboxError::Config(format!("Failed to import: {}", e)))
     }
 
     /// Get all unique tags
@@ -1362,5 +1510,68 @@ hello()
     fn test_large_memory_limit() {
         let request = ExecutionRequest::new("python", "code").with_memory_limit(8192); // 8GB
         assert_eq!(request.memory_limit_mb, Some(8192));
+    }
+
+    // ==================== New Feature Re-export Tests ====================
+
+    #[test]
+    fn test_import_result_reexport() {
+        let result = ImportResult {
+            imported_snippets: 3,
+            skipped_snippets: 1,
+        };
+        assert_eq!(result.imported_snippets, 3);
+        assert_eq!(result.skipped_snippets, 1);
+
+        // Verify serialization works through re-export
+        let json = serde_json::to_string(&result).unwrap();
+        let parsed: ImportResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.imported_snippets, 3);
+    }
+
+    #[test]
+    fn test_output_line_reexport() {
+        let line = OutputLine {
+            execution_id: "test-exec".to_string(),
+            stream: "stdout".to_string(),
+            text: "Hello from re-export test".to_string(),
+            timestamp_ms: 42,
+        };
+        assert_eq!(line.execution_id, "test-exec");
+        assert_eq!(line.stream, "stdout");
+    }
+
+    #[test]
+    fn test_compiler_settings_reexport() {
+        let settings = CompilerSettings {
+            cpp_standard: Some("c++20".to_string()),
+            optimization: Some("-O2".to_string()),
+            ..Default::default()
+        };
+        let result = settings.apply_to_compile_cmd("g++ -std=c++17 -o main {file}", "cpp");
+        assert!(result.contains("-std=c++20"));
+    }
+
+    #[test]
+    fn test_execution_request_compiler_settings_field() {
+        let mut request = ExecutionRequest::new("rust", "fn main() {}");
+        request.compiler_settings = Some(CompilerSettings {
+            rust_edition: Some("2021".to_string()),
+            rust_release: Some(true),
+            ..Default::default()
+        });
+        assert!(request.compiler_settings.is_some());
+        let settings = request.compiler_settings.unwrap();
+        assert_eq!(settings.rust_edition, Some("2021".to_string()));
+        assert_eq!(settings.rust_release, Some(true));
+    }
+
+    #[test]
+    fn test_execution_status_cancelled_variant() {
+        let status = ExecutionStatus::Cancelled;
+        let json = serde_json::to_string(&status).unwrap();
+        assert_eq!(json, "\"cancelled\"");
+        let parsed: ExecutionStatus = serde_json::from_str(&json).unwrap();
+        assert!(matches!(parsed, ExecutionStatus::Cancelled));
     }
 }

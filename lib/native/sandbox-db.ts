@@ -23,7 +23,9 @@ import type {
   SnippetFilter,
 } from '@/types/system/sandbox';
 import {
+  cancelExecution as coreCancelExecution,
   checkRuntime as coreCheckRuntime,
+  executeCodeStreaming as coreExecuteCodeStreaming,
   cleanupSandbox as coreCleanupSandbox,
   deleteSession as coreDeleteSession,
   endSession as coreEndSession,
@@ -63,6 +65,22 @@ export async function executeCode(
   request: ExecutionRequest
 ): Promise<SandboxExecutionResult> {
   return coreExecuteCode(request);
+}
+
+/**
+ * Cancel a running execution by its ID
+ */
+export async function cancelExecution(executionId: string): Promise<boolean> {
+  return coreCancelExecution(executionId);
+}
+
+/**
+ * Execute code with streaming output (emits "sandbox-output-line" Tauri events)
+ */
+export async function executeCodeStreaming(
+  request: ExecutionRequest
+): Promise<SandboxExecutionResult> {
+  return coreExecuteCodeStreaming(request);
 }
 
 /**
@@ -603,6 +621,8 @@ export function getStatusIcon(status: string): string {
 export const SandboxDbApi = {
   // Execution
   executeCode,
+  executeCodeStreaming,
+  cancelExecution,
   executeCodeWithOptions,
   quickExecute,
   executeWithStdin,

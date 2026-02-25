@@ -74,6 +74,7 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
     cancelExecution,
     clearExecutionState,
     startExecution,
+    retryFromNode,
   } = useWorkflowEditorStore(
     useShallow((state) => ({
       currentWorkflow: state.currentWorkflow,
@@ -83,6 +84,7 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
       cancelExecution: state.cancelExecution,
       clearExecutionState: state.clearExecutionState,
       startExecution: state.startExecution,
+      retryFromNode: state.retryFromNode,
     }))
   );
 
@@ -363,11 +365,21 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
             {failedNodes.map((fn) => (
               <div
                 key={fn.nodeId}
-                className="text-xs bg-red-500/10 rounded p-1.5 text-red-600 dark:text-red-400"
+                className="text-xs bg-red-500/10 rounded p-1.5 text-red-600 dark:text-red-400 flex items-start justify-between gap-1"
               >
-                <span className="font-mono">{fn.nodeId}</span>: {fn.error}
+                <div className="flex-1 min-w-0">
+                  <span className="font-mono">{fn.nodeId}</span>: {fn.error}
+                </div>
                 {retryableNodes.includes(fn.nodeId) && (
-                  <Badge variant="outline" className="ml-1 text-[10px] py-0 h-4">retryable</Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-1.5 text-[10px] shrink-0"
+                    onClick={() => retryFromNode(fn.nodeId)}
+                  >
+                    <RotateCcw className="h-3 w-3 mr-0.5" />
+                    Retry
+                  </Button>
                 )}
               </div>
             ))}

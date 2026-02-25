@@ -11,6 +11,7 @@ export type SearchProviderType =
   | 'perplexity'
   | 'exa'
   | 'searchapi'
+  | 'serper'
   | 'serpapi'
   | 'bing'
   | 'google'
@@ -126,6 +127,8 @@ export interface SearchProviderFeatures {
 export interface SearchProviderSettings {
   providerId: SearchProviderType;
   apiKey: string;
+  /** Google Programmable Search Engine ID (required for providerId === 'google') */
+  cx?: string;
   enabled: boolean;
   priority: number;
   defaultOptions?: Partial<SearchOptions>;
@@ -243,6 +246,30 @@ export const SEARCH_PROVIDERS: Record<SearchProviderType, SearchProviderConfig> 
     pricing: {
       freeCredits: 100,
       pricePerSearch: 0.002,
+    },
+  },
+  serper: {
+    id: 'serper',
+    name: 'Serper',
+    description: 'Google search results API via serper.dev',
+    apiKeyRequired: true,
+    apiKeyPlaceholder: 'xxxxxxxxxxxxx',
+    docsUrl: 'https://serper.dev',
+    features: {
+      aiAnswer: false,
+      newsSearch: true,
+      academicSearch: true,
+      imageSearch: true,
+      videoSearch: true,
+      domainFilter: false,
+      recencyFilter: true,
+      countryFilter: true,
+      contentExtraction: false,
+      streaming: false,
+    },
+    pricing: {
+      freeCredits: 2500,
+      pricePerSearch: 0.001,
     },
   },
   serpapi: {
@@ -398,46 +425,66 @@ export const DEFAULT_SEARCH_PROVIDER_SETTINGS: Record<SearchProviderType, Search
       enabled: false,
       priority: 4,
     },
+    serper: {
+      providerId: 'serper',
+      apiKey: '',
+      enabled: false,
+      priority: 5,
+    },
     serpapi: {
       providerId: 'serpapi',
       apiKey: '',
       enabled: false,
-      priority: 5,
+      priority: 6,
     },
     bing: {
       providerId: 'bing',
       apiKey: '',
       enabled: false,
-      priority: 6,
+      priority: 7,
     },
     google: {
       providerId: 'google',
       apiKey: '',
       enabled: false,
-      priority: 7,
+      priority: 8,
     },
     brave: {
       providerId: 'brave',
       apiKey: '',
       enabled: false,
-      priority: 8,
+      priority: 9,
     },
     'google-ai': {
       providerId: 'google-ai',
       apiKey: '',
       enabled: false,
-      priority: 9,
+      priority: 10,
     },
   };
 
 /**
  * Get enabled providers sorted by priority
  */
+export function isProviderConfigured(
+  providerId: SearchProviderType,
+  settings?: Partial<SearchProviderSettings>
+): boolean {
+  if (!settings?.apiKey || settings.apiKey.trim() === '') return false;
+
+  if (providerId === 'google') {
+    return !!settings.cx && settings.cx.trim() !== '';
+  }
+
+  return true;
+}
+
 export function getEnabledProviders(
-  settings: Record<SearchProviderType, SearchProviderSettings>
+  settings: Partial<Record<SearchProviderType, SearchProviderSettings>>
 ): SearchProviderSettings[] {
   return Object.values(settings)
-    .filter((p) => p.enabled && p.apiKey)
+    .filter((p): p is SearchProviderSettings => !!p)
+    .filter((p) => p.enabled && isProviderConfigured(p.providerId, p))
     .sort((a, b) => a.priority - b.priority);
 }
 

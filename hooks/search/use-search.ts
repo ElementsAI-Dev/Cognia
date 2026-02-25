@@ -115,13 +115,14 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       }
 
       const searchType = searchOptions?.searchType || 'general';
+      const fullOptions: SearchOptions = {
+        ...(searchOptions || {}),
+        searchType,
+      };
 
       // Check cache first if enabled
       if (enableCache) {
-        const cachedResponse = cache.get(query, undefined, {
-          searchType,
-          maxResults: searchOptions?.maxResults,
-        });
+        const cachedResponse = cache.get(query, undefined, fullOptions);
         if (cachedResponse) {
           setLastResponse(cachedResponse);
           onSearchComplete?.(cachedResponse);
@@ -157,10 +158,8 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
         // Cache the response if enabled
         if (enableCache) {
-          cache.set(query, response, response.provider as SearchProviderType, {
-            searchType,
-            maxResults: searchOptions?.maxResults,
-          });
+          // Cache under provider = auto to ensure cache hits even when provider varies.
+          cache.set(query, response, undefined, fullOptions);
         }
 
         setLastResponse(response);

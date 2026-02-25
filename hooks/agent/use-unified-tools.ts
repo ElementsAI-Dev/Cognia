@@ -44,6 +44,7 @@ import {
   isEmbeddingProviderConfigured,
   resolveEmbeddingApiKey,
 } from '@/lib/vector/embedding';
+import { getEnabledProviders } from '@/types/search';
 
 export interface UseUnifiedToolsOptions {
   /** Enable built-in tools */
@@ -146,9 +147,7 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
     if (!enableBuiltinTools) return;
 
     const tavilyApiKey = providerSettings.tavily?.apiKey;
-    const hasEnabledSearchProvider = Object.values(searchProviders).some(
-      (p) => p.enabled && p.apiKey
-    );
+    const hasEnabledSearchProvider = getEnabledProviders(searchProviders).length > 0;
     const builtinTools = initializeAgentTools({
       tavilyApiKey,
       searchProviders: hasEnabledSearchProvider ? searchProviders : undefined,

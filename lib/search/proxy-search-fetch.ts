@@ -65,5 +65,6 @@ export const searchApiFetch = createSearchProviderFetch('SearchAPI');
 export const exaFetch = createSearchProviderFetch('Exa');
 export const tavilyFetch = createSearchProviderFetch('Tavily');
 export const perplexityFetch = createSearchProviderFetch('Perplexity');
+export const serperFetch = createSearchProviderFetch('Serper');
 
 export default searchFetch;

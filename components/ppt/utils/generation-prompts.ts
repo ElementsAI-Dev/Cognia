@@ -4,6 +4,7 @@
  */
 
 import type { PPTSlideLayout, PPTTheme } from '@/types/workflow';
+import { suggestLayout } from './layout-engine';
 
 export interface GenerationContext {
   topic: string;
@@ -79,6 +80,8 @@ export function buildOutlinePrompt(context: GenerationContext): string {
 - Last slide should be a closing/thank you slide
 - Include a mix of content types (bullets, images, charts where appropriate)
 - Each slide should have a clear purpose and flow logically
+- Vary the layout types — avoid using the same layout for 3+ consecutive slides
+- keyPoints MUST contain real, specific information about the topic — never use generic placeholders like "Key point 1"
 
 ## Output Format (JSON):
 \`\`\`json
@@ -89,8 +92,8 @@ export function buildOutlinePrompt(context: GenerationContext): string {
     {
       "slideNumber": 1,
       "title": "Slide Title",
-      "layout": "title|title-content|bullets|image-left|image-right|two-column|comparison|chart|quote|section|closing",
-      "keyPoints": ["point 1", "point 2"],
+      "layout": "title|title-content|bullets|image-left|image-right|two-column|comparison|chart|quote|section|closing|timeline",
+      "keyPoints": ["Specific factual point about the topic", "Another concrete detail"],
       "notes": "Brief speaker notes",
       "suggestedVisual": "Description of recommended visual/image if any"
     }
@@ -98,9 +101,24 @@ export function buildOutlinePrompt(context: GenerationContext): string {
 }
 \`\`\`
 
-${language !== 'en' ? `Generate all content in ${language}.` : ''}
+## Example (5-slide presentation about "Remote Work Trends"):
+\`\`\`json
+{
+  "title": "The Future of Remote Work",
+  "subtitle": "Trends, Challenges, and Opportunities in 2025",
+  "outline": [
+    { "slideNumber": 1, "title": "The Future of Remote Work", "layout": "title", "keyPoints": [], "notes": "Welcome the audience and introduce the topic", "suggestedVisual": "Modern home office with city skyline" },
+    { "slideNumber": 2, "title": "Remote Work by the Numbers", "layout": "chart", "keyPoints": ["58% of Americans can work remotely at least part-time", "Remote job postings increased 3x since 2020", "Hybrid model adopted by 74% of Fortune 500"], "notes": "Start with compelling data to set the stage", "suggestedVisual": "Bar chart of remote work adoption rates" },
+    { "slideNumber": 3, "title": "Key Benefits vs Challenges", "layout": "comparison", "keyPoints": ["Benefits: flexibility, no commute, global talent pool", "Challenges: isolation, communication gaps, work-life boundaries", "Companies saving $11,000 per remote worker annually"], "notes": "Present both sides to build credibility" },
+    { "slideNumber": 4, "title": "Building Effective Remote Teams", "layout": "bullets", "keyPoints": ["Establish clear communication protocols and meeting cadence", "Invest in async collaboration tools like Notion and Loom", "Create virtual social spaces for team bonding", "Measure output and impact, not hours worked"], "notes": "Actionable takeaways the audience can implement" },
+    { "slideNumber": 5, "title": "Thank You", "layout": "closing", "keyPoints": ["Questions?", "Contact: email@example.com"], "notes": "Open for Q&A" }
+  ]
+}
+\`\`\`
 
-Generate the outline now:`;
+${language !== 'en' ? `IMPORTANT: Generate all content in ${language}. The example above is for reference format only — your output must be in ${language}.` : ''}
+
+Now generate the outline for "${topic}":`;
 }
 
 // Build prompt for slide content generation
@@ -112,8 +130,13 @@ export function buildSlideContentPrompt(
     notes?: string;
   },
   presentationContext: GenerationContext,
-  previousSlide?: { title: string; content?: string }
+  previousSlide?: { title: string; content?: string },
+  allOutlineTitles?: string[]
 ): string {
+  const outlineContext = allOutlineTitles?.length
+    ? `\n## Full Presentation Outline:\n${allOutlineTitles.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n`
+    : '';
+
   return `Generate detailed content for this slide:
 
 ## Slide Information:
@@ -121,11 +144,17 @@ export function buildSlideContentPrompt(
 - Layout: ${slideOutline.layout}
 ${slideOutline.keyPoints ? `- Key Points to Cover: ${slideOutline.keyPoints.join(', ')}` : ''}
 ${previousSlide ? `- Previous Slide: "${previousSlide.title}"` : ''}
-
+${outlineContext}
 ## Presentation Context:
 - Topic: ${presentationContext.topic}
 - Audience: ${presentationContext.audience || 'General'}
 - Tone: ${presentationContext.tone || 'Professional'}
+
+## Critical Rules:
+- Every bullet point MUST contain specific, factual information — never write generic placeholders
+- Content should be directly relevant to "${slideOutline.title}" within the context of "${presentationContext.topic}"
+- If the layout is "chart", include a "chartData" field with {type, labels, datasets} for visualization
+- If the layout is "table", include a "tableData" field as a 2D string array
 
 ## Output Format (JSON):
 \`\`\`json
@@ -133,10 +162,11 @@ ${previousSlide ? `- Previous Slide: "${previousSlide.title}"` : ''}
   "title": "Refined slide title",
   "subtitle": "Optional subtitle if layout supports it",
   "content": "Main content text if applicable",
-  "bullets": ["Bullet point 1", "Bullet point 2"],
-  "notes": "Detailed speaker notes",
+  "bullets": ["Specific factual bullet point", "Another concrete detail"],
+  "notes": "Detailed speaker notes with talking points",
   "imagePrompt": "Description for AI image generation if visual needed",
-  "transition": "How this connects to next slide"
+  "chartData": { "type": "bar", "labels": ["A", "B"], "datasets": [{ "label": "Series", "data": [10, 20] }] },
+  "tableData": [["Header1", "Header2"], ["Row1Col1", "Row1Col2"]]
 }
 \`\`\`
 
@@ -224,56 +254,9 @@ ${slideContext.content ? `- Content: ${slideContext.content}` : ''}
 Generate image prompt:`;
 }
 
-// Suggest layout based on content analysis
+// Suggest layout based on content analysis — delegates to unified suggestLayout
 export function suggestLayoutFromContent(content: string): PPTSlideLayout {
-  const lowerContent = content.toLowerCase();
-  
-  // Check for comparison patterns
-  if (lowerContent.includes('vs') || lowerContent.includes('versus') || 
-      lowerContent.includes('compare') || lowerContent.includes('difference')) {
-    return 'comparison';
-  }
-  
-  // Check for timeline/process patterns
-  if (lowerContent.includes('step') || lowerContent.includes('process') ||
-      lowerContent.includes('timeline') || lowerContent.includes('phase')) {
-    return 'timeline';
-  }
-  
-  // Check for data/chart patterns
-  if (lowerContent.includes('data') || lowerContent.includes('chart') ||
-      lowerContent.includes('graph') || lowerContent.includes('statistics') ||
-      lowerContent.includes('%') || /\d+%/.test(content)) {
-    return 'chart';
-  }
-  
-  // Check for quote patterns
-  if (lowerContent.includes('"') || lowerContent.includes('quote') ||
-      lowerContent.includes('said') || lowerContent.includes('according to')) {
-    return 'quote';
-  }
-  
-  // Check for image suggestions
-  if (lowerContent.includes('image') || lowerContent.includes('photo') ||
-      lowerContent.includes('picture') || lowerContent.includes('visual')) {
-    return 'image-right';
-  }
-  
-  // Check for list patterns
-  const bulletIndicators = (content.match(/[-•*]\s/g) || []).length;
-  const numberIndicators = (content.match(/\d+\.\s/g) || []).length;
-  
-  if (bulletIndicators >= 3 || numberIndicators >= 3) {
-    return numberIndicators > bulletIndicators ? 'numbered' : 'bullets';
-  }
-  
-  // Check content length for two-column
-  if (content.length > 500) {
-    return 'two-column';
-  }
-  
-  // Default
-  return 'title-content';
+  return suggestLayout({ content });
 }
 
 // Generate speaker notes from content

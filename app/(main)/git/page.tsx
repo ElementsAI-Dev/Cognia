@@ -15,6 +15,7 @@ import {
   Tag,
   Globe,
   Network,
+  FileCode,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import { GitPanel } from '@/components/git';
 import type { GitPanelRef } from '@/types/git';
 import { GitCommitGraph } from '@/components/git/git-commit-graph';
@@ -35,10 +37,15 @@ import { GitStatsDashboard } from '@/components/git/git-stats-dashboard';
 import { GitCheckpointPanel } from '@/components/git/git-checkpoint-panel';
 import { GitTagPanel } from '@/components/git/git-tag-panel';
 import { GitRemotePanel } from '@/components/git/git-remote-panel';
+import { GitBlameViewer } from '@/components/git/git-blame-viewer';
+import { GitCommitDetailPanel } from '@/components/git/git-commit-detail-panel';
+import { GitFileHistory } from '@/components/git/git-file-history';
+import { GitCommitSearch } from '@/components/git/git-commit-search';
+import type { GitCommitDetail } from '@/types/system/git';
 import { useGitStore } from '@/stores/git/git-store';
 import { open } from '@tauri-apps/plugin-dialog';
 
-type MainTab = 'overview' | 'graph' | 'stats' | 'checkpoints' | 'tags' | 'remotes';
+type MainTab = 'overview' | 'graph' | 'stats' | 'checkpoints' | 'tags' | 'remotes' | 'blame' | 'file-history' | 'search';
 
 export default function GitPage() {
   const t = useTranslations('git');
@@ -67,9 +74,31 @@ export default function GitPage() {
     removeRemote,
     loadTags,
     loadRemotes,
+    showCommit,
+    cherryPick,
+    revertCommit,
+    checkout,
   } = useGitStore();
 
   const [selectedGraphCommit, setSelectedGraphCommit] = useState<string | null>(null);
+  const [commitDetail, setCommitDetail] = useState<GitCommitDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  const loadCommitDetail = useCallback(async (hash: string) => {
+    setSelectedGraphCommit(hash);
+    setLoadingDetail(true);
+    try {
+      const detail = await showCommit(hash);
+      setCommitDetail(detail ?? null);
+    } finally {
+      setLoadingDetail(false);
+    }
+  }, [showCommit]);
+
+  const closeCommitDetail = useCallback(() => {
+    setCommitDetail(null);
+    setSelectedGraphCommit(null);
+  }, []);
   const [loadingTab, setLoadingTab] = useState<MainTab | null>(null);
 
   const tabLoaders: Partial<Record<MainTab, () => Promise<void>>> = {
@@ -327,6 +356,18 @@ export default function GitPage() {
                   <Globe className="h-3.5 w-3.5" />
                   {t('tab.remotes')}
                 </TabsTrigger>
+                <TabsTrigger value="blame" className="text-xs gap-1.5">
+                  <FileCode className="h-3.5 w-3.5" />
+                  {t('tab.blame')}
+                </TabsTrigger>
+                <TabsTrigger value="file-history" className="text-xs gap-1.5">
+                  <FileCode className="h-3.5 w-3.5" />
+                  {t('tab.fileHistory')}
+                </TabsTrigger>
+                <TabsTrigger value="search" className="text-xs gap-1.5">
+                  <Network className="h-3.5 w-3.5" />
+                  {t('tab.search')}
+                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -395,14 +436,28 @@ export default function GitPage() {
 
             {/* Graph Tab */}
             <TabsContent value="graph" className="flex-1 overflow-hidden mt-0">
-              <GitCommitGraph
-                commits={graphCommits}
-                selectedCommit={selectedGraphCommit}
-                onCommitClick={(c) => setSelectedGraphCommit(c.hash)}
-                onRefresh={() => refreshTab('graph')}
-                isLoading={loadingTab === 'graph'}
-                className="h-full"
-              />
+              <div className="flex h-full">
+                <GitCommitGraph
+                  commits={graphCommits}
+                  selectedCommit={selectedGraphCommit}
+                  onCommitClick={(c) => loadCommitDetail(c.hash)}
+                  onRefresh={() => refreshTab('graph')}
+                  isLoading={loadingTab === 'graph'}
+                  className={cn('h-full transition-all', commitDetail ? 'flex-1' : 'w-full')}
+                />
+                {(commitDetail || loadingDetail) && (
+                  <GitCommitDetailPanel
+                    commitDetail={commitDetail}
+                    isLoading={loadingDetail}
+                    onClose={closeCommitDetail}
+                    onNavigateToParent={(hash) => loadCommitDetail(hash)}
+                    onCherryPick={(hash) => cherryPick(hash)}
+                    onRevert={(hash) => revertCommit(hash)}
+                    onCheckout={(hash) => checkout(hash)}
+                    className="w-[400px] shrink-0"
+                  />
+                )}
+              </div>
             </TabsContent>
 
             {/* Stats Tab */}
@@ -438,6 +493,39 @@ export default function GitPage() {
                 isLoading={loadingTab === 'tags'}
                 className="h-full"
               />
+            </TabsContent>
+
+            {/* Blame Tab */}
+            <TabsContent value="blame" className="flex-1 overflow-hidden mt-0">
+              {activeRepo && (
+                <GitBlameViewer
+                  repoPath={activeRepo}
+                  className="h-full"
+                  onCommitClick={(hash) => setSelectedGraphCommit(hash)}
+                />
+              )}
+            </TabsContent>
+
+            {/* File History Tab */}
+            <TabsContent value="file-history" className="flex-1 overflow-hidden mt-0">
+              {activeRepo && (
+                <GitFileHistory
+                  repoPath={activeRepo}
+                  className="h-full"
+                  onCommitClick={(hash) => loadCommitDetail(hash)}
+                />
+              )}
+            </TabsContent>
+
+            {/* Search Tab */}
+            <TabsContent value="search" className="flex-1 overflow-hidden mt-0">
+              {activeRepo && (
+                <GitCommitSearch
+                  repoPath={activeRepo}
+                  className="h-full"
+                  onCommitClick={(commit) => loadCommitDetail(commit.hash)}
+                />
+              )}
             </TabsContent>
 
             {/* Remotes Tab */}

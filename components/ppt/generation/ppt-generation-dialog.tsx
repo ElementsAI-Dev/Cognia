@@ -28,6 +28,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { LoadingSpinner } from '@/components/ui/loading-states';
 import { Sparkles, Users, Target, MessageSquare, Palette } from 'lucide-react';
 import { DEFAULT_PPT_THEMES } from '@/types/workflow';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { PPT_WORKFLOW_TEMPLATES } from '@/lib/ai/workflows/ppt-workflow';
 import type { PPTGenerationConfig } from '@/hooks/ppt';
 
 // Re-export for convenience
@@ -65,6 +67,22 @@ const AUDIENCES = [
   'Sales Team',
   'Custom...',
 ];
+
+const THEME_IDS_BY_GROUP: Record<string, string[]> = {
+  'Basic': ['modern-dark', 'modern-light', 'professional', 'creative', 'minimal', 'nature'],
+  'Business': ['corporate-blue', 'executive', 'finance'],
+  'Technology': ['tech-startup', 'cyber', 'ai-future'],
+  'Education': ['academic', 'classroom', 'research'],
+  'Creative': ['gradient-wave', 'sunset', 'ocean'],
+  'Special': ['pitch-deck', 'medical', 'legal'],
+};
+
+const THEME_GROUPS = Object.entries(THEME_IDS_BY_GROUP).map(([label, ids]) => ({
+  label,
+  themes: ids
+    .map((id) => DEFAULT_PPT_THEMES.find((th) => th.id === id))
+    .filter(Boolean) as typeof DEFAULT_PPT_THEMES,
+}));
 
 /**
  * PPTGenerationDialog - Dialog for collecting PPT generation requirements
@@ -107,6 +125,20 @@ export function PPTGenerationDialog({
     [customAudience]
   );
 
+  const handleSelectTemplate = useCallback((templateId: string) => {
+    const tpl = PPT_WORKFLOW_TEMPLATES.find((t) => t.id === templateId);
+    if (!tpl) return;
+    const inputs = tpl.presetInputs as Record<string, unknown> | undefined;
+    const presetConfig = tpl.presetConfig as Record<string, unknown> | undefined;
+    setConfig((prev) => ({
+      ...prev,
+      ...(inputs?.style ? { tone: inputs.style as PPTGenerationConfig['tone'] } : {}),
+      ...(inputs?.slideCount ? { slideCount: inputs.slideCount as number } : {}),
+      ...(presetConfig?.includeImages !== undefined ? { includeImages: presetConfig.includeImages as boolean } : {}),
+      ...(presetConfig?.includeNotes !== undefined ? {} : {}),
+    }));
+  }, []);
+
   const handleGenerate = useCallback(async () => {
     if (!config.topic.trim()) return;
     await onGenerate(config);
@@ -126,6 +158,21 @@ export function PPTGenerationDialog({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Quick Templates */}
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {PPT_WORKFLOW_TEMPLATES.map((tpl) => (
+              <button
+                key={tpl.id}
+                type="button"
+                onClick={() => handleSelectTemplate(tpl.id)}
+                className="shrink-0 flex flex-col items-center gap-1 rounded-lg border px-3 py-2 text-xs hover:bg-accent hover:border-primary/50 transition-colors"
+              >
+                <span className="font-medium">{tpl.name}</span>
+                <span className="text-[10px] text-muted-foreground max-w-[100px] truncate">{tpl.description}</span>
+              </button>
+            ))}
+          </div>
+
           {/* Topic */}
           <div className="space-y-2">
             <Label htmlFor="topic" className="flex items-center gap-2">
@@ -265,37 +312,48 @@ export function PPTGenerationDialog({
             </div>
           </div>
 
-          {/* Theme */}
+          {/* Theme — grouped by category, showing all available themes */}
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <Palette className="h-4 w-4" />
               {t('theme')}
             </Label>
-            <ToggleGroup
-              type="single"
-              value={config.theme.id}
-              onValueChange={(value) => {
-                const theme = DEFAULT_PPT_THEMES.find((t) => t.id === value);
-                if (theme) setConfig((prev) => ({ ...prev, theme }));
-              }}
-              className="grid grid-cols-4 gap-2"
-            >
-              {DEFAULT_PPT_THEMES.slice(0, 8).map((theme) => (
-                <ToggleGroupItem
-                  key={theme.id}
-                  value={theme.id}
-                  className="p-2 h-auto data-[state=on]:border-primary data-[state=on]:ring-2 data-[state=on]:ring-primary/20"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <div
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: theme.primaryColor }}
-                    />
-                    <span className="text-xs truncate">{theme.name}</span>
+            <ScrollArea className="max-h-48">
+              <ToggleGroup
+                type="single"
+                value={config.theme.id}
+                onValueChange={(value) => {
+                  const found = DEFAULT_PPT_THEMES.find((th) => th.id === value);
+                  if (found) setConfig((prev) => ({ ...prev, theme: found }));
+                }}
+                className="flex flex-col gap-2"
+              >
+                {THEME_GROUPS.filter((group) => group.themes.length > 0).map((group) => (
+                  <div key={group.label}>
+                    <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                      {group.label}
+                    </div>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {group.themes.map((theme) => (
+                        <ToggleGroupItem
+                          key={theme.id}
+                          value={theme.id}
+                          className="p-1.5 h-auto data-[state=on]:border-primary data-[state=on]:ring-2 data-[state=on]:ring-primary/20"
+                        >
+                          <div className="flex items-center gap-1">
+                            <div
+                              className="w-3 h-3 rounded-full shrink-0 ring-1 ring-black/10"
+                              style={{ backgroundColor: theme.primaryColor }}
+                            />
+                            <span className="text-[10px] truncate">{theme.name}</span>
+                          </div>
+                        </ToggleGroupItem>
+                      ))}
+                    </div>
                   </div>
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+                ))}
+              </ToggleGroup>
+            </ScrollArea>
           </div>
 
           {/* Options */}

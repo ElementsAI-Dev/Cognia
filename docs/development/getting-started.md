@@ -194,6 +194,19 @@ SAMBANOVA_API_KEY=your-sambanova-key-here
 # Search Provider Keys (Optional)
 # ========================================
 
+# Recommended: Configure in-app (Settings → Search)
+
+Cognia supports multiple web search providers. For day-to-day usage and development, the recommended setup is:
+
+1. Open **Settings → Search**
+2. Enter the provider API key (and any required extra settings)
+3. Click **Test** to validate the configuration
+4. Toggle **Enable** and choose a **Default Provider**
+
+**Google Custom Search**: requires both an API key *and* a **Programmable Search Engine ID** (`cx`). You can find/create the `cx` value in the **Google Programmable Search Engine** control panel (formerly Custom Search Engine).
+
+**Serper**: configure your Serper API key in **Settings → Search → Serper**.
+
 # Tavily Search (Legacy)
 TAVILY_API_KEY=tvly-your-tavily-key-here
 

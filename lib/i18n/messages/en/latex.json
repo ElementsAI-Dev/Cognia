@@ -65,6 +65,43 @@
     "fullscreen": "Fullscreen",
     "exitFullscreen": "Exit Fullscreen"
   },
+  "settings": {
+    "title": "Editor Settings",
+    "description": "Customize your LaTeX editing experience",
+    "fontSize": "Font Size",
+    "fontFamily": "Font Family",
+    "theme": "Theme",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "tabSize": "Tab Size",
+    "lineNumbers": "Line Numbers",
+    "wordWrap": "Word Wrap",
+    "spellCheck": "Spell Check",
+    "autoSave": "Auto Save",
+    "autoSaveInterval": "Save Interval",
+    "reset": "Reset to Defaults"
+  },
+  "outline": {
+    "title": "Outline",
+    "empty": "No sections found",
+    "hint": "Use \\section{} to add sections"
+  },
+  "version": {
+    "title": "Version History",
+    "create": "Save",
+    "messagePlaceholder": "Version message (optional)",
+    "empty": "No versions yet",
+    "emptyHint": "Create a snapshot to track changes",
+    "untitled": "Untitled snapshot",
+    "latest": "(latest)",
+    "restore": "Restore",
+    "restoreConfirmTitle": "Restore version?",
+    "restoreConfirmDesc": "This will replace the current content with this version. Your current changes will be lost."
+  },
+  "autoSave": {
+    "lastSaved": "Saved"
+  },
   "ai": {
     "button": "AI",
     "features": "AI Features",

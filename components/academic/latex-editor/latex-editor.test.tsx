@@ -7,6 +7,40 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LaTeXEditor, LaTeXEditorHandle } from './latex-editor';
 
+// Mock CodeMirror editor
+const mockInsertText = jest.fn();
+const mockReplaceSelection = jest.fn();
+const mockGetSelectedText = jest.fn().mockReturnValue('');
+const mockFocus = jest.fn();
+const mockScrollToLine = jest.fn();
+const mockGetContent = jest.fn().mockReturnValue('');
+
+jest.mock('./codemirror-editor', () => ({
+  CodeMirrorEditor: React.forwardRef(function MockCodeMirrorEditor(
+    props: { value: string; onChange: (v: string) => void; onSave?: () => void; readOnly?: boolean; className?: string },
+    ref: React.Ref<unknown>
+  ) {
+    React.useImperativeHandle(ref, () => ({
+      insertText: mockInsertText,
+      replaceSelection: mockReplaceSelection,
+      getSelectedText: mockGetSelectedText,
+      focus: mockFocus,
+      scrollToLine: mockScrollToLine,
+      getContent: mockGetContent,
+    }));
+    return (
+      <div data-testid="codemirror-editor" data-readonly={props.readOnly}>
+        <textarea
+          data-testid="cm-textarea"
+          value={props.value}
+          onChange={(e) => props.onChange(e.target.value)}
+          readOnly={props.readOnly}
+        />
+      </div>
+    );
+  }),
+}));
+
 // Mock child components
 jest.mock('./latex-preview', () => ({
   LaTeXPreview: ({ content }: { content: string }) => (
@@ -15,7 +49,7 @@ jest.mock('./latex-preview', () => ({
 }));
 
 jest.mock('./latex-toolbar', () => ({
-  LaTeXToolbar: ({ onInsert, onUndo, onRedo, mode, onModeChange }: {
+  LaTeXToolbar: ({ onInsert, mode, onModeChange }: {
     onInsert: (text: string) => void;
     onUndo: () => void;
     onRedo: () => void;
@@ -24,8 +58,6 @@ jest.mock('./latex-toolbar', () => ({
   }) => (
     <div data-testid="latex-toolbar">
       <button data-testid="insert-btn" onClick={() => onInsert('\\alpha')}>Insert</button>
-      <button data-testid="undo-btn" onClick={onUndo}>Undo</button>
-      <button data-testid="redo-btn" onClick={onRedo}>Redo</button>
       <button data-testid="mode-source" onClick={() => onModeChange('source')}>Source</button>
       <button data-testid="mode-visual" onClick={() => onModeChange('visual')}>Visual</button>
       <button data-testid="mode-split" onClick={() => onModeChange('split')}>Split</button>
@@ -34,12 +66,20 @@ jest.mock('./latex-toolbar', () => ({
   ),
 }));
 
-jest.mock('./latex-autocomplete', () => ({
-  LaTeXAutocomplete: () => <div data-testid="latex-autocomplete" />,
-}));
-
 jest.mock('./latex-ai-context-menu', () => ({
   LatexAIContextMenu: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+jest.mock('./latex-ai-panel', () => ({
+  LatexAIPanel: () => <div data-testid="latex-ai-panel" />,
+}));
+
+jest.mock('./error-panel', () => ({
+  ErrorPanel: () => <div data-testid="error-panel" />,
+}));
+
+jest.mock('./document-outline', () => ({
+  DocumentOutline: () => <div data-testid="document-outline" />,
 }));
 
 // Mock libs
@@ -50,6 +90,7 @@ jest.mock('@/lib/latex/parser', () => ({
     characterCount: 500,
     documentClass: 'article',
   }),
+  format: (s: string) => s,
 }));
 
 // Mock UI components
@@ -75,23 +116,14 @@ describe('LaTeXEditor', () => {
     jest.clearAllMocks();
   });
 
-  it('renders the editor', () => {
+  it('renders the editor with toolbar', () => {
     render(<LaTeXEditor {...defaultProps} />);
     expect(screen.getByTestId('latex-toolbar')).toBeInTheDocument();
   });
 
-  it('renders with initial content', () => {
+  it('renders CodeMirror editor', () => {
     render(<LaTeXEditor {...defaultProps} />);
-    const textarea = screen.getByRole('textbox');
-    expect(textarea).toHaveValue(defaultProps.initialContent);
-  });
-
-  it('calls onChange when content changes', async () => {
-    render(<LaTeXEditor {...defaultProps} />);
-    const textarea = screen.getByRole('textbox');
-    
-    await userEvent.type(textarea, 'test');
-    expect(defaultProps.onChange).toHaveBeenCalled();
+    expect(screen.getByTestId('codemirror-editor')).toBeInTheDocument();
   });
 
   it('displays word count in status bar', () => {
@@ -116,80 +148,35 @@ describe('LaTeXEditor', () => {
 
   it('switches to source mode', async () => {
     render(<LaTeXEditor {...defaultProps} />);
-    
+
     const sourceModeBtn = screen.getByTestId('mode-source');
     await userEvent.click(sourceModeBtn);
-    
+
     expect(screen.getByTestId('current-mode')).toHaveTextContent('source');
   });
 
   it('switches to visual mode', async () => {
     render(<LaTeXEditor {...defaultProps} />);
-    
+
     const visualModeBtn = screen.getByTestId('mode-visual');
     await userEvent.click(visualModeBtn);
-    
+
     expect(screen.getByTestId('current-mode')).toHaveTextContent('visual');
   });
 
-  it('handles undo action', async () => {
+  it('inserts text via toolbar using CodeMirror handle', async () => {
     render(<LaTeXEditor {...defaultProps} />);
-    const textarea = screen.getByRole('textbox');
-    
-    // Type something first
-    await userEvent.type(textarea, 'test');
-    
-    // Click undo
-    const undoBtn = screen.getByTestId('undo-btn');
-    await userEvent.click(undoBtn);
-    
-    // onChange should be called
-    expect(defaultProps.onChange).toHaveBeenCalled();
-  });
 
-  it('handles redo action', async () => {
-    render(<LaTeXEditor {...defaultProps} />);
-    const textarea = screen.getByRole('textbox');
-    
-    // Type, undo, then redo
-    await userEvent.type(textarea, 'test');
-    
-    const undoBtn = screen.getByTestId('undo-btn');
-    await userEvent.click(undoBtn);
-    
-    const redoBtn = screen.getByTestId('redo-btn');
-    await userEvent.click(redoBtn);
-    
-    expect(defaultProps.onChange).toHaveBeenCalled();
-  });
-
-  it('inserts text via toolbar', async () => {
-    render(<LaTeXEditor {...defaultProps} />);
-    
     const insertBtn = screen.getByTestId('insert-btn');
     await userEvent.click(insertBtn);
-    
-    expect(defaultProps.onChange).toHaveBeenCalled();
-  });
 
-  it('handles Ctrl+S to save', async () => {
-    render(<LaTeXEditor {...defaultProps} />);
-    const textarea = screen.getByRole('textbox');
-    
-    await userEvent.type(textarea, '{Control>}s{/Control}');
-    expect(defaultProps.onSave).toHaveBeenCalled();
-  });
-
-  it('supports read-only mode', () => {
-    render(<LaTeXEditor {...defaultProps} readOnly />);
-    const textarea = screen.getByRole('textbox');
-    expect(textarea).toHaveAttribute('readonly');
+    expect(mockInsertText).toHaveBeenCalledWith('\\alpha');
   });
 
   it('exposes imperative handle methods', () => {
     const ref = React.createRef<LaTeXEditorHandle>();
     render(<LaTeXEditor {...defaultProps} ref={ref} />);
-    
+
     expect(ref.current).toBeDefined();
     expect(typeof ref.current?.insertText).toBe('function');
     expect(typeof ref.current?.replaceSelection).toBe('function');
@@ -205,5 +192,11 @@ describe('LaTeXEditor', () => {
   it('applies custom className', () => {
     const { container } = render(<LaTeXEditor {...defaultProps} className="custom-class" />);
     expect(container.firstChild).toHaveClass('custom-class');
+  });
+
+  it('passes readOnly to CodeMirror editor', () => {
+    render(<LaTeXEditor {...defaultProps} readOnly />);
+    const editor = screen.getByTestId('codemirror-editor');
+    expect(editor.getAttribute('data-readonly')).toBe('true');
   });
 });

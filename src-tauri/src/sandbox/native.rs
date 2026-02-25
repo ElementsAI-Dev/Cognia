@@ -6,13 +6,14 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::process::Stdio;
 use std::time::Instant;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 use tokio::time::timeout;
 
 use super::languages::LanguageConfig;
 use super::runtime::{
-    ExecutionConfig, ExecutionRequest, ExecutionResult, RuntimeType, SandboxError, SandboxRuntime,
+    ExecutionConfig, ExecutionRequest, ExecutionResult, OutputLine, RuntimeType, SandboxError,
+    SandboxRuntime,
 };
 use super::workspace::{create_workspace, write_execution_files};
 
@@ -31,12 +32,23 @@ struct NativeCommand {
 lazy_static::lazy_static! {
     static ref NATIVE_COMMANDS: HashMap<&'static str, NativeCommand> = {
         let mut m = HashMap::new();
+
+        // Python: Windows uses "python", Unix uses "python3"
+        #[cfg(target_os = "windows")]
+        m.insert("python", NativeCommand {
+            check_cmd: "python",
+            check_args: &["--version"],
+            compile_cmd: None,
+            run_cmd: "python",
+        });
+        #[cfg(not(target_os = "windows"))]
         m.insert("python", NativeCommand {
             check_cmd: "python3",
             check_args: &["--version"],
             compile_cmd: None,
             run_cmd: "python3",
         });
+
         m.insert("javascript", NativeCommand {
             check_cmd: "node",
             check_args: &["--version"],
@@ -73,12 +85,16 @@ lazy_static::lazy_static! {
             compile_cmd: None,
             run_cmd: "php",
         });
+
+        // Bash: only available on Unix (or Git Bash on Windows, but not reliable)
+        #[cfg(not(target_os = "windows"))]
         m.insert("bash", NativeCommand {
             check_cmd: "bash",
             check_args: &["--version"],
             compile_cmd: None,
             run_cmd: "bash",
         });
+
         m.insert("powershell", NativeCommand {
             check_cmd: "pwsh",
             check_args: &["--version"],
@@ -219,7 +235,19 @@ impl SandboxRuntime for NativeRuntime {
         let mut output_path = code_path.clone();
         if let Some(compile) = native_cmd.compile_cmd {
             log::debug!("Compiling code using native compiler: {}", compile);
-            let parts: Vec<&str> = compile.split_whitespace().collect();
+
+            // Apply compiler settings to determine the actual compiler and flags
+            let effective_compile = if let Some(settings) = &request.compiler_settings {
+                // For native mode, the compile_cmd is just the base command (e.g. "rustc")
+                // We build a full command string and apply settings to it
+                let base_cmd = format!("{} {{file}}", compile);
+                let modified = settings.apply_to_compile_cmd(&base_cmd, &request.language);
+                modified.replace("{file}", "")
+            } else {
+                compile.to_string()
+            };
+
+            let parts: Vec<&str> = effective_compile.split_whitespace().collect();
             let mut compile_cmd = Command::new(parts[0]);
 
             for part in &parts[1..] {
@@ -301,12 +329,19 @@ impl SandboxRuntime for NativeRuntime {
         run_cmd.stdout(Stdio::piped());
         run_cmd.stderr(Stdio::piped());
 
-        // Set environment variables
+        // Set environment variables (from request)
         if !request.env.is_empty() {
             log::trace!("Setting {} environment variable(s)", request.env.len());
         }
         for (key, value) in &request.env {
             run_cmd.env(key, value);
+        }
+
+        // Set environment variables from compiler settings (e.g., Python flags)
+        if let Some(settings) = &request.compiler_settings {
+            for (key, value) in settings.env_vars(&request.language) {
+                run_cmd.env(&key, &value);
+            }
         }
 
         // Add arguments
@@ -432,6 +467,195 @@ impl SandboxRuntime for NativeRuntime {
                     exec_config.timeout.as_secs(),
                     RuntimeType::Native,
                     request.language.clone(),
+                ))
+            }
+        }
+    }
+
+    async fn execute_with_sender(
+        &self,
+        request: &ExecutionRequest,
+        language_config: &LanguageConfig,
+        exec_config: &ExecutionConfig,
+        output_tx: Option<tokio::sync::mpsc::Sender<OutputLine>>,
+    ) -> Result<ExecutionResult, SandboxError> {
+        let Some(tx) = output_tx else {
+            return self.execute(request, language_config, exec_config).await;
+        };
+
+        log::debug!("Native streaming execute: id={}, language={}", request.id, request.language);
+
+        let native_cmd = NATIVE_COMMANDS.get(language_config.id).ok_or_else(|| {
+            SandboxError::LanguageNotSupported(format!(
+                "{} is not supported in native mode", language_config.name
+            ))
+        })?;
+
+        let start = Instant::now();
+        let workspace = create_workspace(exec_config.workspace_dir.as_deref(), &request.id).await?;
+        let work_dir = workspace.path().to_path_buf();
+        let code_path = write_execution_files(&work_dir, request, language_config).await?;
+
+        // Compile if needed (non-streaming, compilation is usually fast)
+        let mut output_path = code_path.clone();
+        if let Some(compile) = native_cmd.compile_cmd {
+            let effective_compile = if let Some(settings) = &request.compiler_settings {
+                let base_cmd = format!("{} {{file}}", compile);
+                let modified = settings.apply_to_compile_cmd(&base_cmd, &request.language);
+                modified.replace("{file}", "")
+            } else {
+                compile.to_string()
+            };
+
+            let parts: Vec<&str> = effective_compile.split_whitespace().collect();
+            let mut compile_cmd = Command::new(parts[0]);
+            for part in &parts[1..] {
+                compile_cmd.arg(part);
+            }
+            compile_cmd.arg(&code_path);
+            compile_cmd.current_dir(&work_dir);
+
+            if language_config.id == "rust" {
+                output_path = work_dir.join("main");
+                compile_cmd.arg("-o").arg(&output_path);
+            }
+
+            let compile_result = timeout(exec_config.timeout, compile_cmd.output()).await;
+            match compile_result {
+                Ok(Ok(output)) if !output.status.success() => {
+                    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                    return Ok(ExecutionResult::success(
+                        request.id.clone(), String::new(), stderr,
+                        output.status.code().unwrap_or(1),
+                        start.elapsed().as_millis() as u64,
+                        RuntimeType::Native, request.language.clone(),
+                    ));
+                }
+                Ok(Err(e)) => return Err(SandboxError::ExecutionFailed(e.to_string())),
+                Err(_) => {
+                    return Ok(ExecutionResult::timeout(
+                        request.id.clone(), String::new(), String::new(),
+                        exec_config.timeout.as_secs(), RuntimeType::Native, request.language.clone(),
+                    ));
+                }
+                Ok(Ok(_)) => {}
+            }
+        }
+
+        // Build run command
+        let run_parts: Vec<&str> = native_cmd.run_cmd.split_whitespace().collect();
+        let mut run_cmd = if run_parts.is_empty() {
+            Command::new(&output_path)
+        } else {
+            let mut cmd = Command::new(run_parts[0]);
+            for part in &run_parts[1..] {
+                cmd.arg(part);
+            }
+            if native_cmd.compile_cmd.is_none() {
+                cmd.arg(&code_path);
+            } else if !run_parts.is_empty() {
+                cmd.arg(&output_path);
+            }
+            cmd
+        };
+
+        run_cmd.current_dir(&work_dir);
+        run_cmd.stdin(Stdio::piped());
+        run_cmd.stdout(Stdio::piped());
+        run_cmd.stderr(Stdio::piped());
+
+        for (key, value) in &request.env {
+            run_cmd.env(key, value);
+        }
+        if let Some(settings) = &request.compiler_settings {
+            for (key, value) in settings.env_vars(&request.language) {
+                run_cmd.env(&key, &value);
+            }
+        }
+        for arg in &request.args {
+            run_cmd.arg(arg);
+        }
+
+        let mut child = run_cmd.spawn().map_err(|e| {
+            SandboxError::ExecutionFailed(format!("Failed to start process: {}", e))
+        })?;
+
+        if let Some(stdin_data) = &request.stdin {
+            if let Some(mut stdin) = child.stdin.take() {
+                let _ = stdin.write_all(stdin_data.as_bytes()).await;
+                drop(stdin);
+            }
+        }
+
+        let stdout_pipe = child.stdout.take()
+            .ok_or_else(|| SandboxError::ExecutionFailed("failed to capture stdout".into()))?;
+        let stderr_pipe = child.stderr.take()
+            .ok_or_else(|| SandboxError::ExecutionFailed("failed to capture stderr".into()))?;
+
+        let exec_id_out = request.id.clone();
+        let exec_id_err = request.id.clone();
+        let tx_err = tx.clone();
+
+        let stdout_task = tokio::spawn(async move {
+            let mut lines = BufReader::new(stdout_pipe).lines();
+            let mut collected = String::new();
+            while let Ok(Some(line)) = lines.next_line().await {
+                let elapsed = start.elapsed().as_millis() as u64;
+                let _ = tx.send(OutputLine {
+                    execution_id: exec_id_out.clone(),
+                    stream: "stdout".into(),
+                    text: line.clone(),
+                    timestamp_ms: elapsed,
+                }).await;
+                if !collected.is_empty() { collected.push('\n'); }
+                collected.push_str(&line);
+            }
+            collected
+        });
+
+        let stderr_task = tokio::spawn(async move {
+            let mut lines = BufReader::new(stderr_pipe).lines();
+            let mut collected = String::new();
+            while let Ok(Some(line)) = lines.next_line().await {
+                let elapsed = start.elapsed().as_millis() as u64;
+                let _ = tx_err.send(OutputLine {
+                    execution_id: exec_id_err.clone(),
+                    stream: "stderr".into(),
+                    text: line.clone(),
+                    timestamp_ms: elapsed,
+                }).await;
+                if !collected.is_empty() { collected.push('\n'); }
+                collected.push_str(&line);
+            }
+            collected
+        });
+
+        let result = timeout(exec_config.timeout, child.wait()).await;
+        let execution_time_ms = start.elapsed().as_millis() as u64;
+
+        match result {
+            Ok(Ok(status)) => {
+                let exit_code = status.code().unwrap_or(-1);
+                let stdout = stdout_task.await.unwrap_or_default();
+                let stderr = stderr_task.await.unwrap_or_default();
+                Ok(ExecutionResult::success(
+                    request.id.clone(), stdout, stderr, exit_code,
+                    execution_time_ms, RuntimeType::Native, request.language.clone(),
+                ))
+            }
+            Ok(Err(e)) => {
+                let _ = stdout_task.await;
+                let _ = stderr_task.await;
+                Err(SandboxError::ExecutionFailed(e.to_string()))
+            }
+            Err(_) => {
+                let _ = child.start_kill();
+                let _ = child.wait().await;
+                let _ = stdout_task.await;
+                let _ = stderr_task.await;
+                Ok(ExecutionResult::timeout(
+                    request.id.clone(), String::new(), String::new(),
+                    exec_config.timeout.as_secs(), RuntimeType::Native, request.language.clone(),
                 ))
             }
         }
@@ -570,6 +794,9 @@ mod tests {
     fn test_native_commands_contains_python() {
         assert!(NATIVE_COMMANDS.contains_key("python"));
         let cmd = &NATIVE_COMMANDS["python"];
+        #[cfg(target_os = "windows")]
+        assert_eq!(cmd.check_cmd, "python");
+        #[cfg(not(target_os = "windows"))]
         assert_eq!(cmd.check_cmd, "python3");
         assert!(cmd.compile_cmd.is_none());
     }
@@ -604,6 +831,7 @@ mod tests {
         assert_eq!(cmd.check_cmd, "ruby");
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[test]
     fn test_native_commands_contains_bash() {
         assert!(NATIVE_COMMANDS.contains_key("bash"));

@@ -840,4 +840,198 @@ describe('useLearningStore', () => {
       expect(result.current.achievements.some((item) => item.type === 'explorer')).toBe(true);
     });
   });
+
+  describe('Prompt Template Export/Import', () => {
+    it('should export prompt templates as JSON', () => {
+      const { result } = renderHook(() => useLearningStore());
+
+      act(() => {
+        result.current.addPromptTemplate({
+          name: 'My Custom Template',
+          description: 'A test template',
+          approach: 'custom',
+          basePrompt: 'You are a custom tutor.',
+          language: 'en',
+        });
+      });
+
+      const json = result.current.exportPromptTemplates();
+      const data = JSON.parse(json);
+
+      expect(data.version).toBe(1);
+      expect(data.exportedAt).toBeDefined();
+      expect(data.templates).toHaveLength(1);
+      expect(data.templates[0].name).toBe('My Custom Template');
+      expect(data.templates[0].basePrompt).toBe('You are a custom tutor.');
+      expect(data.config).toBeDefined();
+      expect(data.config.activeTemplateId).toBe('builtin-socratic');
+    });
+
+    it('should not include built-in templates in export', () => {
+      const { result } = renderHook(() => useLearningStore());
+
+      const json = result.current.exportPromptTemplates();
+      const data = JSON.parse(json);
+
+      expect(data.templates).toHaveLength(0);
+    });
+
+    it('should import prompt templates from JSON', () => {
+      const { result } = renderHook(() => useLearningStore());
+
+      const importData = JSON.stringify({
+        version: 1,
+        templates: [
+          {
+            name: 'Imported Template',
+            description: 'From JSON',
+            approach: 'custom',
+            basePrompt: 'You are an imported tutor.',
+            language: 'en',
+          },
+        ],
+        config: {
+          mentorPersonality: 'Friendly and patient',
+        },
+      });
+
+      let importResult!: { imported: number; errors: string[] };
+      act(() => {
+        importResult = result.current.importPromptTemplates(importData);
+      });
+
+      expect(importResult.imported).toBe(1);
+      expect(importResult.errors).toHaveLength(0);
+
+      const templates = Object.values(result.current.promptTemplates);
+      expect(templates.some((t) => t.name === 'Imported Template')).toBe(true);
+      expect(result.current.config.mentorPersonality).toBe('Friendly and patient');
+    });
+
+    it('should reject templates with basePrompt exceeding 10000 characters', () => {
+      const { result } = renderHook(() => useLearningStore());
+
+      const importData = JSON.stringify({
+        version: 1,
+        templates: [
+          {
+            name: 'Too Long',
+            description: 'Exceeds limit',
+            approach: 'custom',
+            basePrompt: 'x'.repeat(10001),
+            language: 'en',
+          },
+        ],
+      });
+
+      let importResult!: { imported: number; errors: string[] };
+      act(() => {
+        importResult = result.current.importPromptTemplates(importData);
+      });
+
+      expect(importResult.imported).toBe(0);
+      expect(importResult.errors).toHaveLength(1);
+      expect(importResult.errors[0]).toContain('exceeds');
+    });
+
+    it('should skip templates missing name or basePrompt', () => {
+      const { result } = renderHook(() => useLearningStore());
+
+      const importData = JSON.stringify({
+        version: 1,
+        templates: [
+          { description: 'No name', basePrompt: 'prompt' },
+          { name: 'No prompt' },
+          { name: 'Valid', basePrompt: 'Valid prompt' },
+        ],
+      });
+
+      let importResult!: { imported: number; errors: string[] };
+      act(() => {
+        importResult = result.current.importPromptTemplates(importData);
+      });
+
+      expect(importResult.imported).toBe(1);
+      expect(importResult.errors).toHaveLength(2);
+    });
+
+    it('should handle invalid JSON gracefully', () => {
+      const { result } = renderHook(() => useLearningStore());
+
+      let importResult!: { imported: number; errors: string[] };
+      act(() => {
+        importResult = result.current.importPromptTemplates('not valid json');
+      });
+
+      expect(importResult.imported).toBe(0);
+      expect(importResult.errors).toHaveLength(1);
+      expect(importResult.errors[0]).toContain('Parse error');
+    });
+
+    it('should handle empty templates array', () => {
+      const { result } = renderHook(() => useLearningStore());
+
+      const importData = JSON.stringify({ version: 1, templates: [] });
+
+      let importResult!: { imported: number; errors: string[] };
+      act(() => {
+        importResult = result.current.importPromptTemplates(importData);
+      });
+
+      expect(importResult.imported).toBe(0);
+      expect(importResult.errors).toHaveLength(0);
+    });
+
+    it('should import valid customEncouragementMessages and reject malformed ones', () => {
+      const { result } = renderHook(() => useLearningStore());
+
+      const importData = JSON.stringify({
+        version: 1,
+        templates: [],
+        config: {
+          customEncouragementMessages: {
+            goodProgress: ['Great job!', 'Keep going!'],
+            struggling: 'not an array',
+            breakthrough: [123, 456],
+          },
+          customCelebrationMessages: {
+            concept_mastered: ['You did it!'],
+            question_solved: { nested: 'object' },
+          },
+        },
+      });
+
+      act(() => {
+        result.current.importPromptTemplates(importData);
+      });
+
+      const config = result.current.config;
+      expect(config.customEncouragementMessages?.goodProgress).toEqual(['Great job!', 'Keep going!']);
+      expect(config.customEncouragementMessages?.struggling).toBeUndefined();
+      expect(config.customEncouragementMessages?.breakthrough).toBeUndefined();
+      expect(config.customCelebrationMessages?.concept_mastered).toEqual(['You did it!']);
+      expect(config.customCelebrationMessages?.question_solved).toBeUndefined();
+    });
+
+    it('should skip customMessages entirely when they are not objects', () => {
+      const { result } = renderHook(() => useLearningStore());
+
+      const importData = JSON.stringify({
+        version: 1,
+        templates: [],
+        config: {
+          customEncouragementMessages: 'not an object',
+          customCelebrationMessages: 42,
+        },
+      });
+
+      act(() => {
+        result.current.importPromptTemplates(importData);
+      });
+
+      const config = result.current.config;
+      expect(config.customEncouragementMessages).toBeUndefined();
+      expect(config.customCelebrationMessages).toBeUndefined();
+    });
+  });
 });

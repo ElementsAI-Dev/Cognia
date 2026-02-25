@@ -56,6 +56,8 @@ import {
   Combine,
   MessageSquare,
   FileCode,
+  PenLine,
+  MessageSquareText,
 } from 'lucide-react';
 import { NODE_TYPE_COLORS, type WorkflowNodeType } from '@/types/workflow/workflow-editor';
 import { Kbd } from '@/components/ui/kbd';
@@ -89,6 +91,9 @@ const NODE_ICONS: Record<WorkflowNodeType, React.ComponentType<{ className?: str
   areaChart: AreaChart,
   scatterChart: ScatterChart,
   radarChart: Radar,
+  httpRequest: Globe,
+  variableAssigner: PenLine,
+  answer: MessageSquareText,
 };
 
 interface Command {

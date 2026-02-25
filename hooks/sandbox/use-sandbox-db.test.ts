@@ -12,6 +12,7 @@ import {
   useSessions,
   useSandboxStats,
   useCodeExecution,
+  useStreamingExecution,
   useTagsCategories,
 } from './use-sandbox-db';
 
@@ -183,6 +184,67 @@ describe('useCodeExecution', () => {
     let execResult: unknown;
     await act(async () => {
       execResult = await result.current.quickExecute('python', 'print("test")');
+    });
+
+    expect(execResult).toBeNull();
+  });
+});
+
+describe('useCodeExecution - cancel', () => {
+  it('should provide cancel function', () => {
+    const { result } = renderHook(() => useCodeExecution());
+
+    expect(typeof result.current.cancel).toBe('function');
+  });
+
+  it('should track executionId', () => {
+    const { result } = renderHook(() => useCodeExecution());
+
+    expect(result.current.executionId).toBeNull();
+  });
+});
+
+describe('useStreamingExecution', () => {
+  it('should initialize with null result and empty outputLines', () => {
+    const { result } = renderHook(() => useStreamingExecution());
+
+    expect(result.current.result).toBeNull();
+    expect(result.current.executing).toBe(false);
+    expect(result.current.error).toBeNull();
+    expect(result.current.executionId).toBeNull();
+    expect(result.current.outputLines).toEqual([]);
+  });
+
+  it('should provide execute, cancel, and reset functions', () => {
+    const { result } = renderHook(() => useStreamingExecution());
+
+    expect(typeof result.current.execute).toBe('function');
+    expect(typeof result.current.cancel).toBe('function');
+    expect(typeof result.current.reset).toBe('function');
+  });
+
+  it('should reset state when reset is called', () => {
+    const { result } = renderHook(() => useStreamingExecution());
+
+    act(() => {
+      result.current.reset();
+    });
+
+    expect(result.current.result).toBeNull();
+    expect(result.current.error).toBeNull();
+    expect(result.current.executionId).toBeNull();
+    expect(result.current.outputLines).toEqual([]);
+  });
+
+  it('should return null when executing in non-Tauri environment', async () => {
+    const { result } = renderHook(() => useStreamingExecution());
+
+    let execResult: unknown;
+    await act(async () => {
+      execResult = await result.current.execute({
+        language: 'python',
+        code: 'print("streaming test")',
+      });
     });
 
     expect(execResult).toBeNull();

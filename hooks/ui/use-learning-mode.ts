@@ -26,6 +26,8 @@ import {
   generateCelebrationMessage,
   getEncouragementMessage,
   generateContextualHint,
+  getAvailableTemplates,
+  getTemplateById,
 } from '@/lib/learning';
 import type {
   LearningSession,
@@ -34,6 +36,7 @@ import type {
   LearningGoal,
   StartLearningInput,
   LearningModeConfig,
+  PromptTemplate,
 } from '@/types/learning';
 
 export interface UseLearningModeReturn {
@@ -110,6 +113,14 @@ export interface UseLearningModeReturn {
   ) => string;
   getEncouragement: (type: 'struggling' | 'goodProgress' | 'breakthrough' | 'completion') => string;
   getContextualHint: (attemptCount: number) => string;
+
+  // Template management
+  promptTemplates: PromptTemplate[];
+  activeTemplate: PromptTemplate | undefined;
+  addPromptTemplate: (template: Omit<PromptTemplate, 'id' | 'createdAt' | 'isBuiltIn'>) => PromptTemplate;
+  updatePromptTemplate: (id: string, updates: Partial<PromptTemplate>) => void;
+  deletePromptTemplate: (id: string) => void;
+  getPromptPreview: () => string;
 
   // Configuration
   updateConfig: (config: Partial<LearningModeConfig>) => void;
@@ -271,9 +282,11 @@ export function useLearningMode(): UseLearningModeReturn {
   // System prompt
   const getSystemPrompt = useCallback(
     (customContext?: string) => {
-      return buildLearningSystemPrompt(learningSession, customContext);
+      return buildLearningSystemPrompt(
+        learningSession, customContext, learningStore.config, learningStore.promptTemplates
+      );
     },
-    [learningSession]
+    [learningSession, learningStore.config, learningStore.promptTemplates]
   );
 
   // Analysis functions
@@ -348,12 +361,13 @@ export function useLearningMode(): UseLearningModeReturn {
   const getAdaptivePrompt = useCallback(
     (options?: { scenario?: string; understandingLevel?: string; customContext?: string }) => {
       if (!learningSession) return '';
-      return buildAdaptiveLearningPrompt(
-        learningSession,
-        options as Parameters<typeof buildAdaptiveLearningPrompt>[1]
-      );
+      return buildAdaptiveLearningPrompt(learningSession, {
+        ...(options as Parameters<typeof buildAdaptiveLearningPrompt>[1]),
+        config: learningStore.config,
+        customTemplates: learningStore.promptTemplates,
+      });
     },
-    [learningSession]
+    [learningSession, learningStore.config, learningStore.promptTemplates]
   );
 
   // Celebration and encouragement
@@ -379,6 +393,44 @@ export function useLearningMode(): UseLearningModeReturn {
     },
     [learningSession]
   );
+
+  // Template management
+  const promptTemplates = useMemo(
+    () => getAvailableTemplates(learningStore.config.promptLanguage, learningStore.promptTemplates),
+    [learningStore.config.promptLanguage, learningStore.promptTemplates]
+  );
+
+  const activeTemplate = useMemo(
+    () => getTemplateById(learningStore.config.activeTemplateId, learningStore.promptTemplates),
+    [learningStore.config.activeTemplateId, learningStore.promptTemplates]
+  );
+
+  const addPromptTemplate = useCallback(
+    (template: Omit<PromptTemplate, 'id' | 'createdAt' | 'isBuiltIn'>) => {
+      return learningStore.addPromptTemplate(template);
+    },
+    [learningStore]
+  );
+
+  const updatePromptTemplate = useCallback(
+    (id: string, updates: Partial<PromptTemplate>) => {
+      learningStore.updatePromptTemplate(id, updates);
+    },
+    [learningStore]
+  );
+
+  const deletePromptTemplate = useCallback(
+    (id: string) => {
+      learningStore.deletePromptTemplate(id);
+    },
+    [learningStore]
+  );
+
+  const getPromptPreview = useCallback(() => {
+    return buildLearningSystemPrompt(
+      learningSession, undefined, learningStore.config, learningStore.promptTemplates
+    );
+  }, [learningSession, learningStore.config, learningStore.promptTemplates]);
 
   // Configuration
   const updateConfig = useCallback(
@@ -448,6 +500,14 @@ export function useLearningMode(): UseLearningModeReturn {
     getEncouragement,
     getContextualHint,
 
+    // Template management
+    promptTemplates,
+    activeTemplate,
+    addPromptTemplate,
+    updatePromptTemplate,
+    deletePromptTemplate,
+    getPromptPreview,
+
     // Configuration
     updateConfig,
   };
@@ -458,9 +518,10 @@ export function useLearningMode(): UseLearningModeReturn {
  */
 export function useLearningSystemPrompt(customContext?: string): string {
   const { learningSession } = useLearningMode();
+  const { config, promptTemplates } = useLearningStore();
   return useMemo(() => {
-    return buildLearningSystemPrompt(learningSession, customContext);
-  }, [learningSession, customContext]);
+    return buildLearningSystemPrompt(learningSession, customContext, config, promptTemplates);
+  }, [learningSession, customContext, config, promptTemplates]);
 }
 
 /**

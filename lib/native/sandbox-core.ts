@@ -46,6 +46,18 @@ export async function executeCode(
   return invokeSandboxCommand<SandboxExecutionResult>('sandbox_execute', { request });
 }
 
+export async function cancelExecution(executionId: string): Promise<boolean> {
+  return invokeSandboxCommand<boolean>('sandbox_cancel_execution', {
+    execution_id: executionId,
+  });
+}
+
+export async function executeCodeStreaming(
+  request: ExecutionRequest
+): Promise<SandboxExecutionResult> {
+  return invokeSandboxCommand<SandboxExecutionResult>('sandbox_execute_streaming', { request });
+}
+
 export async function executeCodeWithOptions(
   request: ExecutionRequest,
   tags: string[] = [],
@@ -234,6 +246,17 @@ export async function getSessionExecutions(
     'sandbox_get_session_executions',
     { session_id: sessionId }
   );
+}
+
+export interface ImportResult {
+  imported_snippets: number;
+  skipped_snippets: number;
+}
+
+export async function importData(jsonData: string): Promise<ImportResult> {
+  return invokeSandboxCommand<ImportResult>('sandbox_import_data', {
+    json_data: jsonData,
+  });
 }
 
 export async function isSandboxAvailable(): Promise<boolean> {

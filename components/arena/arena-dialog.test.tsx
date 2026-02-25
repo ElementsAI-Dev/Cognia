@@ -29,6 +29,11 @@ jest.mock('@/hooks/arena', () => ({
     startBattle: mockStartBattle,
     getAvailableModels: () => availableModels,
   }),
+  useSmartModelPair: () => ({
+    getSmartModelPair: () => availableModels.slice(0, 2),
+    selectedModels: availableModels.slice(0, 2),
+    availableModels,
+  }),
 }));
 
 jest.mock('@/stores/arena', () => ({
@@ -272,5 +277,32 @@ describe('ArenaDialog', () => {
     await userEvent.click(startButton);
 
     expect(mockStartBattle).toHaveBeenCalled();
+  });
+
+  it('pre-populates models from initialModels (rematch)', () => {
+    const initialModels = [
+      { provider: 'openai' as const, model: 'gpt-4o-mini', displayName: 'GPT-4o mini' },
+      { provider: 'anthropic' as const, model: 'claude-3-5-sonnet', displayName: 'Claude 3.5 Sonnet' },
+    ];
+
+    render(
+      <ArenaDialog
+        open
+        onOpenChange={jest.fn()}
+        initialModels={initialModels}
+        initialPrompt="Rematch prompt"
+      />
+    );
+
+    // Dialog renders with the prompt and models should be pre-selected
+    expect(screen.getByDisplayValue('Rematch prompt')).toBeInTheDocument();
+  });
+
+  it('does not re-render when closed', () => {
+    const { queryByTestId } = render(
+      <ArenaDialog open={false} onOpenChange={jest.fn()} />
+    );
+
+    expect(queryByTestId('dialog')).not.toBeInTheDocument();
   });
 });

@@ -65,6 +65,43 @@
     "fullscreen": "全屏",
     "exitFullscreen": "退出全屏"
   },
+  "settings": {
+    "title": "编辑器设置",
+    "description": "自定义你的 LaTeX 编辑体验",
+    "fontSize": "字体大小",
+    "fontFamily": "字体",
+    "theme": "主题",
+    "themeSystem": "跟随系统",
+    "themeLight": "浅色",
+    "themeDark": "深色",
+    "tabSize": "缩进大小",
+    "lineNumbers": "行号",
+    "wordWrap": "自动换行",
+    "spellCheck": "拼写检查",
+    "autoSave": "自动保存",
+    "autoSaveInterval": "保存间隔",
+    "reset": "恢复默认设置"
+  },
+  "outline": {
+    "title": "大纲",
+    "empty": "未找到章节",
+    "hint": "使用 \\section{} 添加章节"
+  },
+  "version": {
+    "title": "版本历史",
+    "create": "保存",
+    "messagePlaceholder": "版本说明（可选）",
+    "empty": "暂无版本",
+    "emptyHint": "创建快照以跟踪更改",
+    "untitled": "未命名快照",
+    "latest": "（最新）",
+    "restore": "恢复",
+    "restoreConfirmTitle": "恢复此版本？",
+    "restoreConfirmDesc": "这将用该版本替换当前内容，当前的修改将会丢失。"
+  },
+  "autoSave": {
+    "lastSaved": "已保存"
+  },
   "ai": {
     "button": "AI",
     "features": "AI 功能",

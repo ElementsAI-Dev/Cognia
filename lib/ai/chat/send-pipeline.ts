@@ -13,6 +13,8 @@ import type { SearchResponse } from '@/types/search';
 import type { ProviderName } from '@/types/provider';
 import type { UIMessage, ChatMode } from '@/types';
 import type { AnalysisResult } from '@/types';
+import type { LearningModeConfig, PromptTemplate } from '@/types/learning';
+import { getEnabledProviders } from '@/types/search';
 import { getPluginEventHooks, getPluginLifecycleHooks } from '@/lib/plugin';
 import { messageRepository } from '@/lib/db';
 
@@ -151,6 +153,8 @@ export interface SystemPromptParams {
   getActiveSkills: () => Array<{ id: string; category: string; metadata: { name: string } }>;
   activateSkill: (id: string) => void;
   getLearningSessionByChat: (sessionId: string) => unknown;
+  getLearningConfig: () => LearningModeConfig;
+  getLearningPromptTemplates: () => Record<string, PromptTemplate>;
   updateSession: (id: string, update: Record<string, unknown>) => void;
 }
 
@@ -187,6 +191,8 @@ export async function buildEnhancedSystemPrompt(
     getActiveSkills,
     activateSkill,
     getLearningSessionByChat,
+    getLearningConfig,
+    getLearningPromptTemplates,
     updateSession,
   } = params;
 
@@ -315,7 +321,7 @@ Be thorough in your thinking but concise in your final answer.`;
 
   // --- Learning mode ---
   if (currentMode === 'learning') {
-    const { buildLearningSystemPrompt, isLearningModeV2Enabled } = await import('@/lib/learning');
+    const { buildLearningSystemPrompt, buildAdaptiveLearningPrompt, isLearningModeV2Enabled } = await import('@/lib/learning');
     const learningModeV2Enabled = isLearningModeV2Enabled();
     const learningSession = getLearningSessionByChat(currentSessionId);
     const speedpassContext = session?.learningContext?.subMode === 'speedpass'
@@ -354,9 +360,28 @@ Be thorough in your thinking but concise in your final answer.`;
         })()
       : undefined;
 
-    const learningPrompt = (
-      buildLearningSystemPrompt as (s: unknown, customContext?: string) => string | null
-    )(learningSession, speedpassContextPrompt);
+    // Use buildAdaptiveLearningPrompt when session exists (includes difficulty/style/engagement)
+    // Fall back to buildLearningSystemPrompt when no session (base Socratic prompt only)
+    const learningConfig = getLearningConfig();
+    const learningPromptTemplates = getLearningPromptTemplates();
+    let learningPrompt: string | null = null;
+    if (learningSession) {
+      learningPrompt = buildAdaptiveLearningPrompt(
+        learningSession as Parameters<typeof buildAdaptiveLearningPrompt>[0],
+        {
+          customContext: speedpassContextPrompt ?? undefined,
+          config: learningConfig,
+          customTemplates: learningPromptTemplates,
+        },
+      );
+    } else {
+      learningPrompt = buildLearningSystemPrompt(
+        null,
+        speedpassContextPrompt ?? undefined,
+        learningConfig,
+        learningPromptTemplates,
+      );
+    }
     if (learningPrompt) {
       console.log('Injecting learning mode (Socratic Method) system prompt');
       enhancedSystemPrompt = learningPrompt + (enhancedSystemPrompt ? `\n\n${enhancedSystemPrompt}` : '');
@@ -393,9 +418,7 @@ async function performWebSearch(
   // Access settings store directly for search provider config
   const { useSettingsStore } = await import('@/stores');
   const { searchProviders, defaultSearchProvider, searchMaxResults } = useSettingsStore.getState();
-  const hasEnabledProvider = Object.values(searchProviders).some(
-    (p) => p.enabled && p.apiKey
-  );
+  const hasEnabledProvider = getEnabledProviders(searchProviders).length > 0;
   const tavilyApiKey = providerSettings.tavily?.apiKey;
 
   if (!hasEnabledProvider && !tavilyApiKey) {

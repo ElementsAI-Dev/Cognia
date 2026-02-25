@@ -53,6 +53,54 @@ function safeRenderMath(latex: string, displayMode: boolean): string {
   }
 }
 
+/**
+ * Match braced content handling nested braces correctly.
+ * Given a string starting at the opening `{`, returns the content between matching braces.
+ * Returns null if no matching brace is found.
+ */
+function matchBracedContent(str: string, startIndex: number): { content: string; endIndex: number } | null {
+  if (str[startIndex] !== '{') return null;
+  let depth = 0;
+  for (let i = startIndex; i < str.length; i++) {
+    if (str[i] === '{') depth++;
+    else if (str[i] === '}') depth--;
+    if (depth === 0) {
+      return { content: str.slice(startIndex + 1, i), endIndex: i };
+    }
+  }
+  return null;
+}
+
+/**
+ * Replace a LaTeX command with one braced argument, handling nested braces.
+ * e.g. \textbf{bold \textit{italic} text} → <strong>bold \textit{italic} text</strong>
+ */
+function replaceCommand(html: string, command: string, wrapper: (content: string) => string): string {
+  const pattern = `\\${command}{`;
+  let result = html;
+  let searchFrom = 0;
+
+  while (true) {
+    const idx = result.indexOf(pattern, searchFrom);
+    if (idx === -1) break;
+
+    const braceStart = idx + pattern.length - 1; // index of '{'
+    const matched = matchBracedContent(result, braceStart);
+    if (!matched) {
+      searchFrom = idx + 1;
+      continue;
+    }
+
+    const before = result.slice(0, idx);
+    const after = result.slice(matched.endIndex + 1);
+    const replacement = wrapper(matched.content);
+    result = before + replacement + after;
+    searchFrom = before.length + replacement.length;
+  }
+
+  return result;
+}
+
 export function LaTeXPreview({ content, scale = 1, className, showLineNumbers: _showLineNumbers = false }: LaTeXPreviewProps) {
   const renderedContent = useMemo(() => {
     if (!content) return '';
@@ -61,6 +109,27 @@ export function LaTeXPreview({ content, scale = 1, className, showLineNumbers: _
     const counters = createCounters();
 
     let html = content;
+
+    // ========================================================================
+    // Extract verbatim/lstlisting FIRST to protect their content from all transforms
+    // ========================================================================
+    const verbatimBlocks: string[] = [];
+    const VERBATIM_TOKEN = '\x00VBT_';
+
+    html = html.replace(/\\begin\{verbatim\}([\s\S]*?)\\end\{verbatim\}/g, (_, code) => {
+      const idx = verbatimBlocks.length;
+      verbatimBlocks.push(
+        `<pre class="my-4 p-4 bg-muted rounded-md overflow-x-auto"><code>${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`
+      );
+      return `${VERBATIM_TOKEN}${idx}\x00`;
+    });
+    html = html.replace(/\\begin\{lstlisting\}(?:\[([^\]]*)\])?([\s\S]*?)\\end\{lstlisting\}/g, (_, _opts, code) => {
+      const idx = verbatimBlocks.length;
+      verbatimBlocks.push(
+        `<pre class="my-4 p-4 bg-muted rounded-md overflow-x-auto"><code>${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`
+      );
+      return `${VERBATIM_TOKEN}${idx}\x00`;
+    });
 
     // Render display math: $$...$$ or \[...\]
     html = html.replace(/\$\$([^$]+)\$\$/g, (_, math) => {
@@ -204,19 +273,19 @@ export function LaTeXPreview({ content, scale = 1, className, showLineNumbers: _
       return `<div class="my-4 overflow-x-auto">${safeRenderMath(`\\begin{cases}${math}\\end{cases}`, true)}</div>`;
     });
 
-    // Convert LaTeX commands to HTML
-    html = html.replace(/\\section\{([^}]+)\}/g, '<h2 class="text-2xl font-bold mt-6 mb-3">$1</h2>');
-    html = html.replace(/\\subsection\{([^}]+)\}/g, '<h3 class="text-xl font-semibold mt-4 mb-2">$1</h3>');
-    html = html.replace(/\\subsubsection\{([^}]+)\}/g, '<h4 class="text-lg font-medium mt-3 mb-2">$1</h4>');
+    // Convert LaTeX commands to HTML — using replaceCommand for nested brace support
+    html = replaceCommand(html, 'section', (c) => `<h2 class="text-2xl font-bold mt-6 mb-3">${c}</h2>`);
+    html = replaceCommand(html, 'subsection', (c) => `<h3 class="text-xl font-semibold mt-4 mb-2">${c}</h3>`);
+    html = replaceCommand(html, 'subsubsection', (c) => `<h4 class="text-lg font-medium mt-3 mb-2">${c}</h4>`);
 
-    html = html.replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>');
-    html = html.replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>');
-    html = html.replace(/\\emph\{([^}]+)\}/g, '<em>$1</em>');
-    html = html.replace(/\\underline\{([^}]+)\}/g, '<u>$1</u>');
-    html = html.replace(/\\texttt\{([^}]+)\}/g, '<code class="font-mono bg-muted px-1 rounded">$1</code>');
-    html = html.replace(/\\textsc\{([^}]+)\}/g, '<span class="uppercase text-sm tracking-wide">$1</span>');
+    html = replaceCommand(html, 'textbf', (c) => `<strong>${c}</strong>`);
+    html = replaceCommand(html, 'textit', (c) => `<em>${c}</em>`);
+    html = replaceCommand(html, 'emph', (c) => `<em>${c}</em>`);
+    html = replaceCommand(html, 'underline', (c) => `<u>${c}</u>`);
+    html = replaceCommand(html, 'texttt', (c) => `<code class="font-mono bg-muted px-1 rounded">${c}</code>`);
+    html = replaceCommand(html, 'textsc', (c) => `<span class="uppercase text-sm tracking-wide">${c}</span>`);
 
-    // Color support
+    // Color support — handled with nested braces
     html = html.replace(/\\textcolor\{([^}]+)\}\{([^}]+)\}/g, '<span style="color: $1">$2</span>');
     html = html.replace(/\\colorbox\{([^}]+)\}\{([^}]+)\}/g, '<span style="background-color: $1; padding: 2px 4px;">$2</span>');
 
@@ -320,8 +389,21 @@ export function LaTeXPreview({ content, scale = 1, className, showLineNumbers: _
       </figure>`;
     });
 
+    // Hyperlinks — sanitize URLs to prevent javascript: XSS
+    html = html.replace(/\\href\{([^}]+)\}\{([^}]+)\}/g, (_, url, text) => {
+      const safeUrl = /^(https?:|mailto:|ftp:)/i.test(url.trim()) ? url : '#';
+      return `<a href="${safeUrl}" class="text-blue-500 underline hover:text-blue-700" target="_blank" rel="noopener">${text}</a>`;
+    });
+    html = html.replace(/\\url\{([^}]+)\}/g, (_, url) => {
+      const safeUrl = /^(https?:|mailto:|ftp:)/i.test(url.trim()) ? url : '#';
+      return `<a href="${safeUrl}" class="text-blue-500 underline hover:text-blue-700 font-mono text-sm" target="_blank" rel="noopener">${url}</a>`;
+    });
+
+    // Page break
+    html = html.replace(/\\newpage/g, '<hr class="my-8 border-t-2 border-dashed border-muted-foreground/30">');
+
     // Footnotes (simplified)
-    html = html.replace(/\\footnote\{([^}]+)\}/g, '<sup class="text-xs text-blue-500 cursor-help" title="$1">[*]</sup>');
+    html = replaceCommand(html, 'footnote', (c) => `<sup class="text-xs text-blue-500 cursor-help" title="${c}">[*]</sup>`);
 
     // References and labels (simplified)
     html = html.replace(/\\label\{[^}]+\}/g, '');
@@ -333,12 +415,14 @@ export function LaTeXPreview({ content, scale = 1, className, showLineNumbers: _
     html = html.replace(/\\begin\{document\}/g, '');
     html = html.replace(/\\end\{document\}/g, '');
     html = html.replace(/\\maketitle/g, '');
-    html = html.replace(/\\title\{([^}]+)\}/g, '<h1 class="text-3xl font-bold mb-4 text-center">$1</h1>');
-    html = html.replace(/\\author\{([^}]+)\}/g, '<p class="text-muted-foreground mb-2 text-center">$1</p>');
-    html = html.replace(/\\date\{([^}]+)\}/g, '<p class="text-muted-foreground mb-4 text-center">$1</p>');
+    html = replaceCommand(html, 'title', (c) => `<h1 class="text-3xl font-bold mb-4 text-center">${c}</h1>`);
+    html = replaceCommand(html, 'author', (c) => `<p class="text-muted-foreground mb-2 text-center">${c}</p>`);
+    html = replaceCommand(html, 'date', (c) => `<p class="text-muted-foreground mb-4 text-center">${c}</p>`);
 
-    // Comments (remove)
-    html = html.replace(/%[^\n]*/g, '');
+    // Comments (remove) — exclude \% (escaped percent)
+    html = html.replace(/(?<!\\)%[^\n]*/g, '');
+    // Convert \% to literal %
+    html = html.replace(/\\%/g, '%');
 
     // Horizontal rule
     html = html.replace(/\\hrule/g, '<hr class="my-4 border-gray-300 dark:border-gray-600">');
@@ -352,6 +436,11 @@ export function LaTeXPreview({ content, scale = 1, className, showLineNumbers: _
 
     // Non-breaking space
     html = html.replace(/~/g, '&nbsp;');
+
+    // Restore verbatim blocks from placeholders
+    for (let i = 0; i < verbatimBlocks.length; i++) {
+      html = html.replace(`${VERBATIM_TOKEN}${i}\x00`, verbatimBlocks[i]);
+    }
 
     return `<p class="my-3">${html}</p>`;
   }, [content]);

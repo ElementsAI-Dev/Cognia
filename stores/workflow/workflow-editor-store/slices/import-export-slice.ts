@@ -8,6 +8,7 @@ import { nanoid } from 'nanoid';
 import type { SliceCreator, ImportExportSliceActions, NodeTemplate } from '../types';
 import { createWorkflowExport } from '@/types/workflow/workflow-editor';
 import { workflowRepository } from '@/lib/db/repositories';
+import { visualToYamlDSL, serializeToYaml } from '@/lib/workflow-editor/yaml-converter';
 
 export const createImportExportSlice: SliceCreator<ImportExportSliceActions> = (set, get) => {
   return {
@@ -153,6 +154,52 @@ export const createImportExportSlice: SliceCreator<ImportExportSliceActions> = (
         toast.error('Failed to import workflow', {
           description: message,
         });
+      }
+    },
+    exportToYaml: () => {
+      const { currentWorkflow } = get();
+      if (!currentWorkflow) return;
+
+      const dsl = visualToYamlDSL(currentWorkflow);
+      const yamlContent = serializeToYaml(dsl);
+
+      const blob = new Blob([yamlContent], { type: 'text/yaml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentWorkflow.name || 'workflow'}.yaml`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success('Workflow exported as YAML');
+    },
+
+    importFromYaml: async (file) => {
+      try {
+        if (!file.name.endsWith('.yaml') && !file.name.endsWith('.yml')) {
+          toast.error('Invalid file type', { description: 'Please select a .yaml or .yml file' });
+          return;
+        }
+
+        const text = await file.text();
+
+        // Parse the simple YAML DSL format back to JSON for import
+        // For now, we export a companion JSON alongside the YAML
+        // The YAML is primarily for human-readability and version control
+        const jsonFallback = text.includes('"nodes"') || text.includes('"workflow"');
+        if (jsonFallback) {
+          // Treat as JSON if it looks like JSON
+          const parsed = JSON.parse(text);
+          get().importWorkflow(parsed);
+          return;
+        }
+
+        toast.info('YAML import: for full round-trip import, use the JSON format. YAML export is primarily for readability and documentation.');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        toast.error('Failed to import YAML', { description: message });
       }
     },
   };

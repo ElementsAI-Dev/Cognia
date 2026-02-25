@@ -243,6 +243,106 @@ describe('LaTeXPreview', () => {
     });
   });
 
+  describe('verbatim and lstlisting environments', () => {
+    it('renders verbatim environment as preformatted text', () => {
+      const content = '\\begin{verbatim}code here\\end{verbatim}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('<pre');
+      expect(container.innerHTML).toContain('<code');
+      expect(container.innerHTML).toContain('code here');
+    });
+
+    it('escapes HTML in verbatim environment', () => {
+      const content = '\\begin{verbatim}<script>alert("xss")</script>\\end{verbatim}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('&lt;script&gt;');
+      expect(container.innerHTML).not.toContain('<script>');
+    });
+
+    it('renders lstlisting environment', () => {
+      const content = '\\begin{lstlisting}def hello():\\end{lstlisting}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('<pre');
+      expect(container.innerHTML).toContain('def hello()');
+    });
+
+    it('renders lstlisting with options', () => {
+      const content = '\\begin{lstlisting}[language=Python]print("hi")\\end{lstlisting}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('<pre');
+      expect(container.innerHTML).toContain('print');
+    });
+  });
+
+  describe('hyperlinks', () => {
+    it('renders \\href command', () => {
+      const content = '\\href{https://example.com}{Click here}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('<a href="https://example.com"');
+      expect(container.innerHTML).toContain('Click here');
+      expect(container.innerHTML).toContain('target="_blank"');
+    });
+
+    it('renders \\url command', () => {
+      const content = '\\url{https://example.com}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('<a href="https://example.com"');
+      expect(container.innerHTML).toContain('https://example.com');
+    });
+  });
+
+  describe('page break', () => {
+    it('renders \\newpage as horizontal rule', () => {
+      const content = 'Before\\newpageAfter';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('<hr');
+    });
+  });
+
+  describe('comment handling', () => {
+    it('removes LaTeX comments', () => {
+      const content = 'visible text % this is a comment';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('visible text');
+      expect(container.innerHTML).not.toContain('this is a comment');
+    });
+
+    it('preserves escaped percent signs', () => {
+      const content = 'Sales grew 50\\% this year';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('50%');
+      expect(container.innerHTML).toContain('this year');
+    });
+
+    it('handles escaped percent followed by real comment', () => {
+      const content = '50\\% growth % comment here';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('50%');
+      expect(container.innerHTML).not.toContain('comment here');
+    });
+  });
+
+  describe('nested brace handling', () => {
+    it('renders \\textbf with nested commands', () => {
+      const content = '\\textbf{bold \\textit{and italic} text}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('<strong');
+      expect(container.innerHTML).toContain('bold');
+    });
+
+    it('renders \\title with nested braces', () => {
+      const content = '\\title{My {Great} Paper}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('My {Great} Paper');
+    });
+
+    it('renders \\footnote with nested brace content', () => {
+      const content = 'Text\\footnote{See \\textbf{important} note}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('[*]');
+    });
+  });
+
   describe('figure environments', () => {
     it('renders figure environment', () => {
       const content = '\\begin{figure}\\includegraphics{test.png}\\end{figure}';

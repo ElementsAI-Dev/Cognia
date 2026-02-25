@@ -26,6 +26,9 @@ import type {
   VariableAggregatorNodeData,
   QuestionClassifierNodeData,
   TemplateTransformNodeData,
+  HttpRequestNodeData,
+  VariableAssignerNodeData,
+  AnswerNodeData,
 } from '@/types/workflow/workflow-editor';
 import { WORKFLOW_TOOL_CATALOG } from '../../tool-catalog';
 
@@ -53,6 +56,9 @@ export type {
   VariableAggregatorNodeData,
   QuestionClassifierNodeData,
   TemplateTransformNodeData,
+  HttpRequestNodeData,
+  VariableAssignerNodeData,
+  AnswerNodeData,
 };
 
 // Base config props interface

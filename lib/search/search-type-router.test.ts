@@ -14,7 +14,7 @@ import {
   findSimilar,
   autoRouteSearch,
 } from './search-type-router';
-import type { SearchProviderSettings } from '@/types/search';
+import type { SearchProviderSettings, SearchProviderType } from '@/types/search';
 
 // Mock logger
 jest.mock('@/lib/logger', () => ({
@@ -60,6 +60,14 @@ jest.mock('./providers/serpapi', () => ({
   searchImagesWithSerpAPI: jest.fn().mockResolvedValue({ provider: 'serpapi', results: [] }),
 }));
 
+jest.mock('./providers/serper', () => ({
+  searchWithSerper: jest.fn().mockResolvedValue({ provider: 'serper', results: [] }),
+  searchNewsWithSerper: jest.fn().mockResolvedValue({ provider: 'serper', results: [] }),
+  searchImagesWithSerper: jest.fn().mockResolvedValue({ provider: 'serper', results: [], images: [] }),
+  searchVideosWithSerper: jest.fn().mockResolvedValue({ provider: 'serper', results: [] }),
+  searchScholarWithSerper: jest.fn().mockResolvedValue({ provider: 'serper', results: [] }),
+}));
+
 jest.mock('./providers/exa', () => ({
   searchWithExa: jest.fn().mockResolvedValue({ provider: 'exa', results: [] }),
   findSimilarWithExa: jest.fn().mockResolvedValue({ provider: 'exa', results: [] }),
@@ -78,17 +86,20 @@ jest.mock('./providers/google-ai', () => ({
   searchWithGoogleAI: jest.fn().mockResolvedValue({ provider: 'google-ai', results: [] }),
 }));
 
+import { searchWithGoogle } from './providers/google';
+
 describe('search-type-router', () => {
   const createMockSettings = (
-    overrides: Partial<Record<string, Partial<SearchProviderSettings>>> = {}
-  ): Record<string, SearchProviderSettings> => ({
+    overrides: Partial<Record<SearchProviderType, Partial<SearchProviderSettings>>> = {}
+  ): Partial<Record<SearchProviderType, SearchProviderSettings>> => ({
     tavily: { providerId: 'tavily', apiKey: 'tavily-key', enabled: true, priority: 1, ...overrides.tavily },
     brave: { providerId: 'brave', apiKey: 'brave-key', enabled: true, priority: 2, ...overrides.brave },
     bing: { providerId: 'bing', apiKey: 'bing-key', enabled: true, priority: 3, ...overrides.bing },
-    google: { providerId: 'google', apiKey: 'google-key', enabled: false, priority: 4, ...overrides.google },
+    google: { providerId: 'google', apiKey: 'google-key', cx: 'test-cx', enabled: false, priority: 4, ...overrides.google },
     searchapi: { providerId: 'searchapi', apiKey: 'searchapi-key', enabled: true, priority: 5, ...overrides.searchapi },
-    exa: { providerId: 'exa', apiKey: 'exa-key', enabled: true, priority: 6, ...overrides.exa },
-  } as Record<string, SearchProviderSettings>);
+    serper: { providerId: 'serper', apiKey: 'serper-key', enabled: true, priority: 6, ...overrides.serper },
+    exa: { providerId: 'exa', apiKey: 'exa-key', enabled: true, priority: 7, ...overrides.exa },
+  });
 
   describe('getProvidersForType', () => {
     it('should return all providers for general search', () => {
@@ -103,6 +114,7 @@ describe('search-type-router', () => {
       expect(providers).toContain('brave');
       expect(providers).toContain('bing');
       expect(providers).toContain('searchapi');
+      expect(providers).toContain('serper');
     });
 
     it('should return providers that support image search', () => {
@@ -110,11 +122,13 @@ describe('search-type-router', () => {
       expect(providers).toContain('brave');
       expect(providers).toContain('bing');
       expect(providers).toContain('google');
+      expect(providers).toContain('serper');
     });
 
     it('should return providers that support video search', () => {
       const providers = getProvidersForType('videos');
       expect(providers).toContain('brave');
+      expect(providers).toContain('serper');
     });
 
     it('should return providers that support academic search', () => {
@@ -172,6 +186,15 @@ describe('search-type-router', () => {
       expect(provider).toBe('brave');
     });
 
+    it('should skip google when cx is missing', () => {
+      const settings = createMockSettings({
+        google: { enabled: true, priority: 1, cx: '' },
+        tavily: { enabled: true, priority: 2 },
+      });
+      const provider = getBestProviderForType('general', settings);
+      expect(provider).toBe('tavily');
+    });
+
     it('should return null if no provider available', () => {
       const settings = createMockSettings({
         tavily: { enabled: false },
@@ -179,6 +202,7 @@ describe('search-type-router', () => {
         bing: { enabled: false },
         google: { enabled: false },
         searchapi: { enabled: false },
+        serper: { enabled: false },
         exa: { enabled: false },
       });
       const provider = getBestProviderForType('general', settings);
@@ -197,45 +221,114 @@ describe('search-type-router', () => {
 
   describe('routeSearch', () => {
     it('should route general search to provider', async () => {
-      const result = await routeSearch('test query', 'brave', 'api-key');
+      const result = await routeSearch('test query', 'brave', {
+        providerId: 'brave',
+        apiKey: 'api-key',
+        enabled: true,
+        priority: 1,
+      });
       expect(result.provider).toBe('brave');
     });
 
     it('should route news search to news function', async () => {
-      const result = await routeSearch('test query', 'brave', 'api-key', { searchType: 'news' });
+      const result = await routeSearch('test query', 'brave', {
+        providerId: 'brave',
+        apiKey: 'api-key',
+        enabled: true,
+        priority: 1,
+      }, { searchType: 'news' });
       expect(result.provider).toBe('brave');
     });
 
     it('should throw for unknown provider', async () => {
       await expect(
-        routeSearch('test query', 'unknown' as never, 'api-key')
+        routeSearch('test query', 'unknown' as never, {
+          providerId: 'tavily',
+          apiKey: 'api-key',
+          enabled: true,
+          priority: 1,
+        })
       ).rejects.toThrow('Unknown provider');
     });
 
     it('should fallback to general search for unsupported type', async () => {
-      const result = await routeSearch('test query', 'tavily', 'api-key', { searchType: 'videos' });
+      const result = await routeSearch('test query', 'tavily', {
+        providerId: 'tavily',
+        apiKey: 'api-key',
+        enabled: true,
+        priority: 1,
+      }, { searchType: 'videos' });
       expect(result.provider).toBe('tavily');
+    });
+
+    it('should throw when google cx is missing', async () => {
+      await expect(
+        routeSearch('test query', 'google', {
+          providerId: 'google',
+          apiKey: 'api-key',
+          enabled: true,
+          priority: 1,
+        })
+      ).rejects.toThrow('cx');
+    });
+
+    it('should inject cx when routing google provider', async () => {
+      (searchWithGoogle as jest.Mock).mockResolvedValueOnce({ provider: 'google', results: [] });
+
+      await routeSearch('test query', 'google', {
+        providerId: 'google',
+        apiKey: 'api-key',
+        cx: 'my-cx',
+        enabled: true,
+        priority: 1,
+      }, { maxResults: 3, language: 'en', recency: 'day' });
+
+      expect(searchWithGoogle).toHaveBeenCalledWith(
+        'test query',
+        'api-key',
+        expect.objectContaining({ cx: 'my-cx', maxResults: 3, language: 'en', recency: 'day' })
+      );
     });
   });
 
   describe('convenience functions', () => {
     it('searchNews should route with news type', async () => {
-      const result = await searchNews('news query', 'brave', 'api-key');
+      const result = await searchNews('news query', 'brave', {
+        providerId: 'brave',
+        apiKey: 'api-key',
+        enabled: true,
+        priority: 1,
+      });
       expect(result).toBeDefined();
     });
 
     it('searchImages should route with images type', async () => {
-      const result = await searchImages('image query', 'brave', 'api-key');
+      const result = await searchImages('image query', 'brave', {
+        providerId: 'brave',
+        apiKey: 'api-key',
+        enabled: true,
+        priority: 1,
+      });
       expect(result).toBeDefined();
     });
 
     it('searchVideos should use brave', async () => {
-      const result = await searchVideos('video query', 'api-key');
+      const result = await searchVideos('video query', 'brave', {
+        providerId: 'brave',
+        apiKey: 'api-key',
+        enabled: true,
+        priority: 1,
+      });
       expect(result).toBeDefined();
     });
 
     it('searchAcademic should use specified provider', async () => {
-      const result = await searchAcademic('academic query', 'searchapi', 'api-key');
+      const result = await searchAcademic('academic query', 'searchapi', {
+        providerId: 'searchapi',
+        apiKey: 'api-key',
+        enabled: true,
+        priority: 1,
+      });
       expect(result).toBeDefined();
     });
 
@@ -259,6 +352,7 @@ describe('search-type-router', () => {
         bing: { enabled: false },
         google: { enabled: false },
         searchapi: { enabled: false },
+        serper: { enabled: false },
         exa: { enabled: false },
       });
 

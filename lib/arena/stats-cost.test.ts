@@ -28,10 +28,10 @@ describe('computeEstimatedCost', () => {
   });
 
   it('should compute cost for deepseek:deepseek-chat', () => {
-    // deepseek-chat: input=$0.14/1M, output=$0.28/1M
+    // deepseek-chat: input=$0.27/1M, output=$1.1/1M
     const cost = computeEstimatedCost('deepseek', 'deepseek-chat', 5000, 3000);
-    // Expected: (5000 * 0.14 + 3000 * 0.28) / 1_000_000 = (700 + 840) / 1_000_000 = 0.00154
-    expect(cost).toBeCloseTo(0.00154, 6);
+    // Expected: (5000 * 0.27 + 3000 * 1.1) / 1_000_000 = (1350 + 3300) / 1_000_000 = 0.00465
+    expect(cost).toBeCloseTo(0.00465, 6);
   });
 
   it('should return undefined for unknown model', () => {

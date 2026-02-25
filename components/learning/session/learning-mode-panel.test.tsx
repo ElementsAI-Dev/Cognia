@@ -37,6 +37,10 @@ jest.mock('./learning-path-dashboard', () => ({
   LearningPathDashboard: () => <div data-testid="path-dashboard">Path Dashboard</div>,
 }));
 
+jest.mock('./learning-settings-dialog', () => ({
+  LearningSettingsDialog: () => null,
+}));
+
 // Mock translations
 const messages = {
   learningMode: {

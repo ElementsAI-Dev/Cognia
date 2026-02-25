@@ -20,6 +20,15 @@ jest.mock('@/lib/learning', () => ({
     category: 'concept',
     confidence: 80,
   })),
+  getTemplateById: jest.fn(() => ({
+    id: 'builtin-socratic',
+    name: 'Socratic Tutor',
+    description: 'Pure questioning',
+    approach: 'socratic',
+    basePrompt: 'You are a Socratic mentor...',
+    language: 'en',
+    isBuiltIn: true,
+  })),
 }));
 
 // Mock translations
@@ -73,6 +82,25 @@ describe('LearningStartDialog', () => {
     (useLearningMode as jest.Mock).mockReturnValue({
       startLearning: mockStartLearning,
       isLearningActive: false,
+      config: {
+        activeTemplateId: 'builtin-socratic',
+        promptLanguage: 'auto',
+        responseLanguage: 'match-ui',
+        maxHintsPerQuestion: 3,
+        hintDelayMessages: 2,
+        enableProgressiveHints: true,
+        enableEncouragement: true,
+        autoGenerateSummary: true,
+        includeKeyTakeaways: true,
+        enableAdaptiveDifficulty: true,
+        difficultyAdjustThreshold: 3,
+        enableSpacedRepetition: true,
+        defaultReviewIntervalDays: 1,
+        enableAutoNotes: false,
+        autoHighlightInsights: true,
+        enableAIAnalysis: true,
+        analysisDepth: 'standard',
+      },
     });
   });
 

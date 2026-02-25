@@ -93,6 +93,15 @@ jest.mock('@/types/arena', () => ({
   remoteToLocalRating: jest.fn((r: unknown) => r),
 }));
 
+// Mock groupIntoTiers from bootstrap
+jest.mock('@/lib/ai/arena/bootstrap', () => ({
+  groupIntoTiers: jest.fn(() => [
+    { tier: 0, models: ['gpt-4'] },
+    { tier: 1, models: ['claude-3'] },
+    { tier: 2, models: ['gemini-pro'] },
+  ]),
+}));
+
 // Mock UI components
 jest.mock('@/components/ui/card', () => ({
   Card: ({ children }: { children: React.ReactNode }) => <div data-testid="card">{children}</div>,
@@ -214,5 +223,15 @@ describe('ArenaLeaderboard', () => {
     expect(screen.getAllByText('openai').length).toBeGreaterThan(0);
     expect(screen.getAllByText('anthropic').length).toBeGreaterThan(0);
     expect(screen.getAllByText('google').length).toBeGreaterThan(0);
+  });
+
+  it('renders tier badges for models', () => {
+    render(<ArenaLeaderboard />);
+    const badges = screen.getAllByTestId('badge');
+    // Should have tier badges (S, A, B) for the 3 models
+    const tierTexts = badges.map((b) => b.textContent);
+    expect(tierTexts).toContain('leaderboard.tiers.S');
+    expect(tierTexts).toContain('leaderboard.tiers.A');
+    expect(tierTexts).toContain('leaderboard.tiers.B');
   });
 });

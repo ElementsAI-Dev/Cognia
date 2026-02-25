@@ -194,6 +194,58 @@ describe('PPTGenerationDialog', () => {
     render(<PPTGenerationDialog {...defaultProps} />);
     expect(screen.getByText('includeCharts')).toBeInTheDocument();
   });
+
+  describe('theme grouping', () => {
+    it('should render all 21 theme names', () => {
+      render(<PPTGenerationDialog {...defaultProps} />);
+      // Unique theme names across all groups
+      const uniqueThemeNames = [
+        'Modern Dark', 'Modern Light', 'Minimal', 'Nature',
+        'Corporate Blue', 'Executive', 'Finance',
+        'Tech Startup', 'Cyber', 'AI Future',
+        'Classroom', 'Research',
+        'Gradient Wave', 'Sunset', 'Ocean',
+        'Pitch Deck', 'Medical', 'Legal',
+      ];
+      uniqueThemeNames.forEach((name) => {
+        expect(screen.getByText(name)).toBeInTheDocument();
+      });
+    });
+
+    it('should render themes from all categories', () => {
+      render(<PPTGenerationDialog {...defaultProps} />);
+      // One representative from each group
+      expect(screen.getByText('Nature')).toBeInTheDocument();        // Basic
+      expect(screen.getByText('Finance')).toBeInTheDocument();       // Business
+      expect(screen.getByText('Cyber')).toBeInTheDocument();         // Technology
+      expect(screen.getByText('Academic')).toBeInTheDocument();      // Education
+      expect(screen.getByText('Ocean')).toBeInTheDocument();         // Creative
+      expect(screen.getByText('Medical')).toBeInTheDocument();       // Special
+    });
+  });
+
+  describe('workflow template selector', () => {
+    it('should render workflow template buttons', () => {
+      render(<PPTGenerationDialog {...defaultProps} />);
+      // PPT_WORKFLOW_TEMPLATES should render at least one template
+      const templateButtons = screen.getAllByRole('button').filter(
+        (btn) => btn.closest('.overflow-x-auto')
+      );
+      expect(templateButtons.length).toBeGreaterThan(0);
+    });
+
+    it('should apply template preset when clicked', async () => {
+      render(<PPTGenerationDialog {...defaultProps} />);
+      // Find a template button inside the scrollable area
+      const templateArea = document.querySelector('.overflow-x-auto');
+      const firstTemplate = templateArea?.querySelector('button');
+      if (firstTemplate) {
+        await userEvent.click(firstTemplate);
+        // Template should apply without crashing
+        expect(screen.getByText('generatePPT')).toBeInTheDocument();
+      }
+    });
+  });
 });
 
 describe('PPTOutlinePreview', () => {

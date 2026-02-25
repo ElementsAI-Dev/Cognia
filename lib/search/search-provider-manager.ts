@@ -15,7 +15,7 @@ import type {
   SearchOptions,
   SearchResponse,
 } from '@/types/search';
-import { getEnabledProviders, SEARCH_PROVIDERS } from '@/types/search';
+import { getEnabledProviders, isProviderConfigured, SEARCH_PROVIDERS } from '@/types/search';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.network;
@@ -162,7 +162,7 @@ export class SearchProviderManager {
       settings[key] = value;
     });
 
-    const enabled = getEnabledProviders(settings as Record<SearchProviderType, SearchProviderSettings>);
+    const enabled = getEnabledProviders(settings);
 
     switch (this.config.strategy) {
       case 'priority':
@@ -468,13 +468,13 @@ export class SearchProviderManager {
 
     const promises = Array.from(this.providerSettings.entries()).map(
       async ([providerId, settings]) => {
-        if (!settings.enabled || !settings.apiKey) {
+        if (!settings.enabled || !isProviderConfigured(providerId, settings)) {
           results.set(providerId, false);
           return;
         }
 
         try {
-          const isHealthy = await testProviderConnection(providerId, settings.apiKey);
+          const isHealthy = await testProviderConnection(providerId, settings.apiKey, settings);
           results.set(providerId, isHealthy);
 
           const metrics = this.metrics.get(providerId);

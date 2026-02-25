@@ -3,7 +3,7 @@
  * Extracted from components/settings/system/search-settings.tsx
  */
 
-import type { SearchProviderType } from '@/types/search';
+import type { SearchProviderSettings, SearchProviderType } from '@/types/search';
 
 /**
  * Test provider connection via API route (to avoid importing server-only modules)
@@ -13,13 +13,18 @@ import type { SearchProviderType } from '@/types/search';
  */
 export async function testProviderConnection(
   provider: SearchProviderType,
-  apiKey: string
+  apiKey: string,
+  providerSettings?: Partial<SearchProviderSettings>
 ): Promise<boolean> {
   try {
     const response = await fetch('/api/search/test-connection', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider, apiKey }),
+      body: JSON.stringify({
+        provider,
+        apiKey,
+        providerSettings,
+      }),
     });
     if (!response.ok) return false;
     const data = await response.json();

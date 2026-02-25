@@ -99,3 +99,4 @@ export * from './export';
 // ModelSelection exists in both ./provider (auto-router) and ./arena
 export type { TriggerType } from './chat';
 export type { ModelSelection } from './provider';
+export type { PromptTemplate } from './content';

@@ -70,11 +70,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { useLogStream, useLogModules } from '@/hooks/logging';
+import { useLogStream, useLogModules, useAgentTraceAsLogs } from '@/hooks/logging';
+import { useAgentTrace } from '@/hooks/agent-trace/use-agent-trace';
 import { LogStatsDashboard } from './log-stats-dashboard';
 import { LogTimeline } from './log-timeline';
 import { LogDetailPanel } from './log-detail-panel';
+import { AgentTraceTimeline } from '@/components/settings/data/agent-trace-timeline';
+import { AGENT_TRACE_MODULE } from '@/lib/agent-trace/log-adapter';
+import { LIVE_TRACE_EVENT_ICONS, LIVE_TRACE_EVENT_COLORS } from '@/lib/agent';
 import type { StructuredLogEntry, LogLevel } from '@/lib/logger';
+import type { AgentTraceEventType } from '@/types/agent-trace';
 
 // Time range options in milliseconds
 const TIME_RANGES = {
@@ -88,7 +93,7 @@ const TIME_RANGES = {
 
 type TimeRange = keyof typeof TIME_RANGES;
 type ExportFormat = 'json' | 'csv' | 'text';
-type ViewMode = 'list' | 'dashboard';
+type ViewMode = 'list' | 'dashboard' | 'trace';
 
 const BOOKMARKS_STORAGE_KEY = 'cognia-log-bookmarks';
 
@@ -109,6 +114,8 @@ export interface LogPanelProps {
   showTimeline?: boolean;
   /** Filter by specific sources */
   sources?: ('frontend' | 'tauri' | 'mcp' | 'plugin')[];
+  /** Enable agent trace integration in the log panel */
+  includeAgentTrace?: boolean;
 }
 
 const LEVEL_CONFIG: Record<LogLevel, { icon: React.ElementType; color: string; bgColor: string }> =
@@ -202,7 +209,15 @@ function LogEntry({
 }) {
   const [copied, setCopied] = useState(false);
   const config = LEVEL_CONFIG[log.level];
-  const Icon = config.icon;
+  const isTraceEntry = log.module === AGENT_TRACE_MODULE;
+  const TraceIcon = isTraceEntry && log.eventId
+    ? LIVE_TRACE_EVENT_ICONS[log.eventId as AgentTraceEventType]
+    : undefined;
+  const traceColor = isTraceEntry && log.eventId
+    ? LIVE_TRACE_EVENT_COLORS[log.eventId as AgentTraceEventType]
+    : undefined;
+  const Icon = TraceIcon ?? config.icon;
+  const iconColor = traceColor ?? config.color;
 
   const handleCopy = useCallback(() => {
     const text = JSON.stringify(log, null, 2);
@@ -240,7 +255,7 @@ function LogEntry({
           <div className="w-4" />
         )}
 
-        <Icon className={cn('h-4 w-4 mt-0.5 shrink-0', config.color)} />
+        <Icon className={cn('h-4 w-4 mt-0.5 shrink-0', iconColor)} />
 
         <span className="text-xs text-muted-foreground font-mono shrink-0">{timeStr}</span>
 
@@ -577,6 +592,7 @@ export function LogPanel({
   groupByTraceId = false,
   showStats = true,
   showTimeline = true,
+  includeAgentTrace = true,
 }: LogPanelProps) {
   const t = useTranslations('logging');
 
@@ -636,12 +652,38 @@ export function LogPanel({
       autoRefresh,
       refreshInterval,
       level: levelFilter,
-      module: moduleFilter === 'all' ? undefined : moduleFilter,
+      module: moduleFilter === 'all' || moduleFilter === AGENT_TRACE_MODULE ? undefined : moduleFilter,
       searchQuery: deferredSearchQuery || undefined,
       useRegex,
       groupByTraceId,
       maxLogs: 1000,
     });
+
+  // Agent trace integration
+  const agentTraceLogs = useAgentTraceAsLogs({
+    enabled: includeAgentTrace,
+    maxLogs: 200,
+  });
+
+  // Agent trace DB rows for the Trace timeline view
+  const { traces: agentTraceDbRows } = useAgentTrace({
+    limit: includeAgentTrace && viewMode === 'trace' ? 100 : 0,
+  });
+
+  // Merge regular logs with agent trace logs
+  const mergedLogs = useMemo(() => {
+    if (!includeAgentTrace || agentTraceLogs.logs.length === 0) return logs;
+    return [...logs, ...agentTraceLogs.logs]
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 1000);
+  }, [logs, agentTraceLogs.logs, includeAgentTrace]);
+
+  // Augmented module list with agent-trace
+  const augmentedModules = useMemo(() => {
+    if (!includeAgentTrace) return modules;
+    const hasAgentTrace = modules.includes(AGENT_TRACE_MODULE);
+    return hasAgentTrace ? modules : [...modules, AGENT_TRACE_MODULE];
+  }, [modules, includeAgentTrace]);
 
   const toggleExpanded = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -713,12 +755,25 @@ export function LogPanel({
     }
   }, []);
 
-  // Filter logs by time range
+  // Filter logs by time range and module (using merged logs)
   const filteredLogs = useMemo(() => {
-    if (timeRange === 'all') return logs;
-    const cutoff = getTimeRangeCutoff();
-    return logs.filter((log) => new Date(log.timestamp).getTime() >= cutoff);
-  }, [logs, timeRange, getTimeRangeCutoff]);
+    let result = mergedLogs;
+
+    // Filter by module selection
+    if (moduleFilter === AGENT_TRACE_MODULE) {
+      // Show only agent-trace entries
+      result = result.filter((log) => log.module === AGENT_TRACE_MODULE);
+    } else if (moduleFilter !== 'all') {
+      // When a specific regular module is selected, exclude agent-trace entries
+      result = result.filter((log) => log.module !== AGENT_TRACE_MODULE);
+    }
+
+    if (timeRange !== 'all') {
+      const cutoff = getTimeRangeCutoff();
+      result = result.filter((log) => new Date(log.timestamp).getTime() >= cutoff);
+    }
+    return result;
+  }, [mergedLogs, timeRange, getTimeRangeCutoff, moduleFilter]);
 
   // Related logs for the detail panel (same traceId)
   const relatedLogs = useMemo(() => {
@@ -816,6 +871,21 @@ export function LogPanel({
               </TooltipTrigger>
               <TooltipContent>{t('panel.dashboardView')}</TooltipContent>
             </Tooltip>
+            {includeAgentTrace && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={viewMode === 'trace' ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={() => setViewMode('trace')}
+                  >
+                    <Activity className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('panel.traceView')}</TooltipContent>
+              </Tooltip>
+            )}
           </div>
 
           {/* Search with regex toggle */}
@@ -872,9 +942,9 @@ export function LogPanel({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('panel.allModules')}</SelectItem>
-              {modules.map((mod) => (
+              {augmentedModules.map((mod) => (
                 <SelectItem key={mod} value={mod}>
-                  {mod}
+                  {mod === AGENT_TRACE_MODULE ? t('panel.agentTraceModule') : mod}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1053,6 +1123,16 @@ export function LogPanel({
           {viewMode === 'dashboard' ? (
             <ScrollArea className="flex-1" style={{ maxHeight }}>
               <LogStatsDashboard logs={filteredLogs} />
+            </ScrollArea>
+          ) : viewMode === 'trace' ? (
+            <ScrollArea className="flex-1" style={{ maxHeight }}>
+              {agentTraceDbRows.length === 0 ? (
+                <Empty className="py-12">
+                  <EmptyTitle>{t('panel.noTraceEvents')}</EmptyTitle>
+                </Empty>
+              ) : (
+                <AgentTraceTimeline traces={agentTraceDbRows} />
+              )}
             </ScrollArea>
           ) : (
             <VirtualizedLogList

@@ -13,8 +13,20 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { GitBranch, Tag, RefreshCw, Loader2 } from 'lucide-react';
+import {
+  GitBranch,
+  Tag,
+  RefreshCw,
+  Loader2,
+  Search,
+  Copy,
+  CherryIcon,
+  RotateCcw,
+  GitBranchPlus,
+  TagIcon,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -23,6 +35,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import { cn } from '@/lib/utils';
 import { formatCommitDate } from '@/types/system/git';
 import { assignLanes, LANE_WIDTH, NODE_RADIUS, ROW_HEIGHT, SVG_PADDING_LEFT, SVG_PADDING_TOP, LANE_COLORS } from '@/lib/git';
@@ -35,11 +54,35 @@ export function GitCommitGraph({
   selectedCommit,
   onCommitClick,
   onRefresh,
+  onLoadMore,
+  onCherryPick,
+  onRevert,
+  onCreateBranch,
+  onCreateTag,
   isLoading,
   className,
 }: GitCommitGraphProps) {
   const t = useTranslations('git');
   const [hoveredCommit, setHoveredCommit] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter commits by search query
+  const filteredCommits = useMemo(() => {
+    if (!searchQuery.trim()) return commits;
+    const q = searchQuery.toLowerCase();
+    return commits.filter(
+      (c) =>
+        c.message.toLowerCase().includes(q) ||
+        c.author.toLowerCase().includes(q) ||
+        c.shortHash.toLowerCase().includes(q) ||
+        c.hash.toLowerCase().startsWith(q)
+    );
+  }, [commits, searchQuery]);
+
+  const matchedHashes = useMemo(() => {
+    if (!searchQuery.trim()) return null;
+    return new Set(filteredCommits.map((c) => c.hash));
+  }, [filteredCommits, searchQuery]);
 
   const { commits: layoutCommits, maxLane } = useMemo(
     () => assignLanes(commits),
@@ -138,18 +181,31 @@ export function GitCommitGraph({
   return (
     <div className={cn('flex flex-col h-full', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 px-4 py-2 border-b">
+        <div className="flex items-center gap-2 shrink-0">
           <GitBranch className="h-4 w-4" />
           <span className="text-sm font-medium">{t('graph.title')}</span>
           <Badge variant="secondary" className="text-xs">
             {commits.length}
           </Badge>
         </div>
+
+        {/* Search */}
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('graph.searchPlaceholder')}
+            className="h-7 pl-7 text-xs"
+          />
+        </div>
+
         {onRefresh && (
           <Button
             variant="ghost"
             size="sm"
+            className="shrink-0"
             onClick={onRefresh}
             disabled={isLoading}
           >
@@ -179,22 +235,36 @@ export function GitCommitGraph({
               const isSelected = selectedCommit === commit.hash;
               const isHovered = hoveredCommit === commit.hash;
               const isMerge = commit.parents.length > 1;
+              const dimmed = matchedHashes !== null && !matchedHashes.has(commit.hash);
 
               return (
-                <g key={commit.hash}>
-                  {/* Node */}
-                  <circle
-                    cx={cx}
-                    cy={cy}
-                    r={isMerge ? NODE_RADIUS + 1 : NODE_RADIUS}
-                    fill={isSelected || isHovered ? color : 'var(--background)'}
-                    stroke={color}
-                    strokeWidth={isSelected ? 3 : 2}
-                    className="cursor-pointer transition-all"
-                    onMouseEnter={() => setHoveredCommit(commit.hash)}
-                    onMouseLeave={() => setHoveredCommit(null)}
-                    onClick={() => onCommitClick?.(commit)}
-                  />
+                <g key={commit.hash} style={{ opacity: dimmed ? 0.25 : 1 }}>
+                  {/* Node — diamond for merge, circle for normal */}
+                  {isMerge ? (
+                    <polygon
+                      points={`${cx},${cy - NODE_RADIUS - 1} ${cx + NODE_RADIUS + 1},${cy} ${cx},${cy + NODE_RADIUS + 1} ${cx - NODE_RADIUS - 1},${cy}`}
+                      fill={isSelected || isHovered ? color : 'var(--background)'}
+                      stroke={color}
+                      strokeWidth={isSelected ? 3 : 2}
+                      className="cursor-pointer transition-all"
+                      onMouseEnter={() => setHoveredCommit(commit.hash)}
+                      onMouseLeave={() => setHoveredCommit(null)}
+                      onClick={() => onCommitClick?.(commit)}
+                    />
+                  ) : (
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={NODE_RADIUS}
+                      fill={isSelected || isHovered ? color : 'var(--background)'}
+                      stroke={color}
+                      strokeWidth={isSelected ? 3 : 2}
+                      className="cursor-pointer transition-all"
+                      onMouseEnter={() => setHoveredCommit(commit.hash)}
+                      onMouseLeave={() => setHoveredCommit(null)}
+                      onClick={() => onCommitClick?.(commit)}
+                    />
+                  )}
                   {/* Selected ring */}
                   {isSelected && (
                     <circle
@@ -220,14 +290,19 @@ export function GitCommitGraph({
               const isHovered = hoveredCommit === commit.hash;
               const top = SVG_PADDING_TOP + row * ROW_HEIGHT;
 
+              const rowDimmed = matchedHashes !== null && !matchedHashes.has(commit.hash);
+
               return (
-                <Tooltip key={commit.hash}>
+                <ContextMenu key={commit.hash}>
+                  <ContextMenuTrigger asChild>
+                <Tooltip>
                     <TooltipTrigger asChild>
                       <div
                         className={cn(
                           'flex items-center gap-2 px-2 cursor-pointer hover:bg-muted/50 transition-colors',
                           isSelected && 'bg-primary/10',
-                          isHovered && 'bg-muted/30'
+                          isHovered && 'bg-muted/30',
+                          rowDimmed && 'opacity-25'
                         )}
                         style={{ height: ROW_HEIGHT, marginTop: row === 0 ? top - ROW_HEIGHT / 2 : 0 }}
                         onClick={() => onCommitClick?.(commit)}
@@ -291,11 +366,59 @@ export function GitCommitGraph({
                       </div>
                     </TooltipContent>
                   </Tooltip>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuItem onClick={() => navigator.clipboard.writeText(commit.hash)}>
+                      <Copy className="h-3.5 w-3.5 mr-2" />
+                      {t('graph.copyHash')}
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    {onCherryPick && (
+                      <ContextMenuItem onClick={() => onCherryPick(commit.hash)}>
+                        <CherryIcon className="h-3.5 w-3.5 mr-2" />
+                        {t('graph.cherryPick')}
+                      </ContextMenuItem>
+                    )}
+                    {onRevert && (
+                      <ContextMenuItem onClick={() => onRevert(commit.hash)}>
+                        <RotateCcw className="h-3.5 w-3.5 mr-2" />
+                        {t('graph.revertCommit')}
+                      </ContextMenuItem>
+                    )}
+                    {onCreateBranch && (
+                      <ContextMenuItem onClick={() => onCreateBranch(commit.hash)}>
+                        <GitBranchPlus className="h-3.5 w-3.5 mr-2" />
+                        {t('graph.createBranch')}
+                      </ContextMenuItem>
+                    )}
+                    {onCreateTag && (
+                      <ContextMenuItem onClick={() => onCreateTag(commit.hash)}>
+                        <TagIcon className="h-3.5 w-3.5 mr-2" />
+                        {t('graph.createTag')}
+                      </ContextMenuItem>
+                    )}
+                  </ContextMenuContent>
+                </ContextMenu>
               );
             })}
           </div>
           </TooltipProvider>
         </div>
+
+        {/* Load more */}
+        {onLoadMore && (
+          <div className="flex justify-center py-3 border-t">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={onLoadMore}
+              disabled={isLoading}
+            >
+              {t('graph.loadMore')}
+            </Button>
+          </div>
+        )}
       </ScrollArea>
     </div>
   );

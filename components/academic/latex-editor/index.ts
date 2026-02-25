@@ -20,3 +20,4 @@ export { LatexVoiceDialog } from './latex-voice-dialog';
 export { LatexEquationAnalysis } from './latex-equation-analysis';
 export { TemplateSelector, TemplateDialogContent } from './template-selector';
 export { EditorTextarea, type EditorTextareaConfig } from './editor-textarea';
+export { CodeMirrorEditor, type CodeMirrorEditorHandle } from './codemirror-editor';

@@ -110,6 +110,49 @@ describe('executeWebSearch', () => {
     );
   });
 
+  it('passes searchType and filters through to provider search', async () => {
+    const searchResponse = makeSearchResponse();
+    mockSearchWithProvider.mockResolvedValue(searchResponse);
+
+    const input: WebSearchToolInput = {
+      query: 'test',
+      provider: 'tavily',
+      maxResults: 3,
+      searchDepth: 'advanced',
+      searchType: 'news',
+      recency: 'week',
+      country: 'us',
+      language: 'en',
+      includeDomains: ['example.com'],
+      excludeDomains: ['exclude.com'],
+      includeRawContent: true,
+      includeAnswer: false,
+    };
+
+    const config: WebSearchConfig = { apiKey: 'key' };
+
+    const result = await executeWebSearch(input, config);
+
+    expect(result.success).toBe(true);
+    expect(mockSearchWithProvider).toHaveBeenCalledWith(
+      'tavily',
+      'test',
+      'key',
+      expect.objectContaining({
+        maxResults: 3,
+        searchDepth: 'advanced',
+        searchType: 'news',
+        recency: 'week',
+        country: 'us',
+        language: 'en',
+        includeDomains: ['example.com'],
+        excludeDomains: ['exclude.com'],
+        includeRawContent: 'text',
+        includeAnswer: false,
+      })
+    );
+  });
+
   it('searches with provider settings via direct execution', async () => {
     const searchResponse = makeSearchResponse({ provider: 'perplexity' });
     mockSearch.mockResolvedValue(searchResponse);
@@ -406,9 +449,11 @@ describe('webSearchInputSchema', () => {
       'perplexity',
       'exa',
       'searchapi',
+      'serper',
       'serpapi',
       'bing',
       'google',
+      'google-ai',
       'brave',
     ];
 

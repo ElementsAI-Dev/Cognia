@@ -44,6 +44,7 @@ import {
 } from '@/types/scheduler';
 import { validateCronExpression, describeCronExpression, formatCronExpression, parseCronExpression } from '@/lib/scheduler/cron-parser';
 import { testNotificationChannel } from '@/lib/scheduler/notification-integration';
+import { TASK_TEMPLATES, TEMPLATE_CATEGORIES, type TaskTemplate } from '@/lib/scheduler/task-templates';
 
 interface TaskFormProps {
   initialValues?: Partial<CreateScheduledTaskInput>;
@@ -57,6 +58,10 @@ const TASK_TYPES: Array<{ value: ScheduledTaskType; label: string; labelZh: stri
   { value: 'agent', label: 'AI Agent', labelZh: 'AI 代理' },
   { value: 'sync', label: 'Data Sync', labelZh: '数据同步' },
   { value: 'backup', label: 'Backup', labelZh: '备份' },
+  { value: 'script', label: 'Script', labelZh: '脚本' },
+  { value: 'ai-generation', label: 'AI Generation', labelZh: 'AI 生成' },
+  { value: 'chat', label: 'Chat', labelZh: '聊天' },
+  { value: 'test', label: 'Test / Health Check', labelZh: '测试/健康检查' },
   { value: 'custom', label: 'Custom', labelZh: '自定义' },
   { value: 'plugin', label: 'Plugin', labelZh: '插件' },
 ];
@@ -174,6 +179,32 @@ export function TaskForm({
     } catch (err) {
       updateForm({ notificationTestResult: { channel, success: false, error: err instanceof Error ? err.message : 'Test failed' }, isTestingNotification: false });
     }
+  }, []);
+
+  // Apply task template to fill form
+  const applyTemplate = useCallback((template: TaskTemplate) => {
+    const input = template.getInput();
+    updateForm({
+      name: input.name,
+      description: input.description || '',
+      taskType: input.type,
+      triggerType: input.trigger.type,
+      cronExpression: input.trigger.cronExpression || '0 9 * * *',
+      timezone: input.trigger.timezone || 'UTC',
+      intervalMinutes: input.trigger.intervalMs ? input.trigger.intervalMs / 60000 : 60,
+      payloadJson: input.payload ? JSON.stringify(input.payload, null, 2) : '{}',
+      notifyOnStart: input.notification?.onStart ?? false,
+      notifyOnComplete: input.notification?.onComplete ?? true,
+      notifyOnError: input.notification?.onError ?? true,
+      notificationChannels: input.notification?.channels || ['toast'],
+      taskTimeout: input.config?.timeout || DEFAULT_EXECUTION_CONFIG.timeout,
+      maxRetries: input.config?.maxRetries || DEFAULT_EXECUTION_CONFIG.maxRetries,
+      retryDelay: input.config?.retryDelay || DEFAULT_EXECUTION_CONFIG.retryDelay,
+      nameError: null,
+      cronError: null,
+      payloadError: null,
+      triggerError: null,
+    });
   }, []);
 
   // Handle cron preset selection
@@ -296,6 +327,50 @@ export function TaskForm({
 
   return (
     <div className="space-y-4 sm:space-y-5" data-testid="scheduler-task-form">
+      {/* Template Quick Create */}
+      {!initialValues?.name && (
+        <Collapsible>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-xl border border-dashed border-primary/30 bg-primary/5 px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+            >
+              <span>{t('templates') || 'Quick Create from Template'}</span>
+              <ChevronDown className="h-4 w-4" />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2">
+            <div className="space-y-3">
+              {TEMPLATE_CATEGORIES.map((cat) => {
+                const templates = TASK_TEMPLATES.filter((tpl) => tpl.category === cat.value);
+                if (templates.length === 0) return null;
+                return (
+                  <div key={cat.value}>
+                    <p className="mb-1.5 text-xs font-medium text-muted-foreground">{cat.label}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {templates.map((tpl) => (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          onClick={() => applyTemplate(tpl)}
+                          className="flex items-center gap-2.5 rounded-lg border bg-card p-2.5 text-left text-sm transition-all hover:border-primary/50 hover:bg-accent"
+                        >
+                          <span className="text-base">{tpl.icon}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium">{tpl.name}</p>
+                            <p className="truncate text-xs text-muted-foreground">{tpl.description}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+
       {/* Basic Info Section */}
       <div className="rounded-xl border bg-gradient-to-br from-card to-card/50 p-3 sm:p-4 shadow-sm">
         <div className="mb-4 flex items-center gap-2">

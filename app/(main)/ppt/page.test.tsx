@@ -181,12 +181,22 @@ describe('PPT Page with presentations', () => {
           { id: 's4', order: 3, layout: 'title', title: 'S4' },
           { id: 's5', order: 4, layout: 'title', title: 'S5' },
         ],
-        theme: { id: 'default', name: 'Default' },
+        theme: {
+          id: 'default',
+          name: 'Default',
+          primaryColor: '#3B82F6',
+          secondaryColor: '#1E40AF',
+          accentColor: '#60A5FA',
+          backgroundColor: '#FFFFFF',
+          textColor: '#1E293B',
+          headingFont: 'Inter',
+          bodyFont: 'Inter',
+          codeFont: 'JetBrains Mono',
+        },
         aspectRatio: '16:9',
       },
     };
 
-     
     const { useWorkflowStore } = require('@/stores');
     useWorkflowStore.mockImplementation((selector: (state: unknown) => unknown) => {
       const state = {
@@ -210,8 +220,8 @@ describe('PPT Page with presentations', () => {
     render(<PPTPage />);
 
     await waitFor(() => {
-      // Look for the slides count using flexible matcher
-      expect(screen.getByText(/5/)).toBeInTheDocument();
+      // Match "5 slides" text in presentation cards
+      expect(screen.getByText(/5\s+slides/)).toBeInTheDocument();
     });
   });
 });

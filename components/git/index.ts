@@ -16,4 +16,8 @@ export { GitStatsDashboard } from './git-stats-dashboard';
 export { GitCheckpointPanel } from './git-checkpoint-panel';
 export { GitTagPanel } from './git-tag-panel';
 export { GitRemotePanel } from './git-remote-panel';
+export { GitBlameViewer } from './git-blame-viewer';
+export { GitCommitDetailPanel } from './git-commit-detail-panel';
+export { GitFileHistory } from './git-file-history';
+export { GitCommitSearch } from './git-commit-search';
 export { GitignoreTemplateSelector } from './gitignore-template-selector';

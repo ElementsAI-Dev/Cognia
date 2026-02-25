@@ -54,6 +54,18 @@ export function unregisterTaskExecutor(taskType: string): void {
 /**
  * Task Scheduler class
  */
+const EXECUTION_CHANNEL_NAME = 'cognia-scheduler-executions';
+
+export type ExecutionStatusEvent = {
+  type: 'execution-update';
+  taskId: string;
+  executionId: string;
+  status: TaskExecution['status'];
+  taskName: string;
+  duration?: number;
+  error?: string;
+};
+
 class TaskSchedulerImpl {
   private timers: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private runningExecutions: Map<string, TaskExecution> = new Map();
@@ -62,6 +74,7 @@ class TaskSchedulerImpl {
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
   private leaderUnsubscribe: (() => void) | null = null;
   private visibilityHandler: (() => void) | null = null;
+  private executionChannel: BroadcastChannel | null = null;
 
   /**
    * Initialize the scheduler
@@ -96,6 +109,13 @@ class TaskSchedulerImpl {
 
       // Start auto-cleanup for old executions (runs every 24 hours)
       this.startAutoCleanup();
+
+      // Initialize BroadcastChannel for real-time execution status updates
+      try {
+        this.executionChannel = new BroadcastChannel(EXECUTION_CHANNEL_NAME);
+      } catch {
+        log.warn('BroadcastChannel not available for execution status updates');
+      }
 
       // Visibility-aware scheduling: catch up on missed tasks when tab becomes visible
       if (typeof document !== 'undefined') {
@@ -250,8 +270,31 @@ class TaskSchedulerImpl {
       this.cleanupInterval = null;
     }
 
+    // Close execution channel
+    try {
+      this.executionChannel?.close();
+    } catch { /* ignore */ }
+    this.executionChannel = null;
+
     this.isInitialized = false;
     log.info('Task scheduler stopped');
+  }
+
+  /**
+   * Broadcast execution status change via BroadcastChannel
+   */
+  private broadcastExecutionStatus(execution: TaskExecution): void {
+    try {
+      this.executionChannel?.postMessage({
+        type: 'execution-update',
+        taskId: execution.taskId,
+        executionId: execution.id,
+        status: execution.status,
+        taskName: execution.taskName,
+        duration: execution.duration,
+        error: execution.error,
+      } satisfies ExecutionStatusEvent);
+    } catch { /* channel closed or unavailable */ }
   }
 
   /**
@@ -533,6 +576,7 @@ class TaskSchedulerImpl {
 
     this.runningExecutions.set(task.id, execution);
     await schedulerDb.createExecution(execution);
+    this.broadcastExecutionStatus(execution);
 
     // Notify start
     if (task.notification.onStart) {
@@ -607,6 +651,13 @@ class TaskSchedulerImpl {
       } catch { /* plugin system may not be initialized */ }
 
       log.info(`Task ${task.name} ${result.success ? 'completed' : 'failed'} in ${execution.duration}ms`);
+
+      // Trigger dependent tasks on success
+      if (result.success) {
+        this.triggerDependentTasks(task.id).catch((err) => {
+          log.error('Failed to trigger dependent tasks:', err);
+        });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       
@@ -647,6 +698,7 @@ class TaskSchedulerImpl {
     } finally {
       this.runningExecutions.delete(task.id);
       await schedulerDb.updateExecution(execution);
+      this.broadcastExecutionStatus(execution);
 
       // Schedule next run
       await this.updateNextRunTime(task);
@@ -790,6 +842,71 @@ class TaskSchedulerImpl {
     };
   }
 
+  /** Track task IDs currently being triggered via dependency chain to detect cycles */
+  private dependencyChainVisited: Set<string> = new Set();
+
+  /**
+   * Trigger tasks that depend on the completed task.
+   * Includes cycle detection to prevent infinite loops.
+   */
+  private async triggerDependentTasks(completedTaskId: string): Promise<void> {
+    // Cycle detection: if this task is already in the chain, abort
+    if (this.dependencyChainVisited.has(completedTaskId)) {
+      log.warn(`Dependency cycle detected at task ${completedTaskId}, aborting chain`);
+      return;
+    }
+
+    this.dependencyChainVisited.add(completedTaskId);
+
+    try {
+      const activeTasks = await schedulerDb.getTasksByStatus('active');
+      const dependentTasks = activeTasks.filter(
+        (t) => t.trigger.dependsOn && t.trigger.dependsOn.includes(completedTaskId)
+      );
+
+      for (const depTask of dependentTasks) {
+        // Skip if this dependent task is already in the chain (another cycle check)
+        if (this.dependencyChainVisited.has(depTask.id)) {
+          log.warn(`Skipping task "${depTask.name}" to prevent dependency cycle`);
+          continue;
+        }
+
+        const allDepsComplete = await this.checkAllDependenciesComplete(depTask);
+        if (allDepsComplete) {
+          log.info(`All dependencies met for task "${depTask.name}", triggering execution`);
+          this.executeTask(depTask).catch((err) => {
+            log.error(`Error executing dependent task ${depTask.name}:`, err);
+          });
+        }
+      }
+    } catch (error) {
+      log.error('Error checking dependent tasks:', error);
+    } finally {
+      this.dependencyChainVisited.delete(completedTaskId);
+    }
+  }
+
+  /**
+   * Check if all dependency tasks have completed successfully (most recent execution)
+   */
+  private async checkAllDependenciesComplete(task: ScheduledTask): Promise<boolean> {
+    const deps = task.trigger.dependsOn;
+    if (!deps || deps.length === 0) return true;
+
+    for (const depTaskId of deps) {
+      const depTask = await schedulerDb.getTask(depTaskId);
+      if (!depTask) return false;
+      if (!depTask.lastRunAt) return false;
+
+      const executions = await schedulerDb.getTaskExecutions(depTaskId, 1);
+      if (executions.length === 0) return false;
+
+      const lastExec = executions[0];
+      if (lastExec.status !== 'completed') return false;
+    }
+    return true;
+  }
+
   /**
    * Trigger an event-based task
    */
@@ -810,6 +927,95 @@ class TaskSchedulerImpl {
         });
       }
     }
+  }
+
+  /**
+   * Export all tasks as a JSON-serializable object (excludes execution history)
+   */
+  async exportTasks(taskIds?: string[]): Promise<{ version: number; exportedAt: string; tasks: ScheduledTask[] }> {
+    let tasks: ScheduledTask[];
+    if (taskIds && taskIds.length > 0) {
+      const allTasks = await schedulerDb.getAllTasks();
+      tasks = allTasks.filter((t) => taskIds.includes(t.id));
+    } else {
+      tasks = await schedulerDb.getAllTasks();
+    }
+
+    return {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      tasks,
+    };
+  }
+
+  /**
+   * Import tasks from an exported JSON object
+   * @param mode 'merge' keeps existing tasks, 'replace' deletes all before import
+   */
+  async importTasks(
+    data: { version: number; tasks: ScheduledTask[] },
+    mode: 'merge' | 'replace' = 'merge'
+  ): Promise<{ imported: number; skipped: number; errors: string[] }> {
+    const result = { imported: 0, skipped: 0, errors: [] as string[] };
+
+    if (!data?.version || !Array.isArray(data.tasks)) {
+      result.errors.push('Invalid import format: missing version or tasks array');
+      return result;
+    }
+
+    if (mode === 'replace') {
+      const existingTasks = await schedulerDb.getAllTasks();
+      for (const task of existingTasks) {
+        this.unscheduleTask(task.id);
+        await schedulerDb.deleteTask(task.id);
+      }
+    }
+
+    for (const task of data.tasks) {
+      try {
+        if (!task.name || !task.type || !task.trigger) {
+          result.errors.push(`Skipped invalid task: ${task.name || task.id || 'unknown'}`);
+          result.skipped++;
+          continue;
+        }
+
+        if (mode === 'merge') {
+          const existing = await schedulerDb.getTask(task.id);
+          if (existing) {
+            result.skipped++;
+            continue;
+          }
+        }
+
+        const importedTask: ScheduledTask = {
+          ...task,
+          createdAt: new Date(task.createdAt),
+          updatedAt: new Date(),
+          lastRunAt: undefined,
+          nextRunAt: undefined,
+          runCount: 0,
+          successCount: 0,
+          failureCount: 0,
+          lastError: undefined,
+          status: 'active',
+        };
+
+        importedTask.nextRunAt = this.calculateNextRunTime(importedTask);
+        await schedulerDb.createTask(importedTask);
+
+        if (importedTask.status === 'active' && isLeaderTab()) {
+          await this.scheduleTask(importedTask);
+        }
+
+        result.imported++;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        result.errors.push(`Failed to import task "${task.name}": ${msg}`);
+      }
+    }
+
+    log.info(`Import complete: ${result.imported} imported, ${result.skipped} skipped, ${result.errors.length} errors`);
+    return result;
   }
 
   /**

@@ -2340,6 +2340,8 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
             getActiveSkills,
             activateSkill,
             getLearningSessionByChat,
+            getLearningConfig: () => useLearningStore.getState().config,
+            getLearningPromptTemplates: () => useLearningStore.getState().promptTemplates,
             updateSession,
           },
           formatSearchResults

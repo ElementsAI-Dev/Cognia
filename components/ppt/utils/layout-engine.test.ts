@@ -176,6 +176,112 @@ describe('Layout Engine', () => {
       });
       expect(result).toBe('bullets');
     });
+
+    it('should suggest chart when hasChart is true', () => {
+      const result = suggestLayout({
+        title: 'Revenue',
+        hasChart: true,
+      });
+      expect(result).toBe('chart');
+    });
+
+    it('should suggest table when hasTable is true', () => {
+      const result = suggestLayout({
+        title: 'Data',
+        hasTable: true,
+      });
+      expect(result).toBe('table');
+    });
+
+    it('should suggest full-image for single image without bullets', () => {
+      const result = suggestLayout({
+        title: 'Hero',
+        images: ['img.jpg'],
+      });
+      expect(result).toBe('full-image');
+    });
+
+    it('should suggest comparison from content keywords', () => {
+      const result = suggestLayout({
+        title: 'Title',
+        content: 'Feature A vs Feature B comparison',
+      });
+      expect(result).toBe('comparison');
+    });
+
+    it('should suggest timeline from content keywords', () => {
+      const result = suggestLayout({
+        title: 'Title',
+        content: 'Step 1: Planning phase begins',
+      });
+      expect(result).toBe('timeline');
+    });
+
+    it('should suggest chart from content keywords', () => {
+      const result = suggestLayout({
+        title: 'Title',
+        content: 'The data shows 50% growth in statistics',
+      });
+      expect(result).toBe('chart');
+    });
+
+    it('should suggest quote from content keywords', () => {
+      const result = suggestLayout({
+        title: 'Title',
+        content: '"Innovation is the key" said the CEO',
+      });
+      expect(result).toBe('quote');
+    });
+
+    it('should suggest two-column for long content', () => {
+      const result = suggestLayout({
+        title: 'Title',
+        content: 'A '.repeat(300),
+      });
+      expect(result).toBe('two-column');
+    });
+
+    it('should suggest numbered for numbered list content', () => {
+      const result = suggestLayout({
+        title: 'Title',
+        content: '1. First item\n2. Second item\n3. Third item',
+      });
+      expect(result).toBe('numbered');
+    });
+
+    it('should suggest bullets for bullet list content', () => {
+      const result = suggestLayout({
+        title: 'Title',
+        content: '- First point\n- Second point\n- Third point',
+      });
+      expect(result).toBe('bullets');
+    });
+
+    it('should avoid 3+ consecutive identical layouts', () => {
+      const result = suggestLayout({
+        title: 'Title',
+        bullets: ['A', 'B', 'C'],
+        previousLayouts: ['bullets', 'bullets'],
+      });
+      expect(result).not.toBe('bullets');
+    });
+
+    it('should allow layout when less than 3 consecutive', () => {
+      const result = suggestLayout({
+        title: 'Title',
+        bullets: ['A', 'B', 'C'],
+        previousLayouts: ['title', 'bullets'],
+      });
+      expect(result).toBe('bullets');
+    });
+
+    it('should default to title-content for simple content string', () => {
+      const result = suggestLayout({
+        title: 'Title',
+        content: 'Simple content here',
+      });
+      expect(result).toBe('title-content');
+    });
   });
 
   describe('calculateSnapGuides', () => {

@@ -25,6 +25,9 @@ export { VariableAggregatorNode } from './variable-aggregator-node';
 export { QuestionClassifierNode } from './question-classifier-node';
 export { TemplateTransformNode } from './template-transform-node';
 export { ChartNode } from './chart-node';
+export { HttpRequestNode } from './http-request-node';
+export { VariableAssignerNode } from './variable-assigner-node';
+export { AnswerNode } from './answer-node';
 
 import { StartNode } from './start-node';
 import { EndNode } from './end-node';
@@ -48,6 +51,9 @@ import { VariableAggregatorNode } from './variable-aggregator-node';
 import { QuestionClassifierNode } from './question-classifier-node';
 import { TemplateTransformNode } from './template-transform-node';
 import { ChartNode } from './chart-node';
+import { HttpRequestNode } from './http-request-node';
+import { VariableAssignerNode } from './variable-assigner-node';
+import { AnswerNode } from './answer-node';
 
 /**
  * Node type to component mapping for React Flow
@@ -82,4 +88,10 @@ export const nodeTypes = {
   areaChart: ChartNode,
   scatterChart: ChartNode,
   radarChart: ChartNode,
+  // Integration nodes
+  httpRequest: HttpRequestNode,
+  // Variable nodes
+  variableAssigner: VariableAssignerNode,
+  // Chatflow nodes
+  answer: AnswerNode,
 };

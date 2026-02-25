@@ -49,7 +49,7 @@ import type {
   LearningCategory,
   LearningPathDuration,
 } from '@/types/learning';
-import { detectLearningType } from '@/lib/learning';
+import { detectLearningType, getTemplateById } from '@/lib/learning';
 import { detectSpeedLearningMode } from '@/lib/learning/speedpass';
 import { cn } from '@/lib/utils';
 import type { LearningSubMode } from '@/types/core/session';
@@ -66,7 +66,8 @@ export const LearningStartDialog = memo(function LearningStartDialog({
   onStart,
 }: LearningStartDialogProps) {
   const t = useTranslations('learningMode');
-  const { startLearning } = useLearningMode();
+  const { startLearning, config } = useLearningMode();
+  const activeTemplateName = getTemplateById(config.activeTemplateId)?.name ?? 'Socratic Tutor';
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const updateSession = useSessionStore((state) => state.updateSession);
 
@@ -239,6 +240,9 @@ export const LearningStartDialog = memo(function LearningStartDialog({
             {t('startDialog.title')}
           </DialogTitle>
           <DialogDescription>{t('startDialog.description')}</DialogDescription>
+          <Badge variant="outline" className="mt-1 w-fit">
+            {activeTemplateName}
+          </Badge>
         </DialogHeader>
 
         <div className="space-y-4 py-4">

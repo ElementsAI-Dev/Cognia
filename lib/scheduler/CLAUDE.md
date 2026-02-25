@@ -108,6 +108,11 @@ await createTask({
 | `sync` | SyncExecutor | Data synchronization |
 | `backup` | BackupExecutor | Backup operations |
 | `custom` | CustomExecutor | User-defined handlers |
+| `plugin` | PluginExecutor | Plugin-registered handlers |
+| `script` | ScriptExecutor | Script execution via sandbox |
+| `ai-generation` | AIGenerationExecutor | AI content generation (summaries, translations) |
+| `chat` | ChatExecutor | Send scheduled messages to chat sessions |
+| `test` | TestExecutor | Health checks, API pings, provider checks |
 
 ## Configuration
 

@@ -11,6 +11,7 @@ import { registerTaskExecutor } from '../task-scheduler';
 import { loggers } from '@/lib/logger';
 import { executePluginTask } from './plugin-executor';
 import { executeScript } from '../script-executor';
+import { nanoid } from 'nanoid';
 
 // Logger
 const log = loggers.app;
@@ -486,6 +487,338 @@ async function executeScriptTask(
 }
 
 /**
+ * AI Generation task executor
+ * Generates AI content on schedule (summaries, translations, reports, etc.)
+ */
+async function executeAIGenerationTask(
+  task: ScheduledTask,
+  _execution: TaskExecution
+): Promise<{ success: boolean; output?: Record<string, unknown>; error?: string }> {
+  try {
+    const {
+      prompt,
+      provider,
+      model,
+      sessionId,
+      generationType,
+      outputFormat,
+    } = task.payload as {
+      prompt?: string;
+      provider?: string;
+      model?: string;
+      sessionId?: string;
+      generationType?: 'summary' | 'translation' | 'report' | 'custom';
+      outputFormat?: 'text' | 'markdown' | 'json';
+    };
+
+    if (!prompt) {
+      return { success: false, error: 'No prompt specified in task payload' };
+    }
+
+    log.info(`Executing AI generation task: ${generationType || 'custom'}`);
+
+    const { useSettingsStore } = await import('@/stores/settings');
+    const settings = useSettingsStore.getState();
+    const resolvedProvider = (provider || settings.defaultProvider) as ProviderName;
+    const providerSettings = settings.providerSettings[resolvedProvider];
+    const resolvedModel = model || providerSettings?.defaultModel || 'gpt-4o';
+
+    const { generateText } = await import('ai');
+    const { getProxyProviderModel } = await import('@/lib/ai/core/proxy-client');
+
+    const modelInstance = getProxyProviderModel(
+      resolvedProvider,
+      resolvedModel,
+      providerSettings?.apiKey || '',
+      providerSettings?.baseURL,
+      true
+    );
+
+    const systemPrompt = generationType === 'summary'
+      ? 'You are a helpful assistant that creates concise summaries.'
+      : generationType === 'translation'
+        ? 'You are a professional translator. Translate the given text accurately.'
+        : generationType === 'report'
+          ? 'You are an analyst that creates detailed reports from data.'
+          : undefined;
+
+    const result = await generateText({
+      model: modelInstance,
+      prompt,
+      ...(systemPrompt ? { system: systemPrompt } : {}),
+      temperature: 0.7,
+    });
+
+    const output: Record<string, unknown> = {
+      generationType: generationType || 'custom',
+      provider: resolvedProvider,
+      model: resolvedModel,
+      outputFormat: outputFormat || 'text',
+      contentLength: result.text?.length || 0,
+      completedAt: new Date().toISOString(),
+    };
+
+    if (sessionId) {
+      output.sessionId = sessionId;
+    }
+
+    if (result.text) {
+      output.content = result.text.substring(0, 2000);
+    }
+
+    return {
+      success: true,
+      output,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error(`AI generation execution failed:`, error);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
+ * Chat task executor
+ * Sends a pre-configured message to a chat session on schedule
+ */
+async function executeChatTask(
+  task: ScheduledTask,
+  _execution: TaskExecution
+): Promise<{ success: boolean; output?: Record<string, unknown>; error?: string }> {
+  try {
+    const {
+      sessionId,
+      message,
+      provider,
+      model,
+      autoReply,
+    } = task.payload as {
+      sessionId?: string;
+      message?: string;
+      provider?: string;
+      model?: string;
+      autoReply?: boolean;
+    };
+
+    if (!message) {
+      return { success: false, error: 'No message specified in task payload' };
+    }
+
+    log.info(`Executing chat task for session: ${sessionId || 'new'}`);
+
+    const { useSessionStore } = await import('@/stores/chat');
+    const sessionStore = useSessionStore.getState();
+
+    let targetSessionId = sessionId;
+
+    if (!targetSessionId) {
+      const newSession = sessionStore.createSession({ title: `Scheduled: ${task.name}` });
+      targetSessionId = newSession.id;
+    }
+
+    sessionStore.setActiveSession(targetSessionId);
+
+    const { useChatStore } = await import('@/stores/chat');
+    const chatStore = useChatStore.getState();
+
+    chatStore.appendMessage({
+      id: nanoid(),
+      role: 'user',
+      content: message,
+      parts: [{ type: 'text', content: message }],
+      createdAt: new Date(),
+    });
+
+    const output: Record<string, unknown> = {
+      sessionId: targetSessionId,
+      messageSent: true,
+      messageLength: message.length,
+      completedAt: new Date().toISOString(),
+    };
+
+    if (autoReply) {
+      const { useSettingsStore } = await import('@/stores/settings');
+      const settings = useSettingsStore.getState();
+      const resolvedProvider = (provider || settings.defaultProvider) as ProviderName;
+      const providerSettings = settings.providerSettings[resolvedProvider];
+      const resolvedModel = model || providerSettings?.defaultModel || 'gpt-4o';
+
+      const { generateText } = await import('ai');
+      const { getProxyProviderModel } = await import('@/lib/ai/core/proxy-client');
+
+      const modelInstance = getProxyProviderModel(
+        resolvedProvider,
+        resolvedModel,
+        providerSettings?.apiKey || '',
+        providerSettings?.baseURL,
+        true
+      );
+
+      const result = await generateText({
+        model: modelInstance,
+        prompt: message,
+        temperature: 0.7,
+      });
+
+      if (result.text) {
+        chatStore.appendMessage({
+          id: nanoid(),
+          role: 'assistant',
+          content: result.text,
+          parts: [{ type: 'text', content: result.text }],
+          createdAt: new Date(),
+        });
+        output.autoReply = true;
+        output.replyLength = result.text.length;
+      }
+    }
+
+    return { success: true, output };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error(`Chat task execution failed:`, error);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
+ * Test task executor
+ * Runs health checks, connectivity tests, or custom validation scripts
+ */
+async function executeTestTask(
+  task: ScheduledTask,
+  _execution: TaskExecution
+): Promise<{ success: boolean; output?: Record<string, unknown>; error?: string }> {
+  try {
+    const {
+      testType,
+      url,
+      expectedStatus,
+      timeout,
+      script,
+      language,
+    } = task.payload as {
+      testType?: 'health-check' | 'api-ping' | 'script' | 'provider-check';
+      url?: string;
+      expectedStatus?: number;
+      timeout?: number;
+      script?: string;
+      language?: string;
+    };
+
+    log.info(`Executing test task: ${testType || 'health-check'}`);
+
+    const results: Record<string, unknown> = {
+      testType: testType || 'health-check',
+      startedAt: new Date().toISOString(),
+    };
+
+    switch (testType) {
+      case 'api-ping': {
+        if (!url) {
+          return { success: false, error: 'No URL specified for API ping test' };
+        }
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeout || 10000);
+        const startTime = Date.now();
+        try {
+          const response = await fetch(url, { signal: controller.signal, method: 'HEAD' });
+          clearTimeout(timer);
+          const responseTime = Date.now() - startTime;
+          const expected = expectedStatus || 200;
+          const isHealthy = response.status === expected;
+          results.url = url;
+          results.statusCode = response.status;
+          results.expectedStatus = expected;
+          results.responseTimeMs = responseTime;
+          results.healthy = isHealthy;
+          return {
+            success: isHealthy,
+            output: results,
+            error: isHealthy ? undefined : `Expected status ${expected}, got ${response.status}`,
+          };
+        } catch (fetchError) {
+          clearTimeout(timer);
+          results.url = url;
+          results.healthy = false;
+          results.error = fetchError instanceof Error ? fetchError.message : String(fetchError);
+          return { success: false, output: results, error: results.error as string };
+        }
+      }
+
+      case 'provider-check': {
+        const { useSettingsStore } = await import('@/stores/settings');
+        const settings = useSettingsStore.getState();
+        const providers = Object.keys(settings.providerSettings);
+        const providerResults: Record<string, boolean> = {};
+
+        for (const providerName of providers) {
+          const providerConfig = settings.providerSettings[providerName as ProviderName];
+          providerResults[providerName] = !!(providerConfig?.apiKey || providerConfig?.baseURL);
+        }
+
+        results.providers = providerResults;
+        results.configuredCount = Object.values(providerResults).filter(Boolean).length;
+        results.totalCount = providers.length;
+        return { success: true, output: results };
+      }
+
+      case 'script': {
+        if (!script || !language) {
+          return { success: false, error: 'Script and language are required for script test' };
+        }
+        const scriptResult = await executeScript({
+          type: 'execute_script',
+          language,
+          code: script,
+          timeout_secs: (timeout || 30000) / 1000,
+        });
+        results.scriptResult = {
+          success: scriptResult.success,
+          exit_code: scriptResult.exit_code,
+          stdout: scriptResult.stdout,
+          stderr: scriptResult.stderr,
+        };
+        return {
+          success: scriptResult.success,
+          output: results,
+          error: scriptResult.error,
+        };
+      }
+
+      case 'health-check':
+      default: {
+        const checks: Record<string, boolean> = {};
+
+        checks.indexedDB = typeof indexedDB !== 'undefined';
+        checks.localStorage = typeof localStorage !== 'undefined';
+
+        try {
+          const { schedulerDb } = await import('../scheduler-db');
+          await schedulerDb.tasks.count();
+          checks.schedulerDB = true;
+        } catch {
+          checks.schedulerDB = false;
+        }
+
+        const allPassed = Object.values(checks).every(Boolean);
+        results.checks = checks;
+        results.allPassed = allPassed;
+        return {
+          success: allPassed,
+          output: results,
+          error: allPassed ? undefined : 'Some health checks failed',
+        };
+      }
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error(`Test task execution failed:`, error);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
  * Custom task executor (calls a custom function)
  */
 async function executeCustomTask(
@@ -553,6 +886,9 @@ export function registerBuiltinExecutors(): void {
   registerTaskExecutor('custom', executeCustomTask);
   registerTaskExecutor('plugin', executePluginTask);
   registerTaskExecutor('script', executeScriptTask);
+  registerTaskExecutor('ai-generation', executeAIGenerationTask);
+  registerTaskExecutor('chat', executeChatTask);
+  registerTaskExecutor('test', executeTestTask);
   
   log.info('Registered all built-in task executors');
 }
@@ -565,6 +901,9 @@ export {
   executeCustomTask,
   executePluginTask,
   executeScriptTask,
+  executeAIGenerationTask,
+  executeChatTask,
+  executeTestTask,
 };
 
 export {

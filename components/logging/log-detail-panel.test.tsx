@@ -23,9 +23,45 @@ jest.mock('next-intl', () => ({
       'panel.data': 'Data',
       'panel.stackTrace': 'Stack Trace',
       'panel.source': 'Source',
+      'trace.eventType': 'Event Type',
+      'trace.toolName': 'Tool',
+      'trace.toolArgs': 'Arguments',
+      'trace.tokenUsage': 'Token Usage',
+      'trace.promptTokens': 'Prompt',
+      'trace.completionTokens': 'Completion',
+      'trace.totalTokens': 'Total',
+      'trace.costEstimate': 'Cost',
+      'trace.duration': 'Duration',
+      'trace.success': 'Success',
+      'trace.failed': 'Failed',
+      'trace.responsePreview': 'Response Preview',
+      'trace.modelId': 'Model',
+      'trace.files': 'Files',
+      'trace.stepNumber': 'Step',
     };
     return translations[key] || key;
   },
+}));
+
+// Mock agent-trace imports
+jest.mock('@/lib/agent-trace/log-adapter', () => ({
+  AGENT_TRACE_MODULE: 'agent-trace',
+  getAgentTraceLogData: jest.fn((entry: { module: string; data?: unknown }) => {
+    if (entry.module !== 'agent-trace' || !entry.data) return null;
+    return entry.data;
+  }),
+  isAgentTraceLogEntry: jest.fn((entry: { module: string }) => entry.module === 'agent-trace'),
+}));
+
+jest.mock('@/lib/agent', () => ({
+  LIVE_TRACE_EVENT_ICONS: {},
+  LIVE_TRACE_EVENT_COLORS: {},
+  formatDuration: jest.fn((ms: number) => `${ms}ms`),
+  formatTokens: jest.fn((n: number) => String(n)),
+}));
+
+jest.mock('@/lib/agent-trace/cost-estimator', () => ({
+  formatCost: jest.fn((cost: number) => `$${cost.toFixed(4)}`),
 }));
 
 // Mock clipboard
@@ -229,6 +265,101 @@ describe('LogDetailPanel', () => {
         <LogDetailPanel log={createMockLog()} className="custom-detail" />
       );
       expect(container.firstChild).toHaveClass('custom-detail');
+    });
+  });
+
+  describe('Agent Trace Detail Section', () => {
+    const createAgentTraceLog = (traceData: Record<string, unknown> = {}) => createMockLog({
+      module: 'agent-trace',
+      message: '[tool call result] file_write',
+      eventId: 'tool_call_result',
+      data: {
+        eventType: 'tool_call_result',
+        toolName: 'file_write',
+        success: true,
+        duration: 1500,
+        tokenUsage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
+        ...traceData,
+      },
+    });
+
+    it('renders agent trace detail section for agent-trace module entries', () => {
+      render(<LogDetailPanel log={createAgentTraceLog()} />);
+
+      expect(screen.getByText('Tool:')).toBeInTheDocument();
+      expect(screen.getByText('file_write')).toBeInTheDocument();
+    });
+
+    it('renders success badge when success is true', () => {
+      render(<LogDetailPanel log={createAgentTraceLog({ success: true })} />);
+
+      expect(screen.getByText('Success')).toBeInTheDocument();
+    });
+
+    it('renders failed badge when success is false', () => {
+      render(<LogDetailPanel log={createAgentTraceLog({ success: false })} />);
+
+      expect(screen.getByText('Failed')).toBeInTheDocument();
+    });
+
+    it('renders duration when present', () => {
+      render(<LogDetailPanel log={createAgentTraceLog({ duration: 2500 })} />);
+
+      expect(screen.getByText('Duration:')).toBeInTheDocument();
+      expect(screen.getByText('2500ms')).toBeInTheDocument();
+    });
+
+    it('renders token usage grid when tokens present', () => {
+      render(<LogDetailPanel log={createAgentTraceLog({
+        tokenUsage: { promptTokens: 200, completionTokens: 100, totalTokens: 300 },
+      })} />);
+
+      expect(screen.getByText('Token Usage')).toBeInTheDocument();
+      expect(screen.getByText('Prompt')).toBeInTheDocument();
+      expect(screen.getByText('Completion')).toBeInTheDocument();
+    });
+
+    it('renders error message when present', () => {
+      render(<LogDetailPanel log={createAgentTraceLog({ error: 'Tool execution failed' })} />);
+
+      expect(screen.getByText('Tool execution failed')).toBeInTheDocument();
+    });
+
+    it('renders response preview truncated', () => {
+      const longPreview = 'A'.repeat(400);
+      render(<LogDetailPanel log={createAgentTraceLog({ responsePreview: longPreview })} />);
+
+      expect(screen.getByText('Response Preview')).toBeInTheDocument();
+      // Should be truncated to 300 chars + ...
+      expect(screen.getByText(/\.\.\.$/)).toBeInTheDocument();
+    });
+
+    it('renders step number when present', () => {
+      render(<LogDetailPanel log={createAgentTraceLog({ stepNumber: 5 })} />);
+
+      expect(screen.getByText('Step:')).toBeInTheDocument();
+      expect(screen.getByText('#5')).toBeInTheDocument();
+    });
+
+    it('renders model ID badge when present', () => {
+      render(<LogDetailPanel log={createAgentTraceLog({ modelId: 'gpt-4o' })} />);
+
+      expect(screen.getByText('gpt-4o')).toBeInTheDocument();
+    });
+
+    it('does not render raw data section for agent-trace entries', () => {
+      render(<LogDetailPanel log={createAgentTraceLog()} />);
+
+      // The raw 'Data' section should be hidden for agent-trace entries
+      expect(screen.queryByText('Data')).not.toBeInTheDocument();
+    });
+
+    it('renders raw data section for non-agent-trace entries', () => {
+      render(<LogDetailPanel log={createMockLog({
+        data: { someKey: 'someValue' },
+      })} />);
+
+      expect(screen.getByText('Data')).toBeInTheDocument();
     });
   });
 });

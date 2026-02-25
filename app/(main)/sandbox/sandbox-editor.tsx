@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Play,
+  Square,
   Terminal,
   CheckCircle,
   XCircle,
@@ -65,6 +66,7 @@ export interface SandboxEditorProps {
   onSaveSnippet: () => void;
   onCopyOutput: () => void;
   executionElapsed: number;
+  onCancel?: () => void;
 }
 
 export function SandboxEditor({
@@ -93,6 +95,7 @@ export function SandboxEditor({
   onSaveSnippet,
   onCopyOutput,
   executionElapsed,
+  onCancel,
 }: SandboxEditorProps) {
   const t = useTranslations('sandboxPage');
   const tPanel = useTranslations('sandboxPanel');
@@ -189,18 +192,29 @@ export function SandboxEditor({
               <TooltipContent>{t('clearCode')}</TooltipContent>
             </Tooltip>
 
-            <Button
-              size="sm"
-              className="h-8 gap-1.5 px-4"
-              onClick={onExecute}
-              disabled={executing || !code.trim()}
-            >
-              {executing ? (
-                <><Loader2 className="h-3.5 w-3.5 animate-spin" />{tPanel('running')}</>
-              ) : (
-                <><Play className="h-3.5 w-3.5" />{tPanel('run')} <kbd className="ml-1 text-[10px] opacity-60">⌘↵</kbd></>
-              )}
-            </Button>
+            {executing && onCancel ? (
+              <Button
+                size="sm"
+                variant="destructive"
+                className="h-8 gap-1.5 px-4"
+                onClick={onCancel}
+              >
+                <Square className="h-3.5 w-3.5" />{tPanel('stop') || 'Stop'}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                className="h-8 gap-1.5 px-4"
+                onClick={onExecute}
+                disabled={executing || !code.trim()}
+              >
+                {executing ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" />{tPanel('running')}</>
+                ) : (
+                  <><Play className="h-3.5 w-3.5" />{tPanel('run')} <kbd className="ml-1 text-[10px] opacity-60">⌘↵</kbd></>
+                )}
+              </Button>
+            )}
           </div>
         </div>
 

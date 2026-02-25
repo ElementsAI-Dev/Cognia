@@ -503,5 +503,171 @@ describe('TaskScheduler', () => {
         );
       });
     });
+
+    describe('exportTasks', () => {
+      it('should export all tasks when no IDs specified', async () => {
+        const tasks: ScheduledTask[] = [
+          {
+            id: 'task-exp-1',
+            name: 'Export Test 1',
+            type: 'test',
+            trigger: { type: 'interval', intervalMs: 60000 },
+            config: { maxRetries: 3, retryDelay: 1000, timeout: 30000, allowConcurrent: false, runMissedOnStartup: true },
+            notification: { onStart: false, onComplete: false, onError: true },
+            status: 'active',
+            runCount: 0, successCount: 0, failureCount: 0,
+            createdAt: new Date(), updatedAt: new Date(),
+          },
+        ];
+        mockSchedulerDb.getAllTasks.mockResolvedValueOnce(tasks);
+
+        const result = await scheduler.exportTasks();
+
+        expect(result.version).toBe(1);
+        expect(result.exportedAt).toBeDefined();
+        expect(result.tasks).toHaveLength(1);
+        expect(result.tasks[0].id).toBe('task-exp-1');
+      });
+
+      it('should export only specified task IDs', async () => {
+        const tasks: ScheduledTask[] = [
+          {
+            id: 'task-a', name: 'A', type: 'test',
+            trigger: { type: 'interval', intervalMs: 60000 },
+            config: { maxRetries: 3, retryDelay: 1000, timeout: 30000, allowConcurrent: false, runMissedOnStartup: true },
+            notification: { onStart: false, onComplete: false, onError: true },
+            status: 'active', runCount: 0, successCount: 0, failureCount: 0,
+            createdAt: new Date(), updatedAt: new Date(),
+          },
+          {
+            id: 'task-b', name: 'B', type: 'test',
+            trigger: { type: 'interval', intervalMs: 60000 },
+            config: { maxRetries: 3, retryDelay: 1000, timeout: 30000, allowConcurrent: false, runMissedOnStartup: true },
+            notification: { onStart: false, onComplete: false, onError: true },
+            status: 'active', runCount: 0, successCount: 0, failureCount: 0,
+            createdAt: new Date(), updatedAt: new Date(),
+          },
+        ];
+        mockSchedulerDb.getAllTasks.mockResolvedValueOnce(tasks);
+
+        const result = await scheduler.exportTasks(['task-b']);
+
+        expect(result.tasks).toHaveLength(1);
+        expect(result.tasks[0].id).toBe('task-b');
+      });
+    });
+
+    describe('importTasks', () => {
+      it('should reject invalid import data', async () => {
+        const result = await scheduler.importTasks({ version: 0, tasks: null as unknown as ScheduledTask[] });
+
+        expect(result.imported).toBe(0);
+        expect(result.errors).toHaveLength(1);
+        expect(result.errors[0]).toContain('Invalid import format');
+      });
+
+      it('should import valid tasks in merge mode', async () => {
+        mockSchedulerDb.getTask.mockResolvedValue(null); // no existing task
+
+        const importData = {
+          version: 1,
+          tasks: [
+            {
+              id: 'import-1', name: 'Imported Task', type: 'test',
+              trigger: { type: 'interval' as const, intervalMs: 60000 },
+              config: { maxRetries: 3, retryDelay: 1000, timeout: 30000, allowConcurrent: false, runMissedOnStartup: true },
+              notification: { onStart: false, onComplete: false, onError: true },
+              status: 'active' as const, runCount: 5, successCount: 3, failureCount: 2,
+              createdAt: new Date('2025-01-01'), updatedAt: new Date('2025-06-01'),
+            },
+          ],
+        };
+
+        const result = await scheduler.importTasks(importData as { version: number; tasks: ScheduledTask[] }, 'merge');
+
+        expect(result.imported).toBe(1);
+        expect(result.skipped).toBe(0);
+        expect(mockSchedulerDb.createTask).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: 'import-1',
+            name: 'Imported Task',
+            runCount: 0,
+            successCount: 0,
+            failureCount: 0,
+            status: 'active',
+          })
+        );
+      });
+
+      it('should skip tasks that already exist in merge mode', async () => {
+        const existingTask: ScheduledTask = {
+          id: 'existing-1', name: 'Existing', type: 'test',
+          trigger: { type: 'interval', intervalMs: 60000 },
+          config: { maxRetries: 3, retryDelay: 1000, timeout: 30000, allowConcurrent: false, runMissedOnStartup: true },
+          notification: { onStart: false, onComplete: false, onError: true },
+          status: 'active', runCount: 0, successCount: 0, failureCount: 0,
+          createdAt: new Date(), updatedAt: new Date(),
+        };
+        mockSchedulerDb.getTask.mockResolvedValueOnce(existingTask);
+
+        const importData = {
+          version: 1,
+          tasks: [existingTask],
+        };
+
+        const result = await scheduler.importTasks(importData, 'merge');
+
+        expect(result.skipped).toBe(1);
+        expect(result.imported).toBe(0);
+      });
+
+      it('should skip invalid tasks without name/type/trigger', async () => {
+        const importData = {
+          version: 1,
+          tasks: [
+            { id: 'bad-1' } as unknown as ScheduledTask,
+          ],
+        };
+
+        const result = await scheduler.importTasks(importData);
+
+        expect(result.skipped).toBe(1);
+        expect(result.errors).toHaveLength(1);
+      });
+
+      it('should delete all tasks in replace mode before importing', async () => {
+        const existingTasks: ScheduledTask[] = [
+          {
+            id: 'old-1', name: 'Old', type: 'test',
+            trigger: { type: 'interval', intervalMs: 60000 },
+            config: { maxRetries: 3, retryDelay: 1000, timeout: 30000, allowConcurrent: false, runMissedOnStartup: true },
+            notification: { onStart: false, onComplete: false, onError: true },
+            status: 'active', runCount: 0, successCount: 0, failureCount: 0,
+            createdAt: new Date(), updatedAt: new Date(),
+          },
+        ];
+        mockSchedulerDb.getAllTasks.mockResolvedValueOnce(existingTasks);
+        mockSchedulerDb.getTask.mockResolvedValue(null);
+
+        const importData = {
+          version: 1,
+          tasks: [
+            {
+              id: 'new-1', name: 'New Task', type: 'test',
+              trigger: { type: 'interval' as const, intervalMs: 60000 },
+              config: { maxRetries: 3, retryDelay: 1000, timeout: 30000, allowConcurrent: false, runMissedOnStartup: true },
+              notification: { onStart: false, onComplete: false, onError: true },
+              status: 'active' as const, runCount: 0, successCount: 0, failureCount: 0,
+              createdAt: new Date(), updatedAt: new Date(),
+            },
+          ],
+        };
+
+        const result = await scheduler.importTasks(importData as { version: number; tasks: ScheduledTask[] }, 'replace');
+
+        expect(mockSchedulerDb.deleteTask).toHaveBeenCalledWith('old-1');
+        expect(result.imported).toBe(1);
+      });
+    });
   });
 });

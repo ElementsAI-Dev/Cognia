@@ -40,6 +40,7 @@ import {
   Swords,
   Users,
   Code2,
+  GraduationCap,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -124,6 +125,7 @@ import { PromptTemplateManager, PromptMarketplaceBrowser } from '@/components/pr
 import { PluginPageContent } from '@/components/plugin';
 import { CompletionSettings } from '@/components/input-completion';
 import { TransformersSettings } from '@/components/settings/transformers/transformers-settings';
+import { LearningSettings } from '@/components/settings/learning';
 
 import { SettingsSection, SettingsGroup } from '@/types/settings';
 import { SETTINGS_SEARCH_INDEX } from '@/lib/settings';
@@ -454,6 +456,13 @@ export default function SettingsPage() {
         group: 'ai',
       },
       {
+        id: 'learning',
+        label: t('tabLearning') || 'Learning Mode',
+        icon: <GraduationCap className="h-4 w-4" />,
+        description: t('descLearning') || 'Customize teaching templates and learning behavior',
+        group: 'ai',
+      },
+      {
         id: 'appearance',
         label: t('tabAppearance'),
         icon: <Palette className="h-4 w-4" />,
@@ -718,6 +727,8 @@ export default function SettingsPage() {
         return <CompletionSettings />;
       case 'transformersjs':
         return <TransformersSettings />;
+      case 'learning':
+        return <LearningSettings />;
       default:
         return <ProviderSettings />;
     }

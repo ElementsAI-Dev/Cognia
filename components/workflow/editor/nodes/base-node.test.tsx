@@ -52,6 +52,26 @@ jest.mock('../utils/node-quick-config', () => ({
   }) => <>{children}</>,
 }));
 
+const mockExecuteSingleNode = jest.fn();
+const mockUpdateNode = jest.fn();
+
+jest.mock('@/stores/workflow', () => ({
+  useWorkflowEditorStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({
+      executeSingleNode: mockExecuteSingleNode,
+      updateNode: mockUpdateNode,
+      isExecuting: false,
+    }),
+}));
+
+jest.mock('zustand/react/shallow', () => ({
+  useShallow: (fn: unknown) => fn,
+}));
+
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 jest.mock('lucide-react', () => ({
   Play: () => <svg data-testid="play-icon" />,
   Square: () => <svg data-testid="square-icon" />,
@@ -74,6 +94,8 @@ jest.mock('lucide-react', () => ({
   Pause: () => <svg data-testid="pause-icon" />,
   Group: () => <svg data-testid="group-icon" />,
   StickyNote: () => <svg data-testid="sticky-note-icon" />,
+  Power: ({ className }: { className?: string }) => <svg data-testid="power-icon" className={className} />,
+  Database: () => <svg data-testid="database-icon" />,
 }));
 
 const mockData: WorkflowNodeData = {
@@ -219,7 +241,7 @@ describe('BaseNode', () => {
 
     const runningNode = container.querySelector('.border-blue-500');
     expect(runningNode).toBeInTheDocument();
-    expect(screen.getByText('Executing...')).toBeInTheDocument();
+    expect(screen.getByText('executing')).toBeInTheDocument();
   });
 
   it('renders completed status', () => {
@@ -261,13 +283,13 @@ describe('BaseNode', () => {
   it('renders execution time when provided', () => {
     const dataWithTime = { ...mockData, executionTime: 2500 };
     render(<BaseNode {...baseProps} data={dataWithTime} selected={false} />);
-    expect(screen.getByText('2.50s')).toBeInTheDocument();
+    expect(screen.getByText(/2\.50/)).toBeInTheDocument();
   });
 
   it('renders not configured indicator', () => {
     const notConfiguredData = { ...mockData, isConfigured: false, nodeType: 'tool' as const, toolName: 'test', parameterMapping: {} };
     render(<BaseNode {...baseProps} data={notConfiguredData} selected={false} />);
-    expect(screen.getByText('Not configured')).toBeInTheDocument();
+    expect(screen.getByText('notConfigured')).toBeInTheDocument();
   });
 
   it('renders children when provided', () => {
@@ -298,6 +320,86 @@ describe('BaseNode', () => {
   });
 });
 
+describe('BaseNode disabled state', () => {
+  it('applies disabled styling when isDisabled is true', () => {
+    const disabledData = { ...mockData, isDisabled: true };
+    const { container } = render(<BaseNode {...baseProps} data={disabledData} selected={false} />);
+    const node = container.querySelector('.opacity-40');
+    expect(node).toBeInTheDocument();
+  });
+
+  it('applies grayscale when disabled', () => {
+    const disabledData = { ...mockData, isDisabled: true };
+    const { container } = render(<BaseNode {...baseProps} data={disabledData} selected={false} />);
+    const node = container.querySelector('.grayscale');
+    expect(node).toBeInTheDocument();
+  });
+
+  it('applies dashed border when disabled', () => {
+    const disabledData = { ...mockData, isDisabled: true };
+    const { container } = render(<BaseNode {...baseProps} data={disabledData} selected={false} />);
+    const node = container.querySelector('.border-dashed');
+    expect(node).toBeInTheDocument();
+  });
+
+  it('shows disabled indicator text', () => {
+    const disabledData = { ...mockData, isDisabled: true };
+    render(<BaseNode {...baseProps} data={disabledData} selected={false} />);
+    expect(screen.getByText('nodeDisabled')).toBeInTheDocument();
+  });
+
+  it('shows power icon when disabled', () => {
+    const disabledData = { ...mockData, isDisabled: true };
+    render(<BaseNode {...baseProps} data={disabledData} selected={false} />);
+    const powerIcons = screen.getAllByTestId('power-icon');
+    expect(powerIcons.length).toBeGreaterThan(0);
+  });
+
+  it('hides not-configured indicator when disabled', () => {
+    const disabledNotConfigured = { ...mockData, isConfigured: false, isDisabled: true, nodeType: 'tool' as const, toolName: 'test', parameterMapping: {} };
+    render(<BaseNode {...baseProps} data={disabledNotConfigured} selected={false} />);
+    expect(screen.queryByText('notConfigured')).not.toBeInTheDocument();
+  });
+});
+
+describe('BaseNode inline output summary', () => {
+  it('shows output summary for array output when completed', () => {
+    const outputData = { ...mockData, executionStatus: 'completed' as const, executionOutput: [1, 2, 3] };
+    render(<BaseNode {...baseProps} data={outputData} selected={false} />);
+    expect(screen.getByText('3 items')).toBeInTheDocument();
+  });
+
+  it('shows output summary for object output when completed', () => {
+    const outputData = { ...mockData, executionStatus: 'completed' as const, executionOutput: { a: 1, b: 2 } };
+    render(<BaseNode {...baseProps} data={outputData} selected={false} />);
+    expect(screen.getByText('2 keys')).toBeInTheDocument();
+  });
+
+  it('shows output summary for string output when completed', () => {
+    const outputData = { ...mockData, executionStatus: 'completed' as const, executionOutput: 'Hello World' };
+    render(<BaseNode {...baseProps} data={outputData} selected={false} />);
+    expect(screen.getByText('Hello World')).toBeInTheDocument();
+  });
+
+  it('shows database icon for output summary', () => {
+    const outputData = { ...mockData, executionStatus: 'completed' as const, executionOutput: [1] };
+    render(<BaseNode {...baseProps} data={outputData} selected={false} />);
+    expect(screen.getByTestId('database-icon')).toBeInTheDocument();
+  });
+
+  it('does not show output summary when status is not completed', () => {
+    const outputData = { ...mockData, executionStatus: 'running' as const, executionOutput: [1] };
+    render(<BaseNode {...baseProps} data={outputData} selected={false} />);
+    expect(screen.queryByText('1 items')).not.toBeInTheDocument();
+  });
+
+  it('does not show output summary when executionOutput is null', () => {
+    const outputData = { ...mockData, executionStatus: 'completed' as const, executionOutput: null };
+    render(<BaseNode {...baseProps} data={outputData} selected={false} />);
+    expect(screen.queryByTestId('database-icon')).not.toBeInTheDocument();
+  });
+});
+
 describe('BaseNode integration tests', () => {
   it('handles complete node with all features', () => {
     const completeData: WorkflowNodeData = {
@@ -311,8 +413,8 @@ describe('BaseNode integration tests', () => {
 
     expect(screen.getByText('AI Node')).toBeInTheDocument();
     expect(screen.getByText('An AI processing node')).toBeInTheDocument();
-    expect(screen.getByText('Executing...')).toBeInTheDocument();
-    expect(screen.getByText('1.50s')).toBeInTheDocument();
+    expect(screen.getByText('executing')).toBeInTheDocument();
+    expect(screen.getByText(/1\.50/)).toBeInTheDocument();
   });
 
   it('handles node with error and execution time', () => {
@@ -326,7 +428,7 @@ describe('BaseNode integration tests', () => {
     render(<BaseNode {...baseProps} data={errorData} selected={false} />);
 
     expect(screen.getByText('Connection failed')).toBeInTheDocument();
-    expect(screen.getByText('5.00s')).toBeInTheDocument();
+    expect(screen.getByText(/5\.00/)).toBeInTheDocument();
   });
 
   it('handles node with multiple handles', () => {

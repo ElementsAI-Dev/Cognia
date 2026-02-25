@@ -16,6 +16,8 @@ export type {
   GitCheckpointPanelProps,
   GitTagPanelProps,
   GitRemotePanelProps,
+  GitCommitDetailPanelProps,
+  GitBlameViewerProps,
   GitignoreTemplateSelectorProps,
 } from './components';
 // Re-export core git types for convenience

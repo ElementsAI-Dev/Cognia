@@ -42,15 +42,61 @@ jest.mock('@/lib/workflow-editor/layout', () => ({
   autoLayout: jest.fn((nodes) => nodes),
 }));
 
-jest.mock('@/lib/logger', () => ({
-  loggers: {
-    store: {
-      error: jest.fn(),
-      warn: jest.fn(),
-      info: jest.fn(),
-      debug: jest.fn(),
+jest.mock('@/lib/logger', () => {
+  const ml: Record<string, jest.Mock> = {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  };
+  ml.child = jest.fn(() => ml);
+  return {
+    loggers: {
+      store: ml,
+      workflow: ml,
+      plugin: ml,
+      scheduler: ml,
     },
+    createLogger: jest.fn(() => ml),
+  };
+});
+
+jest.mock('@/lib/workflow-editor/trigger-sync-service', () => ({
+  TriggerSyncService: jest.fn().mockImplementation(() => ({
+    syncTriggers: jest.fn(),
+    dispose: jest.fn(),
+  })),
+}));
+
+jest.mock('@/lib/workflow-editor/yaml-converter', () => ({
+  visualToYamlDSL: jest.fn(() => ({ name: 'test', version: '1.0', steps: [] })),
+  serializeToYaml: jest.fn(() => 'name: "test"\n'),
+}));
+
+jest.mock('@/lib/scheduler', () => ({}));
+
+jest.mock('@/lib/plugin', () => ({
+  pluginManager: {
+    getToolProviders: jest.fn(() => []),
+    initialize: jest.fn(),
   },
+}));
+
+jest.mock('@/lib/plugin/core/manager', () => ({
+  PluginManager: jest.fn(),
+}));
+
+jest.mock('@/lib/plugin/core/registry', () => ({
+  PluginRegistry: jest.fn(),
+}));
+
+jest.mock('@/lib/plugin/core/logger', () => ({
+  createPluginLogger: jest.fn(() => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  })),
 }));
 
 jest.mock('../settings/settings-store', () => ({
@@ -512,6 +558,55 @@ describe('useWorkflowEditorStore', () => {
       });
 
       expect(result.current.isPausedAtBreakpoint).toBe(false);
+    });
+  });
+
+  describe('publish workflow', () => {
+    it('should have publishWorkflow function', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+      expect(typeof result.current.publishWorkflow).toBe('function');
+    });
+
+    it('should have unpublishWorkflow function', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+      expect(typeof result.current.unpublishWorkflow).toBe('function');
+    });
+  });
+
+  describe('single node execution', () => {
+    it('should have executeSingleNode function', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+      expect(typeof result.current.executeSingleNode).toBe('function');
+    });
+
+    it('should not crash when executing without a workflow', async () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      // Should be a no-op when no workflow is loaded
+      await act(async () => {
+        await result.current.executeSingleNode('nonexistent-node');
+      });
+
+      expect(result.current.isExecuting).toBe(false);
+    });
+  });
+
+  describe('retry from failed node', () => {
+    it('should have retryFromNode function', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+      expect(typeof result.current.retryFromNode).toBe('function');
+    });
+  });
+
+  describe('YAML export/import', () => {
+    it('should have exportToYaml function', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+      expect(typeof result.current.exportToYaml).toBe('function');
+    });
+
+    it('should have importFromYaml function', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+      expect(typeof result.current.importFromYaml).toBe('function');
     });
   });
 });

@@ -16,6 +16,7 @@ import type {
   SandboxExecutionResult,
   ExecutionSession,
   LanguageStats,
+  OutputLine,
   SandboxStats,
   SnippetFilter,
 } from '@/types/system/sandbox';
@@ -59,6 +60,9 @@ export function useExecutionHistory(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Stabilize filter to prevent infinite refresh from object reference changes
+  const filterKey = useMemo(() => JSON.stringify(filter), [filter]);
+
   const refresh = useCallback(async () => {
     if (!isTauri) {
       setExecutions([]);
@@ -70,14 +74,15 @@ export function useExecutionHistory(
       setLoading(true);
       setError(null);
       const api = await getSandboxApi();
-      const result = await api.queryExecutions(filter);
+      const stableFilter = JSON.parse(filterKey) as ExecutionFilter;
+      const result = await api.queryExecutions(stableFilter);
       setExecutions(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filterKey]);
 
   const deleteExecution = useCallback(async (id: string) => {
     if (!isTauri) return false;
@@ -498,8 +503,12 @@ export interface UseCodeExecutionReturn {
   result: SandboxExecutionResult | null;
   executing: boolean;
   error: string | null;
+  /** Current execution ID (for cancellation) */
+  executionId: string | null;
   execute: (request: ExecutionRequest) => Promise<SandboxExecutionResult | null>;
   quickExecute: (language: string, code: string) => Promise<SandboxExecutionResult | null>;
+  /** Cancel the currently running execution */
+  cancel: () => Promise<void>;
   reset: () => void;
 }
 
@@ -507,6 +516,7 @@ export function useCodeExecution(): UseCodeExecutionReturn {
   const [result, setResult] = useState<SandboxExecutionResult | null>(null);
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [executionId, setExecutionId] = useState<string | null>(null);
 
   const execute = useCallback(async (request: ExecutionRequest) => {
     if (!isTauri) return null;
@@ -515,6 +525,7 @@ export function useCodeExecution(): UseCodeExecutionReturn {
       setError(null);
       const api = await getSandboxApi();
       const execResult = await api.executeCode(request);
+      setExecutionId(execResult?.id ?? null);
       setResult(execResult);
       return execResult;
     } catch (err) {
@@ -523,6 +534,7 @@ export function useCodeExecution(): UseCodeExecutionReturn {
       return null;
     } finally {
       setExecuting(false);
+      setExecutionId(null);
     }
   }, []);
 
@@ -533,6 +545,7 @@ export function useCodeExecution(): UseCodeExecutionReturn {
       setError(null);
       const api = await getSandboxApi();
       const execResult = await api.quickExecute(language, code);
+      setExecutionId(execResult?.id ?? null);
       setResult(execResult);
       return execResult;
     } catch (err) {
@@ -541,20 +554,130 @@ export function useCodeExecution(): UseCodeExecutionReturn {
       return null;
     } finally {
       setExecuting(false);
+      setExecutionId(null);
     }
   }, []);
+
+  const cancel = useCallback(async () => {
+    if (!isTauri || !executionId) return;
+    try {
+      const api = await getSandboxApi();
+      await api.cancelExecution(executionId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+    }
+  }, [executionId]);
 
   const reset = useCallback(() => {
     setResult(null);
     setError(null);
+    setExecutionId(null);
   }, []);
 
   return {
     result,
     executing,
     error,
+    executionId,
     execute,
     quickExecute,
+    cancel,
+    reset,
+  };
+}
+
+// ==================== Streaming Execution Hook ====================
+
+export interface UseStreamingExecutionReturn {
+  result: SandboxExecutionResult | null;
+  executing: boolean;
+  error: string | null;
+  executionId: string | null;
+  /** Live output lines accumulated during streaming execution */
+  outputLines: OutputLine[];
+  execute: (request: ExecutionRequest) => Promise<SandboxExecutionResult | null>;
+  cancel: () => Promise<void>;
+  reset: () => void;
+}
+
+export function useStreamingExecution(): UseStreamingExecutionReturn {
+  const [result, setResult] = useState<SandboxExecutionResult | null>(null);
+  const [executing, setExecuting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [executionId, setExecutionId] = useState<string | null>(null);
+  const [outputLines, setOutputLines] = useState<OutputLine[]>([]);
+
+  // Listen for streaming output events from Tauri
+  useEffect(() => {
+    if (!isTauri || !executing) return;
+
+    let unlisten: (() => void) | null = null;
+
+    (async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        const unlistenFn = await listen<OutputLine>('sandbox-output-line', (event) => {
+          setOutputLines((prev) => [...prev, event.payload]);
+        });
+        unlisten = unlistenFn;
+      } catch {
+        // Not in Tauri environment or listen failed
+      }
+    })();
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [executing]);
+
+  const execute = useCallback(async (request: ExecutionRequest) => {
+    if (!isTauri) return null;
+    try {
+      setExecuting(true);
+      setError(null);
+      setOutputLines([]);
+      const api = await getSandboxApi();
+      const execResult = await api.executeCodeStreaming(request);
+      setExecutionId(execResult?.id ?? null);
+      setResult(execResult);
+      return execResult;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      return null;
+    } finally {
+      setExecuting(false);
+      setExecutionId(null);
+    }
+  }, []);
+
+  const cancel = useCallback(async () => {
+    if (!isTauri || !executionId) return;
+    try {
+      const api = await getSandboxApi();
+      await api.cancelExecution(executionId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+    }
+  }, [executionId]);
+
+  const reset = useCallback(() => {
+    setResult(null);
+    setError(null);
+    setExecutionId(null);
+    setOutputLines([]);
+  }, []);
+
+  return {
+    result,
+    executing,
+    error,
+    executionId,
+    outputLines,
+    execute,
+    cancel,
     reset,
   };
 }

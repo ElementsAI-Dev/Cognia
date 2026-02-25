@@ -5,6 +5,7 @@
 
 import { z } from 'zod';
 import type { AgentTool } from './agent-executor';
+import { getEnabledProviders, type SearchProviderSettings, type SearchProviderType } from '@/types/search';
 import {
   getGlobalToolRegistry,
   type ToolDefinition,
@@ -50,9 +51,9 @@ export interface AgentToolsConfig {
   tavilyApiKey?: string;
   openaiApiKey?: string;
   /** Multi-provider search settings (preferred over tavilyApiKey) */
-  searchProviders?: Record<string, { providerId: string; apiKey: string; enabled: boolean; priority: number }>;
+  searchProviders?: Partial<Record<SearchProviderType, SearchProviderSettings>>;
   /** Default search provider to use */
-  defaultSearchProvider?: string;
+  defaultSearchProvider?: SearchProviderType;
   enableWebSearch?: boolean;
   enableWebScraper?: boolean;
   enableCalculator?: boolean;
@@ -137,8 +138,8 @@ export function createCalculatorTool(): AgentTool {
 export function createWebSearchTool(
   apiKeyOrConfig: string | {
     apiKey?: string;
-    provider?: string;
-    providerSettings?: Record<string, { providerId: string; apiKey: string; enabled: boolean; priority: number }>;
+    provider?: SearchProviderType;
+    providerSettings?: Partial<Record<SearchProviderType, SearchProviderSettings>>;
   }
 ): AgentTool {
   const config = typeof apiKeyOrConfig === 'string'
@@ -153,8 +154,8 @@ export function createWebSearchTool(
       const input = args as z.infer<typeof webSearchInputSchema>;
       return executeWebSearch(input, {
         apiKey: config.apiKey,
-        provider: config.provider as import('@/types/search').SearchProviderType | undefined,
-        providerSettings: config.providerSettings as Record<import('@/types/search').SearchProviderType, import('@/types/search').SearchProviderSettings> | undefined,
+        provider: config.provider,
+        providerSettings: config.providerSettings as Record<SearchProviderType, SearchProviderSettings> | undefined,
       });
     },
     requiresApproval: false,
@@ -564,9 +565,7 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
   if (config.enableWebSearch !== false) {
     let searchToolCreated = false;
     if (config.searchProviders) {
-      const hasEnabledProvider = Object.values(config.searchProviders).some(
-        (p) => p.enabled && p.apiKey
-      );
+      const hasEnabledProvider = getEnabledProviders(config.searchProviders).length > 0;
       if (hasEnabledProvider) {
         tools.web_search = createWebSearchTool({
           providerSettings: config.searchProviders,
@@ -586,7 +585,9 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
     tools.web_scraper = createWebScraperTool();
     tools.bulk_web_scraper = createBulkWebScraperTool();
     // search_and_scrape works with any configured search provider, not just Tavily
-    const hasSearchConfig = config.tavilyApiKey || (config.searchProviders && Object.values(config.searchProviders).some(p => p.enabled && p.apiKey));
+    const hasSearchConfig =
+      !!config.tavilyApiKey ||
+      (config.searchProviders ? getEnabledProviders(config.searchProviders).length > 0 : false);
     if (hasSearchConfig) {
       const searchConfig: { apiKey?: string; provider?: string } = {};
       if (config.tavilyApiKey) {

@@ -23,13 +23,28 @@ import {
   FileCode,
   Bookmark,
   BookmarkCheck,
+  Zap,
+  Coins,
+  CheckCircle2,
+  XCircle,
+  Wrench,
+  Brain,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import {
+  AGENT_TRACE_MODULE,
+  getAgentTraceLogData,
+  type AgentTraceLogData,
+} from '@/lib/agent-trace/log-adapter';
+import { LIVE_TRACE_EVENT_ICONS, LIVE_TRACE_EVENT_COLORS, formatDuration, formatTokens } from '@/lib/agent';
+import { formatCost } from '@/lib/agent-trace/cost-estimator';
+import type { AgentTraceEventType } from '@/types/agent-trace';
 import type { StructuredLogEntry, LogLevel } from '@/lib/logger';
 
 export interface LogDetailPanelProps {
@@ -225,6 +240,171 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
+/**
+ * Agent trace detail section — renders structured trace data
+ * (tokens, cost, tool info, duration, etc.) when a log entry
+ * originates from the agent-trace module.
+ */
+function AgentTraceDetailSection({
+  data,
+  t,
+}: {
+  data: AgentTraceLogData;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const EventIcon = data.eventType
+    ? LIVE_TRACE_EVENT_ICONS[data.eventType as AgentTraceEventType]
+    : undefined;
+  const eventColor = data.eventType
+    ? LIVE_TRACE_EVENT_COLORS[data.eventType as AgentTraceEventType]
+    : undefined;
+
+  return (
+    <>
+      <Separator />
+      <div className="space-y-3">
+        {/* Event type + status header */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {EventIcon && (
+            <EventIcon className={cn('h-4 w-4', eventColor ?? 'text-muted-foreground')} />
+          )}
+          <Badge variant="outline" className="text-xs capitalize">
+            {data.eventType?.replace(/_/g, ' ') ?? 'unknown'}
+          </Badge>
+          {data.success === true && (
+            <Badge variant="secondary" className="text-xs gap-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+              <CheckCircle2 className="h-3 w-3" />
+              {t('trace.success')}
+            </Badge>
+          )}
+          {data.success === false && (
+            <Badge variant="destructive" className="text-xs gap-1">
+              <XCircle className="h-3 w-3" />
+              {t('trace.failed')}
+            </Badge>
+          )}
+          {data.modelId && (
+            <Badge variant="secondary" className="text-[10px] font-mono">
+              {data.modelId}
+            </Badge>
+          )}
+        </div>
+
+        {/* Tool name and args */}
+        {data.toolName && (
+          <div className="flex items-center gap-2">
+            <Wrench className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground">{t('trace.toolName')}:</span>
+            <Badge variant="outline" className="text-xs font-mono">
+              {data.toolName}
+            </Badge>
+          </div>
+        )}
+
+        {data.toolArgs && (
+          <Collapsible>
+            <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <ChevronRight className="h-3 w-3" />
+              {t('trace.toolArgs')}
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <pre className="text-[11px] font-mono p-2 mt-1 rounded bg-muted/50 overflow-x-auto max-h-[200px] overflow-y-auto">
+                {data.toolArgs}
+              </pre>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
+        {/* Duration */}
+        {data.duration !== undefined && (
+          <div className="flex items-center gap-2">
+            <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground">{t('trace.duration')}:</span>
+            <span className="text-xs font-mono">{formatDuration(data.duration)}</span>
+          </div>
+        )}
+
+        {/* Token usage */}
+        {data.tokenUsage && data.tokenUsage.totalTokens > 0 && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Zap className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="text-xs text-muted-foreground">{t('trace.tokenUsage')}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 pl-5">
+              <div className="text-center">
+                <div className="text-[10px] text-muted-foreground">{t('trace.promptTokens')}</div>
+                <div className="text-xs font-mono font-medium">{formatTokens(data.tokenUsage.promptTokens)}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-[10px] text-muted-foreground">{t('trace.completionTokens')}</div>
+                <div className="text-xs font-mono font-medium">{formatTokens(data.tokenUsage.completionTokens)}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-[10px] text-muted-foreground">{t('trace.totalTokens')}</div>
+                <div className="text-xs font-mono font-semibold">{formatTokens(data.tokenUsage.totalTokens)}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cost estimate */}
+        {data.costEstimate && data.costEstimate.totalCost > 0 && (
+          <div className="flex items-center gap-2">
+            <Coins className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground">{t('trace.costEstimate')}:</span>
+            <span className="text-xs font-mono">{formatCost(data.costEstimate.totalCost)}</span>
+            <span className="text-[10px] text-muted-foreground">
+              (in: {formatCost(data.costEstimate.inputCost)}, out: {formatCost(data.costEstimate.outputCost)})
+            </span>
+          </div>
+        )}
+
+        {/* Error message */}
+        {data.error && (
+          <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-2">
+            <p className="text-xs text-red-600 dark:text-red-400 break-words">{data.error}</p>
+          </div>
+        )}
+
+        {/* Response preview */}
+        {data.responsePreview && (
+          <div>
+            <span className="text-xs text-muted-foreground block mb-1">{t('trace.responsePreview')}</span>
+            <p className="text-xs text-muted-foreground/80 line-clamp-4 break-words">
+              {data.responsePreview.slice(0, 300)}
+              {data.responsePreview.length > 300 && '...'}
+            </p>
+          </div>
+        )}
+
+        {/* Files */}
+        {data.files && data.files.length > 0 && (
+          <div>
+            <span className="text-xs text-muted-foreground block mb-1">{t('trace.files')}</span>
+            <div className="space-y-0.5">
+              {data.files.map((file) => (
+                <div key={file} className="text-xs font-mono text-muted-foreground truncate">
+                  {file}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step number */}
+        {data.stepNumber !== undefined && (
+          <div className="flex items-center gap-2">
+            <Brain className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground">{t('trace.stepNumber')}:</span>
+            <span className="text-xs font-mono">#{data.stepNumber}</span>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 export function LogDetailPanel({
   log,
   relatedLogs = [],
@@ -391,8 +571,14 @@ export function LogDetailPanel({
             </>
           )}
 
+          {/* Agent Trace Detail Section */}
+          {log.module === AGENT_TRACE_MODULE && (() => {
+            const traceData = getAgentTraceLogData(log);
+            return traceData ? <AgentTraceDetailSection data={traceData} t={t} /> : null;
+          })()}
+
           {/* Data (JSON highlighted) */}
-          {log.data && (
+          {log.data && !(log.module === AGENT_TRACE_MODULE) && (
             <>
               <Separator />
               <div>

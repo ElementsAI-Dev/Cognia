@@ -197,6 +197,68 @@ describe('GitCommitGraph', () => {
     expect(container.firstChild).toHaveClass('custom-class');
   });
 
+  // ==================== New Feature Tests ====================
+
+  it('should render search input in header', () => {
+    render(<GitCommitGraph commits={mockCommits} />);
+    expect(screen.getByPlaceholderText('graph.searchPlaceholder')).toBeInTheDocument();
+  });
+
+  it('should render diamond polygon for merge commits', () => {
+    const { container } = render(<GitCommitGraph commits={mergeCommits} />);
+    const polygons = container.querySelectorAll('polygon');
+    expect(polygons.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should dim non-matching commits when searching', () => {
+    const { container } = render(<GitCommitGraph commits={mockCommits} />);
+    const input = screen.getByPlaceholderText('graph.searchPlaceholder');
+    fireEvent.change(input, { target: { value: 'add login' } });
+
+    // Non-matching commit rows should have opacity-25 class
+    const rows = container.querySelectorAll('[class*="opacity-25"]');
+    expect(rows.length).toBeGreaterThan(0);
+  });
+
+  it('should render load more button when onLoadMore is provided', () => {
+    const mockLoadMore = jest.fn();
+    render(<GitCommitGraph commits={mockCommits} onLoadMore={mockLoadMore} />);
+    expect(screen.getByText('graph.loadMore')).toBeInTheDocument();
+  });
+
+  it('should call onLoadMore when load more button is clicked', () => {
+    const mockLoadMore = jest.fn();
+    render(<GitCommitGraph commits={mockCommits} onLoadMore={mockLoadMore} />);
+    fireEvent.click(screen.getByText('graph.loadMore'));
+    expect(mockLoadMore).toHaveBeenCalled();
+  });
+
+  it('should not render load more button when onLoadMore is not provided', () => {
+    render(<GitCommitGraph commits={mockCommits} />);
+    expect(screen.queryByText('graph.loadMore')).not.toBeInTheDocument();
+  });
+
+  it('should render normal circles for non-merge commits', () => {
+    const nonMergeCommits: GitGraphCommit[] = [
+      {
+        hash: 'single1',
+        shortHash: 'single1',
+        author: 'Alice',
+        authorEmail: 'alice@example.com',
+        date: '2025-01-15T10:00:00Z',
+        message: 'Single parent commit',
+        parents: ['parent1'],
+        refs: [],
+        lane: 0,
+      },
+    ];
+    const { container } = render(<GitCommitGraph commits={nonMergeCommits} />);
+    const circles = container.querySelectorAll('circle');
+    const polygons = container.querySelectorAll('polygon');
+    expect(circles.length).toBeGreaterThan(0);
+    expect(polygons.length).toBe(0);
+  });
+
   it('should handle empty parents gracefully', () => {
     const rootCommit: GitGraphCommit[] = [
       {

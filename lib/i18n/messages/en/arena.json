@@ -10,6 +10,9 @@
   "modelsSelected": "model(s) selected",
   "available": "available",
   "blindMode": "Blind Mode",
+  "normalMode": "Normal",
+  "online": "Online",
+  "offline": "Offline",
   "blindModeDescription": "Hide model names during comparison for unbiased selection",
   "battleOptions": "Battle Options",
   "modelParameters": "Model Parameters",
@@ -112,7 +115,8 @@
     "deleteTitle": "Delete Battle",
     "deleteDescription": "Are you sure you want to delete this battle? This action cannot be undone.",
     "cancel": "Cancel",
-    "delete": "Delete"
+    "delete": "Delete",
+    "rematch": "Rematch"
   },
   "stats": {
     "title": "Stats",
@@ -212,6 +216,7 @@
     "stability": "Stability",
     "ci": "95% CI",
     "ciTooltip": "95% confidence interval based on bootstrap resampling. Narrower intervals indicate more reliable ratings.",
+    "globalModels": "{count} global",
     "provider": "Provider",
     "filterByProvider": "Filter by provider",
     "allProviders": "All Providers",
@@ -298,6 +303,7 @@
     "winRate": "Win rate",
     "gamesPlayed": "{count} games played",
     "noBattlesYet": "No battles yet",
+    "expectedWinRate": "Expected",
     "winRateVs": "{modelA} vs {modelB}",
     "battles": "{count} battles",
     "legend": "Win Rate",
@@ -312,6 +318,53 @@
     "shuffle": "Shuffle Models",
     "blindMode": "Blind Mode",
     "multiTurn": "Multi-turn"
+  },
+  "prompts": {
+    "suggested": "Suggested Prompts",
+    "recent": "Recent Prompts",
+    "refresh": "Refresh",
+    "random": "Random",
+    "difficulty": {
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard"
+    },
+    "coding": {
+      "1": "FizzBuzz Variant",
+      "2": "Binary Search Bug Fix",
+      "3": "React Custom Hook",
+      "4": "SQL Query Optimization"
+    },
+    "math": {
+      "1": "Probability Puzzle",
+      "2": "Calculus Word Problem",
+      "3": "Combinatorics Challenge",
+      "4": "Statistics Interpretation"
+    },
+    "analysis": {
+      "1": "Pros and Cons Comparison",
+      "2": "Data Summarization",
+      "3": "Argument Evaluation",
+      "4": "Trend Analysis"
+    },
+    "creative": {
+      "1": "Short Story",
+      "2": "Haiku Collection",
+      "3": "Marketing Tagline",
+      "4": "Dialogue Writing"
+    },
+    "research": {
+      "1": "Explain Quantum Computing",
+      "2": "Framework Comparison",
+      "3": "Topic Deep Dive",
+      "4": "Fact Check Analysis"
+    },
+    "translation": {
+      "1": "Technical EN→ZH",
+      "2": "Literary ZH→EN",
+      "3": "Multilingual Idioms",
+      "4": "UI Localization"
+    }
   },
   "addModel": "Add Model",
   "selectAtLeast2Models": "Select at least 2 models to start comparing",

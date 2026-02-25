@@ -84,6 +84,8 @@
     "descLoggingConfig": "配置日志级别、传输方式和保留策略",
     "tabInputCompletion": "输入补全",
     "descInputCompletion": "AI 驱动的 Tab 补全设置",
+    "tabLearning": "学习模式",
+    "descLearning": "自定义教学模板和学习行为",
     "exportSettings": "导出设置",
     "importSettings": "导入设置",
     "resetAllSettings": "重置所有设置",
@@ -408,6 +410,9 @@
     "priority": "优先级",
     "selected": "已选",
     "apiKey": "API 密钥",
+    "googleCx": "Google 搜索引擎 ID（cx）",
+    "googleCxPlaceholder": "输入您的 Programmable Search Engine ID（cx）",
+    "googleCxHelp": "Google 自定义搜索必填。请在 Programmable Search Engine 控制台中获取。",
     "features": {
       "aiAnswer": "AI 回答",
       "news": "新闻",

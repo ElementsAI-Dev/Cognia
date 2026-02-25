@@ -52,8 +52,10 @@ export async function searchWithPerplexity(
   const {
     maxResults = 10,
     includeDomains,
+    excludeDomains,
     recency,
     country,
+    language,
     maxTokens = 25000,
     maxTokensPerPage = 1024,
     searchAfterDate,
@@ -73,12 +75,24 @@ export async function searchWithPerplexity(
     max_tokens_per_page: maxTokensPerPage,
   };
 
+  if (includeDomains && includeDomains.length > 0 && excludeDomains && excludeDomains.length > 0) {
+    throw new Error('Perplexity does not support mixing includeDomains and excludeDomains');
+  }
+
   if (includeDomains && includeDomains.length > 0) {
     requestBody.search_domain_filter = includeDomains.slice(0, 20);
+  } else if (excludeDomains && excludeDomains.length > 0) {
+    requestBody.search_domain_filter = excludeDomains
+      .slice(0, 20)
+      .map((domain) => (domain.startsWith('-') ? domain : `-${domain}`));
   }
 
   if (country) {
     requestBody.country = country;
+  }
+
+  if (language) {
+    requestBody.search_language_filter = [language];
   }
 
   const perplexityRecency = mapRecencyToPerplexity(recency);
@@ -87,11 +101,11 @@ export async function searchWithPerplexity(
   }
 
   if (searchAfterDate) {
-    requestBody.search_after_date = searchAfterDate;
+    requestBody.search_after_date_filter = searchAfterDate;
   }
 
   if (searchBeforeDate) {
-    requestBody.search_before_date = searchBeforeDate;
+    requestBody.search_before_date_filter = searchBeforeDate;
   }
 
   try {

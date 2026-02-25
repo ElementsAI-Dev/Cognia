@@ -59,6 +59,42 @@ describe('search-cache', () => {
       expect(key1).not.toBe(key2);
     });
 
+    it('should include searchDepth/includeAnswer/includeRawContent in key', () => {
+      const base = { maxResults: 5, searchType: 'general' as const };
+
+      const k1 = generateSearchCacheKey('test query', 'tavily', {
+        ...base,
+        searchDepth: 'basic',
+        includeAnswer: false,
+        includeRawContent: false,
+      });
+
+      const k2 = generateSearchCacheKey('test query', 'tavily', {
+        ...base,
+        searchDepth: 'deep',
+        includeAnswer: false,
+        includeRawContent: false,
+      });
+
+      const k3 = generateSearchCacheKey('test query', 'tavily', {
+        ...base,
+        searchDepth: 'basic',
+        includeAnswer: true,
+        includeRawContent: false,
+      });
+
+      const k4 = generateSearchCacheKey('test query', 'tavily', {
+        ...base,
+        searchDepth: 'basic',
+        includeAnswer: false,
+        includeRawContent: 'markdown',
+      });
+
+      expect(k1).not.toBe(k2);
+      expect(k1).not.toBe(k3);
+      expect(k1).not.toBe(k4);
+    });
+
     it('should normalize query case', () => {
       const key1 = generateSearchCacheKey('Test Query', 'tavily');
       const key2 = generateSearchCacheKey('test query', 'tavily');

@@ -31,3 +31,11 @@ export {
   preferencesToMatchups,
 } from './rating';
 export { exportLeaderboardData } from './export';
+export {
+  ARENA_PROMPTS,
+  getRandomPrompt,
+  getPromptsByCategory,
+  getRecentBattlePrompts,
+  getRandomPrompts,
+} from './prompts';
+export type { ArenaPrompt } from './prompts';

@@ -4,12 +4,12 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
 use crate::sandbox::{
-    CodeSnippet, ExecutionFilter, ExecutionRecord, ExecutionRequest, ExecutionResult,
-    ExecutionSession, Language, LanguageStats, RuntimeType, SandboxConfig, SandboxState,
-    SandboxStats, SnippetFilter,
+    CodeSnippet, CompilerSettings, ExecutionFilter, ExecutionRecord, ExecutionRequest,
+    ExecutionResult, ExecutionSession, ImportResult, Language, LanguageStats, OutputLine,
+    RuntimeType, SandboxConfig, SandboxState, SandboxStats, SnippetFilter,
 };
 use chrono::{DateTime, Utc};
 
@@ -39,6 +39,8 @@ pub struct ExecuteCodeRequest {
     pub files: HashMap<String, String>,
     /// Network access
     pub network_enabled: Option<bool>,
+    /// Compiler/interpreter settings
+    pub compiler_settings: Option<CompilerSettings>,
 }
 
 /// Runtime status
@@ -76,9 +78,63 @@ pub async fn sandbox_execute(
         runtime: request.runtime,
         files: request.files,
         network_enabled: request.network_enabled,
+        compiler_settings: request.compiler_settings,
     };
 
     state.execute(exec_request).await.map_err(|e| e.to_string())
+}
+
+/// Cancel a running execution
+#[tauri::command]
+pub async fn sandbox_cancel_execution(
+    execution_id: String,
+    state: State<'_, SandboxState>,
+) -> Result<bool, String> {
+    state
+        .cancel_execution(&execution_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Execute code with streaming output via Tauri events
+/// Emits "sandbox-output-line" events for each line of stdout/stderr.
+/// Returns the final ExecutionResult when execution completes.
+#[tauri::command]
+pub async fn sandbox_execute_streaming(
+    request: ExecuteCodeRequest,
+    app: AppHandle,
+    state: State<'_, SandboxState>,
+) -> Result<ExecutionResult, String> {
+    let exec_request = ExecutionRequest {
+        id: uuid::Uuid::new_v4().to_string(),
+        language: request.language,
+        code: request.code,
+        stdin: request.stdin,
+        args: request.args,
+        env: request.env,
+        timeout_secs: request.timeout_secs,
+        memory_limit_mb: request.memory_limit_mb,
+        cpu_limit_percent: None,
+        runtime: request.runtime,
+        files: request.files,
+        network_enabled: request.network_enabled,
+        compiler_settings: request.compiler_settings,
+    };
+
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<OutputLine>(256);
+
+    // Spawn a task to forward output lines to the frontend via Tauri events
+    let app_handle = app.clone();
+    tokio::spawn(async move {
+        while let Some(line) = rx.recv().await {
+            let _ = app_handle.emit("sandbox-output-line", &line);
+        }
+    });
+
+    state
+        .execute_streaming(exec_request, tx)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Get sandbox status
@@ -644,6 +700,18 @@ pub async fn sandbox_export_data(state: State<'_, SandboxState>) -> Result<Strin
     state.export_data().await.map_err(|e| e.to_string())
 }
 
+/// Import sandbox data from JSON (merges with existing, skips duplicates)
+#[tauri::command]
+pub async fn sandbox_import_data(
+    json_data: String,
+    state: State<'_, SandboxState>,
+) -> Result<ImportResult, String> {
+    state
+        .import_data(&json_data)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Get all unique tags
 #[tauri::command]
 pub async fn sandbox_get_all_tags(state: State<'_, SandboxState>) -> Result<Vec<String>, String> {
@@ -717,6 +785,7 @@ pub async fn sandbox_execute_with_options(
         runtime: request.runtime,
         files: request.files,
         network_enabled: request.network_enabled,
+        compiler_settings: request.compiler_settings,
     };
 
     state
@@ -769,6 +838,7 @@ mod tests {
             runtime: Some(RuntimeType::Native),
             files,
             network_enabled: Some(false),
+            compiler_settings: None,
         };
 
         assert_eq!(request.language, "javascript");
@@ -907,8 +977,196 @@ mod tests {
             runtime: Some(RuntimeType::Docker),
             files: HashMap::new(),
             network_enabled: None,
+            compiler_settings: None,
         };
 
         assert!(matches!(request.runtime, Some(RuntimeType::Docker)));
+    }
+
+    // ==================== CompilerSettings Integration Tests ====================
+
+    #[test]
+    fn test_execute_code_request_with_compiler_settings() {
+        let request = ExecuteCodeRequest {
+            language: "cpp".to_string(),
+            code: "int main() {}".to_string(),
+            stdin: None,
+            args: vec![],
+            env: HashMap::new(),
+            timeout_secs: Some(60),
+            memory_limit_mb: Some(512),
+            runtime: None,
+            files: HashMap::new(),
+            network_enabled: None,
+            compiler_settings: Some(CompilerSettings {
+                cpp_standard: Some("c++20".to_string()),
+                optimization: Some("-O2".to_string()),
+                cpp_compiler: Some("clang++".to_string()),
+                enable_warnings: Some(true),
+                ..Default::default()
+            }),
+        };
+
+        let settings = request.compiler_settings.as_ref().unwrap();
+        assert_eq!(settings.cpp_standard, Some("c++20".to_string()));
+        assert_eq!(settings.optimization, Some("-O2".to_string()));
+        assert_eq!(settings.cpp_compiler, Some("clang++".to_string()));
+        assert_eq!(settings.enable_warnings, Some(true));
+    }
+
+    #[test]
+    fn test_execute_code_request_compiler_settings_deserialization() {
+        let json = json!({
+            "language": "rust",
+            "code": "fn main() {}",
+            "compiler_settings": {
+                "rust_edition": "2021",
+                "rust_release": true,
+                "custom_args": ["-C", "target-cpu=native"]
+            }
+        });
+
+        let request: ExecuteCodeRequest = serde_json::from_value(json).unwrap();
+        assert!(request.compiler_settings.is_some());
+        let settings = request.compiler_settings.unwrap();
+        assert_eq!(settings.rust_edition, Some("2021".to_string()));
+        assert_eq!(settings.rust_release, Some(true));
+        assert_eq!(
+            settings.custom_args,
+            Some(vec!["-C".to_string(), "target-cpu=native".to_string()])
+        );
+    }
+
+    #[test]
+    fn test_execute_code_request_python_compiler_settings() {
+        let json = json!({
+            "language": "python",
+            "code": "print(1)",
+            "compiler_settings": {
+                "python_unbuffered": true,
+                "python_optimize": true
+            }
+        });
+
+        let request: ExecuteCodeRequest = serde_json::from_value(json).unwrap();
+        let settings = request.compiler_settings.unwrap();
+        assert_eq!(settings.python_unbuffered, Some(true));
+        assert_eq!(settings.python_optimize, Some(true));
+    }
+
+    #[test]
+    fn test_execute_code_request_no_compiler_settings() {
+        let json = json!({
+            "language": "python",
+            "code": "pass"
+        });
+
+        let request: ExecuteCodeRequest = serde_json::from_value(json).unwrap();
+        assert!(request.compiler_settings.is_none());
+    }
+
+    // ==================== SandboxStatus Serialization Tests ====================
+
+    #[test]
+    fn test_sandbox_status_serialization() {
+        let status = SandboxStatus {
+            available_runtimes: vec![RuntimeStatus {
+                runtime_type: RuntimeType::Native,
+                available: true,
+                version: Some("1.0".to_string()),
+            }],
+            supported_languages: vec![],
+            config: SandboxConfig::default(),
+        };
+
+        let json = serde_json::to_string(&status).unwrap();
+        assert!(json.contains("\"available_runtimes\""));
+        assert!(json.contains("\"supported_languages\""));
+        assert!(json.contains("\"config\""));
+        assert!(json.contains("\"native\""));
+    }
+
+    #[test]
+    fn test_sandbox_status_config_fields() {
+        let status = SandboxStatus {
+            available_runtimes: vec![],
+            supported_languages: vec![],
+            config: SandboxConfig::default(),
+        };
+
+        let json = serde_json::to_string(&status).unwrap();
+        assert!(json.contains("\"default_timeout_secs\""));
+        assert!(json.contains("\"enabled_languages\""));
+        assert!(json.contains("\"network_enabled\""));
+    }
+
+    // ==================== ExecuteCodeRequest → ExecutionRequest Conversion ====================
+
+    #[test]
+    fn test_execute_code_request_to_execution_request_mapping() {
+        let settings = CompilerSettings {
+            cpp_standard: Some("c++17".to_string()),
+            ..Default::default()
+        };
+        let request = ExecuteCodeRequest {
+            language: "cpp".to_string(),
+            code: "#include <iostream>".to_string(),
+            stdin: Some("input".to_string()),
+            args: vec!["--verbose".to_string()],
+            env: {
+                let mut m = HashMap::new();
+                m.insert("CXX".to_string(), "clang++".to_string());
+                m
+            },
+            timeout_secs: Some(45),
+            memory_limit_mb: Some(1024),
+            runtime: Some(RuntimeType::Docker),
+            files: {
+                let mut m = HashMap::new();
+                m.insert("helper.h".to_string(), "#pragma once".to_string());
+                m
+            },
+            network_enabled: Some(false),
+            compiler_settings: Some(settings),
+        };
+
+        // Simulate the conversion that sandbox_execute does
+        let exec_request = ExecutionRequest {
+            id: uuid::Uuid::new_v4().to_string(),
+            language: request.language.clone(),
+            code: request.code.clone(),
+            stdin: request.stdin.clone(),
+            args: request.args.clone(),
+            env: request.env.clone(),
+            timeout_secs: request.timeout_secs,
+            memory_limit_mb: request.memory_limit_mb,
+            cpu_limit_percent: None,
+            runtime: request.runtime,
+            files: request.files.clone(),
+            network_enabled: request.network_enabled,
+            compiler_settings: request.compiler_settings.clone(),
+        };
+
+        assert_eq!(exec_request.language, "cpp");
+        assert_eq!(exec_request.stdin, Some("input".to_string()));
+        assert_eq!(exec_request.args, vec!["--verbose".to_string()]);
+        assert_eq!(
+            exec_request.env.get("CXX"),
+            Some(&"clang++".to_string())
+        );
+        assert_eq!(exec_request.timeout_secs, Some(45));
+        assert_eq!(exec_request.memory_limit_mb, Some(1024));
+        assert!(exec_request.cpu_limit_percent.is_none());
+        assert!(matches!(exec_request.runtime, Some(RuntimeType::Docker)));
+        assert_eq!(
+            exec_request.files.get("helper.h"),
+            Some(&"#pragma once".to_string())
+        );
+        assert_eq!(exec_request.network_enabled, Some(false));
+        assert!(exec_request.compiler_settings.is_some());
+        assert_eq!(
+            exec_request.compiler_settings.unwrap().cpp_standard,
+            Some("c++17".to_string())
+        );
     }
 }

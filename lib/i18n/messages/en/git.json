@@ -249,14 +249,24 @@
       "stats": "Stats",
       "checkpoints": "Checkpoints",
       "tags": "Tags",
-      "remotes": "Remotes"
+      "remotes": "Remotes",
+      "blame": "Blame",
+      "fileHistory": "File History",
+      "search": "Search"
     },
     "graph": {
       "title": "Commit Graph",
       "noCommits": "No commits to display",
       "refresh": "Refresh",
       "mergeCommit": "Merge commit",
-      "parents": "parents"
+      "parents": "parents",
+      "searchPlaceholder": "Search commits...",
+      "copyHash": "Copy Hash",
+      "cherryPick": "Cherry-pick",
+      "revertCommit": "Revert",
+      "createBranch": "Create Branch Here",
+      "createTag": "Create Tag Here",
+      "loadMore": "Load More"
     },
     "stats": {
       "title": "Repository Statistics",
@@ -336,6 +346,60 @@
     "diff": {
       "unifiedView": "Unified view",
       "splitView": "Side-by-side view"
+    },
+    "blame": {
+      "title": "File Blame",
+      "selectFile": "Select File",
+      "filePlaceholder": "Enter file path relative to repo root...",
+      "loading": "Loading blame data...",
+      "noFile": "No file selected",
+      "noFileHint": "Enter a file path or use the file picker to view blame annotations.",
+      "author": "Author",
+      "date": "Date",
+      "hash": "Hash",
+      "line": "Line",
+      "commitBlock": "Commit block"
+    },
+    "commitDetail": {
+      "title": "Commit Details",
+      "noDetail": "Select a commit to view details",
+      "hash": "Hash",
+      "author": "Author",
+      "date": "Date",
+      "parents": "Parents",
+      "fileChanges": "File Changes",
+      "noFileChanges": "No file changes",
+      "noDiffContent": "No diff content available",
+      "cherryPick": "Cherry-pick",
+      "cherryPickTooltip": "Apply this commit to the current branch",
+      "revert": "Revert",
+      "revertTooltip": "Create a new commit that undoes this commit",
+      "checkout": "Checkout",
+      "checkoutTooltip": "Switch to this commit (detached HEAD)",
+      "copyHash": "Copy Hash"
+    },
+    "fileHistory": {
+      "title": "File History",
+      "selectFile": "Select File",
+      "filePlaceholder": "Enter file path relative to repo root...",
+      "loading": "Loading file history...",
+      "noHistory": "No file selected",
+      "noHistoryHint": "Enter a file path to view its commit history.",
+      "renamedFrom": "Renamed from",
+      "loadMore": "Load More"
+    },
+    "search": {
+      "title": "Commit Search",
+      "placeholder": "Search commits...",
+      "hint": "Enter a search query to find commits.",
+      "noResults": "No commits found",
+      "mode": {
+        "message": "Message",
+        "author": "Author",
+        "hash": "Hash",
+        "file": "File",
+        "content": "Content"
+      }
     }
   },
   "branchSelector": {

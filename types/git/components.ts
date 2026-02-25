@@ -115,6 +115,11 @@ export interface GitCommitGraphProps {
   selectedCommit?: string | null;
   onCommitClick?: (commit: GitGraphCommit) => void;
   onRefresh?: () => void;
+  onLoadMore?: () => void;
+  onCherryPick?: (hash: string) => void;
+  onRevert?: (hash: string) => void;
+  onCreateBranch?: (startPoint: string) => void;
+  onCreateTag?: (target: string) => void;
   isLoading?: boolean;
   className?: string;
 }
@@ -160,6 +165,28 @@ export interface GitRemotePanelProps {
   onRemoveRemote: (name: string) => Promise<boolean>;
   onRefresh?: () => void;
   isLoading?: boolean;
+  className?: string;
+}
+
+// ==================== GitCommitDetailPanel ====================
+
+export interface GitCommitDetailPanelProps {
+  commitDetail: import('@/types/system/git').GitCommitDetail | null;
+  isLoading?: boolean;
+  onClose: () => void;
+  onNavigateToParent?: (parentHash: string) => void;
+  onCherryPick?: (hash: string) => void;
+  onRevert?: (hash: string) => void;
+  onCheckout?: (hash: string) => void;
+  className?: string;
+}
+
+// ==================== GitBlameViewer ====================
+
+export interface GitBlameViewerProps {
+  repoPath: string;
+  initialFilePath?: string;
+  onCommitClick?: (commitHash: string) => void;
   className?: string;
 }
 

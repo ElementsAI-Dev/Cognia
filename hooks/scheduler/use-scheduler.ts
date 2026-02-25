@@ -43,12 +43,45 @@ export function useScheduler() {
   const isLoading = useSchedulerStore(selectIsLoading);
   const error = useSchedulerStore(selectError);
   const isInitialized = useSchedulerStore(selectIsInitialized);
+  const hasMoreExecutions = useSchedulerStore((s) => s.hasMoreExecutions);
 
   // Initialize on mount — store handles deduplication of concurrent calls
   useEffect(() => {
     if (!isInitialized) {
       store.initialize();
     }
+  }, [isInitialized, store]);
+
+  // Real-time execution status updates via BroadcastChannel (debounced)
+  const broadcastDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('cognia-scheduler-executions');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'execution-update') {
+          // Debounce: coalesce rapid-fire updates into a single refresh
+          if (broadcastDebounceRef.current) {
+            clearTimeout(broadcastDebounceRef.current);
+          }
+          broadcastDebounceRef.current = setTimeout(() => {
+            store.refreshAll();
+            broadcastDebounceRef.current = null;
+          }, 300);
+        }
+      };
+    } catch {
+      // BroadcastChannel not available — fallback to polling
+    }
+
+    return () => {
+      if (broadcastDebounceRef.current) {
+        clearTimeout(broadcastDebounceRef.current);
+      }
+      try { channel?.close(); } catch { /* ignore */ }
+    };
   }, [isInitialized, store]);
 
   // Auto-refresh with visibility-aware polling (PERF-3)
@@ -108,6 +141,7 @@ export function useScheduler() {
     isLoading,
     error,
     isInitialized,
+    hasMoreExecutions,
 
     // Actions — store methods are stable references, no useCallback needed
     createTask: store.createTask,
@@ -121,12 +155,18 @@ export function useScheduler() {
     clearFilter: store.clearFilter,
     refresh: store.refreshAll,
     clearError: store.clearError,
+    loadMoreExecutions: store.loadMoreExecutions,
     loadRecentExecutions: store.loadRecentExecutions,
     loadUpcomingTasks: store.loadUpcomingTasks,
     cleanupOldExecutions: store.cleanupOldExecutions,
     cancelPluginExecution: store.cancelPluginExecution,
     getActivePluginCount: store.getActivePluginCount,
     isPluginExecutionActive: store.isPluginExecutionActive,
+
+    // Import/Export & Clone
+    exportTasks: store.exportTasks,
+    importTasks: store.importTasks,
+    cloneTask: store.cloneTask,
 
     // Bulk Operations
     bulkPause: store.bulkPause,

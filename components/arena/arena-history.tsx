@@ -18,6 +18,7 @@ import {
   Clock,
   Eye,
   Trash2,
+  RotateCcw,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
@@ -54,17 +55,20 @@ import type { ArenaBattle, ArenaContestant, BattleFilterStatus, BattleSortOrder 
 interface ArenaHistoryProps {
   className?: string;
   onViewBattle?: (battleId: string) => void;
+  onRematch?: (battle: ArenaBattle) => void;
   maxItems?: number;
 }
 
 function BattleCard({
   battle,
   onView,
+  onRematch,
   onDelete,
   locale,
 }: {
   battle: ArenaBattle;
   onView?: () => void;
+  onRematch?: () => void;
   onDelete?: () => void;
   locale?: string;
 }) {
@@ -135,6 +139,16 @@ function BattleCard({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{t('history.viewDetails')}</TooltipContent>
+              </Tooltip>
+            )}
+            {onRematch && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onRematch}>
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('history.rematch')}</TooltipContent>
               </Tooltip>
             )}
             {onDelete && (
@@ -306,7 +320,7 @@ function BattleCard({
   );
 }
 
-function ArenaHistoryComponent({ className, onViewBattle, maxItems = 50 }: ArenaHistoryProps) {
+function ArenaHistoryComponent({ className, onViewBattle, onRematch, maxItems = 50 }: ArenaHistoryProps) {
   const t = useTranslations('arena');
   const locale = useLocale();
 
@@ -480,6 +494,7 @@ function ArenaHistoryComponent({ className, onViewBattle, maxItems = 50 }: Arena
                 battle={battle}
                 locale={locale}
                 onView={onViewBattle ? () => onViewBattle(battle.id) : undefined}
+                onRematch={onRematch ? () => onRematch(battle) : undefined}
                 onDelete={() => handleDelete(battle.id)}
               />
             ))

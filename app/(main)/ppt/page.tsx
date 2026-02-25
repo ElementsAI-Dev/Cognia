@@ -81,6 +81,7 @@ import { usePPTGeneration, type PPTGenerationConfig } from '@/hooks/ppt';
 import { useWorkflowStore, selectActivePresentation, usePPTEditorStore } from '@/stores';
 import type { PPTPresentation } from '@/types/workflow';
 import { cn } from '@/lib/utils';
+import { loggers } from '@/lib/logger';
 import { executePPTExport } from '@/lib/ai/tools/ppt-tool';
 import { downloadPPTX, exportToPPTXBase64 } from '@/lib/export/document/pptx-export';
 
@@ -263,7 +264,7 @@ function PPTPageContent() {
           quality: 'high',
         });
         if (!pptxResult.success) {
-          console.error('PPTX export failed:', pptxResult.error);
+          loggers.ui.error('PPTX export failed:', undefined, { error: pptxResult.error });
         }
         return;
       }
@@ -277,7 +278,7 @@ function PPTPageContent() {
       });
       
       if (!result.success || !result.data) {
-        console.error('Export failed:', result.error);
+        loggers.ui.error('Export failed:', undefined, { error: result.error });
         return;
       }
       
@@ -304,7 +305,7 @@ function PPTPageContent() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Export error:', error);
+      loggers.ui.error('Export error:', error instanceof Error ? error : undefined);
     } finally {
       setIsExporting(false);
     }

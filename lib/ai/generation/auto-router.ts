@@ -19,6 +19,8 @@
 
 import { useCallback, useMemo } from 'react';
 import { loggers } from '@/lib/logger';
+import { enhanceWithPreferences } from '@/lib/ai/generation/preference-learner';
+import { useArenaStore } from '@/stores/arena';
 
 const log = loggers.ai;
 import { useSettingsStore } from '@/stores';
@@ -857,7 +859,7 @@ export function useAutoRouter() {
       
       const detailStr = details.length > 0 ? ` [${details.join(', ')}]` : '';
 
-      return {
+      const baseSelection: ModelSelection = {
         provider: selected.provider,
         model: selected.model,
         tier,
@@ -866,6 +868,26 @@ export function useAutoRouter() {
         routingLatency: Date.now() - startTime,
         classification,
       };
+
+      // Apply arena preference learning if arena is enabled
+      // (preferenceLearning + data reliability are checked inside enhanceWithPreferences)
+      const arenaSettings = useArenaStore.getState().settings;
+      if (arenaSettings.enabled) {
+        const alternatives = availableModels.slice(1).map((m) => ({
+          ...baseSelection,
+          provider: m.provider,
+          model: m.model,
+        }));
+        const enhanced = enhanceWithPreferences(baseSelection, alternatives, classification);
+        if (enhanced.provider !== baseSelection.provider || enhanced.model !== baseSelection.model) {
+          return {
+            ...enhanced,
+            routingLatency: Date.now() - startTime,
+          };
+        }
+      }
+
+      return baseSelection;
     },
     [getEnabledModels, filterByRequirements]
   );

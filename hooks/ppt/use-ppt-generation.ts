@@ -141,6 +141,121 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
     return parseAIJSON(response);
   }, []);
 
+  // Shared: generate slides from outline data
+  const buildSlidesFromOutline = useCallback(
+    async (
+      outlineItems: PPTOutlineData['outline'],
+      context: GenerationContext,
+      systemPrompt: string,
+      controller: AbortController,
+      onSlideComplete?: (slides: PPTSlide[]) => void
+    ): Promise<PPTSlide[]> => {
+      const slides: PPTSlide[] = [];
+      let previousSlide: { title: string; content?: string } | undefined;
+      const allOutlineTitles = outlineItems.map((item) => item.title);
+      const previousLayouts: PPTSlide['layout'][] = [];
+
+      for (let i = 0; i < outlineItems.length; i++) {
+        if (controller.signal.aborted) {
+          throw new Error('Generation cancelled');
+        }
+
+        const slideOutline = outlineItems[i];
+        setProgress({
+          stage: 'content',
+          currentSlide: i + 1,
+          totalSlides: outlineItems.length,
+          message: t('progressGeneratingSlide', { current: i + 1, total: outlineItems.length }),
+        });
+
+        const contentPrompt = buildSlideContentPrompt(
+          {
+            title: slideOutline.title,
+            layout: slideOutline.layout as PPTSlide['layout'],
+            keyPoints: slideOutline.keyPoints,
+            notes: slideOutline.notes,
+          },
+          context,
+          previousSlide,
+          allOutlineTitles
+        );
+
+        const contentResponse = await callAI(systemPrompt, contentPrompt, controller.signal);
+        const contentData = parseJSONResponse(contentResponse) as {
+          title: string;
+          subtitle?: string;
+          content?: string;
+          bullets?: string[];
+          notes?: string;
+          imagePrompt?: string;
+          chartData?: { type: string; labels: string[]; datasets: Array<{ label: string; data: number[] }> };
+          tableData?: string[][];
+        };
+
+        const contentLayout = suggestLayout({
+          title: contentData.title || slideOutline.title,
+          subtitle: contentData.subtitle,
+          content: contentData.content,
+          bullets: contentData.bullets,
+          hasChart: !!contentData.chartData,
+          hasTable: !!contentData.tableData,
+          previousLayouts,
+        });
+
+        const slideLayout = (slideOutline.layout as PPTSlide['layout']) || contentLayout;
+
+        // Build elements from AI-returned structured data
+        const elements: PPTSlide['elements'] = [];
+        if (contentData.chartData?.labels && contentData.chartData?.datasets) {
+          elements.push({
+            id: `chart-${i}-${Date.now()}`,
+            type: 'chart',
+            content: contentData.chartData.type || 'bar',
+            position: { x: 10, y: 25, width: 80, height: 65 },
+            metadata: {
+              chartType: contentData.chartData.type || 'bar',
+              chartData: contentData.chartData,
+            },
+          });
+        }
+        if (contentData.tableData && contentData.tableData.length > 0) {
+          elements.push({
+            id: `table-${i}-${Date.now()}`,
+            type: 'table',
+            content: 'table',
+            position: { x: 5, y: 25, width: 90, height: 65 },
+            metadata: {
+              data: contentData.tableData,
+              tableData: contentData.tableData,
+            },
+          });
+        }
+
+        const slide: PPTSlide = {
+          id: `slide-${i + 1}-${Date.now()}`,
+          order: i,
+          layout: slideLayout,
+          title: contentData.title || slideOutline.title,
+          subtitle: contentData.subtitle,
+          content: contentData.content,
+          bullets: contentData.bullets,
+          notes: contentData.notes || slideOutline.notes,
+          elements,
+        };
+
+        slides.push(slide);
+        previousSlide = { title: slide.title || '', content: slide.content };
+        previousLayouts.push(slideLayout);
+
+        // Incremental preview — notify caller after each slide completes
+        onSlideComplete?.([...slides]);
+      }
+
+      return slides;
+    },
+    [callAI, parseJSONResponse, t]
+  );
+
   // Generate presentation
   const generate = useCallback(
     async (config: PPTGenerationConfig): Promise<PPTPresentation | null> => {
@@ -156,7 +271,6 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
       });
 
       try {
-        // Build generation context
         const context: GenerationContext = {
           topic: config.topic,
           audience: config.audience,
@@ -198,69 +312,26 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
           message: t('progressGeneratingSlides'),
         });
 
-        const slides: PPTSlide[] = [];
-        let previousSlide: { title: string; content?: string } | undefined;
+        const presentationId = `ppt-${Date.now()}`;
+        const presentationTheme = config.theme || DEFAULT_PPT_THEMES[0];
 
-        for (let i = 0; i < outlineData.outline.length; i++) {
-          if (controller.signal.aborted) {
-            throw new Error('Generation cancelled');
+        const slides = await buildSlidesFromOutline(
+          outlineData.outline, context, systemPrompt, controller,
+          (partialSlides) => {
+            // H4: Incremental preview — update presentation as each slide completes
+            setPresentation({
+              id: presentationId,
+              title: outlineData.title || config.topic,
+              subtitle: outlineData.subtitle || config.description,
+              theme: presentationTheme,
+              slides: partialSlides,
+              totalSlides: outlineData.outline.length,
+              aspectRatio: '16:9',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
           }
-
-          const slideOutline = outlineData.outline[i];
-          setProgress({
-            stage: 'content',
-            currentSlide: i + 1,
-            totalSlides: outlineData.outline.length,
-            message: t('progressGeneratingSlide', { current: i + 1, total: outlineData.outline.length }),
-          });
-
-          // Generate content for this slide
-          const contentPrompt = buildSlideContentPrompt(
-            {
-              title: slideOutline.title,
-              layout: slideOutline.layout as PPTSlide['layout'],
-              keyPoints: slideOutline.keyPoints,
-              notes: slideOutline.notes,
-            },
-            context,
-            previousSlide
-          );
-
-          const contentResponse = await callAI(systemPrompt, contentPrompt, controller.signal);
-          const contentData = parseJSONResponse(contentResponse) as {
-            title: string;
-            subtitle?: string;
-            content?: string;
-            bullets?: string[];
-            notes?: string;
-            imagePrompt?: string;
-          };
-
-          // Use suggestLayout for intelligent layout selection based on content
-          const contentLayout = suggestLayout({
-            title: contentData.title || slideOutline.title,
-            subtitle: contentData.subtitle,
-            bullets: contentData.bullets,
-            hasChart: false,
-            hasTable: false,
-          });
-
-          // Create slide - prefer AI layout, fallback to content-based suggestion
-          const slide: PPTSlide = {
-            id: `slide-${i + 1}-${Date.now()}`,
-            order: i,
-            layout: (slideOutline.layout as PPTSlide['layout']) || contentLayout,
-            title: contentData.title || slideOutline.title,
-            subtitle: contentData.subtitle,
-            content: contentData.content,
-            bullets: contentData.bullets,
-            notes: contentData.notes || slideOutline.notes,
-            elements: [],
-          };
-
-          slides.push(slide);
-          previousSlide = { title: slide.title || '', content: slide.content };
-        }
+        );
 
         // Step 3: Finalize presentation
         setProgress({
@@ -271,10 +342,10 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         });
 
         const newPresentation: PPTPresentation = {
-          id: `ppt-${Date.now()}`,
+          id: presentationId,
           title: outlineData.title || config.topic,
           subtitle: outlineData.subtitle || config.description,
-          theme: config.theme || DEFAULT_PPT_THEMES[0],
+          theme: presentationTheme,
           slides,
           totalSlides: slides.length,
           aspectRatio: '16:9',
@@ -315,7 +386,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         setAbortController(null);
       }
     },
-    [callAI, parseJSONResponse, loadPresentation, addPresentation, t]
+    [callAI, parseJSONResponse, buildSlidesFromOutline, loadPresentation, addPresentation, t]
   );
 
   // Cancel generation
@@ -428,64 +499,26 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         };
 
         const systemPrompt = buildSystemPrompt(context);
-        const slides: PPTSlide[] = [];
-        let previousSlide: { title: string; content?: string } | undefined;
+        const presentationId = `ppt-${Date.now()}`;
+        const presentationTheme = config.theme || DEFAULT_PPT_THEMES[0];
 
-        for (let i = 0; i < outlineData.outline.length; i++) {
-          if (controller.signal.aborted) {
-            throw new Error('Generation cancelled');
+        const slides = await buildSlidesFromOutline(
+          outlineData.outline, context, systemPrompt, controller,
+          (partialSlides) => {
+            // Incremental preview — update presentation as each slide completes
+            setPresentation({
+              id: presentationId,
+              title: outlineData.title || config.topic,
+              subtitle: outlineData.subtitle || config.description,
+              theme: presentationTheme,
+              slides: partialSlides,
+              totalSlides: outlineData.outline.length,
+              aspectRatio: '16:9',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
           }
-
-          const slideOutline = outlineData.outline[i];
-          setProgress({
-            stage: 'content',
-            currentSlide: i + 1,
-            totalSlides: outlineData.outline.length,
-            message: t('progressGeneratingSlide', { current: i + 1, total: outlineData.outline.length }),
-          });
-
-          const contentPrompt = buildSlideContentPrompt(
-            {
-              title: slideOutline.title,
-              layout: slideOutline.layout as PPTSlide['layout'],
-              keyPoints: slideOutline.keyPoints,
-              notes: slideOutline.notes,
-            },
-            context,
-            previousSlide
-          );
-
-          const contentResponse = await callAI(systemPrompt, contentPrompt, controller.signal);
-          const contentData = parseJSONResponse(contentResponse) as {
-            title: string;
-            subtitle?: string;
-            content?: string;
-            bullets?: string[];
-            notes?: string;
-          };
-
-          // Use suggestLayout for intelligent layout fallback
-          const contentLayout = suggestLayout({
-            title: contentData.title || slideOutline.title,
-            subtitle: contentData.subtitle,
-            bullets: contentData.bullets,
-          });
-
-          const slide: PPTSlide = {
-            id: `slide-${i + 1}-${Date.now()}`,
-            order: i,
-            layout: (slideOutline.layout as PPTSlide['layout']) || contentLayout,
-            title: contentData.title || slideOutline.title,
-            subtitle: contentData.subtitle,
-            content: contentData.content,
-            bullets: contentData.bullets,
-            notes: contentData.notes || slideOutline.notes,
-            elements: [],
-          };
-
-          slides.push(slide);
-          previousSlide = { title: slide.title || '', content: slide.content };
-        }
+        );
 
         setProgress({
           stage: 'finalizing',
@@ -495,10 +528,10 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         });
 
         const newPresentation: PPTPresentation = {
-          id: `ppt-${Date.now()}`,
+          id: presentationId,
           title: outlineData.title || config.topic,
           subtitle: outlineData.subtitle || config.description,
-          theme: config.theme || DEFAULT_PPT_THEMES[0],
+          theme: presentationTheme,
           slides,
           totalSlides: slides.length,
           aspectRatio: '16:9',
@@ -537,7 +570,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         setAbortController(null);
       }
     },
-    [callAI, parseJSONResponse, loadPresentation, addPresentation, t]
+    [buildSlidesFromOutline, loadPresentation, addPresentation, t]
   );
 
   // Generate presentation from materials using PPTWorkflowExecutor

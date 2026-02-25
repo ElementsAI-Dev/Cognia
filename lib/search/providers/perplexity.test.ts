@@ -7,8 +7,13 @@ import {
   testPerplexityConnection,
 } from './perplexity';
 
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
+jest.mock('../proxy-search-fetch', () => ({
+  perplexityFetch: jest.fn(),
+}));
+
+import { perplexityFetch } from '../proxy-search-fetch';
+
+const mockPerplexityFetch = perplexityFetch as jest.MockedFunction<typeof perplexityFetch>;
 
 describe('perplexity provider', () => {
   const createMockResponse = (data: unknown, ok = true, status = 200) => ({
@@ -40,7 +45,7 @@ describe('perplexity provider', () => {
     };
 
     beforeEach(() => {
-      mockFetch.mockResolvedValue(createMockResponse(mockPerplexityResponse));
+      mockPerplexityFetch.mockResolvedValue(createMockResponse(mockPerplexityResponse));
     });
 
     it('should throw error when API key is missing', async () => {
@@ -50,7 +55,7 @@ describe('perplexity provider', () => {
     it('should make request with correct URL and headers', async () => {
       await searchWithPerplexity('test query', 'test-api-key');
       
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(mockPerplexityFetch).toHaveBeenCalledWith(
         'https://api.perplexity.ai/search',
         expect.objectContaining({
           method: 'POST',
@@ -65,7 +70,7 @@ describe('perplexity provider', () => {
     it('should include query in request body', async () => {
       await searchWithPerplexity('test query', 'key');
       
-      const requestBody = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+      const requestBody = JSON.parse(mockPerplexityFetch.mock.calls[0][1]?.body as string);
       expect(requestBody.query).toBe('test query');
     });
 
@@ -89,13 +94,13 @@ describe('perplexity provider', () => {
     });
 
     it('should handle API errors', async () => {
-      mockFetch.mockResolvedValue(createMockResponse({ error: 'Unauthorized' }, false, 401));
+      mockPerplexityFetch.mockResolvedValue(createMockResponse({ error: 'Unauthorized' }, false, 401));
       
       await expect(searchWithPerplexity('test', 'key')).rejects.toThrow('Perplexity API error');
     });
 
     it('should handle network errors', async () => {
-      mockFetch.mockRejectedValue(new Error('Network error'));
+      mockPerplexityFetch.mockRejectedValue(new Error('Network error'));
       
       await expect(searchWithPerplexity('test', 'key')).rejects.toThrow('Perplexity search failed');
     });
@@ -103,7 +108,7 @@ describe('perplexity provider', () => {
     it('should handle recency option', async () => {
       await searchWithPerplexity('test', 'key', { recency: 'week' });
       
-      const requestBody = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+      const requestBody = JSON.parse(mockPerplexityFetch.mock.calls[0][1]?.body as string);
       expect(requestBody.search_recency_filter).toBe('week');
     });
 
@@ -112,14 +117,52 @@ describe('perplexity provider', () => {
         includeDomains: ['example.com'],
       });
       
-      const requestBody = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+      const requestBody = JSON.parse(mockPerplexityFetch.mock.calls[0][1]?.body as string);
       expect(requestBody.search_domain_filter).toContain('example.com');
+    });
+
+    it('should use latest after/before date filter parameter names', async () => {
+      await searchWithPerplexity('test', 'key', {
+        searchAfterDate: '01/01/2024',
+        searchBeforeDate: '01/31/2024',
+      });
+
+      const requestBody = JSON.parse(mockPerplexityFetch.mock.calls[0][1]?.body as string);
+      expect(requestBody.search_after_date_filter).toBe('01/01/2024');
+      expect(requestBody.search_before_date_filter).toBe('01/31/2024');
+      expect(requestBody.search_after_date).toBeUndefined();
+      expect(requestBody.search_before_date).toBeUndefined();
+    });
+
+    it('should encode excludeDomains as -domain entries', async () => {
+      await searchWithPerplexity('test', 'key', {
+        excludeDomains: ['example.com', '-already.com'],
+      });
+
+      const requestBody = JSON.parse(mockPerplexityFetch.mock.calls[0][1]?.body as string);
+      expect(requestBody.search_domain_filter).toEqual(['-example.com', '-already.com']);
+    });
+
+    it('should throw when includeDomains and excludeDomains are both provided', async () => {
+      await expect(searchWithPerplexity('test', 'key', {
+        includeDomains: ['example.com'],
+        excludeDomains: ['example.org'],
+      })).rejects.toThrow('mixing includeDomains and excludeDomains');
+    });
+
+    it('should set language filter as an array', async () => {
+      await searchWithPerplexity('test', 'key', {
+        language: 'en',
+      });
+
+      const requestBody = JSON.parse(mockPerplexityFetch.mock.calls[0][1]?.body as string);
+      expect(requestBody.search_language_filter).toEqual(['en']);
     });
   });
 
   describe('testPerplexityConnection', () => {
     it('should return true on successful connection', async () => {
-      mockFetch.mockResolvedValue(createMockResponse({
+      mockPerplexityFetch.mockResolvedValue(createMockResponse({
         results: [],
       }));
       
@@ -129,7 +172,7 @@ describe('perplexity provider', () => {
     });
 
     it('should return false on connection failure', async () => {
-      mockFetch.mockResolvedValue(createMockResponse({}, false, 401));
+      mockPerplexityFetch.mockResolvedValue(createMockResponse({}, false, 401));
       
       const result = await testPerplexityConnection('invalid-key');
       

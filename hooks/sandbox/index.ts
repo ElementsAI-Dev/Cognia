@@ -9,6 +9,7 @@ export {
   useSessions,
   useSandboxStats,
   useCodeExecution,
+  useStreamingExecution,
   useTagsCategories,
   type UseExecutionHistoryOptions,
   type UseExecutionHistoryReturn,
@@ -18,6 +19,7 @@ export {
   type UseSessionsReturn,
   type UseSandboxStatsReturn,
   type UseCodeExecutionReturn,
+  type UseStreamingExecutionReturn,
   type UseTagsCategoriesReturn,
 } from './use-sandbox-db';
 export { useVirtualEnv } from './use-virtual-env';

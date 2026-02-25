@@ -150,6 +150,7 @@ jest.mock('lucide-react', () => ({
   Clock: () => <span data-testid="icon-clock" />,
   Eye: () => <span data-testid="icon-eye" />,
   Trash2: () => <span data-testid="icon-trash" />,
+  RotateCcw: () => <span data-testid="icon-rematch" />,
   ChevronDown: () => <span data-testid="icon-chevron-down" />,
   ChevronUp: () => <span data-testid="icon-chevron-up" />,
 }));
@@ -315,5 +316,36 @@ describe('ArenaHistory', () => {
       await userEvent.click(viewButton);
       expect(onViewBattle).toHaveBeenCalledWith('b1');
     }
+  });
+
+  it('calls onRematch when rematch button is clicked', async () => {
+    const battle = makeBattle({ id: 'b1', prompt: 'Rematch me' });
+    mockBattles = [battle];
+    const onRematch = jest.fn();
+
+    render(<ArenaHistory onRematch={onRematch} />);
+
+    const rematchButton = screen
+      .getAllByRole('button')
+      .find((b) => b.querySelector('[data-testid="icon-rematch"]'));
+    expect(rematchButton).toBeDefined();
+
+    if (rematchButton) {
+      await userEvent.click(rematchButton);
+      expect(onRematch).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'b1', prompt: 'Rematch me' })
+      );
+    }
+  });
+
+  it('does not render rematch button when onRematch is not provided', () => {
+    mockBattles = [makeBattle({ id: 'b1', prompt: 'No rematch' })];
+
+    render(<ArenaHistory />);
+
+    const rematchButton = screen
+      .queryAllByRole('button')
+      .find((b) => b.querySelector('[data-testid="icon-rematch"]'));
+    expect(rematchButton).toBeUndefined();
   });
 });

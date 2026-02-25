@@ -1322,6 +1322,8 @@ pub fn run() {
             commands::context::awareness::awareness_get_focus_session_count,
             // Sandbox commands
             commands::devtools::sandbox::sandbox_execute,
+            commands::devtools::sandbox::sandbox_cancel_execution,
+            commands::devtools::sandbox::sandbox_execute_streaming,
             commands::devtools::sandbox::sandbox_get_status,
             commands::devtools::sandbox::sandbox_get_config,
             commands::devtools::sandbox::sandbox_update_config,
@@ -1371,6 +1373,7 @@ pub fn run() {
             commands::devtools::sandbox::sandbox_get_daily_counts,
             // Sandbox utility commands
             commands::devtools::sandbox::sandbox_export_data,
+            commands::devtools::sandbox::sandbox_import_data,
             commands::devtools::sandbox::sandbox_get_all_tags,
             commands::devtools::sandbox::sandbox_get_all_categories,
             commands::devtools::sandbox::sandbox_get_db_size,
@@ -1668,6 +1671,8 @@ pub fn run() {
             commands::devtools::git::git_merge_abort,
             commands::devtools::git::git_log_graph,
             commands::devtools::git::git_repo_stats,
+            commands::devtools::git::git_file_history,
+            commands::devtools::git::git_search_commits,
             commands::devtools::git::git_checkpoint_create,
             commands::devtools::git::git_checkpoint_list,
             commands::devtools::git::git_checkpoint_restore,

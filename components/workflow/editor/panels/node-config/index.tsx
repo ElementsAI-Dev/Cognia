@@ -44,6 +44,12 @@ export const QuestionClassifierNodeConfig = lazy(() => import('./question-classi
 export const TemplateTransformNodeConfig = lazy(() => import('./template-transform-config'));
 // Chart node config
 export const ChartNodeConfig = lazy(() => import('./chart-config'));
+// Integration node configs
+export const HttpRequestNodeConfig = lazy(() => import('./http-request-config'));
+// Variable node configs
+export const VariableAssignerNodeConfig = lazy(() => import('./variable-assigner-config'));
+// Chatflow node configs
+export const AnswerNodeConfig = lazy(() => import('./answer-config'));
 
 // Loading fallback component
 export function ConfigLoadingFallback() {
@@ -99,6 +105,12 @@ export const NODE_CONFIG_COMPONENTS = {
   areaChart: ChartNodeConfig,
   scatterChart: ChartNodeConfig,
   radarChart: ChartNodeConfig,
+  // Integration nodes
+  httpRequest: HttpRequestNodeConfig,
+  // Variable nodes
+  variableAssigner: VariableAssignerNodeConfig,
+  // Chatflow nodes
+  answer: AnswerNodeConfig,
 } as const;
 
 export type NodeConfigComponentType = keyof typeof NODE_CONFIG_COMPONENTS;

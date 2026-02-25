@@ -383,7 +383,7 @@ function ArenaBattleViewComponent({
                   className="gap-1.5"
                 >
                   <Diff className="h-3 w-3" />
-                  {showDiffView ? t('hideDiff', { fallback: 'Hide Diff' }) : t('showDiff', { fallback: 'Compare' })}
+                  {showDiffView ? t('hideDiff') : t('showDiff')}
                 </Button>
               )}
               {/* Model reveal info after voting */}

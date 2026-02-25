@@ -176,6 +176,13 @@
     "executing": "Executing...",
     "notConfigured": "Not configured",
     "noDescriptionText": "No description",
+    "testNode": "Test this node",
+    "enableNode": "Enable node",
+    "disableNode": "Disable node",
+    "nodeDisabled": "Disabled",
+    "answerTemplate": "Answer Template",
+    "variableReferences": "Variable References",
+    "method": "Method",
 
     "myTemplates": "My Templates",
     "saveAsTemplate": "Save as Template",

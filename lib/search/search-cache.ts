@@ -36,12 +36,18 @@ export function generateSearchCacheKey(
   provider?: SearchProviderType,
   options?: SearchOptions
 ): string {
+  const includeRawContent =
+    options?.includeRawContent === true ? 'text' : options?.includeRawContent;
+
   const keyParts = [
     query.toLowerCase().trim(),
     provider || 'auto',
     options?.maxResults?.toString() || '10',
     options?.searchType || 'general',
+    options?.searchDepth || 'basic',
     options?.recency || 'any',
+    options?.includeAnswer === true ? '1' : '0',
+    includeRawContent ? String(includeRawContent) : '',
     options?.language || 'en',
     options?.country || '',
     options?.includeDomains?.sort().join(',') || '',

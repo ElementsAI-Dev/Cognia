@@ -33,6 +33,7 @@ import {
   BookOpen,
   ExternalLink,
   Brain,
+  Settings,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,6 +53,7 @@ import { LearningStatisticsPanel } from './learning-statistics-panel';
 import { LearningNotesPanel } from './learning-notes-panel';
 import { LearningHistoryPanel } from './learning-history-panel';
 import { LearningPathDashboard } from './learning-path-dashboard';
+import { LearningSettingsDialog } from './learning-settings-dialog';
 import type { LearningPhase, LearningSubQuestion, LearningGoal } from '@/types/learning';
 import type { LearningSubMode } from '@/types/core/session';
 
@@ -100,6 +102,7 @@ export const LearningModePanel = memo(function LearningModePanel({
   const [isGoalsExpanded, setIsGoalsExpanded] = useState(true);
   const [isQuestionsExpanded, setIsQuestionsExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState('progress');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const { getAchievements } = useLearningStore();
   const achievements = getAchievements();
   const speedPassStore = useSpeedPassStore();
@@ -209,11 +212,16 @@ export const LearningModePanel = memo(function LearningModePanel({
             <GraduationCap className="h-5 w-5 text-primary" />
             <CardTitle className="text-lg">{t('title')}</CardTitle>
           </div>
-          {onClose && (
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-4 w-4" />
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSettingsOpen(true)}>
+              <Settings className="h-4 w-4" />
             </Button>
-          )}
+            {onClose && (
+              <Button variant="ghost" size="icon" onClick={onClose}>
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
         <CardDescription className="line-clamp-2">
           {shouldShowSpeedPassPanel ? tSpeedPass('submodeTitle') : learningSession?.topic}
@@ -518,6 +526,7 @@ export const LearningModePanel = memo(function LearningModePanel({
         </Tabs>
         )}
       </CardContent>
+      <LearningSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </Card>
   );
 });

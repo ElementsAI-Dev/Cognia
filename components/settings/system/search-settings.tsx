@@ -51,6 +51,7 @@ import { useSettingsStore } from '@/stores';
 import {
   type SearchProviderType,
   SEARCH_PROVIDERS,
+  isProviderConfigured,
   validateApiKey,
 } from '@/types/search';
 import { testProviderConnection } from '@/lib/search/provider-test';
@@ -63,6 +64,7 @@ export function SearchSettings() {
   const _tc = useTranslations('common');
 
   const searchProviders = useSettingsStore((state) => state.searchProviders);
+  const setSearchProviderSettings = useSettingsStore((state) => state.setSearchProviderSettings);
   const setSearchProviderApiKey = useSettingsStore((state) => state.setSearchProviderApiKey);
   const setSearchProviderEnabled = useSettingsStore((state) => state.setSearchProviderEnabled);
   const searchEnabled = useSettingsStore((state) => state.searchEnabled);
@@ -96,6 +98,7 @@ export function SearchSettings() {
     perplexity: false,
     exa: false,
     searchapi: false,
+    serper: false,
     serpapi: false,
     bing: false,
     google: false,
@@ -108,6 +111,7 @@ export function SearchSettings() {
     perplexity: { testing: false, result: null },
     exa: { testing: false, result: null },
     searchapi: { testing: false, result: null },
+    serper: { testing: false, result: null },
     serpapi: { testing: false, result: null },
     bing: { testing: false, result: null },
     google: { testing: false, result: null },
@@ -120,6 +124,7 @@ export function SearchSettings() {
     perplexity: false,
     exa: false,
     searchapi: false,
+    serper: false,
     serpapi: false,
     bing: false,
     google: false,
@@ -145,7 +150,11 @@ export function SearchSettings() {
     }));
 
     try {
-      const isValid = await testProviderConnection(providerId, apiKey);
+      const isValid = await testProviderConnection(
+        providerId,
+        apiKey,
+        providerId === 'google' ? { cx: searchProviders[providerId]?.cx } : undefined
+      );
       setTestStates((prev) => ({
         ...prev,
         [providerId]: { testing: false, result: isValid ? 'success' : 'error' },
@@ -159,15 +168,16 @@ export function SearchSettings() {
   }, [searchProviders]);
 
   const enabledCount = Object.values(searchProviders).filter(
-    (p) => p.enabled && p.apiKey
+    (p) => p.enabled && isProviderConfigured(p.providerId, p)
   ).length;
 
   const providerIds = Object.keys(SEARCH_PROVIDERS) as SearchProviderType[];
 
   // Get configured providers for default selection
-  const configuredProviders = providerIds.filter(
-    id => searchProviders[id]?.apiKey && searchProviders[id]?.enabled
-  );
+  const configuredProviders = providerIds.filter((id) => {
+    const settings = searchProviders[id];
+    return !!settings?.enabled && isProviderConfigured(id, settings);
+  });
 
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
 
@@ -337,7 +347,11 @@ export function SearchSettings() {
             const isExpanded = expandedProviders[providerId];
             const showKey = showKeys[providerId];
             const isValidKey = settings?.apiKey ? validateApiKey(providerId, settings.apiKey) : false;
-            const isActive = settings?.enabled && settings?.apiKey;
+            const isActive = !!settings?.enabled && isProviderConfigured(providerId, settings);
+            const canEnable =
+              providerId === 'google'
+                ? !!settings?.apiKey && !!settings?.cx?.trim()
+                : !!settings?.apiKey;
 
             return (
               <Collapsible
@@ -376,7 +390,7 @@ export function SearchSettings() {
                         <Switch
                           checked={settings?.enabled ?? false}
                           onCheckedChange={(enabled) => setSearchProviderEnabled(providerId, enabled)}
-                          disabled={!settings?.apiKey}
+                          disabled={!settings?.enabled && !canEnable}
                           onClick={(e) => e.stopPropagation()}
                         />
                         {isExpanded ? (
@@ -463,6 +477,28 @@ export function SearchSettings() {
                           </a>
                         </p>
                       </div>
+
+                      {/* Google Custom Search Engine ID (cx) */}
+                      {providerId === 'google' && (
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`${providerId}-cx`} className="text-xs">
+                            {t('googleCx') || 'Programmable Search Engine ID (cx)'}
+                          </Label>
+                          <Input
+                            id={`${providerId}-cx`}
+                            type="text"
+                            placeholder={t('googleCxPlaceholder') || 'e.g. 012345678901234567890:abcdefg1234'}
+                            value={settings?.cx ?? ''}
+                            onChange={(e) => setSearchProviderSettings(providerId, { cx: e.target.value })}
+                            autoComplete="off"
+                            data-form-type="other"
+                          />
+                          <p className="text-[10px] text-muted-foreground">
+                            {t('googleCxHelp') ||
+                              'Required for Google Custom Search (Programmable Search Engine). You can find it in your search engine control panel.'}
+                          </p>
+                        </div>
+                      )}
 
                       {/* Priority Control */}
                       <div className="flex items-center justify-between">

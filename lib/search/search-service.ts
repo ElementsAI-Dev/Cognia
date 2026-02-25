@@ -10,61 +10,27 @@ import type {
   SearchProviderSettings,
   SearchResult,
 } from '@/types/search';
-import { getEnabledProviders } from '@/types/search';
+import { getEnabledProviders, isProviderConfigured } from '@/types/search';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.network;
 
-import { searchWithTavily, testTavilyConnection } from './providers/tavily';
-import { searchWithPerplexity, testPerplexityConnection } from './providers/perplexity';
-import { searchWithExa, testExaConnection } from './providers/exa';
-import { searchWithSearchAPI, testSearchAPIConnection } from './providers/searchapi';
-import { searchWithSerpAPI, testSerpAPIConnection } from './providers/serpapi';
-import { searchWithBing, testBingConnection } from './providers/bing';
-import { searchWithGoogle, testGoogleConnection } from './providers/google';
-import { searchWithGoogleAI, testGoogleAIConnection } from './providers/google-ai';
-import { searchWithBrave, testBraveConnection } from './providers/brave';
+import { routeSearch } from './search-type-router';
+import { testTavilyConnection } from './providers/tavily';
+import { testPerplexityConnection } from './providers/perplexity';
+import { testExaConnection } from './providers/exa';
+import { testSearchAPIConnection } from './providers/searchapi';
+import { testSerperConnection } from './providers/serper';
+import { testSerpAPIConnection } from './providers/serpapi';
+import { testBingConnection } from './providers/bing';
+import { testGoogleConnection } from './providers/google';
+import { testGoogleAIConnection } from './providers/google-ai';
+import { testBraveConnection } from './providers/brave';
 
 export interface UnifiedSearchOptions extends SearchOptions {
   provider?: SearchProviderType;
   fallbackEnabled?: boolean;
-  providerSettings?: Record<SearchProviderType, SearchProviderSettings>;
-}
-
-/**
- * Execute search with a specific provider
- */
-async function executeProviderSearch(
-  provider: SearchProviderType,
-  query: string,
-  apiKey: string,
-  options: SearchOptions
-): Promise<SearchResponse> {
-  switch (provider) {
-    case 'tavily':
-      return searchWithTavily(query, apiKey, {
-        ...options,
-        includeRawContent: options.includeRawContent === true ? 'text' : options.includeRawContent,
-      });
-    case 'perplexity':
-      return searchWithPerplexity(query, apiKey, options);
-    case 'exa':
-      return searchWithExa(query, apiKey, options);
-    case 'searchapi':
-      return searchWithSearchAPI(query, apiKey, options);
-    case 'serpapi':
-      return searchWithSerpAPI(query, apiKey, options);
-    case 'bing':
-      return searchWithBing(query, apiKey, options);
-    case 'google':
-      return searchWithGoogle(query, apiKey, options);
-    case 'google-ai':
-      return searchWithGoogleAI(query, apiKey, options);
-    case 'brave':
-      return searchWithBrave(query, apiKey, options);
-    default:
-      throw new Error(`Unknown search provider: ${provider}`);
-  }
+  providerSettings?: Partial<Record<SearchProviderType, SearchProviderSettings>>;
 }
 
 /**
@@ -96,8 +62,8 @@ export async function search(
 
   if (provider) {
     const specificProvider = providerSettings[provider];
-    if (!specificProvider?.enabled || !specificProvider?.apiKey) {
-      throw new Error(`Provider ${provider} is not enabled or missing API key`);
+    if (!specificProvider?.enabled || !isProviderConfigured(provider, specificProvider)) {
+      throw new Error(`Provider ${provider} is not enabled or missing required configuration`);
     }
     providersToTry = fallbackEnabled
       ? [specificProvider, ...enabledProviders.filter((p) => p.providerId !== provider)]
@@ -110,13 +76,7 @@ export async function search(
 
   for (const providerConfig of providersToTry) {
     try {
-      const result = await executeProviderSearch(
-        providerConfig.providerId,
-        query,
-        providerConfig.apiKey,
-        { ...searchOptions, ...providerConfig.defaultOptions }
-      );
-      return result;
+      return await routeSearch(query, providerConfig.providerId, providerConfig, searchOptions);
     } catch (error) {
       log.warn(`Search with ${providerConfig.providerId} failed`, { error });
       lastError = error instanceof Error ? error : new Error(String(error));
@@ -152,9 +112,19 @@ export async function searchWithProvider(
   provider: SearchProviderType,
   query: string,
   apiKey: string,
-  options: SearchOptions = {}
+  options: SearchOptions = {},
+  providerSettings?: Partial<SearchProviderSettings>
 ): Promise<SearchResponse> {
-  return executeProviderSearch(provider, query, apiKey, options);
+  const settings: SearchProviderSettings = {
+    providerId: provider,
+    apiKey,
+    enabled: true,
+    priority: providerSettings?.priority ?? 1,
+    defaultOptions: providerSettings?.defaultOptions,
+    cx: providerSettings?.cx,
+  };
+
+  return routeSearch(query, provider, settings, options);
 }
 
 /**
@@ -162,7 +132,8 @@ export async function searchWithProvider(
  */
 export async function testProviderConnection(
   provider: SearchProviderType,
-  apiKey: string
+  apiKey: string,
+  providerSettings?: Partial<SearchProviderSettings>
 ): Promise<boolean> {
   try {
     switch (provider) {
@@ -174,12 +145,17 @@ export async function testProviderConnection(
         return await testExaConnection(apiKey);
       case 'searchapi':
         return await testSearchAPIConnection(apiKey);
+      case 'serper':
+        return await testSerperConnection(apiKey);
       case 'serpapi':
         return await testSerpAPIConnection(apiKey);
       case 'bing':
         return await testBingConnection(apiKey);
       case 'google':
-        return await testGoogleConnection(apiKey, '');
+        if (!providerSettings?.cx || providerSettings.cx.trim() === '') {
+          return false;
+        }
+        return await testGoogleConnection(apiKey, providerSettings.cx);
       case 'google-ai':
         return await testGoogleAIConnection(apiKey);
       case 'brave':
@@ -208,12 +184,7 @@ export async function aggregateSearch(
 
   const startTime = Date.now();
   const searchPromises = enabledProviders.map((provider) =>
-    executeProviderSearch(
-      provider.providerId,
-      query,
-      provider.apiKey,
-      { ...options, ...provider.defaultOptions }
-    ).catch((error) => {
+    routeSearch(query, provider.providerId, provider, options).catch((error) => {
       log.warn(`Aggregate search with ${provider.providerId} failed`, { error });
       return null;
     })

@@ -1,6 +1,12 @@
 import type { ScheduledTask, TaskExecution } from '@/types/scheduler';
 import { loggers } from '@/lib/logger';
-import { executeBackupTask, executeWorkflowTask } from './index';
+import {
+  executeBackupTask,
+  executeWorkflowTask,
+  executeAIGenerationTask,
+  executeChatTask,
+  executeTestTask,
+} from './index';
 
 const mockRegisterTaskExecutor = jest.fn();
 const mockExecutePluginTask = jest.fn();
@@ -88,6 +94,55 @@ jest.mock('@/lib/sync/credential-storage', () => ({
 jest.mock('@/stores/sync', () => ({
   useSyncStore: {
     getState: () => mockSyncStoreState,
+  },
+}));
+
+// Mocks for new executors
+const mockGenerateText = jest.fn();
+jest.mock('ai', () => ({
+  generateText: (...args: unknown[]) => mockGenerateText(...args),
+}));
+
+const mockGetProxyProviderModel = jest.fn().mockReturnValue('mock-model-instance');
+jest.mock('@/lib/ai/core/proxy-client', () => ({
+  getProxyProviderModel: (...args: unknown[]) => mockGetProxyProviderModel(...args),
+}));
+
+const mockSettingsState = {
+  defaultProvider: 'openai',
+  providerSettings: {
+    openai: { apiKey: 'test-key', baseURL: 'https://api.openai.com', defaultModel: 'gpt-4o' },
+  },
+};
+jest.mock('@/stores/settings', () => ({
+  useSettingsStore: {
+    getState: () => mockSettingsState,
+  },
+}));
+
+const mockAppendMessage = jest.fn();
+jest.mock('@/stores/chat', () => ({
+  useChatStore: {
+    getState: () => ({
+      appendMessage: mockAppendMessage,
+    }),
+  },
+  useSessionStore: {
+    getState: () => ({
+      createSession: jest.fn().mockReturnValue({ id: 'new-session-1' }),
+      setActiveSession: jest.fn(),
+    }),
+  },
+}));
+
+jest.mock('nanoid', () => ({
+  nanoid: () => 'test-nanoid-123',
+}));
+
+const mockSchedulerDbTasks = { count: jest.fn().mockResolvedValue(5) };
+jest.mock('../scheduler-db', () => ({
+  schedulerDb: {
+    tasks: mockSchedulerDbTasks,
   },
 }));
 
@@ -379,6 +434,366 @@ describe('executeBackupTask', () => {
           skippedProviders: ['github'],
           failedProviders: [{ provider: 'googledrive', error: 'upload failed' }],
         }),
+      })
+    );
+  });
+});
+
+describe('executeAIGenerationTask', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('returns error when prompt is missing', async () => {
+    const task = { ...createTask({}), type: 'ai-generation' as const };
+    const result = await executeAIGenerationTask(task, createExecution());
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('No prompt specified');
+  });
+
+  it('calls generateText with correct model and prompt', async () => {
+    mockGenerateText.mockResolvedValue({ text: 'Generated summary text' });
+
+    const task = {
+      ...createTask({
+        prompt: 'Summarize this',
+        generationType: 'summary',
+      }),
+      type: 'ai-generation' as const,
+    };
+
+    const result = await executeAIGenerationTask(task, createExecution());
+
+    expect(result.success).toBe(true);
+    expect(mockGetProxyProviderModel).toHaveBeenCalledWith(
+      'openai', 'gpt-4o', 'test-key', 'https://api.openai.com', true
+    );
+    expect(mockGenerateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'mock-model-instance',
+        prompt: 'Summarize this',
+        system: 'You are a helpful assistant that creates concise summaries.',
+      })
+    );
+    expect(result.output).toEqual(
+      expect.objectContaining({
+        generationType: 'summary',
+        provider: 'openai',
+        model: 'gpt-4o',
+        content: 'Generated summary text',
+      })
+    );
+  });
+
+  it('uses custom provider and model from payload', async () => {
+    mockGenerateText.mockResolvedValue({ text: 'result' });
+    mockSettingsState.providerSettings.openai = {
+      apiKey: 'custom-key',
+      baseURL: 'https://custom.api',
+      defaultModel: 'gpt-4o',
+    };
+
+    const task = {
+      ...createTask({
+        prompt: 'test',
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+      }),
+      type: 'ai-generation' as const,
+    };
+
+    await executeAIGenerationTask(task, createExecution());
+
+    expect(mockGetProxyProviderModel).toHaveBeenCalledWith(
+      'openai', 'gpt-4o-mini', 'custom-key', 'https://custom.api', true
+    );
+  });
+
+  it('handles generateText errors gracefully', async () => {
+    mockGenerateText.mockRejectedValue(new Error('API rate limit'));
+
+    const task = {
+      ...createTask({ prompt: 'test' }),
+      type: 'ai-generation' as const,
+    };
+
+    const result = await executeAIGenerationTask(task, createExecution());
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('API rate limit');
+  });
+
+  it('does not set system prompt for custom generationType', async () => {
+    mockGenerateText.mockResolvedValue({ text: 'result' });
+
+    const task = {
+      ...createTask({
+        prompt: 'Do something custom',
+        generationType: 'custom',
+      }),
+      type: 'ai-generation' as const,
+    };
+
+    await executeAIGenerationTask(task, createExecution());
+
+    expect(mockGenerateText).toHaveBeenCalledWith(
+      expect.not.objectContaining({ system: expect.anything() })
+    );
+  });
+});
+
+describe('executeChatTask', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('returns error when message is missing', async () => {
+    const task = { ...createTask({}), type: 'chat' as const };
+    const result = await executeChatTask(task, createExecution());
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('No message specified');
+  });
+
+  it('sends message to chat store', async () => {
+    const task = {
+      ...createTask({ message: 'Hello world' }),
+      type: 'chat' as const,
+    };
+
+    const result = await executeChatTask(task, createExecution());
+
+    expect(result.success).toBe(true);
+    expect(mockAppendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: 'user',
+        content: 'Hello world',
+        parts: [{ type: 'text', content: 'Hello world' }],
+      })
+    );
+    expect(result.output).toEqual(
+      expect.objectContaining({
+        messageSent: true,
+        messageLength: 11,
+      })
+    );
+  });
+
+  it('creates new session when sessionId is not provided', async () => {
+    const task = {
+      ...createTask({ message: 'Hello' }),
+      type: 'chat' as const,
+    };
+
+    const result = await executeChatTask(task, createExecution());
+
+    expect(result.success).toBe(true);
+    expect(result.output).toEqual(
+      expect.objectContaining({
+        sessionId: 'new-session-1',
+      })
+    );
+  });
+
+  it('generates auto-reply when autoReply is enabled', async () => {
+    mockGenerateText.mockResolvedValue({ text: 'AI response' });
+
+    const task = {
+      ...createTask({
+        message: 'What is 2+2?',
+        autoReply: true,
+      }),
+      type: 'chat' as const,
+    };
+
+    const result = await executeChatTask(task, createExecution());
+
+    expect(result.success).toBe(true);
+    expect(mockGenerateText).toHaveBeenCalled();
+    expect(mockAppendMessage).toHaveBeenCalledTimes(2); // user + assistant
+    expect(result.output).toEqual(
+      expect.objectContaining({
+        autoReply: true,
+        replyLength: 11,
+      })
+    );
+  });
+
+  it('does not generate auto-reply when autoReply is false', async () => {
+    const task = {
+      ...createTask({ message: 'Hello', autoReply: false }),
+      type: 'chat' as const,
+    };
+
+    await executeChatTask(task, createExecution());
+
+    expect(mockGenerateText).not.toHaveBeenCalled();
+    expect(mockAppendMessage).toHaveBeenCalledTimes(1); // user only
+  });
+});
+
+describe('executeTestTask', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('runs health-check by default', async () => {
+    const task = {
+      ...createTask({}),
+      type: 'test' as const,
+    };
+
+    const result = await executeTestTask(task, createExecution());
+
+    expect(result.output).toEqual(
+      expect.objectContaining({
+        testType: 'health-check',
+        checks: expect.objectContaining({
+          indexedDB: expect.any(Boolean),
+          localStorage: expect.any(Boolean),
+        }),
+      })
+    );
+  });
+
+  it('api-ping returns error when URL is missing', async () => {
+    const task = {
+      ...createTask({ testType: 'api-ping' }),
+      type: 'test' as const,
+    };
+
+    const result = await executeTestTask(task, createExecution());
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('No URL specified');
+  });
+
+  it('api-ping makes HEAD request to specified URL', async () => {
+    const mockFetch = jest.fn().mockResolvedValue({ status: 200 });
+    global.fetch = mockFetch;
+
+    const task = {
+      ...createTask({
+        testType: 'api-ping',
+        url: 'https://example.com/health',
+        expectedStatus: 200,
+      }),
+      type: 'test' as const,
+    };
+
+    const result = await executeTestTask(task, createExecution());
+
+    expect(result.success).toBe(true);
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://example.com/health',
+      expect.objectContaining({ method: 'HEAD' })
+    );
+    expect(result.output).toEqual(
+      expect.objectContaining({
+        url: 'https://example.com/health',
+        statusCode: 200,
+        healthy: true,
+      })
+    );
+  });
+
+  it('api-ping reports failure on status mismatch', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ status: 503 });
+
+    const task = {
+      ...createTask({
+        testType: 'api-ping',
+        url: 'https://example.com/health',
+        expectedStatus: 200,
+      }),
+      type: 'test' as const,
+    };
+
+    const result = await executeTestTask(task, createExecution());
+
+    expect(result.success).toBe(false);
+    expect(result.output).toEqual(
+      expect.objectContaining({ healthy: false, statusCode: 503 })
+    );
+  });
+
+  it('api-ping handles fetch errors gracefully', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+
+    const task = {
+      ...createTask({
+        testType: 'api-ping',
+        url: 'https://unreachable.example.com',
+      }),
+      type: 'test' as const,
+    };
+
+    const result = await executeTestTask(task, createExecution());
+
+    expect(result.success).toBe(false);
+    expect(result.output).toEqual(
+      expect.objectContaining({ healthy: false })
+    );
+    expect(result.error).toBe('Network error');
+  });
+
+  it('provider-check returns configured provider status', async () => {
+    const task = {
+      ...createTask({ testType: 'provider-check' }),
+      type: 'test' as const,
+    };
+
+    const result = await executeTestTask(task, createExecution());
+
+    expect(result.success).toBe(true);
+    expect(result.output).toEqual(
+      expect.objectContaining({
+        testType: 'provider-check',
+        providers: expect.any(Object),
+        configuredCount: expect.any(Number),
+        totalCount: expect.any(Number),
+      })
+    );
+  });
+
+  it('script test returns error when script is missing', async () => {
+    const task = {
+      ...createTask({ testType: 'script' }),
+      type: 'test' as const,
+    };
+
+    const result = await executeTestTask(task, createExecution());
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Script and language are required');
+  });
+
+  it('script test executes script via executeScript', async () => {
+    mockExecuteScript.mockResolvedValue({
+      success: true,
+      exit_code: 0,
+      stdout: 'ok',
+      stderr: '',
+    });
+
+    const task = {
+      ...createTask({
+        testType: 'script',
+        script: 'echo hello',
+        language: 'bash',
+        timeout: 10000,
+      }),
+      type: 'test' as const,
+    };
+
+    const result = await executeTestTask(task, createExecution());
+
+    expect(result.success).toBe(true);
+    expect(mockExecuteScript).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'execute_script',
+        language: 'bash',
+        code: 'echo hello',
+        timeout_secs: 10,
       })
     );
   });

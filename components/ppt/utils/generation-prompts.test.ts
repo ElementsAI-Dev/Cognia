@@ -170,6 +170,22 @@ describe('Generation Prompts', () => {
       const result = buildOutlinePrompt({ topic: 'Test', language: 'en' });
       expect(result).not.toContain('Generate all content in');
     });
+
+    it('should include few-shot example', () => {
+      const result = buildOutlinePrompt({ topic: 'Test' });
+      expect(result).toContain('Example (5-slide presentation');
+      expect(result).toContain('Remote Work');
+    });
+
+    it('should include anti-placeholder instruction', () => {
+      const result = buildOutlinePrompt({ topic: 'Test' });
+      expect(result).toContain('never use generic placeholders');
+    });
+
+    it('should include layout diversity instruction', () => {
+      const result = buildOutlinePrompt({ topic: 'Test' });
+      expect(result).toContain('Vary the layout types');
+    });
   });
 
   describe('buildSlideContentPrompt', () => {
@@ -228,6 +244,49 @@ describe('Generation Prompts', () => {
       expect(result).toContain('Output Format (JSON)');
       expect(result).toContain('"bullets"');
       expect(result).toContain('"notes"');
+    });
+
+    it('should include full outline titles when provided', () => {
+      const result = buildSlideContentPrompt(
+        { title: 'Benefits', layout: 'bullets' },
+        { topic: 'Product' },
+        undefined,
+        ['Introduction', 'Features', 'Benefits', 'Pricing', 'Conclusion']
+      );
+
+      expect(result).toContain('Full Presentation Outline');
+      expect(result).toContain('1. Introduction');
+      expect(result).toContain('3. Benefits');
+      expect(result).toContain('5. Conclusion');
+    });
+
+    it('should not include outline section when no titles provided', () => {
+      const result = buildSlideContentPrompt(
+        { title: 'Test', layout: 'bullets' },
+        { topic: 'Test' }
+      );
+
+      expect(result).not.toContain('Full Presentation Outline');
+    });
+
+    it('should include chartData/tableData in output format', () => {
+      const result = buildSlideContentPrompt(
+        { title: 'Data', layout: 'chart' },
+        { topic: 'Analytics' }
+      );
+
+      expect(result).toContain('"chartData"');
+      expect(result).toContain('"tableData"');
+    });
+
+    it('should include anti-placeholder rules', () => {
+      const result = buildSlideContentPrompt(
+        { title: 'Overview', layout: 'title-content' },
+        { topic: 'AI' }
+      );
+
+      expect(result).toContain('Critical Rules');
+      expect(result).toContain('never write generic placeholders');
     });
   });
 

@@ -70,6 +70,20 @@ export {
   getCategoryDisplayNameEn,
 } from './learning-path';
 
+// Prompt template engine
+export {
+  getBuiltInTemplates,
+  getTemplateById,
+  getAvailableTemplates,
+  resolveBasePrompt,
+  resolvePhasePrompt,
+  resolveDifficultyPrompt,
+  resolveStylePrompt,
+  resolveScenarioPrompt,
+  resolveUnderstandingPrompt,
+  buildConfigModifiers,
+} from './prompt-templates';
+
 // SpeedPass learning utilities
 export * from './speedpass';
 

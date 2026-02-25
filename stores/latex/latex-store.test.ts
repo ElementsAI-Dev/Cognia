@@ -419,6 +419,57 @@ describe('useLatexStore', () => {
       expect(settings.theme).toBe('system');
       expect(settings.wordWrap).toBe(true);
     });
+
+    it('should have default spellCheck as false', () => {
+      act(() => {
+        useLatexStore.getState().resetSettings();
+      });
+      expect(useLatexStore.getState().settings.spellCheck).toBe(false);
+    });
+
+    it('should update spellCheck setting', () => {
+      act(() => {
+        useLatexStore.getState().updateSettings({ spellCheck: true });
+      });
+      expect(useLatexStore.getState().settings.spellCheck).toBe(true);
+    });
+
+    it('should have default tabSize as 2', () => {
+      act(() => {
+        useLatexStore.getState().resetSettings();
+      });
+      expect(useLatexStore.getState().settings.tabSize).toBe(2);
+    });
+
+    it('should update tabSize setting', () => {
+      act(() => {
+        useLatexStore.getState().updateSettings({ tabSize: 4 });
+      });
+      expect(useLatexStore.getState().settings.tabSize).toBe(4);
+    });
+
+    it('should preserve spellCheck and tabSize when updating other settings', () => {
+      act(() => {
+        useLatexStore.getState().updateSettings({ spellCheck: true, tabSize: 4 });
+        useLatexStore.getState().updateSettings({ fontSize: 18 });
+      });
+
+      const settings = useLatexStore.getState().settings;
+      expect(settings.spellCheck).toBe(true);
+      expect(settings.tabSize).toBe(4);
+      expect(settings.fontSize).toBe(18);
+    });
+
+    it('should reset spellCheck and tabSize to defaults', () => {
+      act(() => {
+        useLatexStore.getState().updateSettings({ spellCheck: true, tabSize: 4 });
+        useLatexStore.getState().resetSettings();
+      });
+
+      const settings = useLatexStore.getState().settings;
+      expect(settings.spellCheck).toBe(false);
+      expect(settings.tabSize).toBe(2);
+    });
   });
 
   describe('utility actions', () => {

@@ -50,7 +50,10 @@
       "closeDetails": "关闭详情面板",
       "addBookmark": "收藏此日志",
       "removeBookmark": "取消收藏",
-      "logsPerMin": "条/分钟"
+      "logsPerMin": "条/分钟",
+      "traceView": "追踪视图",
+      "agentTraceModule": "Agent 追踪",
+      "noTraceEvents": "暂无 Agent 追踪事件"
     },
 
     "dashboard": {
@@ -149,6 +152,24 @@
       }
     },
     
+    "trace": {
+      "eventType": "事件类型",
+      "toolName": "工具",
+      "toolArgs": "参数",
+      "tokenUsage": "Token 用量",
+      "promptTokens": "输入",
+      "completionTokens": "输出",
+      "totalTokens": "总计",
+      "costEstimate": "费用",
+      "duration": "耗时",
+      "success": "成功",
+      "failed": "失败",
+      "responsePreview": "响应预览",
+      "modelId": "模型",
+      "files": "文件",
+      "stepNumber": "步骤"
+    },
+
     "levels": {
       "trace": "追踪",
       "debug": "调试",

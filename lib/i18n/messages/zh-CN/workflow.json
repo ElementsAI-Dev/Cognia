@@ -175,6 +175,13 @@
 
     "executing": "执行中...",
     "notConfigured": "未配置",
+    "testNode": "测试节点",
+    "enableNode": "启用节点",
+    "disableNode": "禁用节点",
+    "nodeDisabled": "已禁用",
+    "answerTemplate": "回答模板",
+    "variableReferences": "变量引用",
+    "method": "方法",
     "noDescriptionText": "暂无描述",
 
     "myTemplates": "我的模板",

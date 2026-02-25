@@ -219,14 +219,24 @@
       "stats": "统计",
       "checkpoints": "检查点",
       "tags": "标签",
-      "remotes": "远程"
+      "remotes": "远程",
+      "blame": "追溯",
+      "fileHistory": "文件历史",
+      "search": "搜索"
     },
     "graph": {
       "title": "提交图",
       "noCommits": "没有可显示的提交",
       "refresh": "刷新",
       "mergeCommit": "合并提交",
-      "parents": "个父节点"
+      "parents": "个父节点",
+      "searchPlaceholder": "搜索提交...",
+      "copyHash": "复制哈希",
+      "cherryPick": "摘取",
+      "revertCommit": "还原",
+      "createBranch": "在此创建分支",
+      "createTag": "在此创建标签",
+      "loadMore": "加载更多"
     },
     "stats": {
       "title": "仓库统计",
@@ -306,6 +316,60 @@
     "diff": {
       "unifiedView": "统一视图",
       "splitView": "并排视图"
+    },
+    "blame": {
+      "title": "文件追溯",
+      "selectFile": "选择文件",
+      "filePlaceholder": "输入相对于仓库根目录的文件路径...",
+      "loading": "加载追溯数据...",
+      "noFile": "未选择文件",
+      "noFileHint": "输入文件路径或使用文件选择器查看追溯注释。",
+      "author": "作者",
+      "date": "日期",
+      "hash": "哈希",
+      "line": "行",
+      "commitBlock": "提交块"
+    },
+    "commitDetail": {
+      "title": "提交详情",
+      "noDetail": "选择一个提交以查看详情",
+      "hash": "哈希",
+      "author": "作者",
+      "date": "日期",
+      "parents": "父提交",
+      "fileChanges": "文件更改",
+      "noFileChanges": "无文件更改",
+      "noDiffContent": "无差异内容",
+      "cherryPick": "摘取",
+      "cherryPickTooltip": "将此提交应用到当前分支",
+      "revert": "还原",
+      "revertTooltip": "创建一个撤销此提交的新提交",
+      "checkout": "检出",
+      "checkoutTooltip": "切换到此提交（分离 HEAD）",
+      "copyHash": "复制哈希"
+    },
+    "fileHistory": {
+      "title": "文件历史",
+      "selectFile": "选择文件",
+      "filePlaceholder": "输入相对于仓库根目录的文件路径...",
+      "loading": "加载文件历史...",
+      "noHistory": "未选择文件",
+      "noHistoryHint": "输入文件路径以查看其提交历史。",
+      "renamedFrom": "重命名自",
+      "loadMore": "加载更多"
+    },
+    "search": {
+      "title": "提交搜索",
+      "placeholder": "搜索提交...",
+      "hint": "输入搜索词以查找提交。",
+      "noResults": "未找到提交",
+      "mode": {
+        "message": "消息",
+        "author": "作者",
+        "hash": "哈希",
+        "file": "文件",
+        "content": "内容"
+      }
     }
   },
   "branchSelector": {

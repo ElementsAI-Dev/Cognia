@@ -50,7 +50,10 @@
       "closeDetails": "Close Detail Panel",
       "addBookmark": "Bookmark this log",
       "removeBookmark": "Remove bookmark",
-      "logsPerMin": "logs/min"
+      "logsPerMin": "logs/min",
+      "traceView": "Trace View",
+      "agentTraceModule": "Agent Trace",
+      "noTraceEvents": "No agent trace events"
     },
 
     "dashboard": {
@@ -149,6 +152,24 @@
       }
     },
     
+    "trace": {
+      "eventType": "Event Type",
+      "toolName": "Tool",
+      "toolArgs": "Arguments",
+      "tokenUsage": "Token Usage",
+      "promptTokens": "Prompt",
+      "completionTokens": "Completion",
+      "totalTokens": "Total",
+      "costEstimate": "Cost",
+      "duration": "Duration",
+      "success": "Success",
+      "failed": "Failed",
+      "responsePreview": "Response Preview",
+      "modelId": "Model",
+      "files": "Files",
+      "stepNumber": "Step"
+    },
+
     "levels": {
       "trace": "Trace",
       "debug": "Debug", 

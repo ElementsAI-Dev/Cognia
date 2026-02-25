@@ -115,6 +115,41 @@ export interface ExecutionRequest {
   files?: Record<string, string>;
   /** Network access */
   network_enabled?: boolean;
+  /** Compiler/interpreter settings */
+  compiler_settings?: {
+    /** C++ standard: "c++11" | "c++14" | "c++17" | "c++20" | "c++23" */
+    cpp_standard?: string;
+    /** Optimization level: "-O0" | "-O1" | "-O2" | "-O3" | "-Os" */
+    optimization?: string;
+    /** C compiler: "gcc" | "clang" */
+    c_compiler?: string;
+    /** C++ compiler: "g++" | "clang++" */
+    cpp_compiler?: string;
+    /** Enable warnings (-Wall -Wextra) */
+    enable_warnings?: boolean;
+    /** Rust edition: "2015" | "2018" | "2021" | "2024" */
+    rust_edition?: string;
+    /** Rust release mode */
+    rust_release?: boolean;
+    /** Python unbuffered output */
+    python_unbuffered?: boolean;
+    /** Python optimize bytecode */
+    python_optimize?: boolean;
+    /** Additional custom compiler/interpreter arguments */
+    custom_args?: string[];
+  };
+}
+
+/** A single line of streaming output during execution */
+export interface OutputLine {
+  /** Execution ID this line belongs to */
+  execution_id: string;
+  /** Stream type: "stdout" or "stderr" */
+  stream: 'stdout' | 'stderr';
+  /** The text content of this line */
+  text: string;
+  /** Timestamp in milliseconds since execution started */
+  timestamp_ms: number;
 }
 
 /** Code execution result */

@@ -2921,6 +2921,193 @@ pub async fn git_repo_stats(repo_path: String) -> GitOperationResult<GitRepoStat
     })
 }
 
+// ==================== File History Commands ====================
+
+/// File history entry — one commit's impact on a specific file
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitFileHistoryEntry {
+    pub commit: GitCommitInfo,
+    pub additions: i32,
+    pub deletions: i32,
+    #[serde(rename = "oldPath")]
+    pub old_path: Option<String>,
+}
+
+/// Get commit history for a specific file with rename tracking
+#[tauri::command]
+pub async fn git_file_history(
+    repo_path: String,
+    file_path: String,
+    max_count: Option<u32>,
+) -> GitOperationResult<Vec<GitFileHistoryEntry>> {
+    let count = max_count.unwrap_or(50).to_string();
+    let format_str = "%H\x00%an\x00%ae\x00%aI\x00%s\x00%b";
+    let format_arg = format!("--format={}\x00\x00", format_str);
+
+    match run_git_command(
+        &[
+            "log",
+            "--follow",
+            "--numstat",
+            &format_arg,
+            "--max-count",
+            &count,
+            "--",
+            &file_path,
+        ],
+        Some(&repo_path),
+    ) {
+        Ok(output) => {
+            let mut entries = Vec::new();
+            let sections: Vec<&str> = output.split("\x00\x00").collect();
+
+            for section in sections {
+                let section = section.trim();
+                if section.is_empty() {
+                    continue;
+                }
+
+                let parts: Vec<&str> = section.splitn(6, '\x00').collect();
+                if parts.len() < 5 {
+                    continue;
+                }
+
+                let commit = GitCommitInfo {
+                    hash: parts[0].to_string(),
+                    short_hash: parts[0].chars().take(7).collect(),
+                    author: parts[1].to_string(),
+                    author_email: parts[2].to_string(),
+                    date: parts[3].to_string(),
+                    message: parts[4].to_string(),
+                    message_body: parts
+                        .get(5)
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string()),
+                };
+
+                // Parse numstat lines after the commit message
+                let mut additions = 0i32;
+                let mut deletions = 0i32;
+                let mut old_path: Option<String> = None;
+
+                // Numstat lines follow the commit metadata
+                let remaining = if parts.len() >= 6 { parts[5] } else { "" };
+                for line in remaining.lines() {
+                    let numparts: Vec<&str> = line.split_whitespace().collect();
+                    if numparts.len() >= 3 {
+                        additions += numparts[0].parse::<i32>().unwrap_or(0);
+                        deletions += numparts[1].parse::<i32>().unwrap_or(0);
+                        // Check for rename: path format is "old => new" or contains =>
+                        let path_part = numparts[2..].join(" ");
+                        if path_part.contains("=>") {
+                            old_path = path_part
+                                .split("=>")
+                                .next()
+                                .map(|s| s.trim().trim_matches('{').trim().to_string());
+                        }
+                    }
+                }
+
+                entries.push(GitFileHistoryEntry {
+                    commit,
+                    additions,
+                    deletions,
+                    old_path,
+                });
+            }
+
+            GitOperationResult::success(entries)
+        }
+        Err(e) => GitOperationResult::error(e),
+    }
+}
+
+// ==================== Search Commands ====================
+
+/// Search commits by various criteria
+#[tauri::command]
+pub async fn git_search_commits(
+    repo_path: String,
+    mode: String,
+    query: String,
+    max_count: Option<u32>,
+    branch: Option<String>,
+) -> GitOperationResult<Vec<GitCommitInfo>> {
+    let count = max_count.unwrap_or(50).to_string();
+    let format_str = "%H\x00%an\x00%ae\x00%aI\x00%s";
+    let format_arg = format!("--format={}\x00\x00", format_str);
+
+    let mut args: Vec<String> = vec!["log".to_string()];
+
+    match mode.as_str() {
+        "message" => {
+            args.push(format!("--grep={}", query));
+            args.push("--regexp-ignore-case".to_string());
+        }
+        "author" => {
+            args.push(format!("--author={}", query));
+        }
+        "hash" => {
+            // For hash search, try exact match
+            args = vec!["log".to_string(), query.clone(), "-1".to_string()];
+        }
+        "file" => {
+            args.push("--follow".to_string());
+            args.push("--".to_string());
+            args.push(query.clone());
+        }
+        "content" => {
+            args.push(format!("-S{}", query));
+        }
+        _ => {
+            return GitOperationResult::error(format!("Unknown search mode: {}", mode));
+        }
+    }
+
+    if mode != "hash" {
+        args.push(format_arg.clone());
+        args.push("--max-count".to_string());
+        args.push(count);
+    } else {
+        args.push(format_arg.clone());
+    }
+
+    if let Some(ref b) = branch {
+        if mode != "hash" && mode != "file" {
+            args.push(b.clone());
+        }
+    }
+
+    let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+
+    match run_git_command(&args_refs, Some(&repo_path)) {
+        Ok(output) => {
+            let commits: Vec<GitCommitInfo> = output
+                .split("\x00\x00")
+                .filter(|e| !e.trim().is_empty())
+                .filter_map(|entry| {
+                    let parts: Vec<&str> = entry.trim().splitn(5, '\x00').collect();
+                    if parts.len() >= 5 {
+                        Some(GitCommitInfo {
+                            hash: parts[0].to_string(),
+                            short_hash: parts[0].chars().take(7).collect(),
+                            author: parts[1].to_string(),
+                            author_email: parts[2].to_string(),
+                            date: parts[3].to_string(),
+                            message: parts[4].to_string(),
+                            message_body: None,
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            GitOperationResult::success(commits)
+        }
+        Err(e) => GitOperationResult::error(e),
+    }
+}
+
 // ==================== Checkpoint Commands ====================
 
 /// Checkpoint entry

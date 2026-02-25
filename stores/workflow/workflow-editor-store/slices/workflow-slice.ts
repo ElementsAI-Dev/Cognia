@@ -323,6 +323,42 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
       set({ currentWorkflow: updated, isDirty: true });
       scheduleMetaHistoryPush(updated.id);
     },
+
+    publishWorkflow: () => {
+      const { currentWorkflow } = get();
+      if (!currentWorkflow) return;
+
+      const errors = get().validate();
+      if (errors.some((e) => e.severity === 'error')) {
+        toast.error('Cannot publish: workflow has validation errors');
+        return;
+      }
+
+      const updated = {
+        ...currentWorkflow,
+        isPublished: true,
+        publishedAt: new Date(),
+        publishedVersion: (currentWorkflow.publishedVersion || 0) + 1,
+        updatedAt: new Date(),
+      };
+
+      set({ currentWorkflow: updated, isDirty: true });
+      toast.success(`Workflow published (v${updated.publishedVersion})`);
+    },
+
+    unpublishWorkflow: () => {
+      const { currentWorkflow } = get();
+      if (!currentWorkflow) return;
+
+      const updated = {
+        ...currentWorkflow,
+        isPublished: false,
+        updatedAt: new Date(),
+      };
+
+      set({ currentWorkflow: updated, isDirty: true });
+      toast.info('Workflow unpublished');
+    },
   };
 };
 

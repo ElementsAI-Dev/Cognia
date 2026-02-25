@@ -16,6 +16,7 @@ export {
   registerTaskExecutor,
   unregisterTaskExecutor,
   type TaskSchedulerImpl,
+  type ExecutionStatusEvent,
 } from './task-scheduler';
 
 // Cron parser utilities
@@ -62,6 +63,16 @@ export { isLeaderTab, startLeaderElection, stopLeaderElection, onLeaderChange, g
 
 // Format utilities
 export { formatDuration, formatRelativeTime, formatNextRun } from './format-utils';
+
+// Task templates
+export {
+  TASK_TEMPLATES,
+  TEMPLATE_CATEGORIES,
+  getTemplatesByCategory,
+  getTemplateById,
+  type TaskTemplate,
+  type TaskTemplateCategory,
+} from './task-templates';
 
 // Event Integration
 export {

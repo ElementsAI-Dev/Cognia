@@ -426,9 +426,9 @@ export const ARENA_MODEL_PRESETS: ArenaModelPreset[] = [
     name: 'Top Tier',
     description: 'Compare the best models from major providers',
     models: [
-      { provider: 'openai', model: 'gpt-4o' },
+      { provider: 'openai', model: 'o3' },
+      { provider: 'google', model: 'gemini-2.5-pro' },
       { provider: 'anthropic', model: 'claude-sonnet-4-20250514' },
-      { provider: 'google', model: 'gemini-2.0-flash-exp' },
     ],
   },
   {
@@ -437,8 +437,8 @@ export const ARENA_MODEL_PRESETS: ArenaModelPreset[] = [
     description: 'Compare fast, efficient models',
     models: [
       { provider: 'openai', model: 'gpt-4o-mini' },
+      { provider: 'google', model: 'gemini-2.5-flash' },
       { provider: 'anthropic', model: 'claude-3-5-haiku-20241022' },
-      { provider: 'groq', model: 'llama-3.3-70b-versatile' },
     ],
   },
   {
@@ -447,7 +447,7 @@ export const ARENA_MODEL_PRESETS: ArenaModelPreset[] = [
     description: 'Compare cost-effective models',
     models: [
       { provider: 'deepseek', model: 'deepseek-chat' },
-      { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+      { provider: 'google', model: 'gemini-2.5-flash' },
       { provider: 'openai', model: 'gpt-4o-mini' },
     ],
   },
@@ -456,7 +456,7 @@ export const ARENA_MODEL_PRESETS: ArenaModelPreset[] = [
     name: 'Deep Reasoning',
     description: 'Compare models optimized for complex reasoning',
     models: [
-      { provider: 'openai', model: 'o1' },
+      { provider: 'openai', model: 'o3' },
       { provider: 'deepseek', model: 'deepseek-reasoner' },
       { provider: 'anthropic', model: 'claude-opus-4-20250514' },
     ],

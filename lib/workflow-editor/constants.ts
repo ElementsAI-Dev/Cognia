@@ -34,6 +34,9 @@ import {
   AreaChart,
   ScatterChart,
   Radar,
+  // Integration & variable icons
+  PenLine,
+  MessageSquareText,
 } from 'lucide-react';
 import type { WorkflowNodeType } from '@/types/workflow/workflow-editor';
 
@@ -72,6 +75,12 @@ export const NODE_ICONS: Record<WorkflowNodeType, React.ComponentType<{ classNam
   areaChart: AreaChart,
   scatterChart: ScatterChart,
   radarChart: Radar,
+  // Integration nodes
+  httpRequest: Globe,
+  // Variable nodes
+  variableAssigner: PenLine,
+  // Chatflow nodes
+  answer: MessageSquareText,
 };
 
 /**
@@ -120,6 +129,12 @@ export const NODE_TYPE_TAGS: Record<WorkflowNodeType, string[]> = {
   areaChart: ['visualization', 'data'],
   scatterChart: ['visualization', 'data'],
   radarChart: ['visualization', 'data'],
+  // Integration nodes
+  httpRequest: ['integration', 'data'],
+  // Variable nodes
+  variableAssigner: ['data', 'flow'],
+  // Chatflow nodes
+  answer: ['flow', 'utility'],
 };
 
 /**

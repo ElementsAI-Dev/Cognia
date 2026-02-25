@@ -90,6 +90,13 @@ pub struct LanguageStats {
     pub last_used: Option<DateTime<Utc>>,
 }
 
+/// Result of a data import operation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImportResult {
+    pub imported_snippets: u64,
+    pub skipped_snippets: u64,
+}
+
 /// Overall sandbox statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SandboxStats {
@@ -1391,6 +1398,57 @@ impl SandboxDb {
         Ok(result)
     }
 
+    /// Import data from JSON (merges with existing data, skips duplicates)
+    pub fn import_from_json(&self, json_data: &str) -> Result<ImportResult, DbError> {
+        log::info!("Importing sandbox data from JSON ({} bytes)", json_data.len());
+
+        let data: serde_json::Value =
+            serde_json::from_str(json_data).map_err(|e| DbError::Serialization(e.to_string()))?;
+
+        let mut imported_snippets = 0u64;
+        let mut skipped_snippets = 0u64;
+
+        // Import snippets
+        if let Some(snippets) = data.get("snippets").and_then(|v| v.as_array()) {
+            for snippet_val in snippets {
+                let snippet: CodeSnippet = match serde_json::from_value(snippet_val.clone()) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        log::warn!("Skipping invalid snippet: {}", e);
+                        skipped_snippets += 1;
+                        continue;
+                    }
+                };
+
+                // Check if snippet already exists
+                match self.get_snippet(&snippet.id) {
+                    Ok(Some(_)) => {
+                        log::trace!("Skipping existing snippet: {}", snippet.id);
+                        skipped_snippets += 1;
+                    }
+                    _ => {
+                        if let Err(e) = self.create_snippet(&snippet) {
+                            log::warn!("Failed to import snippet {}: {}", snippet.id, e);
+                            skipped_snippets += 1;
+                        } else {
+                            imported_snippets += 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        log::info!(
+            "Import completed: {} snippets imported, {} skipped",
+            imported_snippets, skipped_snippets
+        );
+
+        Ok(ImportResult {
+            imported_snippets,
+            skipped_snippets,
+        })
+    }
+
     /// Get database file size
     pub fn get_db_size(&self) -> Result<u64, DbError> {
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
@@ -2342,5 +2400,161 @@ mod tests {
         let json = serde_json::to_string(&stats).unwrap();
         let parsed: SandboxStats = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.total_executions, 100);
+    }
+
+    // ==================== ImportResult Tests ====================
+
+    #[test]
+    fn test_import_result_serialization() {
+        let result = ImportResult {
+            imported_snippets: 5,
+            skipped_snippets: 2,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let parsed: ImportResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.imported_snippets, 5);
+        assert_eq!(parsed.skipped_snippets, 2);
+    }
+
+    #[test]
+    fn test_import_result_clone() {
+        let result = ImportResult {
+            imported_snippets: 3,
+            skipped_snippets: 1,
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.imported_snippets, 3);
+        assert_eq!(cloned.skipped_snippets, 1);
+    }
+
+    // ==================== import_from_json Tests ====================
+
+    #[test]
+    fn test_import_from_json_empty() {
+        let db = SandboxDb::in_memory().unwrap();
+        let json = r#"{"version": "1.0", "snippets": [], "executions": [], "sessions": []}"#;
+        let result = db.import_from_json(json).unwrap();
+        assert_eq!(result.imported_snippets, 0);
+        assert_eq!(result.skipped_snippets, 0);
+    }
+
+    #[test]
+    fn test_import_from_json_with_snippets() {
+        let db = SandboxDb::in_memory().unwrap();
+
+        // Create export-like JSON with a snippet
+        let snippet = create_test_snippet("import-s1", "python");
+        let snippets_json = serde_json::to_value(&vec![snippet]).unwrap();
+        let import_data = serde_json::json!({
+            "version": "1.0",
+            "snippets": snippets_json,
+        });
+
+        let result = db.import_from_json(&import_data.to_string()).unwrap();
+        assert_eq!(result.imported_snippets, 1);
+        assert_eq!(result.skipped_snippets, 0);
+
+        // Verify snippet was actually imported
+        let retrieved = db.get_snippet("import-s1").unwrap();
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().language, "python");
+    }
+
+    #[test]
+    fn test_import_from_json_skips_duplicates() {
+        let db = SandboxDb::in_memory().unwrap();
+
+        // Pre-create a snippet
+        let snippet = create_test_snippet("dup-s1", "python");
+        db.create_snippet(&snippet).unwrap();
+
+        // Try to import the same snippet
+        let snippets_json = serde_json::to_value(&vec![snippet]).unwrap();
+        let import_data = serde_json::json!({
+            "version": "1.0",
+            "snippets": snippets_json,
+        });
+
+        let result = db.import_from_json(&import_data.to_string()).unwrap();
+        assert_eq!(result.imported_snippets, 0);
+        assert_eq!(result.skipped_snippets, 1);
+    }
+
+    #[test]
+    fn test_import_from_json_mixed_new_and_existing() {
+        let db = SandboxDb::in_memory().unwrap();
+
+        // Pre-create one snippet
+        let existing = create_test_snippet("mix-s1", "python");
+        db.create_snippet(&existing).unwrap();
+
+        // Import: one existing + one new
+        let new_snippet = create_test_snippet("mix-s2", "javascript");
+        let snippets_json = serde_json::to_value(&vec![existing, new_snippet]).unwrap();
+        let import_data = serde_json::json!({
+            "version": "1.0",
+            "snippets": snippets_json,
+        });
+
+        let result = db.import_from_json(&import_data.to_string()).unwrap();
+        assert_eq!(result.imported_snippets, 1);
+        assert_eq!(result.skipped_snippets, 1);
+
+        // Verify both exist
+        assert!(db.get_snippet("mix-s1").unwrap().is_some());
+        assert!(db.get_snippet("mix-s2").unwrap().is_some());
+    }
+
+    #[test]
+    fn test_import_from_json_invalid_json() {
+        let db = SandboxDb::in_memory().unwrap();
+        let result = db.import_from_json("not valid json");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_import_from_json_no_snippets_key() {
+        let db = SandboxDb::in_memory().unwrap();
+        let json = r#"{"version": "1.0"}"#;
+        let result = db.import_from_json(json).unwrap();
+        assert_eq!(result.imported_snippets, 0);
+        assert_eq!(result.skipped_snippets, 0);
+    }
+
+    #[test]
+    fn test_import_from_json_skips_malformed_snippets() {
+        let db = SandboxDb::in_memory().unwrap();
+        let json = r#"{
+            "version": "1.0",
+            "snippets": [
+                {"id": "bad-snippet", "missing_fields": true},
+                {"not_a_snippet": "at all"}
+            ]
+        }"#;
+        let result = db.import_from_json(json).unwrap();
+        assert_eq!(result.imported_snippets, 0);
+        assert_eq!(result.skipped_snippets, 2);
+    }
+
+    #[test]
+    fn test_import_export_roundtrip() {
+        let db = SandboxDb::in_memory().unwrap();
+
+        // Create some data
+        let snippet = create_test_snippet("roundtrip-s1", "python");
+        db.create_snippet(&snippet).unwrap();
+
+        // Export
+        let exported = db.export_to_json().unwrap();
+
+        // Import into a fresh DB
+        let db2 = SandboxDb::in_memory().unwrap();
+        let result = db2.import_from_json(&exported).unwrap();
+        assert_eq!(result.imported_snippets, 1);
+
+        // Verify
+        let retrieved = db2.get_snippet("roundtrip-s1").unwrap();
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().title, snippet.title);
     }
 }
