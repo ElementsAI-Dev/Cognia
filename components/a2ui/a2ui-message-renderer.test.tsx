@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { render, screen, renderHook } from '@testing-library/react';
+import { render, screen, renderHook, waitFor } from '@testing-library/react';
 import {
   A2UIMessageRenderer,
   hasA2UIContent,
@@ -62,11 +62,13 @@ describe('A2UIMessageRenderer', () => {
     mockGetSurface.mockReturnValue({ id: 'extracted-surface', ready: true });
   });
 
-  it('renders A2UI content when detected', () => {
+  it('renders A2UI content when detected', async () => {
     render(<A2UIMessageRenderer content='{"type":"createSurface"}' messageId="msg-1" />);
 
+    await waitFor(() => {
+      expect(mockProcessMessages).toHaveBeenCalled();
+    });
     expect(screen.getByTestId('inline-surface')).toBeInTheDocument();
-    expect(mockProcessMessages).toHaveBeenCalled();
   });
 
   it('renders plain text when no A2UI content is detected', () => {

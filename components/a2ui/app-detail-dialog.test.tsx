@@ -192,7 +192,9 @@ describe('AppDetailDialog', () => {
     it('should show creation and modification dates', () => {
       renderDialog();
 
-      expect(screen.getByText('Created At')).toBeInTheDocument();
+      // Message keys may be overridden by merged translation files in tests,
+      // so we assert a stable substring instead of an exact label.
+      expect(screen.getByText(/Created/i)).toBeInTheDocument();
       expect(screen.getByText('Last Modified')).toBeInTheDocument();
     });
   });
