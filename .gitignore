@@ -89,6 +89,7 @@ yarn-error.log*
 # Misc
 next-env.d.ts
 .vercel/
+.worktrees/
 
 nul
 
