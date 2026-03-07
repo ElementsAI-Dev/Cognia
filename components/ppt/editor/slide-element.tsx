@@ -70,7 +70,8 @@ export function SlideElement({
   onSendToBack,
 }: SlideElementProps) {
   const t = useTranslations('pptEditor');
-  const { moveElement, resizeElement } = usePPTEditorStore();
+  const moveElement = usePPTEditorStore((state) => state.moveElement);
+  const resizeElement = usePPTEditorStore((state) => state.resizeElement);
   const currentSlideId = usePPTEditorStore((s) => s.presentation?.slides[s.currentSlideIndex]?.id);
   const [isEditingContent, setIsEditingContent] = useState(false);
   const [activeSnapGuides, setActiveSnapGuides] = useState<Array<{ type: 'horizontal' | 'vertical'; position: number; label?: string }>>([]);

@@ -161,6 +161,17 @@ describe('usePPTEditorStore', () => {
       expect(usePPTEditorStore.getState().presentation?.slides[0].id).toBe('slide-2');
     });
 
+    it('should keep unlisted slides when reorder input is partial', () => {
+      act(() => {
+        usePPTEditorStore.getState().reorderSlides(['slide-2']);
+      });
+
+      const slides = usePPTEditorStore.getState().presentation?.slides ?? [];
+      expect(slides).toHaveLength(2);
+      expect(slides[0].id).toBe('slide-2');
+      expect(slides[1].id).toBe('slide-1');
+    });
+
     it('should update a slide', () => {
       act(() => {
         usePPTEditorStore.getState().updateSlide('slide-1', { title: 'Updated Title' });
@@ -201,6 +212,29 @@ describe('usePPTEditorStore', () => {
         usePPTEditorStore.getState().deleteElement('slide-2', 'elem-1');
       });
       expect(usePPTEditorStore.getState().presentation?.slides[1].elements.length).toBe(0);
+    });
+
+    it('should copy and paste multiple elements', () => {
+      act(() => {
+        usePPTEditorStore.getState().addElement('slide-2', {
+          type: 'text',
+          content: 'Second element',
+          position: { x: 20, y: 20, width: 50, height: 20 },
+        });
+      });
+
+      const elements = usePPTEditorStore.getState().presentation?.slides[1].elements ?? [];
+      const secondElementId = elements.find((element) => element.id !== 'elem-1')?.id;
+      expect(secondElementId).toBeDefined();
+
+      act(() => {
+        usePPTEditorStore.getState().selectSlide('slide-2');
+        usePPTEditorStore.getState().selectElements(['elem-1', secondElementId!]);
+        usePPTEditorStore.getState().copy();
+        usePPTEditorStore.getState().paste();
+      });
+
+      expect(usePPTEditorStore.getState().presentation?.slides[1].elements.length).toBe(4);
     });
   });
 
@@ -465,6 +499,18 @@ describe('usePPTEditorStore', () => {
 
       expect(usePPTEditorStore.getState().presentation?.slides[0].title).toBe('Slide 1');
     });
+
+    it('should flush pending debounce immediately when undo is triggered', () => {
+      act(() => {
+        usePPTEditorStore.getState().updateSlide('slide-1', { title: 'Changed without timer flush' });
+      });
+
+      act(() => {
+        usePPTEditorStore.getState().undo();
+      });
+
+      expect(usePPTEditorStore.getState().presentation?.slides[0].title).toBe('Slide 1');
+    });
   });
 
   describe('editor mode', () => {
@@ -564,6 +610,29 @@ describe('usePPTEditorStore', () => {
       });
       const elements = selectSelectedElements(usePPTEditorStore.getState());
       expect(elements).toHaveLength(1);
+    });
+
+    it('should keep selected elements selector reference stable when state is unchanged', () => {
+      act(() => {
+        usePPTEditorStore.getState().selectSlide('slide-2');
+        usePPTEditorStore.getState().selectElement('elem-1');
+      });
+
+      const state = usePPTEditorStore.getState();
+      const first = selectSelectedElements(state);
+      const second = selectSelectedElements(state);
+
+      expect(second).toBe(first);
+      expect(second).toHaveLength(1);
+    });
+
+    it('should keep empty selected elements selector reference stable for seeded loads', () => {
+      const state = usePPTEditorStore.getState();
+      const first = selectSelectedElements(state);
+      const second = selectSelectedElements(state);
+
+      expect(first).toHaveLength(0);
+      expect(second).toBe(first);
     });
   });
 });

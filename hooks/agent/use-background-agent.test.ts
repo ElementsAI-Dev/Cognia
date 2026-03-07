@@ -5,6 +5,8 @@
 import { renderHook, act } from '@testing-library/react';
 import { useBackgroundAgentStore } from '@/stores/agent';
 
+let mockActiveSession: { id: string } | null = { id: 'session-1' };
+
 // Mock the stores before importing the hook
 jest.mock('@/stores/settings', () => ({
   useSettingsStore: jest.fn((selector) => {
@@ -24,7 +26,7 @@ jest.mock('@/stores/settings', () => ({
 jest.mock('@/stores/chat', () => ({
   useSessionStore: jest.fn((selector) => {
     const state = {
-      getActiveSession: () => ({ id: 'session-1' }),
+      getActiveSession: () => mockActiveSession,
     };
     return selector(state);
   }),
@@ -130,6 +132,15 @@ const mockManager = {
   markAllNotificationsRead: jest.fn(),
   clearCompleted: jest.fn(),
   delegateToTeam: jest.fn().mockResolvedValue('delegation-id'),
+  restoreState: jest.fn(),
+  persistState: jest.fn(),
+  shutdown: jest.fn().mockResolvedValue({
+    success: true,
+    completedAgents: [],
+    cancelledAgents: [],
+    savedCheckpoints: [],
+    duration: 0,
+  }),
 };
 
 jest.mock('@/lib/ai/agent/background-agent-manager', () => ({
@@ -206,6 +217,7 @@ describe('useBackgroundAgent', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     Object.keys(mockAgents).forEach((key) => delete mockAgents[key]);
+    mockActiveSession = { id: 'session-1' };
 
     (useBackgroundAgentStore as unknown as jest.Mock).mockImplementation((selector) => {
       const state = {
@@ -254,6 +266,8 @@ describe('useBackgroundAgent', () => {
       expect(result.current.selectedAgent).toBeNull();
       expect(result.current.isPanelOpen).toBe(false);
       expect(result.current.unreadNotificationCount).toBe(0);
+      expect(mockManager.restoreState).toHaveBeenCalledTimes(1);
+      expect(mockSyncQueueState).toHaveBeenCalledWith(mockQueueState);
     });
 
     it('should use provided sessionId', () => {
@@ -269,6 +283,36 @@ describe('useBackgroundAgent', () => {
       expect(mockManager.createAgent).toHaveBeenCalledWith(
         expect.objectContaining({
           sessionId: 'custom-session',
+        })
+      );
+    });
+
+    it('hydrates legacy empty-session manager snapshots into active session scope', () => {
+      const legacyAgent = {
+        ...mockManager.createAgent({
+          id: 'legacy-1',
+          sessionId: '',
+          name: 'Legacy Agent',
+          task: 'Legacy task',
+        }),
+        status: 'queued',
+      };
+
+      (mockManager.getAllAgents as jest.Mock).mockReturnValueOnce([legacyAgent]);
+
+      renderHook(() => useBackgroundAgent());
+
+      expect(mockManager.hydrateAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'legacy-1',
+          sessionId: 'session-1',
+        }),
+        { normalizeRunningToQueued: false }
+      );
+      expect(mockUpsertAgentSnapshot).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'legacy-1',
+          sessionId: 'session-1',
         })
       );
     });
@@ -293,6 +337,24 @@ describe('useBackgroundAgent', () => {
         })
       );
       expect(mockUpsertAgentSnapshot).toHaveBeenCalled();
+    });
+
+    it('falls back to global session id when no active session exists', () => {
+      mockActiveSession = null;
+      const { result } = renderHook(() => useBackgroundAgent({ sessionId: '' }));
+
+      act(() => {
+        result.current.createAgent({
+          name: 'Global Agent',
+          task: 'Global task',
+        });
+      });
+
+      expect(mockManager.createAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId: 'background-global-session',
+        })
+      );
     });
   });
 

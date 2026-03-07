@@ -3,7 +3,7 @@
  */
 
 import { nanoid } from 'nanoid';
-import type { Session, Artifact, UIMessage } from '@/types';
+import type { Session, Artifact } from '@/types';
 import type {
   DBSession,
   DBMessage,

@@ -296,6 +296,14 @@ function getDesignerLspProviderOrder(): LspProvider[] {
   return providerOrder.length > 0 ? providerOrder : ['open_vsx', 'vs_marketplace'];
 }
 
+function getDesignerLspTimeoutMs(): number {
+  const timeout = useSettingsStore.getState().editorSettings.lsp.timeoutMs;
+  if (!Number.isFinite(timeout)) {
+    return 10_000;
+  }
+  return Math.max(2_000, Math.min(60_000, Math.round(timeout)));
+}
+
 export function MonacoSandpackEditor({
   className,
   language = 'typescript',
@@ -672,12 +680,15 @@ export function MonacoSandpackEditor({
         setLspStatus('starting');
         setLspStatusDetail('');
         setLspInstallPercent(null);
+        const lspTimeoutMs = getDesignerLspTimeoutMs();
         lspAdapterRef.current = createMonacoLspAdapter({
           monaco,
           editor,
           languageId,
           rootUri,
           protocolV2Enabled: getDesignerLspProtocolV2Enabled(),
+          requestTimeoutMs: lspTimeoutMs,
+          workspaceSymbolsTimeoutMs: Math.max(lspTimeoutMs, 15_000),
           extendedFeaturesEnabled: isEditorFeatureFlagEnabled('editor.lsp.extended'),
           autoInstall: getDesignerLspAutoInstallEnabled(),
           preferredProviders: getDesignerLspProviderOrder(),

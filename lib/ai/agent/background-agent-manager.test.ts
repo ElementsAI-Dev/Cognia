@@ -652,6 +652,30 @@ describe('BackgroundAgentManager', () => {
       expect(newManager.getQueueState().items.some((item) => item.agentId === agent.id)).toBe(false);
     });
 
+    it('restores timeout agents as terminal state without queue re-entry', () => {
+      const agent = manager.createAgent({
+        sessionId: 's1',
+        name: 'Timeout Persistent Agent',
+        task: 'Task',
+      });
+      agent.config.persistState = true;
+      agent.status = 'timeout';
+      agent.error = 'Execution timeout after 10s';
+
+      manager.persistState();
+
+      const newManager = new BackgroundAgentManager(3, { enabled: false });
+      newManager.restoreState();
+
+      const restored = newManager.getAgent(agent.id);
+      expect(restored).toBeDefined();
+      expect(restored?.status).toBe('timeout');
+      expect(restored?.error).toContain('timeout');
+      expect(newManager.getQueueState().items.some((item) => item.agentId === agent.id)).toBe(
+        false
+      );
+    });
+
     it('clears persisted state', () => {
       const agent = manager.createAgent({
         sessionId: 's1',

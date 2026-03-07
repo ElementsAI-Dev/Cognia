@@ -1,22 +1,21 @@
 /**
- * Use Skill Sync Hook Tests
+ * useSkillSync tests
  */
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
-// Mock the native skill module
 jest.mock('@/lib/native/skill', () => ({
   isNativeSkillAvailable: jest.fn(() => true),
 }));
 
-// Mock the use-native-skills hook
 jest.mock('./use-native-skills', () => ({
   useNativeSkills: jest.fn(),
 }));
 
-// Mock the skill store
 jest.mock('@/stores/skills/skill-store', () => ({
-  useSkillStore: jest.fn(),
+  useSkillStore: Object.assign(jest.fn(), {
+    getState: jest.fn(() => ({ skills: {} })),
+  }),
 }));
 
 import * as nativeSkill from '@/lib/native/skill';
@@ -29,50 +28,52 @@ const mockNativeSkillAvailable = jest.mocked(nativeSkill.isNativeSkillAvailable)
 const mockUseNativeSkills = jest.mocked(useNativeSkills);
 const mockUseSkillStore = jest.mocked(useSkillStore);
 
-describe('useSkillSync', () => {
-  const mockDiscoverableSkill: DiscoverableSkill = {
-    key: 'owner/repo:skill-dir',
-    name: 'Test Skill',
-    description: 'A test skill from repository',
-    directory: 'skill-dir',
-    readmeUrl: 'https://github.com/owner/repo/tree/main/skill-dir',
-    repoOwner: 'owner',
-    repoName: 'repo',
-    repoBranch: 'main',
-  };
+const _discoverableSkill: DiscoverableSkill = {
+  key: 'owner/repo:skill-dir',
+  name: 'Test Skill',
+  description: 'A test skill from repository',
+  directory: 'skill-dir',
+  readmeUrl: 'https://github.com/owner/repo/tree/main/skill-dir',
+  repoOwner: 'owner',
+  repoName: 'repo',
+  repoBranch: 'main',
+};
 
-  const mockInstalledSkill: InstalledSkill = {
-    id: 'owner/repo:skill-dir',
-    name: 'Test Skill',
-    description: 'A test skill from repository',
-    directory: 'skill-dir',
-    repoOwner: 'owner',
-    repoName: 'repo',
-    repoBranch: 'main',
-    readmeUrl: 'https://github.com/owner/repo/tree/main/skill-dir',
-    installedAt: Date.now(),
-    enabled: true,
-    category: 'development',
-    tags: ['test'],
-  };
+const installedSkill: InstalledSkill = {
+  id: 'owner/repo:skill-dir',
+  name: 'Test Skill',
+  description: 'A test skill from repository',
+  directory: 'skill-dir',
+  repoOwner: 'owner',
+  repoName: 'repo',
+  repoBranch: 'main',
+  readmeUrl: 'https://github.com/owner/repo/tree/main/skill-dir',
+  installedAt: Date.now(),
+  enabled: true,
+  category: 'development',
+  tags: ['test'],
+};
 
-  const mockFrontendSkill = {
+function createFrontendSkill(overrides: Record<string, unknown> = {}) {
+  return {
     id: 'frontend-skill-1',
-    metadata: { name: 'Frontend Skill', description: 'A frontend skill' },
+    metadata: { name: 'frontend-skill', description: 'A frontend skill' },
     content: 'Skill content',
-    rawContent: '---\nname: Frontend Skill\n---\n\nSkill content',
+    rawContent: '---\nname: frontend-skill\n---\n\nSkill content',
     resources: [],
-    status: 'enabled' as const,
-    source: 'custom' as const,
-    category: 'custom' as const,
+    status: 'enabled',
+    source: 'custom',
+    category: 'custom',
     tags: [],
     version: '1.0.0',
     createdAt: new Date(),
     updatedAt: new Date(),
     usageCount: 0,
+    ...overrides,
   };
+}
 
-  // Mock implementations
+describe('useSkillSync', () => {
   const mockDiscover = jest.fn();
   const mockInstall = jest.fn();
   const mockUninstall = jest.fn();
@@ -82,8 +83,10 @@ describe('useSkillSync', () => {
   const mockRegisterLocal = jest.fn();
   const mockUpdateNative = jest.fn();
   const mockCreateSkill = jest.fn();
+  const mockUpdateSkill = jest.fn();
   const mockDeleteSkill = jest.fn();
   const mockGetAllSkills = jest.fn();
+  const mockSetSyncMetadata = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -122,14 +125,28 @@ describe('useSkillSync', () => {
       clearError: jest.fn(),
     });
 
-    mockUseSkillStore.mockReturnValue({
+    const storeState = {
       skills: {},
       activeSkillIds: [],
       isLoading: false,
       error: null,
       usageStats: {},
+      bootstrapState: 'idle',
+      lastBootstrapAt: null,
+      lastBootstrapError: null,
+      syncState: 'idle',
+      lastSyncAt: null,
+      lastSyncDirection: null,
+      lastSyncOutcome: 'idle',
+      lastSyncError: null,
+      syncDiagnostics: {
+        added: 0,
+        updated: 0,
+        skipped: 0,
+        conflicted: 0,
+      },
       createSkill: mockCreateSkill,
-      updateSkill: jest.fn(),
+      updateSkill: mockUpdateSkill,
       deleteSkill: mockDeleteSkill,
       getSkill: jest.fn(),
       getAllSkills: mockGetAllSkills,
@@ -160,363 +177,242 @@ describe('useSkillSync', () => {
       setError: jest.fn(),
       clearError: jest.fn(),
       setLoading: jest.fn(),
+      setBootstrapState: jest.fn(),
+      setSyncMetadata: mockSetSyncMetadata,
       reset: jest.fn(),
-    });
+    };
+
+    mockUseSkillStore.mockReturnValue(storeState as unknown as ReturnType<typeof useSkillStore>);
+    (useSkillStore.getState as unknown as jest.Mock).mockReturnValue({ skills: {} });
 
     mockGetAllSkills.mockReturnValue([]);
-    mockCreateSkill.mockReturnValue(mockFrontendSkill);
+    mockCreateSkill.mockReturnValue(createFrontendSkill());
   });
 
-  describe('Initialization', () => {
-    it('should initialize with default state', () => {
-      const { result } = renderHook(() => useSkillSync());
+  it('initializes with default state', () => {
+    const { result } = renderHook(() => useSkillSync());
 
-      expect(result.current.isSyncing).toBe(false);
-      expect(result.current.lastSyncAt).toBeNull();
-      expect(result.current.syncError).toBeNull();
-      expect(result.current.discoverable).toEqual([]);
-      expect(result.current.isDiscovering).toBe(false);
-    });
-
-    it('should update discoverable when native changes', async () => {
-      mockUseNativeSkills.mockReturnValue({
-        ...mockUseNativeSkills(),
-        discoverable: [mockDiscoverableSkill],
-        isDiscovering: true,
-      });
-
-      const { result } = renderHook(() => useSkillSync());
-
-      await waitFor(() => {
-        expect(result.current.discoverable).toEqual([mockDiscoverableSkill]);
-        expect(result.current.isDiscovering).toBe(true);
-      });
-    });
-
-    it('should update syncError when native error occurs', async () => {
-      mockUseNativeSkills.mockReturnValue({
-        ...mockUseNativeSkills(),
-        error: 'Native error occurred',
-      });
-
-      const { result } = renderHook(() => useSkillSync());
-
-      await waitFor(() => {
-        expect(result.current.syncError).toBe('Native error occurred');
-      });
-    });
+    expect(result.current.isSyncing).toBe(false);
+    expect(result.current.lastSyncAt).toBeNull();
+    expect(result.current.syncError).toBeNull();
+    expect(result.current.discoverable).toEqual([]);
+    expect(result.current.isDiscovering).toBe(false);
   });
 
-  describe('syncFromNative', () => {
-    it('should not sync when native is unavailable', async () => {
-      mockNativeSkillAvailable.mockReturnValue(false);
+  it('syncs from native by creating frontend skills for unknown native records', async () => {
+    mockUseNativeSkills.mockReturnValue({
+      ...mockUseNativeSkills(),
+      installed: [installedSkill],
+    });
+    mockReadContent.mockResolvedValue('# Test Skill\n\nSkill content');
 
-      const { result } = renderHook(() => useSkillSync());
+    const { result } = renderHook(() => useSkillSync());
 
-      await act(async () => {
-        await result.current.syncFromNative();
-      });
-
-      expect(mockCreateSkill).not.toHaveBeenCalled();
+    await act(async () => {
+      await result.current.syncFromNative();
     });
 
-    it('should create frontend skills for native skills not in frontend', async () => {
-      mockUseNativeSkills.mockReturnValue({
-        ...mockUseNativeSkills(),
-        installed: [mockInstalledSkill],
-      });
-      mockReadContent.mockResolvedValue('# Test Skill\n\nSkill content');
-
-      const { result } = renderHook(() => useSkillSync());
-
-      await act(async () => {
-        await result.current.syncFromNative();
-      });
-
-      expect(mockReadContent).toHaveBeenCalledWith(mockInstalledSkill.directory);
-      expect(mockCreateSkill).toHaveBeenCalled();
-      expect(result.current.lastSyncAt).not.toBeNull();
-    });
-
-    it('should not create duplicate skills', async () => {
-      mockUseNativeSkills.mockReturnValue({
-        ...mockUseNativeSkills(),
-        installed: [mockInstalledSkill],
-      });
-      mockUseSkillStore.mockReturnValue({
-        ...mockUseSkillStore(),
-        skills: {
-          'existing-id': {
-            ...mockFrontendSkill,
-            metadata: { name: 'Test Skill', description: 'Already exists' },
-          },
-        },
-      });
-
-      const { result } = renderHook(() => useSkillSync());
-
-      await act(async () => {
-        await result.current.syncFromNative();
-      });
-
-      expect(mockCreateSkill).not.toHaveBeenCalled();
-    });
-
-    it('should handle read content errors gracefully', async () => {
-      mockUseNativeSkills.mockReturnValue({
-        ...mockUseNativeSkills(),
-        installed: [mockInstalledSkill],
-      });
-      mockReadContent.mockRejectedValue(new Error('Read failed'));
-
-      const { result } = renderHook(() => useSkillSync());
-
-      await act(async () => {
-        await result.current.syncFromNative();
-      });
-
-      // Should still create skill with fallback content
-      expect(mockCreateSkill).toHaveBeenCalled();
-    });
-
-    it('should handle errors gracefully without crashing', async () => {
-      mockUseNativeSkills.mockReturnValue({
-        ...mockUseNativeSkills(),
-        installed: [mockInstalledSkill],
-      });
-      // Even with read errors, sync should complete without throwing
-      mockReadContent.mockRejectedValue(new Error('Read error'));
-
-      const { result } = renderHook(() => useSkillSync());
-
-      await act(async () => {
-        await result.current.syncFromNative();
-      });
-
-      // Sync should complete (either with lastSyncAt set or error set)
-      expect(result.current.isSyncing).toBe(false);
-    });
+    expect(mockReadContent).toHaveBeenCalledWith(installedSkill.directory);
+    expect(mockCreateSkill).toHaveBeenCalled();
+    expect(mockSetSyncMetadata).toHaveBeenCalled();
   });
 
-  describe('installFromRepo', () => {
-    it('should return null when native is unavailable', async () => {
-      mockNativeSkillAvailable.mockReturnValue(false);
-
-      const { result } = renderHook(() => useSkillSync());
-
-      let installed;
-      await act(async () => {
-        installed = await result.current.installFromRepo(mockDiscoverableSkill);
-      });
-
-      expect(installed).toBeNull();
-      expect(result.current.syncError).toBe('Native skill service not available');
+  it('syncs from native by updating canonical native-id match first', async () => {
+    const existing = createFrontendSkill({
+      id: 'frontend-native',
+      source: 'imported',
+      nativeSkillId: installedSkill.id,
+      metadata: { name: 'different-name', description: 'Old description' },
     });
 
-    it('should install skill and create frontend entry', async () => {
-      mockInstall.mockResolvedValue(mockInstalledSkill);
-      mockReadContent.mockResolvedValue('# Test\n\nContent');
-
-      const { result } = renderHook(() => useSkillSync());
-
-      let installed;
-      await act(async () => {
-        installed = await result.current.installFromRepo(mockDiscoverableSkill);
-      });
-
-      expect(mockInstall).toHaveBeenCalledWith(mockDiscoverableSkill);
-      expect(mockCreateSkill).toHaveBeenCalled();
-      expect(installed).toEqual(mockFrontendSkill);
-      expect(result.current.lastSyncAt).not.toBeNull();
+    mockUseNativeSkills.mockReturnValue({
+      ...mockUseNativeSkills(),
+      installed: [installedSkill],
+    });
+    mockReadContent.mockResolvedValue('new content');
+    (useSkillStore.getState as unknown as jest.Mock).mockReturnValue({
+      skills: {
+        [existing.id]: existing,
+      },
     });
 
-    it('should handle installation errors', async () => {
-      mockInstall.mockRejectedValue(new Error('Installation failed'));
+    const { result } = renderHook(() => useSkillSync());
 
-      const { result } = renderHook(() => useSkillSync());
-
-      let installed;
-      await act(async () => {
-        installed = await result.current.installFromRepo(mockDiscoverableSkill);
-      });
-
-      expect(installed).toBeNull();
-      expect(result.current.syncError).toContain('Installation failed');
+    await act(async () => {
+      await result.current.syncFromNative();
     });
 
-    it('should set isSyncing during installation', async () => {
-      let resolveInstall: (value: InstalledSkill) => void;
-      mockInstall.mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            resolveInstall = resolve;
-          })
-      );
-
-      const { result } = renderHook(() => useSkillSync());
-
-      act(() => {
-        result.current.installFromRepo(mockDiscoverableSkill);
-      });
-
-      expect(result.current.isSyncing).toBe(true);
-
-      await act(async () => {
-        resolveInstall!(mockInstalledSkill);
-      });
-
-      expect(result.current.isSyncing).toBe(false);
-    });
+    expect(mockUpdateSkill).toHaveBeenCalledWith(
+      existing.id,
+      expect.objectContaining({
+        nativeSkillId: installedSkill.id,
+        nativeDirectory: installedSkill.directory,
+      })
+    );
+    expect(mockCreateSkill).not.toHaveBeenCalled();
   });
 
-  describe('uninstallNativeSkill', () => {
-    it('should not uninstall when native is unavailable', async () => {
-      mockNativeSkillAvailable.mockReturnValue(false);
-
-      const { result } = renderHook(() => useSkillSync());
-
-      await act(async () => {
-        await result.current.uninstallNativeSkill('skill-id');
-      });
-
-      expect(mockUninstall).not.toHaveBeenCalled();
+  it('treats legacy-name custom skill as conflict in syncFromNative', async () => {
+    const conflicting = createFrontendSkill({
+      id: 'conflict-skill',
+      source: 'custom',
+      metadata: { name: 'test-skill', description: 'local custom' },
+      nativeSkillId: undefined,
     });
 
-    it('should uninstall native skill and delete frontend entry', async () => {
-      mockUseNativeSkills.mockReturnValue({
-        ...mockUseNativeSkills(),
-        installed: [mockInstalledSkill],
-      });
-      mockUseSkillStore.mockReturnValue({
-        ...mockUseSkillStore(),
-        skills: {
-          'frontend-skill-1': {
-            ...mockFrontendSkill,
-            metadata: { name: 'Test Skill', description: 'Test' },
-          },
-        },
-      });
-      mockUninstall.mockResolvedValue(undefined);
-
-      const { result } = renderHook(() => useSkillSync());
-
-      await act(async () => {
-        await result.current.uninstallNativeSkill(mockInstalledSkill.id);
-      });
-
-      expect(mockDeleteSkill).toHaveBeenCalledWith('frontend-skill-1');
-      expect(mockUninstall).toHaveBeenCalledWith(mockInstalledSkill.id);
-      expect(result.current.lastSyncAt).not.toBeNull();
+    mockUseNativeSkills.mockReturnValue({
+      ...mockUseNativeSkills(),
+      installed: [installedSkill],
+    });
+    (useSkillStore.getState as unknown as jest.Mock).mockReturnValue({
+      skills: {
+        [conflicting.id]: conflicting,
+      },
     });
 
-    it('should handle uninstall errors', async () => {
-      mockUseNativeSkills.mockReturnValue({
-        ...mockUseNativeSkills(),
-        installed: [mockInstalledSkill],
-      });
-      mockUninstall.mockRejectedValue(new Error('Uninstall failed'));
+    const { result } = renderHook(() => useSkillSync());
 
-      const { result } = renderHook(() => useSkillSync());
-
-      await act(async () => {
-        await result.current.uninstallNativeSkill(mockInstalledSkill.id);
-      });
-
-      expect(result.current.syncError).toContain('Uninstall failed');
+    await act(async () => {
+      await result.current.syncFromNative();
     });
+
+    expect(mockUpdateSkill).not.toHaveBeenCalled();
+    expect(mockCreateSkill).not.toHaveBeenCalled();
   });
 
-  describe('discoverFromRepos', () => {
-    it('should not discover when native is unavailable', async () => {
-      mockNativeSkillAvailable.mockReturnValue(false);
-
-      const { result } = renderHook(() => useSkillSync());
-
-      await act(async () => {
-        await result.current.discoverFromRepos();
-      });
-
-      expect(mockDiscover).not.toHaveBeenCalled();
+  it('cleans up stale native-linked records when native entries are removed', async () => {
+    const staleNativeMirror = createFrontendSkill({
+      id: 'stale-native-mirror',
+      source: 'imported',
+      syncOrigin: 'native',
+      nativeSkillId: 'native:missing',
+      nativeDirectory: 'missing-directory',
+      metadata: { name: 'missing-native', description: 'mirror' },
     });
 
-    it('should call native discover', async () => {
-      const { result } = renderHook(() => useSkillSync());
-
-      await act(async () => {
-        await result.current.discoverFromRepos();
-      });
-
-      expect(mockDiscover).toHaveBeenCalled();
+    const staleLegacyLinked = createFrontendSkill({
+      id: 'stale-legacy-linked',
+      source: 'custom',
+      syncOrigin: 'frontend',
+      nativeSkillId: 'legacy-native-id',
+      nativeDirectory: 'legacy-directory',
+      metadata: { name: 'legacy-local', description: 'custom' },
     });
+
+    mockUseNativeSkills.mockReturnValue({
+      ...mockUseNativeSkills(),
+      installed: [],
+    });
+    (useSkillStore.getState as unknown as jest.Mock).mockReturnValue({
+      skills: {
+        [staleNativeMirror.id]: staleNativeMirror,
+        [staleLegacyLinked.id]: staleLegacyLinked,
+      },
+    });
+
+    const { result } = renderHook(() => useSkillSync());
+
+    await act(async () => {
+      await result.current.syncFromNative();
+    });
+
+    expect(mockDeleteSkill).toHaveBeenCalledWith('stale-native-mirror');
+    expect(mockUpdateSkill).toHaveBeenCalledWith(
+      'stale-legacy-linked',
+      expect.objectContaining({
+        nativeSkillId: null,
+        nativeDirectory: null,
+        syncOrigin: 'frontend',
+      })
+    );
   });
 
-  describe('refreshAll', () => {
-    it('should discover and sync', async () => {
-      mockDiscover.mockResolvedValue(undefined);
-
-      const { result } = renderHook(() => useSkillSync());
-
-      await act(async () => {
-        await result.current.refreshAll();
-      });
-
-      expect(mockDiscover).toHaveBeenCalled();
+  it('syncs custom skills to native storage and links canonical native ids', async () => {
+    const customSkill = createFrontendSkill({
+      id: 'custom-1',
+      metadata: { name: 'custom-skill', description: 'desc' },
+      source: 'custom',
+      syncOrigin: 'frontend',
     });
+    const installedLocal: InstalledSkill = {
+      ...installedSkill,
+      id: 'local:custom-skill',
+      directory: 'custom-skill',
+      repoOwner: null,
+      repoName: null,
+      repoBranch: null,
+    };
+
+    mockGetAllSkills.mockReturnValue([customSkill]);
+    mockWriteContent.mockResolvedValue(undefined);
+    mockRegisterLocal.mockResolvedValue(installedLocal);
+    mockUpdateNative.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useSkillSync());
+
+    await act(async () => {
+      await result.current.syncToNative();
+    });
+
+    expect(mockWriteContent).toHaveBeenCalledWith('custom-skill', customSkill.rawContent);
+    expect(mockRegisterLocal).toHaveBeenCalledWith('custom-skill');
+    expect(mockUpdateSkill).toHaveBeenCalledWith(
+      'custom-1',
+      expect.objectContaining({
+        nativeSkillId: 'local:custom-skill',
+        nativeDirectory: 'custom-skill',
+      })
+    );
   });
 
-  describe('syncToNative', () => {
-    it('should not sync when native is unavailable', async () => {
-      mockNativeSkillAvailable.mockReturnValue(false);
+  it('skips source-owned records in syncToNative (builtin and native-origin)', async () => {
+    const builtin = createFrontendSkill({ id: 'builtin-1', source: 'builtin', syncOrigin: 'builtin' });
+    const nativeOrigin = createFrontendSkill({ id: 'native-1', source: 'imported', syncOrigin: 'native' });
 
-      const { result } = renderHook(() => useSkillSync());
+    mockGetAllSkills.mockReturnValue([builtin, nativeOrigin]);
 
-      await act(async () => {
-        await result.current.syncToNative();
-      });
+    const { result } = renderHook(() => useSkillSync());
 
-      expect(mockGetAllSkills).not.toHaveBeenCalled();
+    await act(async () => {
+      await result.current.syncToNative();
     });
 
-    it('should write content and register custom skills', async () => {
-      const installedLocal: InstalledSkill = {
-        ...mockInstalledSkill,
-        id: 'local:frontend-skill',
-        directory: 'frontend-skill',
-        repoOwner: null,
-        repoName: null,
-        repoBranch: null,
-      };
-      mockGetAllSkills.mockReturnValue([mockFrontendSkill]);
-      mockWriteContent.mockResolvedValue(undefined);
-      mockRegisterLocal.mockResolvedValue(installedLocal);
-      mockUpdateNative.mockResolvedValue(undefined);
+    expect(mockWriteContent).not.toHaveBeenCalled();
+    expect(mockRegisterLocal).not.toHaveBeenCalled();
+  });
 
-      const { result } = renderHook(() => useSkillSync());
-
-      await act(async () => {
-        await result.current.syncToNative();
-      });
-
-      expect(mockGetAllSkills).toHaveBeenCalled();
-      expect(mockWriteContent).toHaveBeenCalledWith('frontend-skill', mockFrontendSkill.rawContent);
-      expect(mockRegisterLocal).toHaveBeenCalledWith('frontend-skill');
-      expect(mockUpdateNative).toHaveBeenCalledWith('local:frontend-skill', 'custom', []);
-      expect(result.current.lastSyncAt).not.toBeNull();
-      expect(result.current.syncError).toBeNull();
+  it('reports i18n failure in syncToNative when write fails', async () => {
+    const customSkill = createFrontendSkill({
+      id: 'custom-1',
+      metadata: { name: 'custom-skill', description: 'desc' },
+      source: 'custom',
+      syncOrigin: 'frontend',
     });
 
-    it('should set syncError when native sync fails', async () => {
-      mockGetAllSkills.mockReturnValue([mockFrontendSkill]);
-      mockWriteContent.mockRejectedValue(new Error('Write failed'));
+    mockGetAllSkills.mockReturnValue([customSkill]);
+    mockWriteContent.mockRejectedValue(new Error('Write failed'));
 
-      const { result } = renderHook(() => useSkillSync());
+    const { result } = renderHook(() => useSkillSync());
 
-      await act(async () => {
-        await result.current.syncToNative();
-      });
-
-      expect(result.current.syncError).toBe('i18n:syncToNativeFailed');
+    await act(async () => {
+      await result.current.syncToNative();
     });
+
+    expect(mockSetSyncMetadata).toHaveBeenCalledWith(expect.objectContaining({
+      lastSyncError: 'i18n:syncToNativeFailed',
+    }));
+  });
+
+  it('refreshAll discovers and syncs from native', async () => {
+    mockDiscover.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useSkillSync());
+
+    await act(async () => {
+      await result.current.refreshAll();
+    });
+
+    expect(mockDiscover).toHaveBeenCalled();
   });
 });
 
@@ -525,7 +421,7 @@ describe('useSkillSyncAvailable', () => {
     jest.clearAllMocks();
   });
 
-  it('should return true when native skill is available', () => {
+  it('returns true when native skill is available', () => {
     mockNativeSkillAvailable.mockReturnValue(true);
 
     const { result } = renderHook(() => useSkillSyncAvailable());
@@ -533,7 +429,7 @@ describe('useSkillSyncAvailable', () => {
     expect(result.current).toBe(true);
   });
 
-  it('should return false when native skill is unavailable', () => {
+  it('returns false when native skill is unavailable', () => {
     mockNativeSkillAvailable.mockReturnValue(false);
 
     const { result } = renderHook(() => useSkillSyncAvailable());

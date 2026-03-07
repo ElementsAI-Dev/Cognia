@@ -43,6 +43,8 @@ import { useWorkflowEditor } from '@/hooks/designer/use-workflow-editor';
 import { useWorkflowExecutionWithKeyboard } from '@/hooks/designer/use-workflow-execution';
 import { workflowEditorTemplates, getTemplateCategories } from '@/lib/workflow-editor/templates';
 import { definitionToVisual } from '@/lib/workflow-editor/converter';
+import { getExecutionControlState } from '@/lib/workflow-editor';
+import { WorkflowScheduleDialog } from '@/components/scheduler';
 import { toast } from 'sonner';
 import type { VisualWorkflow, WorkflowEditorTemplate } from '@/types/workflow/workflow-editor';
 import {
@@ -57,6 +59,7 @@ import {
   ArrowLeft,
   LayoutTemplate,
   Clock,
+  Calendar,
   Workflow,
   Store,
   Play,
@@ -85,6 +88,7 @@ export default function WorkflowsPage() {
     currentWorkflow,
     isExecuting,
     isDirty,
+    executionState,
     validationErrors,
     createWorkflow,
     loadWorkflow,
@@ -117,6 +121,26 @@ export default function WorkflowsPage() {
     () => validationErrors.some((e) => e.severity === 'error'),
     [validationErrors]
   );
+  const executionControls = useMemo(
+    () =>
+      getExecutionControlState({
+        isExecuting,
+        status: executionState?.status,
+      }),
+    [isExecuting, executionState?.status]
+  );
+  const scheduleDefaultInput = useMemo<Record<string, unknown>>(() => {
+    if (!currentWorkflow) return {};
+    return Object.entries(currentWorkflow.inputs || {}).reduce<Record<string, unknown>>(
+      (acc, [key, schema]) => {
+        if (schema && schema.default !== undefined) {
+          acc[key] = schema.default;
+        }
+        return acc;
+      },
+      {}
+    );
+  }, [currentWorkflow]);
 
   // Load workflows from database
   const loadWorkflows = useCallback(async () => {
@@ -126,10 +150,13 @@ export default function WorkflowsPage() {
       setWorkflows(data);
     } catch (error) {
       console.error('Failed to load workflows:', error);
+      toast.error(t('loadWorkflowsFailed') || 'Failed to load workflows', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadWorkflows();
@@ -192,17 +219,31 @@ export default function WorkflowsPage() {
 
   // Handle duplicate workflow
   const handleDuplicate = async (workflowId: string) => {
-    await workflowRepository.duplicate(workflowId);
-    loadWorkflows();
+    try {
+      await workflowRepository.duplicate(workflowId);
+      await loadWorkflows();
+      toast.success(t('workflowDuplicated') || 'Workflow duplicated');
+    } catch (error) {
+      toast.error(t('duplicateWorkflowFailed') || 'Failed to duplicate workflow', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   };
 
   // Handle delete workflow
   const handleDelete = async () => {
     if (workflowToDelete) {
-      await workflowRepository.delete(workflowToDelete);
-      setWorkflowToDelete(null);
-      setDeleteDialogOpen(false);
-      loadWorkflows();
+      try {
+        await workflowRepository.delete(workflowToDelete);
+        setWorkflowToDelete(null);
+        setDeleteDialogOpen(false);
+        await loadWorkflows();
+        toast.success(t('workflowDeleted') || 'Workflow deleted');
+      } catch (error) {
+        toast.error(t('deleteWorkflowFailed') || 'Failed to delete workflow', {
+          description: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
     }
   };
 
@@ -316,20 +357,26 @@ export default function WorkflowsPage() {
 
           <div className="flex-1" />
 
+          {currentWorkflow && (
+            <WorkflowScheduleDialog
+              workflowId={currentWorkflow.id}
+              workflowName={currentWorkflow.name}
+              defaultInput={scheduleDefaultInput}
+              trigger={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid="workflow-page-schedule-button"
+                >
+                  <Calendar className="h-4 w-4 mr-1" />
+                  {t('schedule') || 'Schedule'}
+                </Button>
+              }
+            />
+          )}
+
           {/* Execution controls */}
-          {isExecuting ? (
-            <div className="flex items-center gap-1">
-              <Button variant="outline" size="sm" onClick={pauseExecution}>
-                <Pause className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" onClick={resumeExecution}>
-                <Play className="h-4 w-4" />
-              </Button>
-              <Button variant="destructive" size="sm" onClick={cancelExecution}>
-                <Square className="h-4 w-4" />
-              </Button>
-            </div>
-          ) : (
+          {executionControls.canRun ? (
             <Button
               variant="outline"
               size="sm"
@@ -340,6 +387,39 @@ export default function WorkflowsPage() {
               <Play className="h-4 w-4 mr-1" />
               {t('run') || 'Run'}
             </Button>
+          ) : (
+            <div className="flex items-center gap-1">
+              {executionControls.canPause && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={pauseExecution}
+                  data-testid="workflow-page-pause-button"
+                >
+                  <Pause className="h-4 w-4" />
+                </Button>
+              )}
+              {executionControls.canResume && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resumeExecution}
+                  data-testid="workflow-page-resume-button"
+                >
+                  <Play className="h-4 w-4" />
+                </Button>
+              )}
+              {executionControls.canCancel && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={cancelExecution}
+                  data-testid="workflow-page-cancel-button"
+                >
+                  <Square className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           )}
 
           <Button

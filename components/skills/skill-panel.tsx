@@ -74,6 +74,8 @@ import { cn } from '@/lib/utils';
 import { useSkillStore } from '@/stores/skills';
 import { downloadSkillAsMarkdown } from '@/lib/skills/packager';
 import { useSkillAI } from '@/hooks/skills/use-skill-ai';
+import { useSkillActions } from '@/hooks/skills/use-skill-actions';
+import { toast } from '@/components/ui/toaster';
 import { SkillCard } from './skill-card';
 import { SkillDetail } from './skill-detail';
 import { SkillEditor } from './skill-editor';
@@ -142,21 +144,26 @@ export function SkillPanel({
 }: SkillPanelProps) {
   const t = useTranslations('skills');
   const requestAI = useSkillAI();
+  const skillActions = useSkillActions();
   
   // Store
   const {
     skills,
-    enableSkill,
-    disableSkill,
-    activateSkill,
-    deactivateSkill,
-    deleteSkill,
-    createSkill,
-    updateSkill,
     exportSkill,
     searchSkills,
     getAllSkills,
   } = useSkillStore();
+
+  const resolveActionError = useCallback((errorKey?: string | null) => {
+    if (!errorKey) {
+      return;
+    }
+    if (errorKey.startsWith('i18n:')) {
+      toast.error(t(errorKey.replace('i18n:', '')));
+      return;
+    }
+    toast.error(errorKey);
+  }, [t]);
 
   // View state
   const [currentView, setCurrentView] = useState<PanelView>(defaultView);
@@ -238,20 +245,20 @@ export function SkillPanel({
 
   // Handlers
   const handleToggleEnabled = useCallback((skill: Skill) => {
-    if (skill.status === 'enabled') {
-      disableSkill(skill.id);
-    } else {
-      enableSkill(skill.id);
-    }
-  }, [enableSkill, disableSkill]);
+    void (async () => {
+      const outcome = await skillActions.toggleSkillEnabled(skill);
+      if (outcome.outcome !== 'success') {
+        resolveActionError(outcome.error);
+      }
+    })();
+  }, [resolveActionError, skillActions]);
 
   const handleToggleActive = useCallback((skill: Skill) => {
-    if (skill.isActive) {
-      deactivateSkill(skill.id);
-    } else {
-      activateSkill(skill.id);
+    const outcome = skillActions.setSkillActive(skill, !skill.isActive);
+    if (outcome.outcome !== 'success') {
+      resolveActionError(outcome.error);
     }
-  }, [activateSkill, deactivateSkill]);
+  }, [resolveActionError, skillActions]);
 
   const handleViewSkill = useCallback((skill: Skill) => {
     setSelectedSkillId(skill.id);
@@ -271,26 +278,31 @@ export function SkillPanel({
 
   const confirmDelete = useCallback(() => {
     if (skillToDelete) {
-      deleteSkill(skillToDelete.id);
-      setSkillToDelete(null);
-      setShowDeleteDialog(false);
-      if (selectedSkillId === skillToDelete.id) {
-        setSelectedSkillId(null);
-        setCurrentView('browse');
-      }
+      void (async () => {
+        const outcome = await skillActions.deleteSkill(skillToDelete);
+        if (outcome.outcome === 'failure') {
+          resolveActionError(outcome.error);
+          return;
+        }
+
+        setSkillToDelete(null);
+        setShowDeleteDialog(false);
+        if (selectedSkillId === skillToDelete.id) {
+          setSelectedSkillId(null);
+          setCurrentView('browse');
+        }
+      })();
     }
-  }, [skillToDelete, deleteSkill, selectedSkillId]);
+  }, [resolveActionError, selectedSkillId, skillActions, skillToDelete]);
 
   const handleDuplicateSkill = useCallback((skill: Skill) => {
-    createSkill({
-      name: `${skill.metadata.name}-copy`,
-      description: skill.metadata.description,
-      content: skill.content,
-      category: skill.category,
-      tags: skill.tags,
-      resources: skill.resources,
-    });
-  }, [createSkill]);
+    void (async () => {
+      const outcome = await skillActions.duplicateSkill(skill);
+      if (outcome.outcome !== 'success') {
+        resolveActionError(outcome.error);
+      }
+    })();
+  }, [resolveActionError, skillActions]);
 
   const handleExportSkill = useCallback((skill: Skill) => {
     downloadSkillAsMarkdown(skill);
@@ -324,21 +336,35 @@ export function SkillPanel({
   }, []);
 
   const handleSaveSkill = useCallback((rawContent: string) => {
-    if (selectedSkillId) {
-      updateSkill(selectedSkillId, { content: rawContent });
-    } else {
-      createSkill({
-        name: 'new-skill',
-        description: 'New skill',
-        content: rawContent,
-        category: 'custom',
-        tags: [],
-        resources: [],
-      });
-    }
-    setCurrentView('browse');
-    setSelectedSkillId(null);
-  }, [selectedSkillId, updateSkill, createSkill]);
+    void (async () => {
+      if (selectedSkillId) {
+        const selected = useSkillStore.getState().skills[selectedSkillId];
+        if (selected) {
+          const outcome = await skillActions.updateSkillContent(selected, rawContent);
+          if (outcome.outcome === 'failure') {
+            resolveActionError(outcome.error);
+            return;
+          }
+        }
+      } else {
+        const outcome = await skillActions.createSkill({
+          name: 'new-skill',
+          description: 'New skill',
+          content: rawContent,
+          category: 'custom',
+          tags: [],
+          resources: [],
+        });
+        if (outcome.outcome === 'failure') {
+          resolveActionError(outcome.error);
+          return;
+        }
+      }
+
+      setCurrentView('browse');
+      setSelectedSkillId(null);
+    })();
+  }, [resolveActionError, selectedSkillId, skillActions]);
 
   const handleBack = useCallback(() => {
     setCurrentView('browse');

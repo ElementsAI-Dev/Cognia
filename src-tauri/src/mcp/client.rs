@@ -424,6 +424,11 @@ impl McpClient {
                 "sampling": {},
                 "roots": {
                     "listChanged": true
+                },
+                "extensions": {
+                    "io.modelcontextprotocol/ui": {
+                        "mimeTypes": ["text/html;profile=mcp-app"]
+                    }
                 }
             },
             "clientInfo": client_info
@@ -444,11 +449,16 @@ impl McpClient {
             );
         }
         log::debug!(
-            "Server capabilities: tools={}, resources={}, prompts={}, logging={}",
+            "Server capabilities: tools={}, resources={}, prompts={}, logging={}, mcp_apps_ui={}",
             init_result.capabilities.tools.is_some(),
             init_result.capabilities.resources.is_some(),
             init_result.capabilities.prompts.is_some(),
-            init_result.capabilities.logging.is_some()
+            init_result.capabilities.logging.is_some(),
+            init_result
+                .capabilities
+                .extensions
+                .as_ref()
+                .is_some_and(|ext| ext.contains_key("io.modelcontextprotocol/ui"))
         );
 
         // Send initialized notification
@@ -1067,7 +1077,12 @@ mod tests {
         let params = serde_json::json!({
             "protocolVersion": "2024-11-05",
             "capabilities": {
-                "sampling": {}
+                "sampling": {},
+                "extensions": {
+                    "io.modelcontextprotocol/ui": {
+                        "mimeTypes": ["text/html;profile=mcp-app"]
+                    }
+                }
             },
             "clientInfo": client_info
         });
@@ -1078,6 +1093,10 @@ mod tests {
         assert_eq!(json["method"], "initialize");
         assert_eq!(json["params"]["protocolVersion"], "2024-11-05");
         assert!(json["params"]["capabilities"]["sampling"].is_object());
+        assert_eq!(
+            json["params"]["capabilities"]["extensions"]["io.modelcontextprotocol/ui"]["mimeTypes"][0],
+            "text/html;profile=mcp-app"
+        );
     }
 
     #[test]
@@ -1087,7 +1106,12 @@ mod tests {
             "capabilities": {
                 "tools": {"listChanged": true},
                 "resources": {"subscribe": true, "listChanged": true},
-                "prompts": {"listChanged": true}
+                "prompts": {"listChanged": true},
+                "extensions": {
+                    "io.modelcontextprotocol/ui": {
+                        "mimeTypes": ["text/html;profile=mcp-app"]
+                    }
+                }
             },
             "serverInfo": {
                 "name": "Test Server",
@@ -1099,6 +1123,7 @@ mod tests {
         let result: InitializeResult = serde_json::from_value(json).unwrap();
         assert_eq!(result.protocol_version, "2024-11-05");
         assert!(result.capabilities.tools.is_some());
+        assert!(result.capabilities.extensions.is_some());
         assert!(result.server_info.is_some());
         assert_eq!(result.server_info.unwrap().name, "Test Server");
     }

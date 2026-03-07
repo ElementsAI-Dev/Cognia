@@ -54,6 +54,13 @@ test.describe('Workflow Editor (Real Flow)', () => {
       timeout: 20000,
     });
   });
+
+  test('opens schedule dialog from workflow editor header', async ({ page }) => {
+    await openWorkflowEditor(page);
+
+    await page.getByTestId('workflow-page-schedule-button').click();
+    await expect(page.locator('#task-name')).toBeVisible();
+  });
 });
 
 test.describe('Workflow Webhook API', () => {

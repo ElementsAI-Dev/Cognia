@@ -4,12 +4,6 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -24,6 +18,7 @@ import {
 import { usePPTEditorStore } from '@/stores/tools/ppt-editor-store';
 import type { PPTSlideLayout, PPTPresentation, PPTSlideElement } from '@/types/workflow';
 import { SLIDE_LAYOUT_INFO, DEFAULT_PPT_THEMES } from '@/types/workflow';
+import { PPT_TEST_IDS } from '@/lib/ppt/test-selectors';
 import { AlignmentToolbar } from './alignment-toolbar';
 import { ThemeCustomizer } from '../theme';
 import {
@@ -117,41 +112,32 @@ export function EditorToolbar({
     <div className="flex items-center justify-between border-b px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center gap-2">
         {/* File operations */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onSave}>
-                <Save className={`h-4 w-4 ${isDirty ? 'text-primary' : ''}`} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('save')} (Ctrl+S)</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Button variant="ghost" size="icon" onClick={onSave} title={`${t('save')} (Ctrl+S)`}>
+          <Save className={`h-4 w-4 ${isDirty ? 'text-primary' : ''}`} />
+        </Button>
 
         <Separator orientation="vertical" className="h-6" />
 
         {/* Undo/Redo */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onUndo} disabled={!canUndo}>
-                <Undo2 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('undo')} (Ctrl+Z)</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        {canUndo ? (
+          <Button variant="ghost" size="icon" onClick={onUndo} title={`${t('undo')} (Ctrl+Z)`}>
+            <Undo2 className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button variant="ghost" size="icon" disabled>
+            <Undo2 className="h-4 w-4" />
+          </Button>
+        )}
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onRedo} disabled={!canRedo}>
-                <Redo2 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('redo')} (Ctrl+Y)</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        {canRedo ? (
+          <Button variant="ghost" size="icon" onClick={onRedo} title={`${t('redo')} (Ctrl+Y)`}>
+            <Redo2 className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button variant="ghost" size="icon" disabled>
+            <Redo2 className="h-4 w-4" />
+          </Button>
+        )}
 
         <Separator orientation="vertical" className="h-6" />
 
@@ -275,40 +261,33 @@ export function EditorToolbar({
         <Separator orientation="vertical" className="h-6" />
 
         {/* View toggles */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={showSlidePanel ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={() => onSetShowSlidePanel(!showSlidePanel)}
-              >
-                <Grid3X3 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('toggleSlidePanel')}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Button
+          variant={showSlidePanel ? 'secondary' : 'ghost'}
+          size="icon"
+          onClick={() => onSetShowSlidePanel(!showSlidePanel)}
+          title={t('toggleSlidePanel')}
+        >
+          <Grid3X3 className="h-4 w-4" />
+        </Button>
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={showNotes ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={onToggleNotes}
-              >
-                <AlignLeft className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('toggleNotes')}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Button
+          variant={showNotes ? 'secondary' : 'ghost'}
+          size="icon"
+          onClick={onToggleNotes}
+          title={t('toggleNotes')}
+        >
+          <AlignLeft className="h-4 w-4" />
+        </Button>
 
         <Separator orientation="vertical" className="h-6" />
 
         {/* Slideshow */}
-        <Button variant="default" size="sm" onClick={onStartPresentation}>
+        <Button
+          variant="default"
+          size="sm"
+          onClick={onStartPresentation}
+          data-testid={PPT_TEST_IDS.editor.startPresentation}
+        >
           <Play className="h-4 w-4 mr-1" />
           {t('present')}
         </Button>
@@ -316,30 +295,49 @@ export function EditorToolbar({
         {/* Export */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid={PPT_TEST_IDS.editor.exportTrigger}
+            >
               <Download className="h-4 w-4 mr-1" />
               {t('export')}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onExport?.('marp')}>
+            <DropdownMenuItem
+              onClick={() => onExport?.('marp')}
+              data-testid={PPT_TEST_IDS.editor.exportMarp}
+            >
               <FileText className="h-4 w-4 mr-2" />
               {tGen('exportFormatMarp')}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onExport?.('html')}>
+            <DropdownMenuItem
+              onClick={() => onExport?.('html')}
+              data-testid={PPT_TEST_IDS.editor.exportHtml}
+            >
               <Globe className="h-4 w-4 mr-2" />
               {tGen('exportFormatHtml')}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onExport?.('reveal')}>
+            <DropdownMenuItem
+              onClick={() => onExport?.('reveal')}
+              data-testid={PPT_TEST_IDS.editor.exportReveal}
+            >
               <Theater className="h-4 w-4 mr-2" />
               {tGen('exportFormatReveal')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onExport?.('pdf')}>
+            <DropdownMenuItem
+              onClick={() => onExport?.('pdf')}
+              data-testid={PPT_TEST_IDS.editor.exportPdf}
+            >
               <File className="h-4 w-4 mr-2" />
               {tGen('exportFormatPdf')}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onExport?.('pptx')}>
+            <DropdownMenuItem
+              onClick={() => onExport?.('pptx')}
+              data-testid={PPT_TEST_IDS.editor.exportPptx}
+            >
               <BarChart3 className="h-4 w-4 mr-2" />
               {tGen('exportFormatPptx')}
             </DropdownMenuItem>
@@ -347,22 +345,18 @@ export function EditorToolbar({
         </DropdownMenu>
 
         {/* Fullscreen toggle */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onToggleFullscreen}>
-                {effectiveFullscreen ? (
-                  <Minimize2 className="h-4 w-4" />
-                ) : (
-                  <Maximize2 className="h-4 w-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {effectiveFullscreen ? t('exitFullscreen') : t('fullscreen')}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleFullscreen}
+          title={effectiveFullscreen ? t('exitFullscreen') : t('fullscreen')}
+        >
+          {effectiveFullscreen ? (
+            <Minimize2 className="h-4 w-4" />
+          ) : (
+            <Maximize2 className="h-4 w-4" />
+          )}
+        </Button>
       </div>
     </div>
   );

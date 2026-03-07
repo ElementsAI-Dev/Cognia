@@ -97,6 +97,25 @@ export interface EditOperation {
 }
 
 /**
+ * Generation queue job
+ */
+export interface GenerationQueueJob {
+  id: string;
+  prompt: string;
+  status: 'queued' | 'generating' | 'completed' | 'failed';
+  provider: ImageProviderType;
+  model: string;
+  size: ImageSize;
+  quality: ImageQuality;
+  style: ImageStyle;
+  seed?: number;
+  createdAt: number;
+  completedAt?: number;
+  resultImageId?: string;
+  error?: string;
+}
+
+/**
  * Generation settings
  */
 export interface GenerationSettings {
@@ -200,6 +219,9 @@ interface ImageStudioState {
   filterFavorites: boolean;
   searchQuery: string;
 
+  // Generation queue
+  generationQueue: GenerationQueueJob[];
+
   // Actions - Tab & Tool
   setActiveTab: (tab: ImageStudioState['activeTab']) => void;
   setSelectedTool: (tool: EditingTool) => void;
@@ -289,6 +311,12 @@ interface ImageStudioState {
   setGridZoomLevel: (level: number) => void;
   setFilterFavorites: (filter: boolean) => void;
   setSearchQuery: (query: string) => void;
+
+  // Actions - Generation Queue
+  addToQueue: (job: Omit<GenerationQueueJob, 'id' | 'status' | 'createdAt'>) => string;
+  updateQueueJob: (id: string, updates: Partial<GenerationQueueJob>) => void;
+  removeFromQueue: (id: string) => void;
+  clearQueue: () => void;
 
   // Bulk actions
   deleteAllImages: () => void;
@@ -384,6 +412,7 @@ export const useImageStudioStore = create<ImageStudioState>()(
       gridZoomLevel: 2,
       filterFavorites: false,
       searchQuery: '',
+      generationQueue: [],
 
       // Actions - Tab & Tool
       setActiveTab: (tab) => set({ activeTab: tab }),
@@ -720,6 +749,22 @@ export const useImageStudioStore = create<ImageStudioState>()(
       setGridZoomLevel: (level) => set({ gridZoomLevel: level }),
       setFilterFavorites: (filter) => set({ filterFavorites: filter }),
       setSearchQuery: (query) => set({ searchQuery: query }),
+
+      // Actions - Generation Queue
+      addToQueue: (job) => {
+        const id = nanoid();
+        set((state) => ({
+          generationQueue: [...state.generationQueue, { ...job, id, status: 'queued', createdAt: Date.now() }],
+        }));
+        return id;
+      },
+      updateQueueJob: (id, updates) => set((state) => ({
+        generationQueue: state.generationQueue.map((j) => j.id === id ? { ...j, ...updates } : j),
+      })),
+      removeFromQueue: (id) => set((state) => ({
+        generationQueue: state.generationQueue.filter((j) => j.id !== id),
+      })),
+      clearQueue: () => set({ generationQueue: [] }),
 
       // Bulk actions
       deleteAllImages: () => set({ images: [], selectedImageId: null }),

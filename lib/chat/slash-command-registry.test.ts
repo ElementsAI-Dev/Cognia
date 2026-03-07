@@ -60,6 +60,31 @@ describe('slashCommandRegistry', () => {
       expect(getCommand('image')).toBeDefined();
     });
 
+    it('should include ppt command', () => {
+      const pptCmd = getCommand('ppt');
+      expect(pptCmd).toBeDefined();
+      expect(pptCmd?.command).toBe('ppt');
+      expect(pptCmd?.category).toBe('media');
+      expect(pptCmd?.aliases).toContain('presentation');
+      expect(pptCmd?.aliases).toContain('slides');
+    });
+
+    it('should resolve ppt aliases', () => {
+      expect(getCommand('presentation')?.command).toBe('ppt');
+      expect(getCommand('slides')?.command).toBe('ppt');
+    });
+
+    it('should execute ppt command with topic', async () => {
+      const result = await executeCommand('ppt', { arg0: 'AI in Healthcare', rawArgs: 'AI in Healthcare' }, {
+        input: '',
+        messageCount: 0,
+        mode: 'chat',
+      });
+      expect(result.success).toBe(true);
+      expect((result.data as Record<string, unknown>)?.action).toBe('open-ppt-creator');
+      expect((result.data as Record<string, unknown>)?.topic).toBe('AI in Healthcare');
+    });
+
     it('should support command aliases', () => {
       const clearCmd = getCommand('cls');
       expect(clearCmd).toBeDefined();

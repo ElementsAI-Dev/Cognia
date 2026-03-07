@@ -1,15 +1,13 @@
 'use client';
 
 /**
- * Skill Provider - Initializes built-in skills on app startup
- * 
- * This provider should be placed near the root of the app to ensure
- * skills are loaded before any components that need them.
+ * Skill Provider - Initializes skill bootstrap lifecycle on app startup
  */
 
 import { useEffect, useRef, useState } from 'react';
 import { useSkillStore } from '@/stores/skills';
 import { getAllBuiltinSkills } from '@/lib/skills/builtin';
+import { useSkillBootstrap } from '@/hooks/skills/use-skill-bootstrap';
 import type { CreateSkillInput } from '@/types/system/skill';
 import { createLogger } from '@/lib/logger';
 
@@ -26,7 +24,8 @@ interface SkillProviderProps {
 }
 
 /**
- * Provider component that initializes skills on app startup
+ * Provider component that initializes skills on app startup.
+ * The actual loading/reconciliation order is delegated to useSkillBootstrap.
  */
 export function SkillProvider({
   children,
@@ -35,49 +34,18 @@ export function SkillProvider({
   onInitialized,
 }: SkillProviderProps) {
   const initialized = useRef(false);
-  const { importBuiltinSkills, createSkill } = useSkillStore();
+  const { createSkill } = useSkillStore();
+  const { runBootstrap } = useSkillBootstrap();
 
   useEffect(() => {
-    // Only initialize once
     if (initialized.current) return;
     initialized.current = true;
 
     const initializeSkills = async () => {
-      // Get current skills from store directly to avoid dependency issues
-      const currentSkills = useSkillStore.getState().skills;
-      const existingSkillCount = Object.keys(currentSkills).length;
-      
-      if (loadBuiltinSkills) {
-        const builtinSkills = getAllBuiltinSkills();
+      await runBootstrap({
+        loadBuiltinSkills,
+      });
 
-        if (existingSkillCount === 0) {
-          // No skills at all - load all built-in skills
-          importBuiltinSkills(builtinSkills);
-          skillProviderLogger.info('Loaded built-in skills', {
-            action: 'importBuiltinSkills',
-            count: builtinSkills.length,
-          });
-        } else {
-          // Check if any built-in skills are missing and re-import them
-          const existingNames = new Set(
-            Object.values(currentSkills)
-              .filter((s) => s.source === 'builtin')
-              .map((s) => s.metadata.name)
-          );
-          const missingBuiltins = builtinSkills.filter(
-            (b) => !existingNames.has(b.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''))
-          );
-          if (missingBuiltins.length > 0) {
-            importBuiltinSkills(missingBuiltins);
-            skillProviderLogger.info('Re-imported missing built-in skills', {
-              action: 'reimportBuiltinSkills',
-              count: missingBuiltins.length,
-            });
-          }
-        }
-      }
-
-      // Load custom skills if provided
       if (customSkills && customSkills.length > 0) {
         for (const skill of customSkills) {
           createSkill(skill);
@@ -115,33 +83,29 @@ export function useInitializeSkills(options: {
 
   const initialized = useRef(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  const { importBuiltinSkills, createSkill, skills, reset } = useSkillStore();
+  const { createSkill, skills, reset } = useSkillStore();
+  const { runBootstrap } = useSkillBootstrap();
 
   useEffect(() => {
     if (initialized.current && !forceReload) return;
     initialized.current = true;
 
-    const initialize = () => {
-      // Reset if force reload
+    const initialize = async () => {
       if (forceReload) {
         reset();
       }
 
-      // Get current skills from store directly to avoid dependency issues
-      const currentSkills = useSkillStore.getState().skills;
-      const existingSkillCount = Object.keys(currentSkills).length;
-      
-      if (loadBuiltinSkills && (existingSkillCount === 0 || forceReload)) {
-        const builtinSkills = getAllBuiltinSkills();
-        importBuiltinSkills(builtinSkills);
-      }
+      await runBootstrap({
+        loadBuiltinSkills,
+        force: forceReload,
+      });
 
       if (customSkills) {
         for (const skill of customSkills) {
           createSkill(skill);
         }
       }
-      
+
       setIsInitialized(true);
     };
 
@@ -162,13 +126,13 @@ export function useInitializeSkills(options: {
 export function initializeSkillsSync(): number {
   const store = useSkillStore.getState();
   const existingSkillCount = Object.keys(store.skills).length;
-  
+
   if (existingSkillCount === 0) {
     const builtinSkills = getAllBuiltinSkills();
     store.importBuiltinSkills(builtinSkills);
     return builtinSkills.length;
   }
-  
+
   return existingSkillCount;
 }
 

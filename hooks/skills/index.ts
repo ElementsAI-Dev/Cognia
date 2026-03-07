@@ -22,6 +22,8 @@ export {
   type LocalSkill,
 } from './use-native-skills';
 export { useSkillSync, useSkillSyncAvailable, type UseSkillSyncReturn } from './use-skill-sync';
+export { useSkillBootstrap, resetSkillBootstrapForTests } from './use-skill-bootstrap';
+export { useSkillActions, type UseSkillActionsReturn } from './use-skill-actions';
 export {
   useSkillSecurity,
   getSeverityColor,

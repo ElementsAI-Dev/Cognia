@@ -50,6 +50,21 @@ export type SkillSource = 'builtin' | 'custom' | 'imported' | 'generated' | 'mar
 export type SkillStatus = 'enabled' | 'disabled' | 'error' | 'loading';
 
 /**
+ * Skill sync origin - where the canonical identity is owned
+ */
+export type SkillSyncOrigin = 'frontend' | 'builtin' | 'native';
+
+/**
+ * Skill bootstrap/sync state
+ */
+export type SkillSyncState = 'idle' | 'syncing' | 'ready' | 'error';
+
+/**
+ * Result of a sync run
+ */
+export type SkillSyncOutcome = 'idle' | 'success' | 'partial' | 'failure';
+
+/**
  * Skill category for organization
  */
 export type SkillCategory =
@@ -111,6 +126,21 @@ export interface Skill {
   usageCount?: number;
   /** Last used timestamp */
   lastUsedAt?: Date;
+
+  /** Canonical identity used for cross-source reconciliation */
+  canonicalId?: string;
+  /** Linked native installed skill id (desktop mode) */
+  nativeSkillId?: string;
+  /** Linked native directory (desktop mode) */
+  nativeDirectory?: string;
+  /** Synchronization origin */
+  syncOrigin?: SkillSyncOrigin;
+  /** Fingerprint of source-owned payload used to detect drift */
+  syncFingerprint?: string;
+  /** Last successful reconciliation time */
+  lastSyncedAt?: Date;
+  /** Last synchronization error (if any) */
+  lastSyncError?: string | null;
   
   // === MCP Tool Association (Claude Best Practice) ===
   // Skills provide workflow knowledge, MCP provides tool connectivity.
@@ -202,6 +232,24 @@ export interface CreateSkillInput {
   recommendedTools?: string[];
   /** Keywords for matching against MCP tool descriptions */
   toolMatchKeywords?: string[];
+  /** Override source when creating a skill from external reconciliation */
+  source?: SkillSource;
+  /** Override status when creating a skill from external reconciliation */
+  status?: SkillStatus;
+  /** Canonical identity used for cross-source reconciliation */
+  canonicalId?: string;
+  /** Linked native installed skill id */
+  nativeSkillId?: string;
+  /** Linked native directory */
+  nativeDirectory?: string;
+  /** Synchronization origin */
+  syncOrigin?: SkillSyncOrigin;
+  /** Fingerprint of source-owned payload */
+  syncFingerprint?: string;
+  /** Last successful reconciliation time */
+  lastSyncedAt?: Date;
+  /** Last synchronization error */
+  lastSyncError?: string | null;
 }
 
 /**
@@ -226,6 +274,26 @@ export interface UpdateSkillInput {
   recommendedTools?: string[];
   /** Updated tool match keywords */
   toolMatchKeywords?: string[];
+  /** Updated source */
+  source?: SkillSource;
+  /** Updated version */
+  version?: string;
+  /** Updated author */
+  author?: string;
+  /** Updated canonical id */
+  canonicalId?: string | null;
+  /** Updated linked native skill id */
+  nativeSkillId?: string | null;
+  /** Updated linked native directory */
+  nativeDirectory?: string | null;
+  /** Updated synchronization origin */
+  syncOrigin?: SkillSyncOrigin;
+  /** Updated synchronization fingerprint */
+  syncFingerprint?: string | null;
+  /** Updated last synced timestamp */
+  lastSyncedAt?: Date | null;
+  /** Updated synchronization error */
+  lastSyncError?: string | null;
 }
 
 /**

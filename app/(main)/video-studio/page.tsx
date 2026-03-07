@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import {
   VideoStudioHeader,
   RecordingSidebar,
@@ -94,123 +95,132 @@ export default function VideoStudioPage() {
         </Alert>
       )}
 
-      <div className="flex-1 flex overflow-hidden">
+      <ResizablePanelGroup direction="horizontal" className="flex-1 overflow-hidden">
         {/* Sidebar */}
         {showSidebar && (
-          <aside className="w-64 sm:w-80 border-r flex flex-col shrink-0 min-h-0 overflow-hidden">
-            {/* Mode selector for mobile */}
-            <div className="sm:hidden p-2 border-b">
-              <Select value={studioMode} onValueChange={(v) => setStudioMode(v as StudioMode)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="recording">
-                    <span className="flex items-center gap-2">
-                      <Disc className="h-4 w-4" />
-                      Recording
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="ai-generation">
-                    <span className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4" />
-                      AI Generation
-                    </span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+          <>
+          <ResizablePanel defaultSize={25} minSize={18} maxSize={40} className="min-w-0">
+            <div className="flex flex-col h-full border-r overflow-hidden">
+              {/* Mode selector for mobile */}
+              <div className="sm:hidden p-2 border-b">
+                <Select value={studioMode} onValueChange={(v) => setStudioMode(v as StudioMode)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="recording">
+                      <span className="flex items-center gap-2">
+                        <Disc className="h-4 w-4" />
+                        Recording
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="ai-generation">
+                      <span className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        AI Generation
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Recording Mode Sidebar */}
+              {studioMode === 'recording' && (
+                <RecordingSidebar
+                  history={rec.filteredHistory}
+                  selectedRecording={rec.selectedRecording}
+                  searchQuery={rec.searchQuery}
+                  onSearchChange={rec.setSearchQuery}
+                  onSelectRecording={rec.handleSelectRecording}
+                  onDeleteClick={rec.handleDeleteClick}
+                  onCloseSidebar={() => setShowSidebar(false)}
+                  t={tEditor}
+                />
+              )}
+
+              {/* AI Generation Mode Sidebar */}
+              {studioMode === 'ai-generation' && (
+                <AIGenerationSidebar
+                  activeTab={gen.activeTab}
+                  onActiveTabChange={gen.setActiveTab}
+                  prompt={gen.prompt}
+                  onPromptChange={gen.setPrompt}
+                  negativePrompt={gen.negativePrompt}
+                  onNegativePromptChange={gen.setNegativePrompt}
+                  referenceImage={gen.referenceImage}
+                  onImageUpload={gen.handleImageUpload}
+                  onClearImage={gen.handleClearReferenceImage}
+                  showSettings={gen.showSettings}
+                  onShowSettingsChange={gen.setShowSettings}
+                  showMoreTemplates={gen.showMoreTemplates}
+                  onShowMoreTemplatesChange={gen.setShowMoreTemplates}
+                  provider={gen.provider}
+                  onProviderChange={gen.setProvider}
+                  model={gen.model}
+                  onModelChange={gen.setModel}
+                  providerModels={gen.providerModels}
+                  resolution={gen.resolution}
+                  onResolutionChange={gen.setResolution}
+                  aspectRatio={gen.aspectRatio}
+                  onAspectRatioChange={gen.setAspectRatio}
+                  duration={gen.duration}
+                  onDurationChange={gen.setDuration}
+                  style={gen.style}
+                  onStyleChange={gen.setStyle}
+                  fps={gen.fps}
+                  onFpsChange={gen.setFps}
+                  enhancePrompt={gen.enhancePrompt}
+                  onEnhancePromptChange={gen.setEnhancePrompt}
+                  includeAudio={gen.includeAudio}
+                  onIncludeAudioChange={gen.setIncludeAudio}
+                  audioPrompt={gen.audioPrompt}
+                  onAudioPromptChange={gen.setAudioPrompt}
+                  seed={gen.seed}
+                  onSeedChange={gen.setSeed}
+                  cameraMotion={gen.cameraMotion}
+                  onCameraMotionChange={gen.setCameraMotion}
+                  isGenerating={gen.isGenerating}
+                  error={gen.error}
+                  estimatedCost={gen.estimatedCost}
+                  onGenerate={gen.handleGenerate}
+                />
+              )}
             </div>
-
-            {/* Recording Mode Sidebar */}
-            {studioMode === 'recording' && (
-              <RecordingSidebar
-                history={rec.filteredHistory}
-                selectedRecording={rec.selectedRecording}
-                searchQuery={rec.searchQuery}
-                onSearchChange={rec.setSearchQuery}
-                onSelectRecording={rec.handleSelectRecording}
-                onDeleteClick={rec.handleDeleteClick}
-                onCloseSidebar={() => setShowSidebar(false)}
-                t={tEditor}
-              />
-            )}
-
-            {/* AI Generation Mode Sidebar */}
-            {studioMode === 'ai-generation' && (
-              <AIGenerationSidebar
-                activeTab={gen.activeTab}
-                onActiveTabChange={gen.setActiveTab}
-                prompt={gen.prompt}
-                onPromptChange={gen.setPrompt}
-                negativePrompt={gen.negativePrompt}
-                onNegativePromptChange={gen.setNegativePrompt}
-                referenceImage={gen.referenceImage}
-                onImageUpload={gen.handleImageUpload}
-                onClearImage={gen.handleClearReferenceImage}
-                showSettings={gen.showSettings}
-                onShowSettingsChange={gen.setShowSettings}
-                showMoreTemplates={gen.showMoreTemplates}
-                onShowMoreTemplatesChange={gen.setShowMoreTemplates}
-                provider={gen.provider}
-                onProviderChange={gen.setProvider}
-                model={gen.model}
-                onModelChange={gen.setModel}
-                providerModels={gen.providerModels}
-                resolution={gen.resolution}
-                onResolutionChange={gen.setResolution}
-                aspectRatio={gen.aspectRatio}
-                onAspectRatioChange={gen.setAspectRatio}
-                duration={gen.duration}
-                onDurationChange={gen.setDuration}
-                style={gen.style}
-                onStyleChange={gen.setStyle}
-                fps={gen.fps}
-                onFpsChange={gen.setFps}
-                enhancePrompt={gen.enhancePrompt}
-                onEnhancePromptChange={gen.setEnhancePrompt}
-                includeAudio={gen.includeAudio}
-                onIncludeAudioChange={gen.setIncludeAudio}
-                audioPrompt={gen.audioPrompt}
-                onAudioPromptChange={gen.setAudioPrompt}
-                seed={gen.seed}
-                onSeedChange={gen.setSeed}
-                isGenerating={gen.isGenerating}
-                error={gen.error}
-                estimatedCost={gen.estimatedCost}
-                onGenerate={gen.handleGenerate}
-              />
-            )}
-          </aside>
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          </>
         )}
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col overflow-hidden">
-          {studioMode === 'recording' && (
-            <RecordingModeContent rec={rec} tEditor={tEditor} />
-          )}
+        <ResizablePanel defaultSize={showSidebar ? 75 : 100} className="min-w-0">
+          <main className="flex-1 flex flex-col overflow-hidden h-full">
+            {studioMode === 'recording' && (
+              <RecordingModeContent rec={rec} tEditor={tEditor} />
+            )}
 
-          {studioMode === 'ai-generation' && (
-            <AIGenerationModeContent gen={gen} tGen={tGen} />
-          )}
+            {studioMode === 'ai-generation' && (
+              <AIGenerationModeContent gen={gen} tGen={tGen} />
+            )}
 
-          {studioMode === 'editor' && (
-            <VideoEditorPanel
-              initialVideoUrl={rec.selectedRecording?.file_path ? `file://${rec.selectedRecording.file_path}` : undefined}
-              onExport={(blob) => {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `edited-video-${Date.now()}.mp4`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-              }}
-              className="flex-1"
-            />
-          )}
-        </main>
-      </div>
+            {studioMode === 'editor' && (
+              <VideoEditorPanel
+                initialVideoUrl={rec.selectedRecording?.file_path ? `file://${rec.selectedRecording.file_path}` : undefined}
+                onExport={(blob) => {
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `edited-video-${Date.now()}.mp4`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }}
+                className="flex-1"
+              />
+            )}
+          </main>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }

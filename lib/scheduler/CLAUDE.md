@@ -8,11 +8,15 @@ AI-powered task automation system with cron scheduling, notifications, and persi
 lib/scheduler/
 ├── index.ts              # Module exports & initialization
 ├── cron-parser.ts        # Cron expression parsing & validation
-├── task-scheduler.ts     # Core scheduler service
+├── task-scheduler.ts     # Core scheduler service (leader election, visibility-aware)
 ├── scheduler-db.ts       # Dexie persistence layer
 ├── notification-integration.ts  # Notification dispatch
 ├── event-integration.ts  # Event-triggered task execution
 ├── script-executor.ts    # Script execution via sandbox
+├── errors.ts             # SchedulerError class with typed error codes
+├── format-utils.ts       # Shared formatting (duration, relative time, next run)
+├── tab-lock.ts           # Multi-tab leader election (Web Locks API + localStorage)
+├── task-templates.ts     # Built-in task templates
 └── executors/
     ├── index.ts          # Built-in task executors
     └── plugin-executor.ts # Plugin task handler registry

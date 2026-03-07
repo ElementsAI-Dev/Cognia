@@ -31,40 +31,79 @@ Object.assign(globalThis, {
   Response: globalThis.Response ?? EdgeResponse,
 });
 
+const mockGenerateBuiltinPrompts = jest.fn();
+
+jest.mock('@/lib/ai/presets/preset-ai-service', () => ({
+  generateBuiltinPrompts: (...args: unknown[]) => mockGenerateBuiltinPrompts(...args),
+}));
+
 let routeModule: typeof import('./route');
 
 beforeAll(async () => {
   routeModule = await import('./route');
 });
 
-describe('route module', () => {
-  it('returns Response for POST', async () => {
-    const handler = routeModule.POST as (...args: unknown[]) => Promise<Response> | Response;
+describe('/api/enhance-builtin-prompt legacy route', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGenerateBuiltinPrompts.mockResolvedValue({
+      success: true,
+      prompts: [
+        {
+          name: 'Prompt A',
+          content: 'Do X',
+          description: 'Desc',
+        },
+      ],
+    });
+  });
 
-    const req = {
-      json: jest.fn().mockResolvedValue({}),
-      formData: jest.fn().mockResolvedValue(new FormData()),
-      headers: new Headers(),
+  it('delegates to shared builtin prompts service and sets deprecation headers', async () => {
+    const req = new Request('http://localhost/api/enhance-builtin-prompt', {
       method: 'POST',
-      nextUrl: new URL('http://localhost/api/test?action=analyze'),
-      clone() {
-        return this;
-      },
-    } as unknown as Request;
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        presetName: 'Coding',
+        action: 'generate',
+        provider: 'openai',
+        apiKey: 'test-key',
+        count: 2,
+      }),
+    });
 
-    const ctx = {
-      params: Promise.resolve({ workflowId: 'wf-1', id: 'id-1' }),
-    };
+    const res = await routeModule.POST(req as unknown as Parameters<typeof routeModule.POST>[0]);
+    const body = await res.json();
 
-    let res: Response;
-    if (handler.length >= 2) {
-      res = await handler(req, ctx);
-    } else if (handler.length === 1) {
-      res = await handler(req);
-    } else {
-      res = await handler();
-    }
+    expect(mockGenerateBuiltinPrompts).toHaveBeenCalledWith(
+      'Coding',
+      undefined,
+      undefined,
+      [],
+      expect.objectContaining({ provider: 'openai', apiKey: 'test-key' }),
+      2
+    );
+    expect(body.prompts).toHaveLength(1);
+    expect(res.headers.get('x-cognia-generation-capability-id')).toBe(
+      'legacy-enhance-builtin-prompt-route'
+    );
+  });
 
-    expect(res).toBeInstanceOf(Response);
+  it('returns 400 when presetName is missing', async () => {
+    const req = new Request('http://localhost/api/enhance-builtin-prompt', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        action: 'generate',
+        provider: 'openai',
+        apiKey: 'test-key',
+      }),
+    });
+
+    const res = await routeModule.POST(req as unknown as Parameters<typeof routeModule.POST>[0]);
+
+    expect(res.status).toBe(400);
+    expect(res.headers.get('deprecation')).toBe('true');
+    expect(mockGenerateBuiltinPrompts).not.toHaveBeenCalled();
   });
 });
+

@@ -15,25 +15,32 @@ Next.js App Router - main application routes, layouts, and pages. This module de
 - `(main)/` — Main application routes
   - `(chat)/` — Chat interface
   - `settings/` — Settings pages
-  - `native-tools/` — Native tools dashboard
-  - `skills/` — Skills management
-  - `splashscreen/` — Splash screen
-  - `git/` — Git integration
-  - `ppt/` — PPT generation
-  - `image-studio/` — Image editing
   - `academic/` — Academic mode
+  - `arena/` — Model arena / blind comparison
+  - `designer/` — Visual designer
+  - `git/` — Git integration
+  - `image-studio/` — Image editing
+  - `latex/` — LaTeX editor
+  - `native-tools/` — Native tools dashboard
+  - `notebook/` — Notebook interface
+  - `observability/` — System observability
+  - `plugins/` — Plugin management
+  - `ppt/` — PPT generation
+  - `projects/` — Project management
+  - `sandbox/` — Code sandbox
+  - `scheduler/` — Task scheduler
+  - `skills/` — Skills management
+  - `speedpass/` — SpeedPass learning
+  - `splashscreen/` — Splash screen
   - `video-studio/` — Video editing
   - `workflows/` — Workflow management
-  - `designer/` — Visual designer
-  - `projects/` — Project management
-  - `scheduler/` — Task scheduler
 
 ### Standalone Windows
 
 - `(standalone-selection-toolbar)/` — Selection toolbar window
 - `(standalone-assistant-bubble)/` — Assistant bubble window
 - `(standalone-chat-widget)/` — Chat widget window
-- `(standalone-region-selector)/` — Region selector window
+- `(standalone-recording-click-overlay)/` — Recording click overlay window
 
 ### Root Files
 

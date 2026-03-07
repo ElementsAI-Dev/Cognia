@@ -17,7 +17,24 @@ import type {
   UpdateSkillInput,
   SkillUsageStats,
   SkillSearchResult,
+  SkillSyncOutcome,
+  SkillSyncState,
 } from '@/types/system/skill';
+import {
+  buildCanonicalSkillId,
+  createBuiltinSkillFingerprint,
+  getDefaultSyncOrigin,
+  normalizeSkillName,
+} from '@/lib/skills/reconciliation';
+
+export type SkillSyncDirection = 'bootstrap' | 'from-native' | 'to-native' | 'bidirectional' | null;
+
+export interface SkillSyncDiagnostics {
+  added: number;
+  updated: number;
+  skipped: number;
+  conflicted: number;
+}
 
 interface SkillState {
   // State
@@ -26,6 +43,15 @@ interface SkillState {
   isLoading: boolean;
   error: string | null;
   usageStats: Record<string, SkillUsageStats>;
+  bootstrapState: SkillSyncState;
+  lastBootstrapAt: Date | null;
+  lastBootstrapError: string | null;
+  syncState: SkillSyncState;
+  lastSyncAt: Date | null;
+  lastSyncDirection: SkillSyncDirection;
+  lastSyncOutcome: SkillSyncOutcome;
+  lastSyncError: string | null;
+  syncDiagnostics: SkillSyncDiagnostics;
 
   // CRUD Actions
   createSkill: (input: CreateSkillInput) => Skill;
@@ -91,6 +117,19 @@ interface SkillState {
   // Loading state
   setLoading: (loading: boolean) => void;
 
+  // Bootstrap/sync metadata
+  setBootstrapState: (state: SkillSyncState, error?: string | null) => void;
+  setSyncMetadata: (
+    updates: Partial<{
+      syncState: SkillSyncState;
+      lastSyncAt: Date | null;
+      lastSyncDirection: SkillSyncDirection;
+      lastSyncOutcome: SkillSyncOutcome;
+      lastSyncError: string | null;
+      syncDiagnostics: SkillSyncDiagnostics;
+    }>
+  ) => void;
+
   // Reset
   reset: () => void;
 }
@@ -99,11 +138,7 @@ interface SkillState {
  * Convert name to hyphen-case
  */
 function toHyphenCase(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .replace(/-{2,}/g, '-');
+  return normalizeSkillName(name);
 }
 
 /**
@@ -124,6 +159,20 @@ const initialState = {
   isLoading: false,
   error: null as string | null,
   usageStats: {} as Record<string, SkillUsageStats>,
+  bootstrapState: 'idle' as SkillSyncState,
+  lastBootstrapAt: null as Date | null,
+  lastBootstrapError: null as string | null,
+  syncState: 'idle' as SkillSyncState,
+  lastSyncAt: null as Date | null,
+  lastSyncDirection: null as SkillSyncDirection,
+  lastSyncOutcome: 'idle' as SkillSyncOutcome,
+  lastSyncError: null as string | null,
+  syncDiagnostics: {
+    added: 0,
+    updated: 0,
+    skipped: 0,
+    conflicted: 0,
+  } as SkillSyncDiagnostics,
 };
 
 export const useSkillStore = create<SkillState>()(
@@ -162,8 +211,8 @@ export const useSkillStore = create<SkillState>()(
             size: r.content?.length || 0,
             mimeType: 'text/plain',
           })),
-          status: 'enabled',
-          source: 'custom',
+          status: input.status ?? 'enabled',
+          source: input.source ?? 'custom',
           category: input.category || 'custom',
           tags: input.tags || [],
           version: input.version || '1.0.0',
@@ -171,6 +220,18 @@ export const useSkillStore = create<SkillState>()(
           createdAt: now,
           updatedAt: now,
           usageCount: 0,
+          canonicalId: input.canonicalId ?? buildCanonicalSkillId({
+            source: input.source ?? 'custom',
+            metadata: { name },
+            nativeSkillId: input.nativeSkillId,
+            nativeDirectory: input.nativeDirectory,
+          }),
+          nativeSkillId: input.nativeSkillId,
+          nativeDirectory: input.nativeDirectory,
+          syncOrigin: input.syncOrigin ?? getDefaultSyncOrigin(input.source ?? 'custom'),
+          syncFingerprint: input.syncFingerprint,
+          lastSyncedAt: input.lastSyncedAt,
+          lastSyncError: input.lastSyncError ?? null,
           // MCP Tool Association (Claude Best Practice)
           associatedMcpServers: input.associatedMcpServers,
           recommendedTools: input.recommendedTools,
@@ -196,21 +257,62 @@ export const useSkillStore = create<SkillState>()(
           const skill = state.skills[id];
           if (!skill) return state;
 
+          const hasOwn = <K extends keyof UpdateSkillInput>(key: K): boolean =>
+            Object.prototype.hasOwnProperty.call(updates, key);
+
           const updatedMetadata = updates.metadata
             ? { ...skill.metadata, ...updates.metadata }
             : skill.metadata;
 
           const updatedContent = updates.content ?? skill.content;
 
+          const resolvedNativeSkillId = hasOwn('nativeSkillId')
+            ? updates.nativeSkillId ?? undefined
+            : skill.nativeSkillId;
+          const resolvedNativeDirectory = hasOwn('nativeDirectory')
+            ? updates.nativeDirectory ?? undefined
+            : skill.nativeDirectory;
+          const resolvedCanonicalId = hasOwn('canonicalId')
+            ? updates.canonicalId ?? undefined
+            : skill.canonicalId;
+          const resolvedSyncFingerprint = hasOwn('syncFingerprint')
+            ? updates.syncFingerprint ?? undefined
+            : skill.syncFingerprint;
+          const resolvedLastSyncedAt = hasOwn('lastSyncedAt')
+            ? updates.lastSyncedAt ?? undefined
+            : skill.lastSyncedAt;
+          const resolvedLastSyncError = hasOwn('lastSyncError')
+            ? updates.lastSyncError ?? null
+            : skill.lastSyncError ?? null;
+          const resolvedSource = updates.source ?? skill.source;
+          const resolvedSyncOrigin = updates.syncOrigin
+            ?? skill.syncOrigin
+            ?? getDefaultSyncOrigin(resolvedSource);
+
           const updatedSkill: Skill = {
             ...skill,
             metadata: updatedMetadata,
             content: updatedContent,
             rawContent: generateRawContent(updatedMetadata, updatedContent),
+            source: resolvedSource,
             category: updates.category ?? skill.category,
             tags: updates.tags ?? skill.tags,
             resources: updates.resources ?? skill.resources,
             status: updates.status ?? skill.status,
+            version: updates.version ?? skill.version,
+            author: updates.author ?? skill.author,
+            canonicalId: resolvedCanonicalId ?? buildCanonicalSkillId({
+              source: resolvedSource,
+              metadata: updatedMetadata,
+              nativeSkillId: resolvedNativeSkillId,
+              nativeDirectory: resolvedNativeDirectory,
+            }),
+            nativeSkillId: resolvedNativeSkillId,
+            nativeDirectory: resolvedNativeDirectory,
+            syncOrigin: resolvedSyncOrigin,
+            syncFingerprint: resolvedSyncFingerprint,
+            lastSyncedAt: resolvedLastSyncedAt,
+            lastSyncError: resolvedLastSyncError,
             updatedAt: new Date(),
             // MCP Tool Association updates
             associatedMcpServers: updates.associatedMcpServers ?? skill.associatedMcpServers,
@@ -612,7 +714,20 @@ export const useSkillStore = create<SkillState>()(
             id: duplicate.id,
             createdAt: duplicate.createdAt,
             updatedAt: now,
-            source: duplicate.source,
+            source: skillData.source ?? duplicate.source,
+            status: skillData.status ?? duplicate.status,
+            canonicalId: skillData.canonicalId ?? duplicate.canonicalId ?? buildCanonicalSkillId({
+              source: skillData.source ?? duplicate.source,
+              metadata: skillData.metadata ?? duplicate.metadata,
+              nativeSkillId: skillData.nativeSkillId ?? duplicate.nativeSkillId,
+              nativeDirectory: skillData.nativeDirectory ?? duplicate.nativeDirectory,
+            }),
+            nativeSkillId: skillData.nativeSkillId ?? duplicate.nativeSkillId,
+            nativeDirectory: skillData.nativeDirectory ?? duplicate.nativeDirectory,
+            syncOrigin: skillData.syncOrigin ?? duplicate.syncOrigin ?? getDefaultSyncOrigin(skillData.source ?? duplicate.source),
+            syncFingerprint: skillData.syncFingerprint ?? duplicate.syncFingerprint,
+            lastSyncedAt: skillData.lastSyncedAt ?? duplicate.lastSyncedAt,
+            lastSyncError: skillData.lastSyncError ?? duplicate.lastSyncError ?? null,
           };
 
           const errors = get().validateSkill(updatedSkill);
@@ -635,9 +750,21 @@ export const useSkillStore = create<SkillState>()(
           id,
           createdAt: now,
           updatedAt: now,
-          status: 'enabled',
+          status: skillData.status ?? 'enabled',
           isActive: false,
-          source: 'imported',
+          source: skillData.source ?? 'imported',
+          canonicalId: skillData.canonicalId ?? buildCanonicalSkillId({
+            source: skillData.source ?? 'imported',
+            metadata: skillData.metadata,
+            nativeSkillId: skillData.nativeSkillId,
+            nativeDirectory: skillData.nativeDirectory,
+          }),
+          nativeSkillId: skillData.nativeSkillId,
+          nativeDirectory: skillData.nativeDirectory,
+          syncOrigin: skillData.syncOrigin ?? getDefaultSyncOrigin(skillData.source ?? 'imported'),
+          syncFingerprint: skillData.syncFingerprint,
+          lastSyncedAt: skillData.lastSyncedAt,
+          lastSyncError: skillData.lastSyncError ?? null,
         };
 
         // Validate imported skill
@@ -667,17 +794,60 @@ export const useSkillStore = create<SkillState>()(
         const state = get();
         const newSkills: Record<string, Skill> = { ...state.skills };
         const now = new Date();
-
-        // Build a set of existing skill names for duplicate detection
-        const existingNames = new Set(
-          Object.values(newSkills).map((s) => s.metadata.name)
-        );
+        const diagnostics: SkillSyncDiagnostics = {
+          added: 0,
+          updated: 0,
+          skipped: 0,
+          conflicted: 0,
+        };
 
         for (const input of skills) {
           const name = toHyphenCase(input.name);
+          const existingEntry = Object.entries(newSkills).find(([, value]) => value.metadata.name === name);
+          const builtinFingerprint = createBuiltinSkillFingerprint({
+            ...input,
+            name,
+          });
 
-          // Skip if a skill with this name already exists
-          if (existingNames.has(name)) {
+          if (existingEntry && existingEntry[1].source !== 'builtin') {
+            diagnostics.conflicted += 1;
+            continue;
+          }
+
+          if (existingEntry) {
+            const [existingId, existingSkill] = existingEntry;
+            if (existingSkill.syncFingerprint === builtinFingerprint) {
+              diagnostics.skipped += 1;
+              continue;
+            }
+
+            const metadata: SkillMetadata = {
+              name,
+              description: input.description,
+            };
+
+            newSkills[existingId] = {
+              ...existingSkill,
+              metadata,
+              content: input.content,
+              rawContent: generateRawContent(metadata, input.content),
+              resources: (input.resources || []).map((resource) => ({
+                ...resource,
+                size: resource.content?.length || 0,
+                mimeType: 'text/plain',
+              })),
+              category: input.category || existingSkill.category,
+              tags: input.tags || [],
+              version: input.version || existingSkill.version,
+              author: input.author ?? existingSkill.author,
+              updatedAt: now,
+              canonicalId: `builtin:${name}`,
+              syncOrigin: 'builtin',
+              syncFingerprint: builtinFingerprint,
+              lastSyncedAt: now,
+              lastSyncError: null,
+            };
+            diagnostics.updated += 1;
             continue;
           }
 
@@ -706,13 +876,21 @@ export const useSkillStore = create<SkillState>()(
             createdAt: now,
             updatedAt: now,
             usageCount: 0,
+            canonicalId: `builtin:${name}`,
+            syncOrigin: 'builtin',
+            syncFingerprint: builtinFingerprint,
+            lastSyncedAt: now,
+            lastSyncError: null,
           };
 
           newSkills[id] = skill;
-          existingNames.add(name);
+          diagnostics.added += 1;
         }
 
-        set({ skills: newSkills });
+        set({
+          skills: newSkills,
+          syncDiagnostics: diagnostics,
+        });
       },
 
       deleteAllCustomSkills: () => {
@@ -744,6 +922,22 @@ export const useSkillStore = create<SkillState>()(
         set({ isLoading: loading });
       },
 
+      // Bootstrap/sync metadata
+      setBootstrapState: (state, error = null) => {
+        set((currentState) => ({
+          bootstrapState: state,
+          lastBootstrapAt: state === 'ready' ? new Date() : currentState.lastBootstrapAt,
+          lastBootstrapError: error,
+        }));
+      },
+
+      setSyncMetadata: (updates) => {
+        set((currentState) => ({
+          ...updates,
+          syncDiagnostics: updates.syncDiagnostics ?? currentState.syncDiagnostics,
+        }));
+      },
+
       // Reset
       reset: () => {
         set(initialState);
@@ -751,18 +945,74 @@ export const useSkillStore = create<SkillState>()(
     }),
     {
       name: 'cognia-skills-storage',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState: unknown, version: number) => {
-        const state = persistedState as Record<string, unknown>;
-        if (version === 0) {
-          // v0 -> v1: Ensure usageStats field exists
-          if (!state.usageStats || typeof state.usageStats !== 'object') {
-            state.usageStats = {};
+        const state = (persistedState ?? {}) as Record<string, unknown>;
+
+        if (!state.usageStats || typeof state.usageStats !== 'object') {
+          state.usageStats = {};
+        }
+        if (!state.skills || typeof state.skills !== 'object') {
+          state.skills = {};
+        }
+
+        if (!state.activeSkillIds || !Array.isArray(state.activeSkillIds)) {
+          state.activeSkillIds = [];
+        }
+
+        if (version <= 1) {
+          const migratedSkills: Record<string, Skill> = {};
+          const rawSkills = state.skills as Record<string, Skill>;
+
+          for (const [id, skill] of Object.entries(rawSkills)) {
+            const normalizedName = toHyphenCase(skill.metadata?.name ?? '');
+            const source = skill.source ?? 'custom';
+            const syncOrigin = skill.syncOrigin ?? getDefaultSyncOrigin(source);
+            const canonicalId = skill.canonicalId ?? buildCanonicalSkillId({
+              source,
+              metadata: { name: normalizedName },
+              nativeSkillId: skill.nativeSkillId,
+              nativeDirectory: skill.nativeDirectory,
+            });
+
+            migratedSkills[id] = {
+              ...skill,
+              metadata: {
+                ...skill.metadata,
+                name: normalizedName,
+              },
+              canonicalId,
+              syncOrigin,
+              nativeDirectory: skill.nativeDirectory ?? (source === 'imported' ? normalizedName : undefined),
+              syncFingerprint: skill.syncFingerprint
+                ?? (source === 'builtin'
+                  ? createBuiltinSkillFingerprint({
+                    name: normalizedName,
+                    description: skill.metadata?.description ?? '',
+                    content: skill.content ?? '',
+                    version: skill.version,
+                  })
+                  : undefined),
+              lastSyncError: skill.lastSyncError ?? null,
+            };
           }
-          if (!state.skills || typeof state.skills !== 'object') {
-            state.skills = {};
-          }
+
+          state.skills = migratedSkills;
+          state.bootstrapState = 'idle';
+          state.lastBootstrapAt = null;
+          state.lastBootstrapError = null;
+          state.syncState = 'idle';
+          state.lastSyncAt = null;
+          state.lastSyncDirection = null;
+          state.lastSyncOutcome = 'idle';
+          state.lastSyncError = null;
+          state.syncDiagnostics = {
+            added: 0,
+            updated: 0,
+            skipped: 0,
+            conflicted: 0,
+          };
         }
         return state;
       },
@@ -770,6 +1020,15 @@ export const useSkillStore = create<SkillState>()(
         skills: state.skills,
         usageStats: state.usageStats,
         activeSkillIds: state.activeSkillIds,
+        bootstrapState: state.bootstrapState,
+        lastBootstrapAt: state.lastBootstrapAt,
+        lastBootstrapError: state.lastBootstrapError,
+        syncState: state.syncState,
+        lastSyncAt: state.lastSyncAt,
+        lastSyncDirection: state.lastSyncDirection,
+        lastSyncOutcome: state.lastSyncOutcome,
+        lastSyncError: state.lastSyncError,
+        syncDiagnostics: state.syncDiagnostics,
       }),
     }
   )
@@ -786,3 +1045,9 @@ export const selectSkillsByCategory = (category: SkillCategory) => (state: Skill
   Object.values(state.skills).filter((s) => s.category === category);
 export const selectIsLoading = (state: SkillState) => state.isLoading;
 export const selectError = (state: SkillState) => state.error;
+export const selectBootstrapState = (state: SkillState) => state.bootstrapState;
+export const selectLastBootstrapError = (state: SkillState) => state.lastBootstrapError;
+export const selectSyncState = (state: SkillState) => state.syncState;
+export const selectLastSyncOutcome = (state: SkillState) => state.lastSyncOutcome;
+export const selectLastSyncError = (state: SkillState) => state.lastSyncError;
+export const selectSyncDiagnostics = (state: SkillState) => state.syncDiagnostics;

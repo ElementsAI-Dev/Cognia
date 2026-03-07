@@ -54,6 +54,7 @@ import {
 import { useSessionStore, useSettingsStore, useWindowStore } from '@/stores';
 import { useWindowControls } from '@/hooks';
 import { useRouter } from 'next/navigation';
+import { useShallow } from 'zustand/react/shallow';
 import { isMainWindow } from '@/lib/native/utils';
 import { cn } from '@/lib/utils';
 import { isBackgroundRenderable } from '@/lib/themes';
@@ -166,7 +167,25 @@ export function TitleBar() {
     setEnableDragToMove,
     setTitleBarCustomLayout,
     setTitleBarHeight,
-  } = useWindowStore();
+  } = useWindowStore(
+    useShallow((state) => ({
+      contentProtected: state.contentProtected,
+      skipTaskbar: state.skipTaskbar,
+      shadow: state.shadow,
+      visibleOnAllWorkspaces: state.visibleOnAllWorkspaces,
+      isResizable: state.isResizable,
+      preferences: state.preferences,
+      setContentProtected: state.setContentProtected,
+      setSkipTaskbar: state.setSkipTaskbar,
+      setShadow: state.setShadow,
+      setVisibleOnAllWorkspaces: state.setVisibleOnAllWorkspaces,
+      setIsResizable: state.setIsResizable,
+      setEnableDoubleClickMaximize: state.setEnableDoubleClickMaximize,
+      setEnableDragToMove: state.setEnableDragToMove,
+      setTitleBarCustomLayout: state.setTitleBarCustomLayout,
+      setTitleBarHeight: state.setTitleBarHeight,
+    }))
+  );
 
   const titleBarRegistryItems = useTitleBarRegistry((state) => state.items);
 

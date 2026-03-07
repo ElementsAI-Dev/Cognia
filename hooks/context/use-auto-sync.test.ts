@@ -7,11 +7,43 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAutoSync } from './use-auto-sync';
 import * as autoSync from '@/lib/context/auto-sync';
 
+let mockMcpState: any = {
+  servers: [
+    {
+      id: 'server1',
+      name: 'Test Server',
+      tools: [{ name: 'tool1', description: 'Test tool' }],
+      status: 'connected',
+    },
+  ],
+};
+
+let mockSkillState: any = {
+  skills: {
+    skill1: {
+      id: 'skill1',
+      metadata: { name: 'Test Skill', description: 'Test', version: '1.0' },
+      content: 'test',
+      isActive: true,
+    },
+  },
+  activeSkillIds: ['skill1'],
+};
+
 // Mock dependencies
 jest.mock('@/lib/context/auto-sync');
 jest.mock('@/stores', () => ({
-  useMcpStore: jest.fn((selector) => {
-    const state = {
+  useMcpStore: jest.fn((selector) => selector(mockMcpState)),
+  useSkillStore: jest.fn((selector) => selector(mockSkillState)),
+}));
+
+const mockedAutoSync = autoSync as jest.Mocked<typeof autoSync>;
+
+describe('useAutoSync', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    mockMcpState = {
       servers: [
         {
           id: 'server1',
@@ -21,10 +53,7 @@ jest.mock('@/stores', () => ({
         },
       ],
     };
-    return selector(state);
-  }),
-  useSkillStore: jest.fn((selector) => {
-    const state = {
+    mockSkillState = {
       skills: {
         skill1: {
           id: 'skill1',
@@ -35,16 +64,6 @@ jest.mock('@/stores', () => ({
       },
       activeSkillIds: ['skill1'],
     };
-    return selector(state);
-  }),
-}));
-
-const mockedAutoSync = autoSync as jest.Mocked<typeof autoSync>;
-
-describe('useAutoSync', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
 
     // Default mock implementations
     mockedAutoSync.runFullSync.mockResolvedValue({
@@ -244,5 +263,87 @@ describe('useAutoSync', () => {
     const { result } = renderHook(() => useAutoSync({ syncOnMount: false }));
 
     expect(result.current.isRunning).toBe(true);
+  });
+
+  it('reads latest active skills at sync time after runtime toggles', async () => {
+    mockedAutoSync.runFullSync.mockResolvedValue({
+      mcp: new Map(),
+      skills: { synced: 1, errors: [] },
+      durationMs: 20,
+      syncedAt: new Date(),
+    });
+
+    const { result, rerender } = renderHook(() => useAutoSync({ syncOnMount: false, syncIntervalMs: 0 }));
+
+    await act(async () => {
+      await result.current.sync();
+    });
+
+    expect(mockedAutoSync.runFullSync).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        skills: [expect.objectContaining({ id: 'skill1' })],
+      })
+    );
+
+    mockSkillState = {
+      skills: {
+        skill2: {
+          id: 'skill2',
+          metadata: { name: 'Other Skill', description: 'Other', version: '1.0' },
+          content: 'new',
+          isActive: true,
+        },
+      },
+      activeSkillIds: ['skill2'],
+    };
+    rerender();
+
+    await act(async () => {
+      await result.current.sync();
+    });
+
+    expect(mockedAutoSync.runFullSync).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        skills: [expect.objectContaining({ id: 'skill2' })],
+      })
+    );
+  });
+
+  it('manual sync clears pending debounced change sync', async () => {
+    mockedAutoSync.runFullSync.mockResolvedValue({
+      mcp: new Map(),
+      skills: { synced: 1, errors: [] },
+      durationMs: 15,
+      syncedAt: new Date(),
+    });
+
+    const { result, rerender } = renderHook(() =>
+      useAutoSync({ syncOnMount: false, syncIntervalMs: 0, syncOnChange: true })
+    );
+
+    mockSkillState = {
+      ...mockSkillState,
+      activeSkillIds: ['skill1', 'skill2'],
+      skills: {
+        ...mockSkillState.skills,
+        skill2: {
+          id: 'skill2',
+          metadata: { name: 'Two', description: 'Two', version: '1.0' },
+          content: 'two',
+          isActive: true,
+        },
+      },
+    };
+    rerender();
+
+    await act(async () => {
+      await result.current.sync();
+    });
+
+    act(() => {
+      jest.advanceTimersByTime(2000);
+    });
+
+    expect(mockedAutoSync.runFullSync).toHaveBeenCalledTimes(1);
   });
 });

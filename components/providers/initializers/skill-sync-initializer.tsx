@@ -6,35 +6,33 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { useSkillSync, useSkillSyncAvailable } from '@/hooks/skills';
+import { useSkillBootstrap } from '@/hooks/skills';
 import { createLogger } from '@/lib/logger';
 
 const skillSyncLogger = createLogger('providers:skill-sync');
 
 export function SkillSyncInitializer() {
   const hasInitialized = useRef(false);
-  const isAvailable = useSkillSyncAvailable();
-  const { syncFromNative, syncToNative } = useSkillSync();
+  const { runBootstrap } = useSkillBootstrap();
 
   useEffect(() => {
     if (hasInitialized.current) return;
     hasInitialized.current = true;
 
-    if (!isAvailable) return;
-
     const runSync = async () => {
       try {
-        await syncFromNative();
-        await syncToNative();
+        await runBootstrap({
+          loadBuiltinSkills: true,
+        });
       } catch (error) {
-        skillSyncLogger.error('Skill sync failed', error, {
-          action: 'syncFromNativeAndToNative',
+        skillSyncLogger.error('Skill bootstrap failed', error, {
+          action: 'runBootstrap',
         });
       }
     };
 
     runSync();
-  }, [isAvailable, syncFromNative, syncToNative]);
+  }, [runBootstrap]);
 
   return null;
 }

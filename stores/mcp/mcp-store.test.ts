@@ -108,6 +108,8 @@ describe('useMcpStore', () => {
 
       expect(mockListen).toHaveBeenCalledWith('mcp:server-update', expect.any(Function));
       expect(mockListen).toHaveBeenCalledWith('mcp:servers-changed', expect.any(Function));
+      expect(mockListen).toHaveBeenCalledWith('mcp:app-bridge', expect.any(Function));
+      expect(mockListen).toHaveBeenCalledWith('mcp:app-security-event', expect.any(Function));
       expect(mockInvoke).toHaveBeenCalledWith('mcp_get_servers');
       expect(useMcpStore.getState().isInitialized).toBe(true);
     });
@@ -241,6 +243,37 @@ describe('useMcpStore', () => {
 
       expect(mockInvoke).toHaveBeenCalledWith('mcp_call_tool', {
         serverId: 'server-1',
+        toolName: 'test-tool',
+        arguments: { arg: 'value' },
+      });
+      expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe('callToolFromUi', () => {
+    it('calls MCP UI bridge tool command with session and origin context', async () => {
+      const mockResult = {
+        content: [{ type: 'text', text: 'UI bridge tool result' }],
+        structuredContent: { ok: true },
+        _meta: { widgetSessionId: 'session-123' },
+        isError: false,
+      };
+      mockInvoke.mockResolvedValueOnce(mockResult);
+
+      const result = await useMcpStore
+        .getState()
+        .callToolFromUi(
+          'server-1',
+          'session-123',
+          'https://widget.example.com',
+          'test-tool',
+          { arg: 'value' }
+        );
+
+      expect(mockInvoke).toHaveBeenCalledWith('mcp_call_tool_from_ui', {
+        serverId: 'server-1',
+        sessionId: 'session-123',
+        origin: 'https://widget.example.com',
         toolName: 'test-tool',
         arguments: { arg: 'value' },
       });

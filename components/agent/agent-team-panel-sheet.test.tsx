@@ -50,17 +50,25 @@ const mockPauseTeam = jest.fn();
 const mockResumeTeam = jest.fn();
 const mockDeleteTeam = jest.fn();
 const mockAddTeammate = jest.fn();
+const mockUnifiedTools = { web_search: { name: 'web_search' } } as const;
+const mockUseAgentTeam = jest.fn((_options?: unknown) => ({
+  createTeam: mockCreateTeam,
+  createTeamFromTemplate: mockCreateTeamFromTemplate,
+  executeTeam: mockExecuteTeam,
+  cancelTeam: mockCancelTeam,
+  pauseTeam: mockPauseTeam,
+  resumeTeam: mockResumeTeam,
+  deleteTeam: mockDeleteTeam,
+  addTeammate: mockAddTeammate,
+}));
 
 jest.mock('@/hooks/agent/use-agent-team', () => ({
-  useAgentTeam: () => ({
-    createTeam: mockCreateTeam,
-    createTeamFromTemplate: mockCreateTeamFromTemplate,
-    executeTeam: mockExecuteTeam,
-    cancelTeam: mockCancelTeam,
-    pauseTeam: mockPauseTeam,
-    resumeTeam: mockResumeTeam,
-    deleteTeam: mockDeleteTeam,
-    addTeammate: mockAddTeammate,
+  useAgentTeam: (options?: unknown) => mockUseAgentTeam(options),
+}));
+
+jest.mock('@/hooks/agent/use-unified-tools', () => ({
+  useUnifiedTools: () => ({
+    tools: mockUnifiedTools,
   }),
 }));
 
@@ -142,6 +150,14 @@ describe('AgentTeamPanelSheet', () => {
     mockIsPanelOpen = false;
     mockSelectedTeammateId = null;
     jest.clearAllMocks();
+  });
+
+  it('passes unified tools into useAgentTeam', () => {
+    mockIsPanelOpen = true;
+    render(<AgentTeamPanelSheet />);
+    expect(mockUseAgentTeam).toHaveBeenCalledWith(
+      expect.objectContaining({ tools: mockUnifiedTools })
+    );
   });
 
   it('should render Sheet when panel is open', () => {

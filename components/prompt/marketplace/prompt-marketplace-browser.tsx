@@ -19,10 +19,15 @@ import {
   SlidersHorizontal,
   X,
   FolderOpen,
+  RefreshCw,
+  Wifi,
+  WifiOff,
+  AlertCircle,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
   Select,
@@ -62,13 +67,27 @@ export function PromptMarketplaceBrowser({
   const t = useTranslations('promptMarketplace');
 
   // Store state — select raw records (referentially stable) to avoid infinite loop
-  const { promptsMap, featuredIds, trendingIds, isLoading, collectionsMap } = usePromptMarketplaceStore(
+  const {
+    promptsMap,
+    featuredIds,
+    trendingIds,
+    isLoading,
+    collectionsMap,
+    sourceState,
+    sourceWarning,
+    remoteFirstEnabled,
+    lastSyncedAt,
+  } = usePromptMarketplaceStore(
     useShallow((state) => ({
       promptsMap: state.prompts,
       featuredIds: state.featuredIds,
       trendingIds: state.trendingIds,
       isLoading: state.isLoading,
       collectionsMap: state.collections,
+      sourceState: state.sourceState,
+      sourceWarning: state.sourceWarning,
+      remoteFirstEnabled: state.remoteFirstEnabled,
+      lastSyncedAt: state.lastSyncedAt,
     }))
   );
 
@@ -92,18 +111,20 @@ export function PromptMarketplaceBrowser({
 
   const {
     searchPrompts,
+    refreshCatalog,
     fetchFeatured,
     fetchTrending,
-    initializeSampleData,
+    setRemoteFirstEnabled,
     getPromptById,
     checkForUpdates,
     updateInstalledPrompt,
   } = usePromptMarketplaceStore(
     useShallow((state) => ({
       searchPrompts: state.searchPrompts,
+      refreshCatalog: state.refreshCatalog,
       fetchFeatured: state.fetchFeatured,
       fetchTrending: state.fetchTrending,
-      initializeSampleData: state.initializeSampleData,
+      setRemoteFirstEnabled: state.setRemoteFirstEnabled,
       getPromptById: state.getPromptById,
       checkForUpdates: state.checkForUpdates,
       updateInstalledPrompt: state.updateInstalledPrompt,
@@ -134,19 +155,21 @@ export function PromptMarketplaceBrowser({
   const [favoritesSortBy, setFavoritesSortBy] = useState<'name' | 'date' | 'rating'>('date');
   const [selectedAuthor, setSelectedAuthor] = useState<PromptAuthor | null>(null);
   const [authorProfileOpen, setAuthorProfileOpen] = useState(false);
+  const [isRefreshingCatalog, setIsRefreshingCatalog] = useState(false);
 
-  // Initialize sample data if empty
+  // Initialize/refresh catalog on mount
   useEffect(() => {
-    if (prompts.length === 0) {
-      initializeSampleData();
+    if (prompts.length > 0 || lastSyncedAt) {
+      return;
     }
-  }, [prompts.length, initializeSampleData]);
+    void refreshCatalog();
+  }, [prompts.length, lastSyncedAt, refreshCatalog]);
 
-  // Fetch featured and trending on mount
+  // Rebuild featured and trending slices after catalog updates
   useEffect(() => {
     fetchFeatured();
     fetchTrending();
-  }, [fetchFeatured, fetchTrending]);
+  }, [promptsMap, fetchFeatured, fetchTrending]);
 
   // Check for updates handler
   const handleCheckForUpdates = useCallback(async () => {
@@ -163,6 +186,28 @@ export function PromptMarketplaceBrowser({
     await updateInstalledPrompt(marketplaceId);
     setPromptsWithUpdates((prev) => prev.filter((id) => id !== marketplaceId));
   }, [updateInstalledPrompt]);
+
+  const handleRefreshCatalog = useCallback(async () => {
+    setIsRefreshingCatalog(true);
+    try {
+      await refreshCatalog();
+    } finally {
+      setIsRefreshingCatalog(false);
+    }
+  }, [refreshCatalog]);
+
+  const handleRemoteFirstToggle = useCallback(
+    async (enabled: boolean) => {
+      setRemoteFirstEnabled(enabled);
+      setIsRefreshingCatalog(true);
+      try {
+        await refreshCatalog();
+      } finally {
+        setIsRefreshingCatalog(false);
+      }
+    },
+    [refreshCatalog, setRemoteFirstEnabled]
+  );
 
   // Search effect
   useEffect(() => {
@@ -458,6 +503,53 @@ export function PromptMarketplaceBrowser({
                 <TooltipContent>{t('view.listView')}</TooltipContent>
               </Tooltip>
             </div>
+          </div>
+        </div>
+
+        {/* Row 2: Source state and data controls */}
+        <div className="flex flex-col gap-2 rounded-lg border bg-muted/20 px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2 text-xs">
+            <Badge
+              variant={sourceState === 'remote' ? 'secondary' : 'outline'}
+              className={cn(
+                'gap-1.5',
+                sourceState === 'remote' && 'text-emerald-700 dark:text-emerald-400'
+              )}
+            >
+              {sourceState === 'remote' ? (
+                <Wifi className="h-3 w-3" />
+              ) : (
+                <WifiOff className="h-3 w-3" />
+              )}
+              {sourceState === 'remote' ? t('source.remote') : t('source.fallback')}
+            </Badge>
+            {sourceWarning ? (
+              <span className="flex min-w-0 items-center gap-1 text-amber-700 dark:text-amber-300">
+                <AlertCircle className="h-3 w-3 shrink-0" />
+                <span className="truncate">{sourceWarning}</span>
+              </span>
+            ) : (
+              <span className="text-muted-foreground">{t('source.healthy')}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{t('source.remoteFirst')}</span>
+            <Switch
+              checked={remoteFirstEnabled}
+              onCheckedChange={handleRemoteFirstToggle}
+              disabled={isRefreshingCatalog}
+              aria-label={t('source.remoteFirst')}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1.5 px-2 text-xs"
+              onClick={handleRefreshCatalog}
+              disabled={isRefreshingCatalog}
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', isRefreshingCatalog && 'animate-spin')} />
+              {t('source.refresh')}
+            </Button>
           </div>
         </div>
 

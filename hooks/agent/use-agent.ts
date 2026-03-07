@@ -9,6 +9,7 @@ import { useCallback, useState, useRef, useMemo } from 'react';
 import { useSettingsStore, useSkillStore, useMcpStore, useVectorStore } from '@/stores';
 import { useAgentObservabilityConfig } from '@/hooks/ai/use-agent-observability';
 import { useContext as useSystemContext } from '@/hooks/context';
+import { useSessionStore } from '@/stores/chat';
 import type { ProviderName } from '@/types/provider';
 import type { Skill } from '@/types/system/skill';
 import {
@@ -45,6 +46,7 @@ import {
   getAutoLoadSkillsForTools,
 } from '@/lib/skills/executor';
 import { useBackgroundAgentStore } from '@/stores/agent';
+import { getBackgroundAgentManager } from '@/lib/ai/agent/background-agent-manager';
 import type { BackgroundAgent } from '@/types/agent/background-agent';
 
 export interface UseAgentOptions {
@@ -130,6 +132,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const defaultModel = providerSettings[defaultProvider]?.defaultModel || 'gpt-4o';
   const observabilityConfig = useAgentObservabilityConfig();
+  const activeSession = useSessionStore((state) => state.getActiveSession());
 
   // Get active skills from store
   const activeSkillIds = useSkillStore((state) => state.activeSkillIds);
@@ -581,14 +584,16 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   );
 
   // Background agent store
-  const createBackgroundAgent = useBackgroundAgentStore((state) => state.createAgent);
   const openBackgroundPanel = useBackgroundAgentStore((state) => state.openPanel);
 
   // Run in background
   const runInBackground = useCallback(
     (name: string, task: string): BackgroundAgent => {
-      const agent = createBackgroundAgent({
-        sessionId: '', // Will be set by the caller or use current session
+      const manager = getBackgroundAgentManager();
+      const resolvedSessionId = activeSession?.id || 'background-global-session';
+
+      const agent = manager.createAgent({
+        sessionId: resolvedSessionId,
         name,
         task,
         config: {
@@ -606,12 +611,17 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
         priority: 5,
       });
 
+      const queued = manager.queueAgent(agent.id);
+      if (!queued) {
+        void manager.startAgent(agent.id);
+      }
+
       // Open the background panel to show the new agent
       openBackgroundPanel();
 
       return agent;
     },
-    [createBackgroundAgent, openBackgroundPanel, defaultProvider, defaultModel, maxSteps]
+    [activeSession?.id, openBackgroundPanel, defaultProvider, defaultModel, maxSteps]
   );
 
   // Stop execution

@@ -6,6 +6,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EditorToolbar, type EditorToolbarProps } from './editor-toolbar';
 import type { PPTPresentation, PPTSlideElement } from '@/types/workflow';
+import { PPT_TEST_IDS } from '@/lib/ppt/test-selectors';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -112,6 +113,8 @@ describe('EditorToolbar', () => {
       expect(screen.getByText('addSlide')).toBeInTheDocument();
       expect(screen.getByText('present')).toBeInTheDocument();
       expect(screen.getByText('export')).toBeInTheDocument();
+      expect(screen.getByTestId(PPT_TEST_IDS.editor.startPresentation)).toBeInTheDocument();
+      expect(screen.getByTestId(PPT_TEST_IDS.editor.exportTrigger)).toBeInTheDocument();
     });
 
     it('should display current zoom level', () => {
@@ -252,8 +255,21 @@ describe('EditorToolbar', () => {
       const onStartPresentation = jest.fn();
       render(<EditorToolbar {...defaultProps} onStartPresentation={onStartPresentation} />);
 
-      await userEvent.click(screen.getByText('present'));
+      await userEvent.click(screen.getByTestId(PPT_TEST_IDS.editor.startPresentation));
       expect(onStartPresentation).toHaveBeenCalled();
+    });
+  });
+
+  describe('export contracts', () => {
+    it('should expose stable test ids for export options', async () => {
+      render(<EditorToolbar {...defaultProps} />);
+      await userEvent.click(screen.getByTestId(PPT_TEST_IDS.editor.exportTrigger));
+
+      expect(screen.getByTestId(PPT_TEST_IDS.editor.exportMarp)).toBeInTheDocument();
+      expect(screen.getByTestId(PPT_TEST_IDS.editor.exportHtml)).toBeInTheDocument();
+      expect(screen.getByTestId(PPT_TEST_IDS.editor.exportReveal)).toBeInTheDocument();
+      expect(screen.getByTestId(PPT_TEST_IDS.editor.exportPdf)).toBeInTheDocument();
+      expect(screen.getByTestId(PPT_TEST_IDS.editor.exportPptx)).toBeInTheDocument();
     });
   });
 

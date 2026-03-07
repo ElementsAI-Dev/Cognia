@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SkillGeneratorPanel } from './skill-generator-panel';
 
+const mockPromoteGeneratedSkillPath = jest.fn();
+
 // Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -9,6 +11,16 @@ jest.mock('next-intl', () => ({
 // Mock provider icon
 jest.mock('@/components/providers/ai/provider-icon', () => ({
   ProviderIcon: ({ icon }: { icon: string }) => <span data-testid="provider-icon">{icon}</span>,
+}));
+
+jest.mock('@/hooks/skills/use-skill-actions', () => ({
+  useSkillActions: () => ({
+    promoteGeneratedSkillPath: mockPromoteGeneratedSkillPath,
+  }),
+}));
+
+jest.mock('@/hooks/skills', () => ({
+  useNativeSkillAvailable: () => true,
 }));
 
 // Mock state that can be modified in tests
@@ -121,6 +133,10 @@ describe('SkillGeneratorPanel', () => {
     mockStoreState.isLoading = false;
     mockStoreState.error = null;
     mockStoreState.activeJob = null;
+    mockPromoteGeneratedSkillPath.mockResolvedValue({
+      outcome: 'success',
+      error: null,
+    });
   });
 
   describe('loading state', () => {

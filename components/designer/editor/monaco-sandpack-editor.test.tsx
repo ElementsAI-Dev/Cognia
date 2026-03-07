@@ -258,6 +258,7 @@ describe('MonacoSandpackEditor', () => {
     mockSettingsState.editorSettings.lsp.protocolV2Enabled = true;
     mockSettingsState.editorSettings.lsp.autoInstall = true;
     mockSettingsState.editorSettings.lsp.providerOrder = ['open_vsx', 'vs_marketplace'];
+    mockSettingsState.editorSettings.lsp.timeoutMs = 10_000;
     mockIsTauriRuntime.mockReturnValue(false);
     mockLspGetServerStatus.mockResolvedValue({
       languageId: 'typescript',
@@ -595,6 +596,44 @@ describe('MonacoSandpackEditor', () => {
         expect(mockCreateMonacoLspAdapter).toHaveBeenCalledWith(
           expect.objectContaining({
             protocolV2Enabled: false,
+          })
+        );
+      });
+    });
+
+    it('passes configured LSP timeout to adapter options', async () => {
+      mockIsTauriRuntime.mockReturnValue(true);
+      mockSettingsState.editorSettings.lsp.enabled = true;
+      mockSettingsState.editorSettings.lsp.timeoutMs = 28_000;
+
+      await act(async () => {
+        render(<MonacoSandpackEditor language="typescript" />);
+      });
+
+      await waitFor(() => {
+        expect(mockCreateMonacoLspAdapter).toHaveBeenCalledWith(
+          expect.objectContaining({
+            requestTimeoutMs: 28_000,
+            workspaceSymbolsTimeoutMs: 28_000,
+          })
+        );
+      });
+    });
+
+    it('uses workspace symbol timeout floor when base timeout is lower', async () => {
+      mockIsTauriRuntime.mockReturnValue(true);
+      mockSettingsState.editorSettings.lsp.enabled = true;
+      mockSettingsState.editorSettings.lsp.timeoutMs = 5_000;
+
+      await act(async () => {
+        render(<MonacoSandpackEditor language="typescript" />);
+      });
+
+      await waitFor(() => {
+        expect(mockCreateMonacoLspAdapter).toHaveBeenCalledWith(
+          expect.objectContaining({
+            requestTimeoutMs: 5_000,
+            workspaceSymbolsTimeoutMs: 15_000,
           })
         );
       });

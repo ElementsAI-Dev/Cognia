@@ -25,6 +25,8 @@ const eslintConfig = defineConfig([
     "coverage/**",
     "coverage_html/**",
     "plugin-sdk/python/coverage_html/**",
+    // Local auxiliary git worktrees (not part of current workspace validation scope)
+    ".worktrees/**",
     // Generated/shared type definitions are linted separately
     "types/**",
   ]),

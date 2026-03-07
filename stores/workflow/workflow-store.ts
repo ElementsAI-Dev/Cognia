@@ -13,10 +13,13 @@ import type {
 } from '@/types/workflow';
 import { useWorkflowEditorStore } from './workflow-editor-store';
 import type {
-  EditorExecutionStatus,
   WorkflowExecutionState as EditorWorkflowExecutionState,
   VisualWorkflow,
 } from '@/types/workflow/workflow-editor';
+import {
+  isEditorExecutionTerminalStatus,
+  mapEditorToWorkflowExecutionStatus,
+} from '@/lib/workflow-editor/execution-status';
 
 interface WorkflowState {
   // Current executions
@@ -401,7 +404,12 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
       },
 
       setActivePresentation: (presentationId) => {
-        set({ activePresentationId: presentationId });
+        set((state) => {
+          if (state.activePresentationId === presentationId) {
+            return state;
+          }
+          return { activePresentationId: presentationId };
+        });
       },
 
       getPresentation: (presentationId) => {
@@ -492,21 +500,6 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
   )
 );
 
-function toWorkflowExecutionStatus(status: EditorExecutionStatus): WorkflowExecutionStatus {
-  if (status === 'running') return 'executing';
-  if (status === 'pending') return 'planning';
-  if (
-    status === 'idle' ||
-    status === 'paused' ||
-    status === 'completed' ||
-    status === 'failed' ||
-    status === 'cancelled'
-  ) {
-    return status;
-  }
-  return 'planning';
-}
-
 function toLegacyExecution(
   workflow: VisualWorkflow,
   executionState: EditorWorkflowExecutionState
@@ -523,7 +516,7 @@ function toLegacyExecution(
     workflowName: workflow.name,
     workflowType: workflow.type as WorkflowType,
     sessionId: executionState.executionId,
-    status: toWorkflowExecutionStatus(executionState.status),
+    status: mapEditorToWorkflowExecutionStatus(executionState.status),
     config: workflow.settings as unknown as Record<string, unknown>,
     input: executionState.input,
     output: executionState.output,
@@ -596,10 +589,7 @@ function bindEditorExecutionBridge(): void {
         [execution.id]: execution,
       };
 
-      const isFinalStatus =
-        execution.status === 'completed' ||
-        execution.status === 'failed' ||
-        execution.status === 'cancelled';
+      const isFinalStatus = isEditorExecutionTerminalStatus(editorState.executionState?.status);
 
       let history = state.history;
       if (isFinalStatus) {

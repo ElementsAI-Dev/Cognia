@@ -5,17 +5,17 @@ import { render, waitFor } from '@testing-library/react';
 import { SkillSyncInitializer } from './skill-sync-initializer';
 
 jest.mock('@/hooks/skills', () => ({
-  useSkillSync: jest.fn(() => ({
-    syncFromNative: jest.fn(),
-    syncToNative: jest.fn(),
+  useSkillBootstrap: jest.fn(() => ({
+    runBootstrap: jest.fn(),
+    bootstrapState: 'idle',
+    lastBootstrapAt: null,
+    lastBootstrapError: null,
   })),
-  useSkillSyncAvailable: jest.fn(),
 }));
 
-import { useSkillSync, useSkillSyncAvailable } from '@/hooks/skills';
+import { useSkillBootstrap } from '@/hooks/skills';
 
-const mockUseSkillSync = useSkillSync as jest.MockedFunction<typeof useSkillSync>;
-const mockUseSkillSyncAvailable = useSkillSyncAvailable as jest.MockedFunction<typeof useSkillSyncAvailable>;
+const mockUseSkillBootstrap = useSkillBootstrap as jest.MockedFunction<typeof useSkillBootstrap>;
 
 describe('SkillSyncInitializer', () => {
   beforeEach(() => {
@@ -23,34 +23,43 @@ describe('SkillSyncInitializer', () => {
   });
 
   it('renders null', () => {
-    mockUseSkillSyncAvailable.mockReturnValue(false);
     const { container } = render(<SkillSyncInitializer />);
     expect(container.firstChild).toBeNull();
   });
 
-  it('does not sync when native unavailable', () => {
-    const syncFromNative = jest.fn();
-    const syncToNative = jest.fn();
-    mockUseSkillSyncAvailable.mockReturnValue(false);
-    mockUseSkillSync.mockReturnValue({ syncFromNative, syncToNative } as unknown as ReturnType<typeof useSkillSync>);
+  it('runs unified bootstrap on mount', async () => {
+    const runBootstrap = jest.fn().mockResolvedValue(undefined);
+    mockUseSkillBootstrap.mockReturnValue({
+      runBootstrap,
+      bootstrapState: 'idle',
+      lastBootstrapAt: null,
+      lastBootstrapError: null,
+    });
 
     render(<SkillSyncInitializer />);
 
-    expect(syncFromNative).not.toHaveBeenCalled();
-    expect(syncToNative).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(runBootstrap).toHaveBeenCalledTimes(1);
+      expect(runBootstrap).toHaveBeenCalledWith({
+        loadBuiltinSkills: true,
+      });
+    });
   });
 
-  it('syncs from native then to native on mount', () => {
-    const syncFromNative = jest.fn().mockResolvedValue(undefined);
-    const syncToNative = jest.fn().mockResolvedValue(undefined);
-    mockUseSkillSyncAvailable.mockReturnValue(true);
-    mockUseSkillSync.mockReturnValue({ syncFromNative, syncToNative } as unknown as ReturnType<typeof useSkillSync>);
+  it('initializes only once across rerenders', async () => {
+    const runBootstrap = jest.fn().mockResolvedValue(undefined);
+    mockUseSkillBootstrap.mockReturnValue({
+      runBootstrap,
+      bootstrapState: 'idle',
+      lastBootstrapAt: null,
+      lastBootstrapError: null,
+    });
 
-    render(<SkillSyncInitializer />);
+    const { rerender } = render(<SkillSyncInitializer />);
+    rerender(<SkillSyncInitializer />);
 
-    return waitFor(() => {
-      expect(syncFromNative).toHaveBeenCalledTimes(1);
-      expect(syncToNative).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(runBootstrap).toHaveBeenCalledTimes(1);
     });
   });
 });

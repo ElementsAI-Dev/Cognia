@@ -83,6 +83,9 @@ export interface ImageGenerationSidebarProps {
   seed: number | null;
   onSeedChange: (seed: number | null) => void;
   estimatedCost: number;
+  // Reference image (img2img)
+  referenceImage: File | null;
+  onReferenceImageChange: (file: File | null) => void;
   // Edit mode
   editImageFile: File | null;
   onEditImageFileChange: (file: File | null) => void;
@@ -129,6 +132,8 @@ export function ImageGenerationSidebar({
   seed,
   onSeedChange,
   estimatedCost,
+  referenceImage,
+  onReferenceImageChange,
   editImageFile,
   onEditImageFileChange,
   maskFile,
@@ -160,6 +165,16 @@ export function ImageGenerationSidebar({
   };
 
   const availableModels = useMemo(() => getAvailableImageModels(provider), [provider]);
+
+  const estimateGenerationTime = (modelId: string, q: string): string => {
+    const times: Record<string, string> = {
+      'dall-e-3': q === 'hd' ? '~15-20s' : '~10-15s',
+      'dall-e-2': '~5-10s',
+      'gpt-image-1': '~10-20s',
+      'grok-2-image': '~5-10s',
+    };
+    return times[modelId] || (modelId.includes('schnell') ? '~3-5s' : '~5-15s');
+  };
 
   // Drag-drop state
   const [isDraggingEdit, setIsDraggingEdit] = useState(false);
@@ -354,6 +369,52 @@ export function ImageGenerationSidebar({
                   />
                 </CollapsibleContent>
               </Collapsible>
+
+              {/* Reference Image (img2img) */}
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between p-0 h-6">
+                    <span className="text-xs font-medium">{t('referenceImage') ?? 'Reference Image'}</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-1.5">
+                  <div
+                    className={cn(
+                      'border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-colors',
+                      'hover:bg-muted/50'
+                    )}
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/*';
+                      input.onchange = (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0] || null;
+                        onReferenceImageChange(file);
+                      };
+                      input.click();
+                    }}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onDrop={(e) => {
+                      e.preventDefault(); e.stopPropagation();
+                      const file = e.dataTransfer.files[0];
+                      if (file?.type.startsWith('image/')) onReferenceImageChange(file);
+                    }}
+                  >
+                    {referenceImage ? (
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium truncate">{referenceImage.name}</p>
+                        <Button variant="ghost" size="sm" className="h-5 px-1" onClick={(e) => { e.stopPropagation(); onReferenceImageChange(null); }}>✕</Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
+                        <p className="text-xs text-muted-foreground">{t('referenceImageHint') ?? 'Drop or click to add reference'}</p>
+                      </>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </TabsContent>
 
             {/* Edit Tab */}
@@ -508,7 +569,16 @@ export function ImageGenerationSidebar({
                     </SelectTrigger>
                     <SelectContent>
                       {availableModels.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                        <SelectItem key={m.id} value={m.id}>
+                          <span className="flex items-center gap-1.5">
+                            {m.name}
+                            {m.capabilities?.map((cap) => (
+                              <span key={cap} className="inline-flex items-center rounded px-1 py-0 text-[9px] font-medium leading-tight bg-muted text-muted-foreground">
+                                {cap.toUpperCase()}
+                              </span>
+                            ))}
+                          </span>
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -620,11 +690,15 @@ export function ImageGenerationSidebar({
                   </div>
                 </div>
 
-                {/* Cost estimate */}
-                <div className="pt-2 border-t">
+                {/* Cost & time estimate */}
+                <div className="pt-2 border-t space-y-1">
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">{t('estimatedCost')}:</span>
                     <span className="font-medium">${estimatedCost.toFixed(3)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">{t('estimatedTime') ?? 'Est. time'}:</span>
+                    <span className="font-medium">{estimateGenerationTime(model, quality)}</span>
                   </div>
                 </div>
               </CollapsibleContent>
@@ -652,6 +726,7 @@ export function ImageGenerationSidebar({
                 <>
                   <Sparkles className="h-4 w-4 mr-2" />
                   {activeTab === 'generate' ? t('generateImage') : activeTab === 'edit' ? t('editImage') : t('createVariations')}
+                  <kbd className="ml-2 text-[10px] opacity-60 border rounded px-1">⌘↵</kbd>
                 </>
               )}
             </Button>

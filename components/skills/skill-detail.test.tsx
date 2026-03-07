@@ -21,6 +21,18 @@ jest.mock('@/lib/skills/packager', () => ({
 jest.mock('@/hooks/skills/use-skill-ai', () => ({
   useSkillAI: () => jest.fn().mockResolvedValue('AI result'),
 }));
+const mockToggleSkillEnabledAction = jest.fn();
+const mockSetSkillActiveAction = jest.fn();
+const mockDeleteSkillAction = jest.fn();
+const mockUpdateSkillContentAction = jest.fn();
+jest.mock('@/hooks/skills/use-skill-actions', () => ({
+  useSkillActions: () => ({
+    toggleSkillEnabled: mockToggleSkillEnabledAction,
+    setSkillActive: mockSetSkillActiveAction,
+    deleteSkill: mockDeleteSkillAction,
+    updateSkillContent: mockUpdateSkillContentAction,
+  }),
+}));
 jest.mock('./skill-test-panel', () => ({
   SkillTestPanel: ({ skill, onExecutionComplete }: { skill: { id: string }; onExecutionComplete?: (r: unknown) => void }) => (
     <div data-testid="skill-test-panel">
@@ -93,6 +105,10 @@ describe('SkillDetail', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockToggleSkillEnabledAction.mockResolvedValue({ outcome: 'success' });
+    mockSetSkillActiveAction.mockReturnValue({ outcome: 'success' });
+    mockDeleteSkillAction.mockResolvedValue({ outcome: 'success' });
+    mockUpdateSkillContentAction.mockResolvedValue({ outcome: 'success' });
     mockUseSkillStore.mockReturnValue({
       skills: { 
         'test-skill-1': mockSkill,
@@ -324,7 +340,7 @@ describe('SkillDetail', () => {
       const switches = document.querySelectorAll('[role="switch"]');
       fireEvent.click(switches[0]);
 
-      expect(mockDisableSkill).toHaveBeenCalledWith('test-skill-1');
+      expect(mockToggleSkillEnabledAction).toHaveBeenCalled();
     });
 
     it('calls enableSkill when toggling disabled skill on', () => {
@@ -346,7 +362,7 @@ describe('SkillDetail', () => {
       const switches = document.querySelectorAll('[role="switch"]');
       fireEvent.click(switches[0]);
 
-      expect(mockEnableSkill).toHaveBeenCalledWith('test-skill-1');
+      expect(mockToggleSkillEnabledAction).toHaveBeenCalled();
     });
 
     it('calls activateSkill when toggling active on', () => {
@@ -355,7 +371,10 @@ describe('SkillDetail', () => {
       const switches = document.querySelectorAll('[role="switch"]');
       fireEvent.click(switches[1]);
 
-      expect(mockActivateSkill).toHaveBeenCalledWith('test-skill-1');
+      expect(mockSetSkillActiveAction).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'test-skill-1' }),
+        true
+      );
     });
 
     it('calls deactivateSkill when toggling active off', () => {
@@ -377,7 +396,10 @@ describe('SkillDetail', () => {
       const switches = document.querySelectorAll('[role="switch"]');
       fireEvent.click(switches[1]);
 
-      expect(mockDeactivateSkill).toHaveBeenCalledWith('test-skill-1');
+      expect(mockSetSkillActiveAction).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'test-skill-1' }),
+        false
+      );
     });
   });
 

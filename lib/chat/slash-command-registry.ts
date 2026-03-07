@@ -473,6 +473,22 @@ const BUILT_IN_COMMANDS: SlashCommandDefinition[] = [
       data: { action: 'open-settings' },
     }),
   },
+  {
+    id: 'ppt',
+    source: 'builtin',
+    command: 'ppt',
+    description: 'Create an AI presentation',
+    category: 'media',
+    aliases: ['presentation', 'slides'],
+    params: [
+      { name: 'topic', type: 'string', required: false, description: 'Presentation topic' },
+    ],
+    examples: ['/ppt AI in Healthcare', '/ppt topic="Quarterly Report"'],
+    handler: (args) => ({
+      success: true,
+      data: { action: 'open-ppt-creator', topic: args.arg0 || args.topic || args.rawArgs || '' },
+    }),
+  },
 ];
 
 // Register built-in commands

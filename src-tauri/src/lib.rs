@@ -1018,6 +1018,7 @@ pub fn run() {
             commands::providers::mcp::mcp_connect_server,
             commands::providers::mcp::mcp_disconnect_server,
             commands::providers::mcp::mcp_call_tool,
+            commands::providers::mcp::mcp_call_tool_from_ui,
             commands::providers::mcp::mcp_get_all_tools,
             commands::providers::mcp::mcp_read_resource,
             commands::providers::mcp::mcp_get_prompt,

@@ -18,6 +18,10 @@ import type { PPTPresentation, PPTSlide, PPTTheme, PPTMaterial, PPTEnhancedGener
 import { DEFAULT_PPT_THEMES } from '@/types/workflow';
 import { PPTWorkflowExecutor, type PPTExecutorConfig } from '@/lib/ai/workflows/ppt-executor';
 import {
+  classifyPPTError,
+  type PPTErrorCode,
+} from '@/lib/ppt/ppt-state';
+import {
   buildSystemPrompt,
   buildOutlinePrompt,
   buildSlideContentPrompt,
@@ -69,6 +73,8 @@ export interface UsePPTGenerationReturn {
   isGenerating: boolean;
   progress: PPTGenerationProgress;
   error: string | null;
+  errorCode: PPTErrorCode | null;
+  canRetry: boolean;
   presentation: PPTPresentation | null;
   outline: PPTOutlineData | null;
 
@@ -80,6 +86,7 @@ export interface UsePPTGenerationReturn {
   ) => Promise<PPTPresentation | null>;
   generate: (config: PPTGenerationConfig) => Promise<PPTPresentation | null>;
   generateFromMaterials: (config: PPTMaterialGenerationConfig) => Promise<PPTPresentation | null>;
+  retry: () => Promise<PPTPresentation | null>;
   cancel: () => void;
   reset: () => void;
 
@@ -97,9 +104,15 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
     message: '',
   });
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<PPTErrorCode | null>(null);
   const [presentation, setPresentation] = useState<PPTPresentation | null>(null);
   const [outline, setOutline] = useState<PPTOutlineData | null>(null);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [lastFailedRequest, setLastFailedRequest] = useState<
+    | { type: 'generate'; config: PPTGenerationConfig }
+    | { type: 'materials'; config: PPTMaterialGenerationConfig }
+    | null
+  >(null);
 
   // Get provider settings
   const defaultProviderRaw = useSettingsStore((state) => state.defaultProvider);
@@ -111,6 +124,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
   
   // Workflow store for persistence
   const addPresentation = useWorkflowStore((state) => state.addPresentation);
+  const setActivePresentation = useWorkflowStore((state) => state.setActivePresentation);
 
   // Get API configuration
   const getAPIConfig = useCallback(() => {
@@ -139,6 +153,13 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
   // Parse JSON from AI response — delegates to shared utility
   const parseJSONResponse = useCallback((response: string): unknown => {
     return parseAIJSON(response);
+  }, []);
+
+  const isCancellationError = useCallback((error: unknown): boolean => {
+    if (error instanceof Error) {
+      return error.name === 'AbortError' || error.message === 'Generation cancelled';
+    }
+    return false;
   }, []);
 
   // Shared: generate slides from outline data
@@ -263,6 +284,8 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
       setAbortController(controller);
       setIsGenerating(true);
       setError(null);
+      setErrorCode(null);
+      setLastFailedRequest(null);
       setProgress({
         stage: 'outline',
         currentSlide: 0,
@@ -360,6 +383,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         
         // Save to workflow store for persistence
         addPresentation(newPresentation);
+        setActivePresentation(newPresentation.id);
 
         setProgress({
           stage: 'complete',
@@ -370,23 +394,27 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
 
         return newPresentation;
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Generation failed';
-        if (message !== 'Generation cancelled') {
-          setError(message);
-          setProgress({
-            stage: 'error',
-            currentSlide: 0,
-            totalSlides: config.slideCount,
-            message: t('progressError', { message }),
-          });
+        if (isCancellationError(err)) {
+          return null;
         }
+        const classified = classifyPPTError(err, 'generation_failed');
+        const message = classified.message;
+        setError(message);
+        setErrorCode(classified.code);
+        setLastFailedRequest({ type: 'generate', config });
+        setProgress({
+          stage: 'error',
+          currentSlide: 0,
+          totalSlides: config.slideCount,
+          message: t('progressError', { message }),
+        });
         return null;
       } finally {
         setIsGenerating(false);
         setAbortController(null);
       }
     },
-    [callAI, parseJSONResponse, buildSlidesFromOutline, loadPresentation, addPresentation, t]
+    [callAI, parseJSONResponse, buildSlidesFromOutline, loadPresentation, addPresentation, setActivePresentation, isCancellationError, t]
   );
 
   // Cancel generation
@@ -410,6 +438,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
       setAbortController(controller);
       setIsGenerating(true);
       setError(null);
+      setErrorCode(null);
       setOutline(null);
       setProgress({
         stage: 'outline',
@@ -450,23 +479,26 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
 
         return outlineData;
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Outline generation failed';
-        if (message !== 'Generation cancelled') {
-          setError(message);
-          setProgress({
-            stage: 'error',
-            currentSlide: 0,
-            totalSlides: config.slideCount,
-            message: t('progressOutlineError', { message }),
-          });
+        if (isCancellationError(err)) {
+          return null;
         }
+        const classified = classifyPPTError(err, 'generation_failed');
+        const message = classified.message;
+        setError(message);
+        setErrorCode(classified.code);
+        setProgress({
+          stage: 'error',
+          currentSlide: 0,
+          totalSlides: config.slideCount,
+          message: t('progressOutlineError', { message }),
+        });
         return null;
       } finally {
         setIsGenerating(false);
         setAbortController(null);
       }
     },
-    [callAI, parseJSONResponse, t]
+    [callAI, parseJSONResponse, isCancellationError, t]
   );
 
   // Generate full presentation from existing outline (second stage)
@@ -479,6 +511,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
       setAbortController(controller);
       setIsGenerating(true);
       setError(null);
+      setErrorCode(null);
       setProgress({
         stage: 'content',
         currentSlide: 0,
@@ -544,6 +577,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         
         // Save to workflow store for persistence
         addPresentation(newPresentation);
+        setActivePresentation(newPresentation.id);
 
         setProgress({
           stage: 'complete',
@@ -554,23 +588,27 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
 
         return newPresentation;
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Generation failed';
-        if (message !== 'Generation cancelled') {
-          setError(message);
-          setProgress({
-            stage: 'error',
-            currentSlide: 0,
-            totalSlides: outlineData.outline.length,
-            message: t('progressError', { message }),
-          });
+        if (isCancellationError(err)) {
+          return null;
         }
+        const classified = classifyPPTError(err, 'generation_failed');
+        const message = classified.message;
+        setError(message);
+        setErrorCode(classified.code);
+        setLastFailedRequest({ type: 'generate', config });
+        setProgress({
+          stage: 'error',
+          currentSlide: 0,
+          totalSlides: outlineData.outline.length,
+          message: t('progressError', { message }),
+        });
         return null;
       } finally {
         setIsGenerating(false);
         setAbortController(null);
       }
     },
-    [buildSlidesFromOutline, loadPresentation, addPresentation, t]
+    [buildSlidesFromOutline, loadPresentation, addPresentation, setActivePresentation, isCancellationError, t]
   );
 
   // Generate presentation from materials using PPTWorkflowExecutor
@@ -580,6 +618,8 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
       setAbortController(controller);
       setIsGenerating(true);
       setError(null);
+      setErrorCode(null);
+      setLastFailedRequest(null);
       setProgress({
         stage: 'outline',
         currentSlide: 0,
@@ -643,6 +683,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         setPresentation(newPresentation);
         loadPresentation(newPresentation);
         addPresentation(newPresentation);
+        setActivePresentation(newPresentation.id);
 
         setProgress({
           stage: 'complete',
@@ -653,24 +694,36 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
 
         return newPresentation;
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Material generation failed';
-        if (message !== 'Generation cancelled') {
-          setError(message);
-          setProgress({
-            stage: 'error',
-            currentSlide: 0,
-            totalSlides: config.slideCount,
-            message: t('progressMaterialError', { message }),
-          });
+        if (isCancellationError(err)) {
+          return null;
         }
+        const classified = classifyPPTError(err, 'material_processing_failed');
+        const message = classified.message;
+        setError(message);
+        setErrorCode(classified.code);
+        setLastFailedRequest({ type: 'materials', config });
+        setProgress({
+          stage: 'error',
+          currentSlide: 0,
+          totalSlides: config.slideCount,
+          message: t('progressMaterialError', { message }),
+        });
         return null;
       } finally {
         setIsGenerating(false);
         setAbortController(null);
       }
     },
-    [callAI, getAPIConfig, loadPresentation, addPresentation, t]
+    [callAI, getAPIConfig, loadPresentation, addPresentation, setActivePresentation, isCancellationError, t]
   );
+
+  const retry = useCallback(async (): Promise<PPTPresentation | null> => {
+    if (!lastFailedRequest || isGenerating) return null;
+    if (lastFailedRequest.type === 'generate') {
+      return generate(lastFailedRequest.config);
+    }
+    return generateFromMaterials(lastFailedRequest.config);
+  }, [lastFailedRequest, isGenerating, generate, generateFromMaterials]);
 
   // Reset state
   const reset = useCallback(() => {
@@ -682,6 +735,8 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
       message: '',
     });
     setError(null);
+    setErrorCode(null);
+    setLastFailedRequest(null);
     setPresentation(null);
     setOutline(null);
   }, []);
@@ -696,12 +751,15 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
     isGenerating,
     progress,
     error,
+    errorCode,
+    canRetry: Boolean(lastFailedRequest && !isGenerating),
     presentation,
     outline,
     generateOutline,
     generateFromOutline,
     generate,
     generateFromMaterials,
+    retry,
     cancel,
     reset,
     getEstimatedTime,

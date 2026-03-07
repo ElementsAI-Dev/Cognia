@@ -74,6 +74,11 @@ export default function ImageStudioPage() {
     setGridZoomLevel: setZoomLevel,
     searchQuery,
     setSearchQuery,
+    generationQueue,
+    addToQueue,
+    updateQueueJob,
+    removeFromQueue,
+    clearQueue,
     generationSettings,
     updateGenerationSettings,
     // Layers
@@ -109,6 +114,7 @@ export default function ImageStudioPage() {
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [maskFile, setMaskFile] = useState<File | null>(null);
   const [variationImage, setVariationImage] = useState<File | null>(null);
+  const [referenceImage, setReferenceImage] = useState<File | null>(null);
 
   // Editing dialog state
   const [editingImage, setEditingImage] = useState<GeneratedImageWithMeta | null>(null);
@@ -194,6 +200,18 @@ export default function ImageStudioPage() {
   });
   const { presets: batchPresets } = useBatchEditStore();
 
+  // ─── Keyboard Shortcuts ────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'z' && (e.ctrlKey || e.metaKey) && !e.shiftKey) { e.preventDefault(); handleUndo(); }
+      if ((e.key === 'y' && (e.ctrlKey || e.metaKey)) || (e.key === 'z' && (e.ctrlKey || e.metaKey) && e.shiftKey)) { e.preventDefault(); handleRedo(); }
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !isGenerating) { e.preventDefault(); handleGenerate(); }
+      if (e.key === 'f' && !e.ctrlKey && !e.metaKey && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) { setFilterFavorites(!filterFavorites); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  });
+
   // ─── Histogram ─────────────────────────────────────────────────────
   const [histogramData, setHistogramData] = useState<{
     red: number[]; green: number[]; blue: number[]; luminance: number[];
@@ -219,47 +237,49 @@ export default function ImageStudioPage() {
       if (!apiKey) setError(t('noApiKey'));
       return;
     }
+    const fullPrompt = prompt.trim() + (negativePrompt ? ` Avoid: ${negativePrompt}` : '');
+    const n = model === 'dall-e-3' ? 1 : numberOfImages;
+
+    // Add job to queue
+    const jobId = addToQueue({ prompt: fullPrompt, provider, model, size, quality, style, seed: seed ?? undefined });
     setIsGenerating(true); setError(null);
+    updateQueueJob(jobId, { status: 'generating' });
+
     try {
-      const n = model === 'dall-e-3' ? 1 : numberOfImages;
-      const fullPrompt = prompt.trim() + (negativePrompt ? ` Avoid: ${negativePrompt}` : '');
+      const resultImageIds: string[] = [];
 
       if (provider === 'openai') {
-        // Use legacy OpenAI hook for backward compatibility
         const result = await imageGen.generate(fullPrompt, {
           model: model as 'dall-e-3' | 'dall-e-2' | 'gpt-image-1',
           size, quality, style, n,
         });
-        if (!result?.length) { setError(imageGen.error || 'Failed to generate image'); return; }
-        const ids: string[] = [];
+        if (!result?.length) { updateQueueJob(jobId, { status: 'failed', error: imageGen.error || 'Failed' }); setError(imageGen.error || 'Failed to generate image'); return; }
         for (const img of result) {
-          ids.push(addImage({ url: img.url, base64: img.base64, revisedPrompt: img.revisedPrompt, prompt: prompt.trim(), model, size, quality, style }));
-        }
-        if (ids.length > 0) {
-          selectImage(ids[0]);
-          addToHistory({ type: 'generate', imageId: ids[0], description: `Generated: ${prompt.trim().substring(0, 50)}...` });
+          resultImageIds.push(addImage({ url: img.url, base64: img.base64, revisedPrompt: img.revisedPrompt, prompt: prompt.trim(), model, size, quality, style }));
         }
       } else {
-        // Use SDK for non-OpenAI providers (xAI, Together, Fireworks, DeepInfra)
         const sdkResult = await generateImageWithSDK(
           { apiKey },
           { prompt: fullPrompt, provider, model, size: size as ImageSizeOption, quality: quality as ImageQualityOption, n, seed: seed ?? undefined }
         );
-        if (!sdkResult.images.length) { setError('Failed to generate image'); return; }
-        const ids: string[] = [];
+        if (!sdkResult.images.length) { updateQueueJob(jobId, { status: 'failed', error: 'No images returned' }); setError('Failed to generate image'); return; }
         for (const img of sdkResult.images) {
           const base64DataUrl = `data:image/png;base64,${img.base64}`;
-          ids.push(addImage({ url: base64DataUrl, base64: img.base64, revisedPrompt: img.revisedPrompt, prompt: prompt.trim(), model, size, quality, style }));
-        }
-        if (ids.length > 0) {
-          selectImage(ids[0]);
-          addToHistory({ type: 'generate', imageId: ids[0], description: `Generated: ${prompt.trim().substring(0, 50)}...` });
+          resultImageIds.push(addImage({ url: base64DataUrl, base64: img.base64, revisedPrompt: img.revisedPrompt, prompt: prompt.trim(), model, size, quality, style }));
         }
       }
+
+      if (resultImageIds.length > 0) {
+        updateQueueJob(jobId, { status: 'completed', completedAt: Date.now(), resultImageId: resultImageIds[0] });
+        selectImage(resultImageIds[0]);
+        addToHistory({ type: 'generate', imageId: resultImageIds[0], description: `Generated: ${prompt.trim().substring(0, 50)}...` });
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate image');
+      const msg = err instanceof Error ? err.message : 'Failed to generate image';
+      updateQueueJob(jobId, { status: 'failed', error: msg });
+      setError(msg);
     } finally { setIsGenerating(false); }
-  }, [prompt, negativePrompt, provider, model, size, quality, style, numberOfImages, seed, getProviderApiKey, t, imageGen, addImage, selectImage, addToHistory]);
+  }, [prompt, negativePrompt, provider, model, size, quality, style, numberOfImages, seed, getProviderApiKey, t, imageGen, addImage, selectImage, addToHistory, addToQueue, updateQueueJob]);
 
   const handleEditImage = useCallback(async () => {
     if (!editImageFile || !prompt.trim() || !openaiApiKey) {
@@ -484,6 +504,8 @@ export default function ImageStudioPage() {
               seed={seed}
               onSeedChange={setSeed}
               estimatedCost={estimatedCost}
+              referenceImage={referenceImage}
+              onReferenceImageChange={setReferenceImage}
               editImageFile={editImageFile}
               onEditImageFileChange={setEditImageFile}
               maskFile={maskFile}
@@ -509,6 +531,23 @@ export default function ImageStudioPage() {
         {/* Main Content */}
         <ResizablePanel defaultSize={showSidebar ? 75 : 100} className="min-w-0">
         <div className="flex-1 flex flex-col overflow-hidden h-full">
+          {/* Generation Queue Status */}
+          {generationQueue.length > 0 && (
+            <div className="flex items-center gap-2 px-4 py-1.5 border-b bg-muted/30 text-xs shrink-0">
+              <span className="font-medium">{t('queue') ?? 'Queue'}:</span>
+              {generationQueue.filter(j => j.status === 'generating').length > 0 && (
+                <span className="text-primary animate-pulse">{generationQueue.filter(j => j.status === 'generating').length} generating</span>
+              )}
+              {generationQueue.filter(j => j.status === 'queued').length > 0 && (
+                <span className="text-muted-foreground">{generationQueue.filter(j => j.status === 'queued').length} queued</span>
+              )}
+              <span className="text-green-600">{generationQueue.filter(j => j.status === 'completed').length} done</span>
+              {generationQueue.filter(j => j.status === 'failed').map(j => (
+                <span key={j.id} className="text-destructive cursor-pointer hover:line-through" onClick={() => removeFromQueue(j.id)}>✕ {j.prompt.substring(0, 20)}…</span>
+              ))}
+              <button onClick={clearQueue} className="ml-auto text-muted-foreground hover:text-foreground transition-colors">{t('clearAll') ?? 'Clear'}</button>
+            </div>
+          )}
           {viewMode === 'grid' || generatedImages.length === 0 ? (
             <ImageGalleryGrid
               images={displayedImages}

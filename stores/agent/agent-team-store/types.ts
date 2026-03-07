@@ -36,6 +36,7 @@ export interface AgentTeamState {
 
   // Team CRUD
   createTeam: (input: CreateTeamInput) => AgentTeam;
+  upsertTeam: (team: AgentTeam) => void;
   updateTeam: (teamId: string, updates: Partial<AgentTeam>) => void;
   updateTeamConfig: (teamId: string, config: AgentTeamConfig) => void;
   deleteTeam: (teamId: string) => void;
@@ -43,6 +44,7 @@ export interface AgentTeamState {
 
   // Teammate CRUD
   addTeammate: (input: AddTeammateInput) => AgentTeammate;
+  upsertTeammate: (teammate: AgentTeammate) => void;
   updateTeammate: (teammateId: string, updates: Partial<AgentTeammate>) => void;
   removeTeammate: (teammateId: string) => void;
   setTeammateStatus: (teammateId: string, status: TeammateStatus) => void;
@@ -50,6 +52,7 @@ export interface AgentTeamState {
 
   // Task CRUD
   createTask: (input: CreateTaskInput) => AgentTeamTask;
+  upsertTask: (task: AgentTeamTask) => void;
   updateTask: (taskId: string, updates: Partial<AgentTeamTask>) => void;
   deleteTask: (taskId: string) => void;
   setTaskStatus: (taskId: string, status: TeamTaskStatus, result?: string, error?: string) => void;
@@ -58,6 +61,7 @@ export interface AgentTeamState {
 
   // Messages
   addMessage: (input: SendMessageInput) => AgentTeamMessage;
+  upsertMessage: (message: AgentTeamMessage) => void;
   markMessageRead: (messageId: string) => void;
   markAllMessagesRead: (teammateId: string) => void;
 

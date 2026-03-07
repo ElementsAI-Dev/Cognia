@@ -637,6 +637,74 @@ describe('monaco-lsp-adapter', () => {
     );
   });
 
+  it('uses configured timeout policy for LSP request metadata', async () => {
+    const adapter = createMonacoLspAdapter({
+      monaco: mockMonaco,
+      editor: mockEditor as unknown as Monaco.editor.IStandaloneCodeEditor,
+      languageId: 'typescript',
+      requestTimeoutMs: 3200,
+      workspaceSymbolsTimeoutMs: 7800,
+    });
+    await adapter.start();
+
+    const completionProvider =
+      (mockMonaco.languages.registerCompletionItemProvider as jest.Mock).mock.calls[0][1];
+    await completionProvider.provideCompletionItems(
+      mockModel,
+      { lineNumber: 1, column: 1 },
+      undefined,
+      undefined
+    );
+
+    expect(mockLspCompletion).toHaveBeenCalledWith(
+      'session-1',
+      { uri: 'file:///workspace/index.tsx' },
+      0,
+      0,
+      expect.objectContaining({
+        clientRequestId: expect.stringMatching(/^completion:/),
+        timeoutMs: 3200,
+      })
+    );
+
+    const codeActionProvider =
+      (mockMonaco.languages.registerCodeActionProvider as jest.Mock).mock.calls[0][1];
+    await codeActionProvider.provideCodeActions(
+      mockModel,
+      {
+        startLineNumber: 1,
+        startColumn: 1,
+        endLineNumber: 1,
+        endColumn: 3,
+      },
+      { markers: [] },
+      undefined
+    );
+    expect(mockLspCodeActions).toHaveBeenCalledWith(
+      'session-1',
+      { uri: 'file:///workspace/index.tsx' },
+      {
+        start: { line: 0, character: 0 },
+        end: { line: 0, character: 2 },
+      },
+      [],
+      expect.objectContaining({
+        clientRequestId: expect.stringMatching(/^codeActions:/),
+        timeoutMs: 3200,
+      })
+    );
+
+    await adapter.workspaceSymbols('hello');
+    expect(mockLspWorkspaceSymbols).toHaveBeenCalledWith(
+      'session-1',
+      'hello',
+      expect.objectContaining({
+        clientRequestId: expect.stringMatching(/^workspaceSymbols:/),
+        timeoutMs: 7800,
+      })
+    );
+  });
+
   it('queues didChange notifications in order', async () => {
     let resolveFirst: (() => void) | undefined;
     mockLspChangeDocument.mockImplementationOnce(

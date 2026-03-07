@@ -93,6 +93,22 @@ pub async fn mcp_call_tool(
         .map_err(|e| (&e).into())
 }
 
+/// Call a tool on an MCP server from MCP Apps UI bridge with session/origin context
+#[tauri::command]
+pub async fn mcp_call_tool_from_ui(
+    manager: State<'_, McpManager>,
+    server_id: String,
+    session_id: String,
+    origin: String,
+    tool_name: String,
+    arguments: serde_json::Value,
+) -> Result<ToolCallResult, McpErrorInfo> {
+    manager
+        .call_tool_from_ui(&server_id, &session_id, &origin, &tool_name, arguments)
+        .await
+        .map_err(|e| (&e).into())
+}
+
 /// Get all tools from all connected servers
 #[tauri::command]
 pub async fn mcp_get_all_tools(
@@ -501,6 +517,8 @@ mod tests {
                     "path": {"type": "string"}
                 }
             }),
+            output_schema: None,
+            meta: None,
         };
 
         assert_eq!(tool.name, "read_file");
@@ -526,6 +544,8 @@ mod tests {
             content: vec![ContentItem::Text {
                 text: "Success".to_string(),
             }],
+            structured_content: None,
+            meta: None,
             is_error: false,
         };
 
@@ -539,6 +559,8 @@ mod tests {
             content: vec![ContentItem::Text {
                 text: "Error".to_string(),
             }],
+            structured_content: None,
+            meta: None,
             is_error: true,
         };
 

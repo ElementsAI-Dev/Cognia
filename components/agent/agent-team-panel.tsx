@@ -193,12 +193,30 @@ function TeammateCard({ teammate, isSelected, onClick }: TeammateCardProps) {
 interface TaskItemProps {
   task: AgentTeamTask;
   teammates: Record<string, AgentTeammate>;
+  onDelegateToBackground?: () => void;
+  isDelegating?: boolean;
 }
 
-function TaskItem({ task, teammates }: TaskItemProps) {
+function TaskItem({ task, teammates, onDelegateToBackground, isDelegating = false }: TaskItemProps) {
   const t = useTranslations('agentTeam');
   const statusConfig = TASK_STATUS_CONFIG[task.status];
   const assignee = task.claimedBy ? teammates[task.claimedBy] : task.assignedTo ? teammates[task.assignedTo] : undefined;
+  const taskMetadata = (task.metadata || {}) as Record<string, unknown>;
+  const delegationStatus =
+    typeof taskMetadata.delegationStatus === 'string'
+      ? taskMetadata.delegationStatus
+      : undefined;
+  const delegationError =
+    typeof taskMetadata.delegationError === 'string'
+      ? taskMetadata.delegationError
+      : undefined;
+  const canDelegate =
+    !!onDelegateToBackground &&
+    !isDelegating &&
+    delegationStatus !== 'active' &&
+    task.status !== 'completed' &&
+    task.status !== 'failed' &&
+    task.status !== 'cancelled';
 
   return (
     <div className={cn(
@@ -211,6 +229,17 @@ function TaskItem({ task, teammates }: TaskItemProps) {
           <span className="truncate font-medium">{task.title}</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          {onDelegateToBackground && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-5 px-1.5 text-[10px]"
+              disabled={!canDelegate}
+              onClick={onDelegateToBackground}
+            >
+              {isDelegating || delegationStatus === 'active' ? 'Delegating' : 'Delegate'}
+            </Button>
+          )}
           {task.priority !== 'normal' && (
             <Badge
               variant="outline"
@@ -232,6 +261,18 @@ function TaskItem({ task, teammates }: TaskItemProps) {
       {task.description && (
         <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
           {task.description}
+        </p>
+      )}
+
+      {delegationStatus && (
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          Delegation: {delegationStatus}
+        </p>
+      )}
+
+      {delegationError && (
+        <p className="mt-1 text-[10px] text-destructive">
+          {delegationError}
         </p>
       )}
 
@@ -324,6 +365,8 @@ export interface AgentTeamPanelProps {
   onPauseTeam?: (teamId: string) => void;
   onResumeTeam?: (teamId: string) => void;
   onDeleteTeam?: (teamId: string) => void;
+  onDelegateTaskToBackground?: (teamId: string, taskId: string) => void;
+  delegatingTaskIds?: string[];
   onCreateTeam?: () => void;
 }
 
@@ -334,6 +377,8 @@ export function AgentTeamPanel({
   onPauseTeam,
   onResumeTeam,
   onDeleteTeam,
+  onDelegateTaskToBackground,
+  delegatingTaskIds = [],
   onCreateTeam,
 }: AgentTeamPanelProps) {
   const t = useTranslations('agentTeam');
@@ -578,7 +623,17 @@ export function AgentTeamPanel({
                   </p>
                 ) : (
                   teamTasks.map(task => (
-                    <TaskItem key={task.id} task={task} teammates={teammatesRecord} />
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      teammates={teammatesRecord}
+                      onDelegateToBackground={
+                        onDelegateTaskToBackground && activeTeam
+                          ? () => onDelegateTaskToBackground(activeTeam.id, task.id)
+                          : undefined
+                      }
+                      isDelegating={delegatingTaskIds.includes(task.id)}
+                    />
                   ))
                 )}
               </CollapsibleContent>

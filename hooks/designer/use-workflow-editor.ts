@@ -6,8 +6,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { useWorkflowEditorStore } from '@/stores/workflow';
-import type { WorkflowExecution, WorkflowExecutionStatus } from '@/types/workflow';
+import type { WorkflowExecution } from '@/types/workflow';
 import type { VisualWorkflow, EditorExecutionStatus } from '@/types/workflow/workflow-editor';
+import { mapEditorToWorkflowExecutionStatus } from '@/lib/workflow-editor/execution-status';
 
 interface UseWorkflowEditorOptions {
   autoSave?: boolean;
@@ -20,6 +21,7 @@ interface UseWorkflowEditorReturn {
   currentWorkflow: VisualWorkflow | null;
   isExecuting: boolean;
   isDirty: boolean;
+  executionState: ReturnType<typeof useWorkflowEditorStore.getState>['executionState'];
   validationErrors: import('@/types/workflow/workflow-editor').ValidationError[];
   createWorkflow: (name?: string) => void;
   loadWorkflow: (workflow: VisualWorkflow) => void;
@@ -33,24 +35,6 @@ interface UseWorkflowEditorReturn {
   importWorkflow: (json: string) => boolean;
 }
 
-function toWorkflowExecutionStatus(status: EditorExecutionStatus): WorkflowExecutionStatus {
-  if (status === 'running') {
-    return 'executing';
-  }
-
-  if (
-    status === 'idle' ||
-    status === 'paused' ||
-    status === 'completed' ||
-    status === 'failed' ||
-    status === 'cancelled'
-  ) {
-    return status;
-  }
-
-  return 'planning';
-}
-
 function toWorkflowExecution(
   workflow: VisualWorkflow,
   executionState: NonNullable<ReturnType<typeof useWorkflowEditorStore.getState>['executionState']>
@@ -61,7 +45,7 @@ function toWorkflowExecution(
     workflowName: workflow.name,
     workflowType: workflow.type,
     sessionId: executionState.executionId,
-    status: toWorkflowExecutionStatus(executionState.status),
+    status: mapEditorToWorkflowExecutionStatus(executionState.status),
     config: workflow.settings as unknown as Record<string, unknown>,
     input: executionState.input,
     output: executionState.output,
@@ -220,6 +204,7 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}): UseWo
     currentWorkflow,
     isExecuting,
     isDirty,
+    executionState,
     validationErrors,
     createWorkflow,
     loadWorkflow,

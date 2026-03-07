@@ -279,7 +279,7 @@ describe('workflow-slice saveWorkflow', () => {
     await store.getState().saveWorkflow();
 
     expect(toast.warning).toHaveBeenCalledWith('Workflow saved with trigger sync errors', {
-      description: '1 trigger(s) need attention',
+      description: 'Daily Trigger (task unbound): permission denied',
     });
   });
 });

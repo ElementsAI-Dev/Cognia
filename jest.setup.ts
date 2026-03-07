@@ -22,6 +22,12 @@ jest.mock('@/components/ui/tooltip', () => {
   };
 });
 
+jest.mock('styled-jsx/style', () => {
+  return function StyledJsxStyle() {
+    return null;
+  };
+}, { virtual: true });
+
 // Polyfill structuredClone for fake-indexeddb
 if (typeof structuredClone === 'undefined') {
   global.structuredClone = <T>(obj: T): T => JSON.parse(JSON.stringify(obj));

@@ -80,6 +80,7 @@ import type {
 import { maskApiKey, isValidApiKeyFormat } from '@/lib/ai/infrastructure/api-key-rotation';
 import { ModelListDialog } from './model-list-dialog';
 import { ModelSettingsDialog } from './model-settings-dialog';
+import type { ProviderReadinessState } from './provider-readiness';
 
 interface TestResult {
   success: boolean;
@@ -215,6 +216,13 @@ interface ProviderCardProps {
   rotationStrategy?: ApiKeyRotationStrategy;
   onRotationStrategyChange?: (strategy: ApiKeyRotationStrategy) => void;
   onReorderApiKeys?: (fromIndex: number, toIndex: number) => void;
+  readinessState?: ProviderReadinessState;
+  enableToggleDisabled?: boolean;
+  enableToggleDisabledReason?: string;
+  testConnectionDisabled?: boolean;
+  testConnectionDisabledReason?: string;
+  defaultModelDisabled?: boolean;
+  defaultModelDisabledReason?: string;
   // Model settings
   onModelSettings?: (model: ModelConfig) => void;
   children?: ReactNode;
@@ -243,6 +251,13 @@ export const ProviderCard = React.memo(function ProviderCard({
   rotationStrategy = 'round-robin',
   onRotationStrategyChange,
   onReorderApiKeys,
+  readinessState,
+  enableToggleDisabled = false,
+  enableToggleDisabledReason,
+  testConnectionDisabled,
+  testConnectionDisabledReason,
+  defaultModelDisabled,
+  defaultModelDisabledReason,
   children,
 }: ProviderCardProps) {
   const t = useTranslations('providers');
@@ -288,6 +303,9 @@ export const ProviderCard = React.memo(function ProviderCard({
   }, [onTestConnection]);
 
   const hasAnyApiKey = !!settings.apiKey || apiKeys.length > 0;
+  const computedTestDisabled = !settings.enabled || isTesting || !hasAnyApiKey;
+  const isTestDisabled = testConnectionDisabled ?? computedTestDisabled;
+  const isDefaultModelDisabled = defaultModelDisabled ?? !settings.enabled;
 
   // Get status badge color based on test result
   const getStatusBadge = () => {
@@ -314,6 +332,15 @@ export const ProviderCard = React.memo(function ProviderCard({
           {t('failed') || 'Failed'}
         </Badge>
       );
+    }
+    if (readinessState === 'unconfigured') {
+      return <Badge variant="outline" className="h-6 text-xs">{t('notConfigured') || 'Not Configured'}</Badge>;
+    }
+    if (readinessState === 'configured') {
+      return <Badge variant="secondary" className="h-6 text-xs">{t('configured') || 'Configured'}</Badge>;
+    }
+    if (readinessState === 'verified') {
+      return <Badge variant="default" className="h-6 text-xs">{t('ready') || 'Ready'}</Badge>;
     }
     return null;
   };
@@ -350,16 +377,22 @@ export const ProviderCard = React.memo(function ProviderCard({
                   <p className="text-xs text-muted-foreground line-clamp-1">
                     {provider.description || t(`${provider.id}Description`) || 'AI provider'}
                   </p>
+                  {!settings.enabled && enableToggleDisabled && enableToggleDisabledReason && (
+                    <p className="text-xs text-amber-600 mt-1">{enableToggleDisabledReason}</p>
+                  )}
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 {/* Enable/Disable Switch */}
-                <Switch
-                  checked={settings.enabled}
-                  onCheckedChange={onToggleEnabled}
-                  onClick={(e) => e.stopPropagation()}
-                />
+                <div title={enableToggleDisabled ? enableToggleDisabledReason : undefined}>
+                  <Switch
+                    checked={settings.enabled}
+                    onCheckedChange={onToggleEnabled}
+                    onClick={(e) => e.stopPropagation()}
+                    disabled={enableToggleDisabled}
+                  />
+                </div>
                 {/* Expand/Collapse Indicator */}
                 <Button variant="ghost" size="icon" className="h-8 w-8">
                   {isExpanded ? (
@@ -415,8 +448,9 @@ export const ProviderCard = React.memo(function ProviderCard({
                     variant="outline"
                     size="sm"
                     onClick={handleTest}
-                    disabled={!settings.enabled || isTesting || !hasAnyApiKey}
+                    disabled={isTestDisabled}
                     className="gap-1"
+                    title={isTestDisabled ? testConnectionDisabledReason : undefined}
                   >
                     {isTesting ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -641,7 +675,8 @@ export const ProviderCard = React.memo(function ProviderCard({
                                 : 'bg-background hover:bg-muted'
                             )}
                             onClick={() => onDefaultModelChange(model.id)}
-                            disabled={!settings.enabled}
+                            disabled={isDefaultModelDisabled}
+                            title={isDefaultModelDisabled ? defaultModelDisabledReason : undefined}
                           >
                             {(model.id === defaultModel ||
                               model.name === defaultModel) && (
@@ -672,8 +707,8 @@ export const ProviderCard = React.memo(function ProviderCard({
                   <Label className="text-xs text-muted-foreground">
                     {t('defaultModel') || 'Default Model'}
                   </Label>
-                  <Select value={defaultModel} onValueChange={onDefaultModelChange}>
-                    <SelectTrigger className="h-8 text-xs">
+                  <Select value={defaultModel} onValueChange={onDefaultModelChange} disabled={isDefaultModelDisabled}>
+                    <SelectTrigger className="h-8 text-xs" title={isDefaultModelDisabled ? defaultModelDisabledReason : undefined}>
                       <SelectValue placeholder={t('selectModel') || 'Select model'} />
                     </SelectTrigger>
                     <SelectContent>

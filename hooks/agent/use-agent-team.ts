@@ -167,10 +167,10 @@ export function useAgentTeam(options: UseAgentTeamOptions = {}): UseAgentTeamRet
   // Store actions
   const storeActions = useAgentTeamStore(
     useShallow((s) => ({
-      storeCreateTeam: s.createTeam,
-      storeAddTeammate: s.addTeammate,
-      storeCreateTask: s.createTask,
-      storeAddMessage: s.addMessage,
+      storeUpsertTeam: s.upsertTeam,
+      storeUpsertTeammate: s.upsertTeammate,
+      storeUpsertTask: s.upsertTask,
+      storeUpsertMessage: s.upsertMessage,
       storeSetTeamStatus: s.setTeamStatus,
       storeSetTeammateStatus: s.setTeammateStatus,
       storeSetTeammateProgress: s.setTeammateProgress,
@@ -215,11 +215,18 @@ export function useAgentTeam(options: UseAgentTeamOptions = {}): UseAgentTeamRet
         },
       };
 
-      manager.createTeam(enrichedInput);
-      const storeTeam = storeActions.storeCreateTeam(enrichedInput);
+      const managerTeam = manager.createTeam(enrichedInput);
+      storeActions.storeUpsertTeam(managerTeam);
 
-      log.info('Team created via hook', { teamId: storeTeam.id });
-      return storeTeam;
+      const lead = manager.getTeammate(managerTeam.leadId);
+      if (lead) {
+        storeActions.storeUpsertTeammate(lead);
+      }
+
+      storeActions.setActiveTeam(managerTeam.id);
+
+      log.info('Team created via hook', { teamId: managerTeam.id });
+      return managerTeam;
     },
     [manager, storeActions, settings]
   );
@@ -235,30 +242,20 @@ export function useAgentTeam(options: UseAgentTeamOptions = {}): UseAgentTeamRet
         ...config,
       };
 
-      createTeamFromTemplate(template, task, enrichedConfig, tools);
+      const managerTeam = createTeamFromTemplate(template, task, enrichedConfig, tools);
+      storeActions.storeUpsertTeam(managerTeam);
 
-      const storeTeam = storeActions.storeCreateTeam({
-        name: template.name,
-        description: template.description,
-        task,
-        config: enrichedConfig,
-      });
-
-      for (const tmDef of template.teammates) {
-        storeActions.storeAddTeammate({
-          teamId: storeTeam.id,
-          name: tmDef.name,
-          description: tmDef.description,
-          config: {
-            specialization: tmDef.specialization,
-            ...tmDef.config,
-          },
-        });
+      for (const teammateId of managerTeam.teammateIds) {
+        const teammate = manager.getTeammate(teammateId);
+        if (teammate) {
+          storeActions.storeUpsertTeammate(teammate);
+        }
       }
 
-      return storeTeam;
+      storeActions.setActiveTeam(managerTeam.id);
+      return managerTeam;
     },
-    [storeActions, settings, tools]
+    [manager, storeActions, settings, tools]
   );
 
   // Execute team
@@ -363,8 +360,13 @@ export function useAgentTeam(options: UseAgentTeamOptions = {}): UseAgentTeamRet
   // Add teammate
   const addTeammate = useCallback(
     (input: AddTeammateInput): AgentTeammate => {
-      manager.addTeammate(input);
-      return storeActions.storeAddTeammate(input);
+      const teammate = manager.addTeammate(input);
+      if (!teammate) {
+        throw new Error(`Failed to add teammate to team: ${input.teamId}`);
+      }
+
+      storeActions.storeUpsertTeammate(teammate);
+      return teammate;
     },
     [manager, storeActions]
   );
@@ -390,8 +392,9 @@ export function useAgentTeam(options: UseAgentTeamOptions = {}): UseAgentTeamRet
   // Create task
   const createTask = useCallback(
     (input: CreateTaskInput): AgentTeamTask => {
-      manager.createTask(input);
-      return storeActions.storeCreateTask(input);
+      const task = manager.createTask(input);
+      storeActions.storeUpsertTask(task);
+      return task;
     },
     [manager, storeActions]
   );
@@ -425,8 +428,9 @@ export function useAgentTeam(options: UseAgentTeamOptions = {}): UseAgentTeamRet
   // Send message
   const sendMessage = useCallback(
     (input: SendMessageInput): AgentTeamMessage => {
-      manager.sendMessage(input);
-      return storeActions.storeAddMessage(input);
+      const message = manager.sendMessage(input);
+      storeActions.storeUpsertMessage(message);
+      return message;
     },
     [manager, storeActions]
   );
@@ -503,9 +507,27 @@ export function useAgentTeam(options: UseAgentTeamOptions = {}): UseAgentTeamRet
   // Bridge delegation callback
   const delegateTaskToBackground = useCallback(
     async (teamId: string, taskId: string, options?: { priority?: number; name?: string }) => {
-      return manager.delegateTaskToBackground(teamId, taskId, options);
+      if (autoSync) {
+        storeActions.storeSetTaskStatus(taskId, 'in_progress');
+      }
+
+      const delegationId = await manager.delegateTaskToBackground(teamId, taskId, options);
+
+      if (autoSync) {
+        const refreshedTask = manager.getTask(taskId);
+        if (refreshedTask) {
+          storeActions.storeUpsertTask(refreshedTask);
+        }
+
+        const refreshedTeam = manager.getTeam(teamId);
+        if (refreshedTeam) {
+          storeActions.storeUpsertTeam(refreshedTeam);
+        }
+      }
+
+      return delegationId;
     },
-    [manager]
+    [autoSync, manager, storeActions]
   );
 
   return {

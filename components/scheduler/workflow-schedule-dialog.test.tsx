@@ -282,6 +282,41 @@ describe('WorkflowScheduleDialog', () => {
     });
   });
 
+  it('should pass default input into scheduled task payload', async () => {
+    render(
+      <WorkflowScheduleDialog
+        {...defaultProps}
+        defaultInput={{ topic: 'AI', retries: 2 }}
+      />
+    );
+    fireEvent.click(screen.getByText('scheduleWorkflow'));
+    fireEvent.click(screen.getByText('schedule'));
+
+    await waitFor(() => {
+      expect(mockCreateTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: {
+            workflowId: 'workflow-123',
+            input: { topic: 'AI', retries: 2 },
+          },
+        })
+      );
+    });
+  });
+
+  it('should show explicit error when scheduling fails', async () => {
+    mockCreateTask.mockResolvedValue(null);
+
+    render(<WorkflowScheduleDialog {...defaultProps} />);
+    fireEvent.click(screen.getByText('scheduleWorkflow'));
+    fireEvent.click(screen.getByText('schedule'));
+
+    await waitFor(() => {
+      expect(screen.getByText('scheduleFailed')).toBeInTheDocument();
+    });
+    expect(screen.getByText('cronPresets')).toBeInTheDocument();
+  });
+
   it('should have all trigger type tabs', () => {
     render(<WorkflowScheduleDialog {...defaultProps} />);
     fireEvent.click(screen.getByText('scheduleWorkflow'));

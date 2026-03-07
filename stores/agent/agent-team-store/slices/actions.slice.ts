@@ -16,6 +16,27 @@ type AgentTeamStoreGet = StoreApi<AgentTeamState>['getState'];
 
 type AgentTeamActions = Omit<AgentTeamState, keyof typeof initialState>;
 
+const ensureIdExactlyOnce = (ids: string[], id: string): string[] => {
+  let seen = false;
+  const deduped: string[] = [];
+
+  for (const existingId of ids) {
+    if (existingId === id) {
+      if (seen) continue;
+      seen = true;
+    }
+    deduped.push(existingId);
+  }
+
+  if (!seen) {
+    deduped.push(id);
+  }
+
+  return deduped;
+};
+
+const removeId = (ids: string[], id: string): string[] => ids.filter(existingId => existingId !== id);
+
 export const createAgentTeamActionsSlice = (
   set: AgentTeamStoreSet,
   get: AgentTeamStoreGet
@@ -72,6 +93,12 @@ export const createAgentTeamActionsSlice = (
         }));
 
         return team;
+      },
+
+      upsertTeam: (team) => {
+        set((state) => ({
+          teams: { ...state.teams, [team.id]: team },
+        }));
       },
 
       updateTeam: (teamId, updates) => {
@@ -153,6 +180,52 @@ export const createAgentTeamActionsSlice = (
         }));
 
         return teammate;
+      },
+
+      upsertTeammate: (teammate) => {
+        set((state) => {
+          const destinationTeam = state.teams[teammate.teamId];
+          if (!destinationTeam) return state;
+
+          const previousTeammate = state.teammates[teammate.id];
+          const previousTeam = previousTeammate ? state.teams[previousTeammate.teamId] : undefined;
+
+          // Prevent a team from losing its lead reference via cross-team upsert.
+          if (
+            previousTeammate &&
+            previousTeammate.teamId !== teammate.teamId &&
+            previousTeam?.leadId === teammate.id
+          ) {
+            return state;
+          }
+
+          let teams = state.teams;
+          if (previousTeammate && previousTeammate.teamId !== teammate.teamId && previousTeam) {
+            teams = {
+              ...teams,
+              [previousTeammate.teamId]: {
+                ...previousTeam,
+                teammateIds: removeId(previousTeam.teammateIds, teammate.id),
+              },
+            };
+          }
+
+          const nextTeam = teams[teammate.teamId];
+          if (nextTeam) {
+            teams = {
+              ...teams,
+              [teammate.teamId]: {
+                ...nextTeam,
+                teammateIds: ensureIdExactlyOnce(nextTeam.teammateIds, teammate.id),
+              },
+            };
+          }
+
+          return {
+            teammates: { ...state.teammates, [teammate.id]: teammate },
+            teams,
+          };
+        });
       },
 
       updateTeammate: (teammateId, updates) => {
@@ -252,6 +325,43 @@ export const createAgentTeamActionsSlice = (
         });
 
         return task;
+      },
+
+      upsertTask: (task) => {
+        set((state) => {
+          const destinationTeam = state.teams[task.teamId];
+          if (!destinationTeam) return state;
+
+          const previousTask = state.tasks[task.id];
+          const previousTeam = previousTask ? state.teams[previousTask.teamId] : undefined;
+
+          let teams = state.teams;
+          if (previousTask && previousTask.teamId !== task.teamId && previousTeam) {
+            teams = {
+              ...teams,
+              [previousTask.teamId]: {
+                ...previousTeam,
+                taskIds: removeId(previousTeam.taskIds, task.id),
+              },
+            };
+          }
+
+          const nextTeam = teams[task.teamId];
+          if (nextTeam) {
+            teams = {
+              ...teams,
+              [task.teamId]: {
+                ...nextTeam,
+                taskIds: ensureIdExactlyOnce(nextTeam.taskIds, task.id),
+              },
+            };
+          }
+
+          return {
+            tasks: { ...state.tasks, [task.id]: task },
+            teams,
+          };
+        });
       },
 
       updateTask: (taskId, updates) => {
@@ -374,6 +484,43 @@ export const createAgentTeamActionsSlice = (
         });
 
         return message;
+      },
+
+      upsertMessage: (message) => {
+        set((state) => {
+          const destinationTeam = state.teams[message.teamId];
+          if (!destinationTeam) return state;
+
+          const previousMessage = state.messages[message.id];
+          const previousTeam = previousMessage ? state.teams[previousMessage.teamId] : undefined;
+
+          let teams = state.teams;
+          if (previousMessage && previousMessage.teamId !== message.teamId && previousTeam) {
+            teams = {
+              ...teams,
+              [previousMessage.teamId]: {
+                ...previousTeam,
+                messageIds: removeId(previousTeam.messageIds, message.id),
+              },
+            };
+          }
+
+          const nextTeam = teams[message.teamId];
+          if (nextTeam) {
+            teams = {
+              ...teams,
+              [message.teamId]: {
+                ...nextTeam,
+                messageIds: ensureIdExactlyOnce(nextTeam.messageIds, message.id),
+              },
+            };
+          }
+
+          return {
+            messages: { ...state.messages, [message.id]: message },
+            teams,
+          };
+        });
       },
 
       markMessageRead: (messageId) => {

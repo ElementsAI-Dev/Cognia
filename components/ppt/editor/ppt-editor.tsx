@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
+import { useShallow } from 'zustand/react/shallow';
 import {
   DndContext,
   closestCenter,
@@ -17,7 +18,6 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
@@ -45,6 +45,7 @@ export function PPTEditor({
   onExport,
   className,
 }: PPTEditorProps) {
+  const disableToolbarForDebug = false;
   const t = useTranslations('pptEditor');
   
   const {
@@ -55,6 +56,7 @@ export function PPTEditor({
     showNotes,
     isGenerating,
     panelWidth,
+    selection,
     loadPresentation,
     savePresentation,
     addSlide,
@@ -74,11 +76,47 @@ export function PPTEditor({
     setThemeById,
     regenerateSlide,
     setPanelWidth,
-  } = usePPTEditorStore();
+    bringToFront,
+    sendToBack,
+    setTheme,
+  } = usePPTEditorStore(
+    useShallow((state) => ({
+      presentation: state.presentation,
+      currentSlideIndex: state.currentSlideIndex,
+      mode: state.mode,
+      zoom: state.zoom,
+      showNotes: state.showNotes,
+      isGenerating: state.isGenerating,
+      panelWidth: state.panelWidth,
+      selection: state.selection,
+      loadPresentation: state.loadPresentation,
+      savePresentation: state.savePresentation,
+      addSlide: state.addSlide,
+      duplicateSlide: state.duplicateSlide,
+      deleteSlide: state.deleteSlide,
+      setCurrentSlide: state.setCurrentSlide,
+      nextSlide: state.nextSlide,
+      prevSlide: state.prevSlide,
+      setMode: state.setMode,
+      setZoom: state.setZoom,
+      toggleNotes: state.toggleNotes,
+      undo: state.undo,
+      redo: state.redo,
+      canUndo: state.canUndo,
+      canRedo: state.canRedo,
+      reorderSlides: state.reorderSlides,
+      setThemeById: state.setThemeById,
+      regenerateSlide: state.regenerateSlide,
+      setPanelWidth: state.setPanelWidth,
+      bringToFront: state.bringToFront,
+      sendToBack: state.sendToBack,
+      setTheme: state.setTheme,
+    }))
+  );
 
   // Use optimized store selectors for derived state
   const currentSlide = usePPTEditorStore(selectCurrentSlide);
-  const selectedElements = usePPTEditorStore(selectSelectedElements);
+  const selectedElements = usePPTEditorStore(useShallow(selectSelectedElements));
   const slideCount = usePPTEditorStore(selectSlideCount);
   const isDirty = usePPTEditorStore(selectIsDirty);
 
@@ -104,15 +142,6 @@ export function PPTEditor({
       setIsFullscreen(prev => !prev);
     }
   }, [isTauri, toggleNativeFullscreen]);
-
-  // Get additional store methods for alignment operations
-  const {
-    selection,
-    bringToFront,
-    sendToBack,
-    setTheme,
-  } = usePPTEditorStore();
-
 
   // Alignment handlers
   const handleAlign = useCallback((alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
@@ -169,10 +198,10 @@ export function PPTEditor({
 
   // Load initial presentation
   useEffect(() => {
-    if (initialPresentation) {
-      loadPresentation(initialPresentation);
-    }
-  }, [initialPresentation, loadPresentation]);
+    if (!initialPresentation) return;
+    if (presentation?.id === initialPresentation.id) return;
+    loadPresentation(initialPresentation);
+  }, [initialPresentation, presentation?.id, loadPresentation]);
 
   // Auto-save when dirty (5-second debounce)
   useEffect(() => {
@@ -381,39 +410,41 @@ export function PPTEditor({
       className
     )}>
       {/* Toolbar */}
-      <EditorToolbar
-        presentation={presentation}
-        selectedElements={selectedElements}
-        isDirty={isDirty}
-        zoom={zoom}
-        showSlidePanel={showSlidePanel}
-        showNotes={showNotes}
-        showThemeCustomizer={showThemeCustomizer}
-        effectiveFullscreen={effectiveFullscreen}
-        onSave={handleSave}
-        onUndo={undo}
-        onRedo={redo}
-        canUndo={canUndo()}
-        canRedo={canRedo()}
-        onAddSlide={handleAddSlide}
-        onSetThemeById={setThemeById}
-        onThemeChange={handleThemeChange}
-        onSetShowThemeCustomizer={setShowThemeCustomizer}
-        onSetZoom={setZoom}
-        onSetShowSlidePanel={setShowSlidePanel}
-        onToggleNotes={toggleNotes}
-        onStartPresentation={() => {
-          setMode('slideshow');
-          handleToggleFullscreen();
-        }}
-        onExport={onExport}
-        onToggleFullscreen={handleToggleFullscreen}
-        onAlign={handleAlign}
-        onDistribute={handleDistribute}
-        onAutoArrange={handleAutoArrange}
-        onBringToFront={handleBringToFront}
-        onSendToBack={handleSendToBack}
-      />
+      {!disableToolbarForDebug && (
+        <EditorToolbar
+          presentation={presentation}
+          selectedElements={selectedElements}
+          isDirty={isDirty}
+          zoom={zoom}
+          showSlidePanel={showSlidePanel}
+          showNotes={showNotes}
+          showThemeCustomizer={showThemeCustomizer}
+          effectiveFullscreen={effectiveFullscreen}
+          onSave={handleSave}
+          onUndo={undo}
+          onRedo={redo}
+          canUndo={canUndo()}
+          canRedo={canRedo()}
+          onAddSlide={handleAddSlide}
+          onSetThemeById={setThemeById}
+          onThemeChange={handleThemeChange}
+          onSetShowThemeCustomizer={setShowThemeCustomizer}
+          onSetZoom={setZoom}
+          onSetShowSlidePanel={setShowSlidePanel}
+          onToggleNotes={toggleNotes}
+          onStartPresentation={() => {
+            setMode('slideshow');
+            handleToggleFullscreen();
+          }}
+          onExport={onExport}
+          onToggleFullscreen={handleToggleFullscreen}
+          onAlign={handleAlign}
+          onDistribute={handleDistribute}
+          onAutoArrange={handleAutoArrange}
+          onBringToFront={handleBringToFront}
+          onSendToBack={handleSendToBack}
+        />
+      )}
 
       {/* Main editor area */}
       <div className="flex-1 flex overflow-hidden">
@@ -443,7 +474,7 @@ export function PPTEditor({
                 window.addEventListener('mouseup', onUp);
               }}
             />
-            <ScrollArea className="flex-1">
+            <div className="flex-1 overflow-y-auto">
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -472,7 +503,7 @@ export function PPTEditor({
                   </div>
                 </SortableContext>
               </DndContext>
-            </ScrollArea>
+            </div>
           </div>
         )}
 
@@ -515,7 +546,7 @@ export function PPTEditor({
               <div className="p-2 border-b">
                 <span className="text-sm font-medium">{t('speakerNotes')}</span>
               </div>
-              <ScrollArea className="h-[calc(100%-32px)]">
+              <div className="h-[calc(100%-32px)] overflow-y-auto">
                 <div className="p-3">
                   <Textarea
                     className="w-full h-full min-h-[60px] bg-transparent border-none resize-none text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -526,9 +557,9 @@ export function PPTEditor({
                         notes: e.target.value,
                       });
                     }}
-                  />
+                    />
                 </div>
-              </ScrollArea>
+              </div>
             </div>
           )}
         </div>

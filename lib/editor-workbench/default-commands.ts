@@ -70,6 +70,13 @@ export function buildDefaultEditorCommands(
       run: () => runMonacoAction(editor, 'editor.action.quickOutline'),
     },
     {
+      id: `${contextPrefix}.goToWorkspaceSymbol`,
+      title: 'Go to Symbol in Workspace',
+      group: 'Editor',
+      requiresCapability: 'workspaceSymbols',
+      run: () => runMonacoAction(editor, 'editor.action.lspWorkspaceSymbols'),
+    },
+    {
       id: `${contextPrefix}.nextProblem`,
       title: 'Go to Next Problem',
       group: 'Editor',

@@ -16,6 +16,7 @@ import { Users } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useAgentTeamStore } from '@/stores/agent/agent-team-store';
 import { useAgentTeam } from '@/hooks/agent/use-agent-team';
+import { useUnifiedTools } from '@/hooks/agent/use-unified-tools';
 import { AgentTeamPanel } from './agent-team-panel';
 import { AgentTeamCreateDialog } from './agent-team-create-dialog';
 import { AgentTeamTemplateSelector } from './agent-team-template-selector';
@@ -38,6 +39,8 @@ export function AgentTeamPanelSheet() {
   const selectedTeammateId = useAgentTeamStore((s) => s.selectedTeammateId);
   const setSelectedTeammate = useAgentTeamStore((s) => s.setSelectedTeammate);
 
+  const { tools: unifiedTools } = useUnifiedTools();
+
   // Hook for actions
   const {
     createTeam,
@@ -48,13 +51,15 @@ export function AgentTeamPanelSheet() {
     resumeTeam,
     deleteTeam,
     addTeammate,
-  } = useAgentTeam();
+    delegateTaskToBackground,
+  } = useAgentTeam({ tools: unifiedTools });
 
   // Dialog state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false);
   const [createFlow, setCreateFlow] = useState<'custom' | 'template' | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<AgentTeamTemplate | null>(null);
+  const [delegatingTaskIds, setDelegatingTaskIds] = useState<string[]>([]);
 
   // Handle create team button
   const handleCreateTeam = useCallback(() => {
@@ -190,6 +195,41 @@ export function AgentTeamPanelSheet() {
     [deleteTeam, t]
   );
 
+  const handleDelegateTaskToBackground = useCallback(
+    async (teamId: string, taskId: string) => {
+      setDelegatingTaskIds((prev) => (prev.includes(taskId) ? prev : [...prev, taskId]));
+      try {
+        const delegationId = await delegateTaskToBackground(teamId, taskId);
+        const delegatedTask = useAgentTeamStore.getState().tasks[taskId];
+
+        if (!delegationId) {
+          toast.error('Background delegation failed');
+          return;
+        }
+
+        if (delegatedTask?.status === 'completed') {
+          toast.success('Task delegated and completed in background');
+        } else if (delegatedTask?.status === 'cancelled') {
+          toast.info('Background delegation was cancelled');
+        } else if (delegatedTask?.status === 'failed') {
+          toast.error(
+            typeof delegatedTask.error === 'string'
+              ? delegatedTask.error
+              : 'Background delegation failed'
+          );
+        } else {
+          toast.info('Task delegated to background');
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Background delegation failed';
+        toast.error(message);
+      } finally {
+        setDelegatingTaskIds((prev) => prev.filter((id) => id !== taskId));
+      }
+    },
+    [delegateTaskToBackground]
+  );
+
   return (
     <>
       <Sheet open={isPanelOpen} onOpenChange={setIsPanelOpen}>
@@ -211,6 +251,8 @@ export function AgentTeamPanelSheet() {
                 onPauseTeam={handlePauseTeam}
                 onResumeTeam={handleResumeTeam}
                 onDeleteTeam={handleDeleteTeam}
+                onDelegateTaskToBackground={handleDelegateTaskToBackground}
+                delegatingTaskIds={delegatingTaskIds}
               />
             </div>
 

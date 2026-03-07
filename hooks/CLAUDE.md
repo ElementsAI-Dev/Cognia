@@ -8,27 +8,75 @@
 
 Custom React hooks organized by domain. These hooks provide reusable stateful logic and side-effect management for the Cognia application.
 
-## Directory Structure
+## Directory Structure (49 directories)
+
+### AI & Agent
 
 - `ai/` — AI-related hooks (use-ai-registry, use-structured-output, use-sub-agent)
 - `agent/` — Agent hooks (use-agent, use-background-agent, use-plan-executor)
+- `agent-trace/` — Agent trace analytics hooks
+- `mcp/` — MCP server management hooks
+- `rag/` — RAG hooks (use-rag, use-memory, use-vector-db, use-enhanced-rag)
+- `vector/` — Vector database hooks
+
+### Chat & Context
+
 - `chat/` — Chat hooks (use-summary, use-translate, use-artifact-detection)
 - `context/` — Context hooks (use-awareness, use-context, use-project-context, use-clipboard-context)
-- `designer/` — Designer hooks (use-designer, use-workflow-*, use-designer-drag-drop)
-- `media/` — Media hooks (use-image-generation, use-speech)
-- `native/` — Native hooks (use-native, use-notification, use-window, use-file-watcher, use-screenshot)
-- `network/` — Network hooks (use-proxy, use-network-status, use-geolocation)
-- `rag/` — RAG hooks (use-rag, use-memory, use-vector-db, use-enhanced-rag)
-- `sandbox/` — Sandbox hooks (use-environment, use-jupyter-kernel, use-session-env, use-virtual-env)
-- `scheduler/` — Scheduler hooks (use-scheduler)
-- `ui/` — UI hooks (use-global-shortcuts, use-learning-mode, use-learning-tools, use-mention, use-quote-shortcuts, use-selection-toolbar, use-copy, use-keyboard-shortcuts)
-- `utils/` — Utility hooks (use-debounce, use-mobile, use-resize-observer, use-element-resize)
-- `ppt/` — PPT generation hooks
+- `input-completion/` — Input completion hooks
+
+### Content & Data
+
+- `artifacts/` — Artifact management hooks
+- `db/` — Database hooks
+- `document/` — Document processing hooks
+- `export/` — Export functionality hooks
+- `storage/` — Storage hooks
+- `search/` — Search hooks
+- `presets/` — Preset management hooks
+- `provider/` — Provider hooks
+
+### UI & Interaction
+
+- `ui/` — UI hooks (use-global-shortcuts, use-learning-mode, use-mention, use-quote-shortcuts, use-selection-toolbar, use-copy, use-keyboard-shortcuts)
+- `utils/` — Utility hooks (use-debounce, use-mobile, use-resize-observer)
+- `map/` — Map component hooks
+- `logging/` — Logging hooks
+
+### Studio & Media
+
 - `image-studio/` — Image studio hooks
 - `video-studio/` — Video studio hooks
-- `a2ui/` — A2UI hooks
+- `media/` — Media hooks (use-image-generation, use-speech)
+- `ppt/` — PPT generation hooks
+- `latex/` — LaTeX editor hooks
 - `canvas/` — Canvas hooks
+
+### Desktop & System
+
+- `native/` — Native hooks (use-native, use-notification, use-window, use-file-watcher, use-screenshot)
+- `network/` — Network hooks (use-proxy, use-network-status, use-geolocation)
+- `sandbox/` — Sandbox hooks (use-environment, use-jupyter-kernel, use-session-env, use-virtual-env)
+- `jupyter/` — Jupyter integration hooks
+- `system/` — System hooks
+- `settings/` — Settings hooks
+- `sync/` — Sync hooks
+- `vcs/` — Version control hooks
+- `git/` — Git hooks
+
+### Features
+
+- `a2ui/` — A2UI hooks
+- `academic/` — Academic mode hooks
+- `arena/` — Arena hooks
+- `designer/` — Designer hooks (use-designer, use-workflow-*, use-designer-drag-drop)
+- `learning/` — Learning mode hooks
+- `plugin/` — Plugin hooks
+- `projects/` — Project management hooks
+- `scheduler/` — Scheduler hooks (use-scheduler)
+- `skill-seekers/` — SkillSeekers hooks
 - `skills/` — Skills hooks
+- `workflow/` — Workflow hooks
 
 ## Entry Points
 
@@ -156,8 +204,11 @@ export function useMyHook() {
 
 ## Changelog
 
+### 2026-02-27
+
+- Updated directory structure from 15 to 49 directories
+- Organized by domain categories
+
 ### 2025-01-14
 
 - Initial module documentation created
-- Indexed 15+ hook directories
-- Documented hook patterns

@@ -4,15 +4,30 @@
 
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { PPT_TEST_IDS } from '@/lib/ppt/test-selectors';
 
 const applySelector = <TState, TResult>(
   selector: ((state: TState) => TResult) | undefined,
   state: TState
 ) => (typeof selector === 'function' ? selector(state) : state);
 
-// Mock next/navigation
 const mockPush = jest.fn();
 const mockSearchParams = new URLSearchParams();
+
+const mockUseWorkflowStore: jest.Mock = Object.assign(
+  jest.fn((selector) => applySelector(selector, workflowState)),
+  {
+    getState: jest.fn(() => ({
+      updatePresentation: jest.fn(),
+      addPresentation: jest.fn(),
+    })),
+  }
+);
+
+const mockUsePPTEditorStore: jest.Mock = jest.fn((selector) =>
+  applySelector(selector, editorState)
+);
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
@@ -22,193 +37,168 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
 }));
 
-// Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-// Mock stores
-jest.mock('@/stores', () => ({
-  useWorkflowStore: Object.assign(
-    jest.fn((selector) => {
-      const state = {
-        presentations: {},
-        setActivePresentation: jest.fn(),
-        deletePresentation: jest.fn(),
-      };
-      return applySelector(selector, state);
-    }),
-    {
-      getState: () => ({
-        updatePresentation: jest.fn(),
-        addPresentation: jest.fn(),
-      }),
-    }
-  ),
-  usePPTEditorStore: jest.fn((selector) => {
-    const state = {
-      loadPresentation: jest.fn(),
-      clearPresentation: jest.fn(),
-      presentation: null,
-    };
-    return applySelector(selector, state);
-  }),
-  selectActivePresentation: (state: { presentations: Record<string, unknown>; activePresentationId?: string | null }) =>
-    state.activePresentationId ? state.presentations[state.activePresentationId] ?? null : null,
+jest.mock('sonner', () => ({
+  toast: {
+    error: jest.fn(),
+  },
 }));
 
-// Mock usePPTGeneration hook
+jest.mock('@/lib/export/document/pptx-export', () => ({
+  exportToPPTXBase64: jest.fn(async () => ({ success: true, base64: 'ok' })),
+}));
+
+jest.mock('@/lib/ppt/ppt-export-client', () => ({
+  exportPresentationClient: jest.fn(async () => ({ success: true })),
+}));
+
 jest.mock('@/hooks/ppt', () => ({
   usePPTGeneration: () => ({
     generate: jest.fn(),
+    generateFromMaterials: jest.fn(),
     isGenerating: false,
     progress: { stage: 'idle', currentSlide: 0, totalSlides: 0, message: '' },
     error: null,
+    retry: jest.fn(),
+    canRetry: false,
   }),
 }));
 
-// Mock PPT components
 jest.mock('@/components/ppt', () => ({
   PPTEditor: () => <div data-testid="ppt-editor">PPT Editor</div>,
-  PPTGenerationDialog: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="generation-dialog">Generation Dialog</div> : null,
-  PPTQuickAction: ({ onGenerationComplete }: { onGenerationComplete: (id: string) => void }) => (
-    <button data-testid="quick-action" onClick={() => onGenerationComplete('test-id')}>
-      Quick Action
-    </button>
-  ),
+  PPTCreationHub: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="ppt-creation-hub-open">Creation Hub Open</div> : null,
   PPTPreview: () => <div data-testid="ppt-preview">PPT Preview</div>,
   SlideshowView: () => <div data-testid="slideshow-view">Slideshow View</div>,
   SlideContent: () => <div data-testid="slide-content">Slide Content</div>,
+  PPTTemplateGallery: () => <div data-testid="ppt-template-gallery">Template Gallery</div>,
+  PPTCreationForm: () => <div data-testid="ppt-creation-form">Creation Form</div>,
 }));
 
-// Import after mocks
+jest.mock('@/stores', () => ({
+  useWorkflowStore: (...args: Parameters<typeof mockUseWorkflowStore>) =>
+    mockUseWorkflowStore(...args),
+  usePPTEditorStore: (...args: Parameters<typeof mockUsePPTEditorStore>) =>
+    mockUsePPTEditorStore(...args),
+  selectActivePresentation: (state: {
+    presentations: Record<string, unknown>;
+    activePresentationId?: string | null;
+  }) => (state.activePresentationId ? state.presentations[state.activePresentationId] ?? null : null),
+}));
+
+type PresentationStub = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  slides: Array<{ id: string; order: number; layout: string; title: string; elements: unknown[] }>;
+  theme: {
+    id: string;
+    name: string;
+    primaryColor: string;
+    secondaryColor: string;
+    accentColor: string;
+    backgroundColor: string;
+    textColor: string;
+    headingFont: string;
+    bodyFont: string;
+    codeFont: string;
+  };
+  totalSlides: number;
+  aspectRatio: '16:9';
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+const createPresentation = (overrides: Partial<PresentationStub> = {}): PresentationStub => ({
+  id: 'ppt-1',
+  title: 'Test Presentation',
+  subtitle: 'subtitle',
+  slides: [{ id: 's1', order: 0, layout: 'title', title: 'S1', elements: [] }],
+  theme: {
+    id: 'default',
+    name: 'Default',
+    primaryColor: '#3B82F6',
+    secondaryColor: '#1E40AF',
+    accentColor: '#60A5FA',
+    backgroundColor: '#FFFFFF',
+    textColor: '#1E293B',
+    headingFont: 'Inter',
+    bodyFont: 'Inter',
+    codeFont: 'JetBrains Mono',
+  },
+  totalSlides: 1,
+  aspectRatio: '16:9',
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+  ...overrides,
+});
+
+let workflowState: {
+  presentations: Record<string, PresentationStub>;
+  activePresentationId: string | null;
+  setActivePresentation: jest.Mock;
+  deletePresentation: jest.Mock;
+};
+
+let editorState: {
+  loadPresentation: jest.Mock;
+  clearPresentation: jest.Mock;
+  presentation: PresentationStub | null;
+};
+
+const resetState = () => {
+  workflowState = {
+    presentations: {},
+    activePresentationId: null,
+    setActivePresentation: jest.fn((id: string | null) => {
+      workflowState.activePresentationId = id;
+    }),
+    deletePresentation: jest.fn(),
+  };
+
+  editorState = {
+    loadPresentation: jest.fn(),
+    clearPresentation: jest.fn(),
+    presentation: null,
+  };
+};
+
 import PPTPage from './page';
 
 describe('PPT Page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSearchParams.delete('id');
+    resetState();
   });
 
-  it('should render the page title', async () => {
+  it('renders new presentation trigger in list mode', async () => {
     render(<PPTPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('title')).toBeInTheDocument();
+      expect(screen.getByTestId(PPT_TEST_IDS.page.newPresentationButton)).toBeInTheDocument();
     });
   });
 
-  it('should render back navigation link', async () => {
-    render(<PPTPage />);
-
-    await waitFor(() => {
-      const backLink = screen.getByRole('link');
-      expect(backLink).toHaveAttribute('href', '/');
-    });
-  });
-
-  it('should show empty state message when no presentations', async () => {
-    render(<PPTPage />);
-
-    await waitFor(() => {
-      // Check for empty state heading (uses t('emptyState'))
-      expect(screen.getByText('emptyState')).toBeInTheDocument();
-    });
-  });
-
-  it('should show create new button in empty state', async () => {
-    render(<PPTPage />);
-
-    await waitFor(() => {
-      // The create button uses t('createNew')
-      expect(screen.getByText('createNew')).toBeInTheDocument();
-    });
-  });
-
-  it('should open generation dialog when clicking create new', async () => {
+  it('opens creation hub when clicking new presentation trigger', async () => {
     const user = userEvent.setup();
     render(<PPTPage />);
 
-    await waitFor(() => {
-      expect(screen.getByText('createNew')).toBeInTheDocument();
-    });
-
-    const createButton = screen.getByText('createNew');
-    await user.click(createButton);
+    const trigger = await screen.findByTestId(PPT_TEST_IDS.page.newPresentationButton);
+    await user.click(trigger);
 
     await waitFor(() => {
-      expect(screen.getByTestId('generation-dialog')).toBeInTheDocument();
+      expect(screen.getByTestId('ppt-creation-hub-open')).toBeInTheDocument();
     });
   });
 
-  it('should render quick action component', async () => {
-    render(<PPTPage />);
+  it('renders presentation cards when presentations exist', async () => {
+    const presentation = createPresentation();
+    workflowState.presentations = { [presentation.id]: presentation };
 
-    await waitFor(() => {
-      expect(screen.getByTestId('quick-action')).toBeInTheDocument();
-    });
-  });
-
-  it('should have accessible structure', async () => {
-    render(<PPTPage />);
-
-    await waitFor(() => {
-      // Check for main heading
-      expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
-    });
-  });
-});
-
-describe('PPT Page with presentations', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockSearchParams.delete('id');
-
-    // Mock store with presentations
-    const mockPresentations = {
-      'ppt-1': {
-        id: 'ppt-1',
-        title: 'Test Presentation',
-        subtitle: 'Test subtitle',
-        totalSlides: 5,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        slides: [
-          { id: 's1', order: 0, layout: 'title', title: 'S1' },
-          { id: 's2', order: 1, layout: 'title', title: 'S2' },
-          { id: 's3', order: 2, layout: 'title', title: 'S3' },
-          { id: 's4', order: 3, layout: 'title', title: 'S4' },
-          { id: 's5', order: 4, layout: 'title', title: 'S5' },
-        ],
-        theme: {
-          id: 'default',
-          name: 'Default',
-          primaryColor: '#3B82F6',
-          secondaryColor: '#1E40AF',
-          accentColor: '#60A5FA',
-          backgroundColor: '#FFFFFF',
-          textColor: '#1E293B',
-          headingFont: 'Inter',
-          bodyFont: 'Inter',
-          codeFont: 'JetBrains Mono',
-        },
-        aspectRatio: '16:9',
-      },
-    };
-
-    const { useWorkflowStore } = require('@/stores');
-    useWorkflowStore.mockImplementation((selector: (state: unknown) => unknown) => {
-      const state = {
-        presentations: mockPresentations,
-        setActivePresentation: jest.fn(),
-        deletePresentation: jest.fn(),
-      };
-      return applySelector(selector, state);
-    });
-  });
-
-  it('should render presentation cards when presentations exist', async () => {
     render(<PPTPage />);
 
     await waitFor(() => {
@@ -216,77 +206,22 @@ describe('PPT Page with presentations', () => {
     });
   });
 
-  it('should display slide count in cards', async () => {
-    render(<PPTPage />);
-
-    await waitFor(() => {
-      // Match "5 slides" text in presentation cards
-      expect(screen.getByText(/5\s+slides/)).toBeInTheDocument();
-    });
-  });
-});
-
-describe('PPT Page with URL parameters', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-
-    const mockPresentations = {
-      'ppt-url': {
-        id: 'ppt-url',
-        title: 'URL Presentation',
-        subtitle: 'From URL',
-        totalSlides: 3,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        slides: [
-          { id: 's1', order: 0, layout: 'title', title: 'S1' },
-          { id: 's2', order: 1, layout: 'title', title: 'S2' },
-          { id: 's3', order: 2, layout: 'title', title: 'S3' },
-        ],
-        theme: { id: 'default', name: 'Default' },
-        aspectRatio: '16:9',
-      },
-    };
-
-    // Set URL parameter
-    mockSearchParams.set('id', 'ppt-url');
-
-     
-    const { useWorkflowStore, usePPTEditorStore } = require('@/stores');
-    const mockLoadPresentation = jest.fn();
-
-    useWorkflowStore.mockImplementation((selector: (state: unknown) => unknown) => {
-      const state = {
-        presentations: mockPresentations,
-        setActivePresentation: jest.fn(),
-        deletePresentation: jest.fn(),
-      };
-      return applySelector(selector, state);
-    });
-
-    usePPTEditorStore.mockImplementation((selector: (state: unknown) => unknown) => {
-      const state = {
-        loadPresentation: mockLoadPresentation,
-        clearPresentation: jest.fn(),
-        presentation: mockPresentations['ppt-url'],
-      };
-      return applySelector(selector, state);
-    });
-  });
-
-  it('should load presentation from URL parameter', async () => {
-     
-    const { usePPTEditorStore } = require('@/stores');
+  it('loads presentation from URL param and syncs active presentation', async () => {
+    const presentation = createPresentation({ id: 'ppt-url', title: 'URL Deck' });
+    workflowState.presentations = { [presentation.id]: presentation };
+    mockSearchParams.set('id', presentation.id);
 
     render(<PPTPage />);
 
     await waitFor(() => {
-      // loadPresentation should have been called through the effect
-      expect(usePPTEditorStore).toHaveBeenCalled();
+      expect(editorState.loadPresentation).toHaveBeenCalledWith(presentation);
+      expect(workflowState.setActivePresentation).toHaveBeenCalledWith(presentation.id);
     });
   });
 
-  it('should show PPT editor when presentation is loaded', async () => {
+  it('renders PPT editor shell when editor presentation is available', async () => {
+    editorState.presentation = createPresentation();
+
     render(<PPTPage />);
 
     await waitFor(() => {

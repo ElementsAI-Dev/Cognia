@@ -437,10 +437,10 @@ describe('SlideshowView', () => {
     expect(screen.getByTestId('keyboard-help')).toBeInTheDocument();
   });
 
-  it('returns null when slide is not found', () => {
+  it('shows invalid presentation fallback when slide is not found', () => {
     const emptyPresentation = { ...mockPresentation, slides: [] };
     
-    const { container } = render(
+    render(
       <SlideshowView
         presentation={emptyPresentation}
         currentIndex={0}
@@ -451,7 +451,7 @@ describe('SlideshowView', () => {
       />
     );
 
-    expect(container.firstChild).toBeNull();
+    expect(screen.getByText('invalidPresentation')).toBeInTheDocument();
   });
 
   it('displays elapsed time counter', () => {

@@ -549,6 +549,14 @@ idle → queued → initializing → running → completed/failed/cancelled
 - Queued agents restored on restart
 - Execution logs preserved
 - Results available after completion
+- Manager state is restored once when background-agent subsystem initializes
+- App lifecycle hooks perform best-effort persistence on visibility/page exit boundaries
+
+### Checkpoint and Resume Semantics
+
+- `Pause` creates checkpoint metadata and stops active execution.
+- `Resume` re-queues the paused agent with checkpoint context for continuity.
+- Resume behavior is queue-based continuity, not guaranteed full in-memory replay of every internal executor state.
 
 ### Managing Background Agents
 
@@ -561,11 +569,20 @@ idle → queued → initializing → running → completed/failed/cancelled
 **Agent Actions**:
 
 - **Pause** - Temporarily halt execution
-- **Resume** - Continue paused agent
+- **Resume** - Re-queue paused agent using checkpoint metadata
 - **Cancel** - Stop agent execution
 - **Delete** - Remove from list (completed only)
 - **View Logs** - See detailed execution log
 - **View Results** - Show agent output
+
+### Delegation Terminal Outcomes
+
+When tasks are delegated to Background Agents (for example from team workflows), delegation resolves on every terminal state:
+
+- `completed` - Delegation succeeds with result output.
+- `failed` - Delegation fails with explicit error.
+- `cancelled` - Delegation resolves as cancelled (no hanging pending state).
+- `timeout` - Delegation resolves as failed with timeout reason.
 
 **Queue Controls**:
 

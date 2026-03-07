@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Wand2,
@@ -37,6 +37,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { PromptOptimizerDialog } from '@/components/prompt/optimization/prompt-optimizer-dialog';
+import { CameraMotionControls } from './camera-motion-controls';
+import type { CameraMotion } from '@/types/video-studio/types';
 import type {
   VideoProvider,
   VideoModel,
@@ -101,6 +104,9 @@ export interface AIGenerationSidebarProps {
   onAudioPromptChange: (prompt: string) => void;
   seed: number | undefined;
   onSeedChange: (seed: number | undefined) => void;
+  // Camera motion
+  cameraMotion: CameraMotion;
+  onCameraMotionChange: (motion: CameraMotion) => void;
   // Status
   isGenerating: boolean;
   error: string | null;
@@ -146,6 +152,8 @@ export function AIGenerationSidebar({
   onAudioPromptChange,
   seed,
   onSeedChange,
+  cameraMotion,
+  onCameraMotionChange,
   isGenerating,
   error,
   estimatedCost,
@@ -153,12 +161,14 @@ export function AIGenerationSidebar({
 }: AIGenerationSidebarProps) {
   const t = useTranslations('videoGeneration');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showOptimizer, setShowOptimizer] = useState(false);
 
   const handleApplyTemplate = (templatePrompt: string) => {
     onPromptChange(templatePrompt);
   };
 
   return (
+    <>
     <Tabs
       value={activeTab}
       onValueChange={(v) => onActiveTabChange(v as typeof activeTab)}
@@ -188,13 +198,32 @@ export function AIGenerationSidebar({
           <TabsContent value="text-to-video" className="mt-0 space-y-4">
             {/* Prompt */}
             <div className="space-y-2">
-              <Label>{t('prompt')}</Label>
+              <div className="flex items-center justify-between">
+                <Label>{t('prompt')}</Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 px-1.5 text-xs gap-1 text-muted-foreground hover:text-primary"
+                  onClick={() => setShowOptimizer(true)}
+                  disabled={!prompt.trim()}
+                >
+                  <Wand2 className="h-3 w-3" />
+                  Enhance
+                </Button>
+              </div>
               <Textarea
                 value={prompt}
                 onChange={(e) => onPromptChange(e.target.value)}
                 placeholder={t('promptPlaceholder')}
                 className="min-h-25 resize-none"
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    if (!isGenerating && prompt.trim()) onGenerate();
+                  }
+                }}
               />
+              <span className="text-[10px] text-muted-foreground text-right block">{prompt.length}/2000</span>
             </div>
 
             {/* Quick Templates */}
@@ -321,15 +350,61 @@ export function AIGenerationSidebar({
                 onChange={(e) => onPromptChange(e.target.value)}
                 placeholder={t('motionDescriptionPlaceholder')}
                 className="min-h-35 p-4 rounded-2xl bg-secondary/30 border-border/60 focus:bg-background focus:ring-1 focus:ring-primary/20 transition-all resize-none shadow-sm leading-relaxed"
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    if (!isGenerating && (prompt.trim() || referenceImage)) onGenerate();
+                  }
+                }}
               />
+              <span className="text-[10px] text-muted-foreground text-right block">{prompt.length}/2000</span>
             </div>
           </TabsContent>
+
+          {/* Provider & Model — always visible */}
+          <div className="space-y-3 mt-4 border-t border-border/40 pt-4">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1.5">
+                  <Clapperboard className="h-3.5 w-3.5" />
+                  {t('provider')}
+                </Label>
+                <Select
+                  value={provider}
+                  onValueChange={(v) => onProviderChange(v as VideoProvider)}
+                >
+                  <SelectTrigger className="h-9 rounded-lg bg-secondary/20 border-transparent hover:bg-secondary/40 transition-all text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="google-veo">Google Veo</SelectItem>
+                    <SelectItem value="openai-sora">OpenAI Sora</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t('model')}</Label>
+                <Select value={model} onValueChange={(v) => onModelChange(v as VideoModel)}>
+                  <SelectTrigger className="h-9 rounded-lg bg-secondary/20 border-transparent hover:bg-secondary/40 transition-all text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {providerModels.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
 
           {/* Settings */}
           <Collapsible
             open={showSettings}
             onOpenChange={onShowSettingsChange}
-            className="mt-8 border-t border-border/40 pt-6"
+            className="mt-4 border-t border-border/40 pt-4"
           >
             <CollapsibleTrigger asChild>
               <Button
@@ -352,43 +427,6 @@ export function AIGenerationSidebar({
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-4 mt-4">
-              {/* Provider */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Clapperboard className="h-4 w-4" />
-                  {t('provider')}
-                </Label>
-                <Select
-                  value={provider}
-                  onValueChange={(v) => onProviderChange(v as VideoProvider)}
-                >
-                  <SelectTrigger className="h-10 rounded-xl bg-secondary/20 border-transparent hover:bg-secondary/40 transition-all">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="google-veo">Google Veo</SelectItem>
-                    <SelectItem value="openai-sora">OpenAI Sora</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Model */}
-              <div className="space-y-2">
-                <Label>{t('model')}</Label>
-                <Select value={model} onValueChange={(v) => onModelChange(v as VideoModel)}>
-                  <SelectTrigger className="h-10 rounded-xl bg-secondary/20 border-transparent hover:bg-secondary/40 transition-all">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {providerModels.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               {/* Resolution */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
@@ -465,19 +503,29 @@ export function AIGenerationSidebar({
               {/* Style */}
               <div className="space-y-2">
                 <Label>{t('style')}</Label>
-                <div className="flex flex-wrap gap-2">
-                  {VIDEO_STYLE_PRESETS.slice(0, 4).map((preset) => (
+                <div className="grid grid-cols-4 gap-1.5">
+                  {VIDEO_STYLE_PRESETS.map((preset) => (
                     <Tooltip key={preset.value}>
                       <TooltipTrigger asChild>
-                        <Button
-                          variant={style === preset.value ? 'default' : 'outline'}
-                          size="sm"
+                        <button
+                          type="button"
+                          className={cn(
+                            'flex flex-col items-center justify-center gap-1 rounded-xl p-2 transition-all text-center',
+                            'bg-linear-to-br border',
+                            preset.color,
+                            style === preset.value
+                              ? 'border-primary ring-2 ring-primary/30 scale-[1.02] shadow-md'
+                              : 'border-transparent hover:border-border/50 hover:scale-[1.01]'
+                          )}
                           onClick={() => onStyleChange(preset.value)}
                         >
-                          {preset.icon} {t(`styles.${preset.value}`) || preset.label}
-                        </Button>
+                          <span className="text-lg leading-none">{preset.icon}</span>
+                          <span className="text-[10px] font-medium leading-tight truncate w-full">
+                            {t(`styles.${preset.value}`) || preset.label}
+                          </span>
+                        </button>
                       </TooltipTrigger>
-                      <TooltipContent>
+                      <TooltipContent side="bottom">
                         {t(`styleDescriptions.${preset.value}`) || preset.description}
                       </TooltipContent>
                     </Tooltip>
@@ -536,6 +584,12 @@ export function AIGenerationSidebar({
                   placeholder={t('seedPlaceholder')}
                 />
               </div>
+
+              {/* Camera Motion */}
+              <CameraMotionControls
+                motion={cameraMotion}
+                onMotionChange={onCameraMotionChange}
+              />
             </CollapsibleContent>
           </Collapsible>
 
@@ -582,5 +636,13 @@ export function AIGenerationSidebar({
         </div>
       </ScrollArea>
     </Tabs>
+
+    <PromptOptimizerDialog
+      open={showOptimizer}
+      onOpenChange={setShowOptimizer}
+      initialPrompt={prompt}
+      onApply={(optimized) => onPromptChange(optimized)}
+    />
+    </>
   );
 }

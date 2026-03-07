@@ -18,9 +18,12 @@ import {
   type AutoSyncResult,
 } from '@/lib/context';
 import type { Skill } from '@/types/system/skill';
+import type { McpTool } from '@/types/mcp';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.native;
+const CHANGE_SYNC_DEBOUNCE_MS = 500;
+const CHANGE_SYNC_MIN_INTERVAL_MS = 1500;
 
 export interface UseAutoSyncOptions {
   /** Enable MCP tools sync (default: true) */
@@ -69,6 +72,15 @@ export function useAutoSync(options: UseAutoSyncOptions = {}): UseAutoSyncReturn
   // Refs to track previous data for change detection
   const prevMcpServersRef = useRef<string>('');
   const prevSkillsRef = useRef<string>('');
+  const pendingChangeSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastChangeSyncAtRef = useRef<number>(0);
+  const activeSkillsRef = useRef<Skill[]>([]);
+  const mcpServersRef = useRef<Array<{
+    id: string;
+    name: string;
+    tools: McpTool[];
+    status: 'connected' | 'disconnected' | 'error' | 'auth-required';
+  }>>([]);
 
   // Get data from stores
   const mcpServers = useMcpStore((state) => state.servers);
@@ -105,8 +117,22 @@ export function useAutoSync(options: UseAutoSyncOptions = {}): UseAutoSyncReturn
     });
   }, [mcpServers]);
 
-  // Run sync
-  const sync = useCallback(async () => {
+  useEffect(() => {
+    activeSkillsRef.current = activeSkills;
+  }, [activeSkills]);
+
+  useEffect(() => {
+    mcpServersRef.current = getMcpServersForSync();
+  }, [getMcpServersForSync]);
+
+  const clearPendingChangeSync = useCallback(() => {
+    if (pendingChangeSyncTimerRef.current) {
+      clearTimeout(pendingChangeSyncTimerRef.current);
+      pendingChangeSyncTimerRef.current = null;
+    }
+  }, []);
+
+  const syncInternal = useCallback(async (origin: 'manual' | 'change' | 'mount' | 'interval') => {
     if (isSyncing) return;
 
     setIsSyncing(true);
@@ -114,11 +140,13 @@ export function useAutoSync(options: UseAutoSyncOptions = {}): UseAutoSyncReturn
 
     try {
       const result = await runFullSync({
-        mcpServers: syncMcpTools ? getMcpServersForSync() : undefined,
-        skills: syncSkillsEnabled ? activeSkills : undefined,
+        mcpServers: syncMcpTools ? mcpServersRef.current : undefined,
+        skills: syncSkillsEnabled ? activeSkillsRef.current : undefined,
       });
       setLastResult(result);
+      lastChangeSyncAtRef.current = Date.now();
       log.info('AutoSync completed', {
+        origin,
         mcpServers: result.mcp.size,
         skills: result.skills.synced,
         duration: result.durationMs,
@@ -126,11 +154,31 @@ export function useAutoSync(options: UseAutoSyncOptions = {}): UseAutoSyncReturn
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Sync failed';
       setError(message);
-      log.error('AutoSync failed', err as Error);
+      log.error('AutoSync failed', err as Error, {
+        origin,
+      });
     } finally {
       setIsSyncing(false);
     }
-  }, [isSyncing, syncMcpTools, syncSkillsEnabled, getMcpServersForSync, activeSkills]);
+  }, [isSyncing, syncMcpTools, syncSkillsEnabled]);
+
+  // Run sync (manual, immediate, and clears pending debounced sync)
+  const sync = useCallback(async () => {
+    clearPendingChangeSync();
+    await syncInternal('manual');
+  }, [clearPendingChangeSync, syncInternal]);
+
+  const scheduleChangeSync = useCallback(() => {
+    clearPendingChangeSync();
+    const elapsed = Date.now() - lastChangeSyncAtRef.current;
+    const minIntervalDelay = Math.max(0, CHANGE_SYNC_MIN_INTERVAL_MS - elapsed);
+    const delay = Math.max(CHANGE_SYNC_DEBOUNCE_MS, minIntervalDelay);
+
+    pendingChangeSyncTimerRef.current = setTimeout(() => {
+      pendingChangeSyncTimerRef.current = null;
+      void syncInternal('change');
+    }, delay);
+  }, [clearPendingChangeSync, syncInternal]);
 
   // Start auto-sync
   const start = useCallback(
@@ -142,28 +190,30 @@ export function useAutoSync(options: UseAutoSyncOptions = {}): UseAutoSyncReturn
           syncIntervalMs: intervalMs,
           onSyncComplete: (result) => {
             setLastResult(result);
+            lastChangeSyncAtRef.current = Date.now();
           },
         },
         () => ({
-          mcpServers: getMcpServersForSync(),
-          skills: activeSkills,
+          mcpServers: mcpServersRef.current,
+          skills: activeSkillsRef.current,
         })
       );
       setIsRunning(true);
     },
-    [syncMcpTools, syncSkillsEnabled, syncIntervalMs, getMcpServersForSync, activeSkills]
+    [syncMcpTools, syncSkillsEnabled, syncIntervalMs]
   );
 
   // Stop auto-sync
   const stop = useCallback(() => {
+    clearPendingChangeSync();
     stopAutoSync();
     setIsRunning(false);
-  }, []);
+  }, [clearPendingChangeSync]);
 
   // Sync on mount
   useEffect(() => {
     if (syncOnMount) {
-      sync();
+      void syncInternal('mount');
     }
 
     // Check if auto-sync should start
@@ -182,8 +232,15 @@ export function useAutoSync(options: UseAutoSyncOptions = {}): UseAutoSyncReturn
   useEffect(() => {
     if (!syncOnChange) return;
 
-    const mcpKey = JSON.stringify(mcpServers.map((s) => ({ id: s.id, tools: s.tools?.length })));
+    const mcpKey = JSON.stringify(mcpServers.map((s) => ({ id: s.id, tools: s.tools?.length, status: s.status })));
     const skillsKey = JSON.stringify(activeSkillIds);
+
+    // Prime previous refs without scheduling a change sync on first render.
+    if (prevMcpServersRef.current === '' && prevSkillsRef.current === '') {
+      prevMcpServersRef.current = mcpKey;
+      prevSkillsRef.current = skillsKey;
+      return;
+    }
 
     const mcpChanged = mcpKey !== prevMcpServersRef.current;
     const skillsChanged = skillsKey !== prevSkillsRef.current;
@@ -191,15 +248,9 @@ export function useAutoSync(options: UseAutoSyncOptions = {}): UseAutoSyncReturn
     if (mcpChanged || skillsChanged) {
       prevMcpServersRef.current = mcpKey;
       prevSkillsRef.current = skillsKey;
-
-      // Debounce sync to avoid rapid re-syncs
-      const timer = setTimeout(() => {
-        sync();
-      }, 500);
-
-      return () => clearTimeout(timer);
+      scheduleChangeSync();
     }
-  }, [syncOnChange, mcpServers, activeSkillIds, sync]);
+  }, [syncOnChange, mcpServers, activeSkillIds, scheduleChangeSync]);
 
   // Get cached result on mount
   useEffect(() => {

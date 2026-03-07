@@ -37,6 +37,7 @@ import { TimezoneSelect } from '@/components/scheduler/timezone-select';
 interface WorkflowScheduleDialogProps {
   workflowId: string;
   workflowName: string;
+  defaultInput?: Record<string, unknown>;
   trigger?: React.ReactNode;
   onScheduled?: (taskId: string) => void;
 }
@@ -47,14 +48,16 @@ const CRON_PRESETS = getCronExpressionOptions(10);
 export function WorkflowScheduleDialog({
   workflowId,
   workflowName,
+  defaultInput,
   trigger,
   onScheduled,
 }: WorkflowScheduleDialogProps) {
   const t = useTranslations('scheduler');
-  const { createTask } = useScheduler();
+  const { createTask, error } = useScheduler();
 
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Form state
   const [taskName, setTaskName] = useState(`${workflowName} - Scheduled`);
@@ -67,6 +70,7 @@ export function WorkflowScheduleDialog({
   const [notifyOnError, setNotifyOnError] = useState(true);
 
   const handleSubmit = useCallback(async () => {
+    setSubmitError(null);
     setIsSubmitting(true);
     try {
       const trigger = (() => {
@@ -88,7 +92,7 @@ export function WorkflowScheduleDialog({
         trigger,
         payload: {
           workflowId,
-          input: {},
+          input: defaultInput ?? {},
         },
         notification: {
           onStart: false,
@@ -102,7 +106,15 @@ export function WorkflowScheduleDialog({
       if (task) {
         onScheduled?.(task.id);
         setOpen(false);
+      } else {
+        setSubmitError(error || t('scheduleFailed') || 'Failed to schedule workflow');
       }
+    } catch (submitErr) {
+      setSubmitError(
+        submitErr instanceof Error
+          ? submitErr.message
+          : t('scheduleFailed') || 'Failed to schedule workflow'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -116,7 +128,10 @@ export function WorkflowScheduleDialog({
     notifyOnComplete,
     notifyOnError,
     workflowId,
+    defaultInput,
     createTask,
+    error,
+    t,
     onScheduled,
   ]);
 
@@ -266,6 +281,12 @@ export function WorkflowScheduleDialog({
               />
             </div>
           </div>
+
+          {submitError && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">
+              {submitError}
+            </div>
+          )}
         </div>
 
         <DialogFooter>

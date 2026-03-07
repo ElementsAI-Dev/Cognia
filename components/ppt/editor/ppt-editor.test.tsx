@@ -506,6 +506,7 @@ describe('PPTEditor', () => {
   describe('Load Presentation', () => {
     it('should call loadPresentation on mount with initial presentation', () => {
       const presentation = createMockPresentation();
+      mockStore.presentation = null;
       renderPPTEditor({ presentation });
       
       expect(mockStore.loadPresentation).toHaveBeenCalledWith(presentation);

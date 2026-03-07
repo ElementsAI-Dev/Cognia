@@ -85,6 +85,13 @@ interface McpState {
     toolName: string,
     args: Record<string, unknown>
   ) => Promise<ToolCallResult>;
+  callToolFromUi: (
+    serverId: string,
+    sessionId: string,
+    origin: string,
+    toolName: string,
+    args: Record<string, unknown>
+  ) => Promise<ToolCallResult>;
   readResource: (serverId: string, uri: string) => Promise<ResourceContent>;
   getPrompt: (
     serverId: string,
@@ -153,6 +160,8 @@ let unlistenNotification: UnlistenFn | null = null;
 let unlistenToolProgress: UnlistenFn | null = null;
 let unlistenLogMessage: UnlistenFn | null = null;
 let unlistenServerHealth: UnlistenFn | null = null;
+let unlistenAppBridge: UnlistenFn | null = null;
+let unlistenAppSecurity: UnlistenFn | null = null;
 
 export const useMcpStore = create<McpState>((set, get) => ({
   servers: [],
@@ -254,6 +263,32 @@ export const useMcpStore = create<McpState>((set, get) => ({
         });
       });
 
+      // MCP Apps bridge events (session-scoped bridge lifecycle and tool-call telemetry)
+      unlistenAppBridge = await listen<Record<string, unknown>>('mcp:app-bridge', (event) => {
+        log.debug(`MCP app bridge event: ${JSON.stringify(event.payload)}`);
+      });
+
+      // MCP Apps security events (policy denials / validation failures)
+      unlistenAppSecurity = await listen<Record<string, unknown>>('mcp:app-security-event', (event) => {
+        const payload = event.payload;
+        const serverId =
+          typeof payload?.serverId === 'string' ? payload.serverId : undefined;
+        const sessionId =
+          typeof payload?.sessionId === 'string' ? payload.sessionId : undefined;
+        const securityType =
+          typeof payload?.type === 'string' ? payload.type : 'unknown';
+
+        log.warn(`MCP app security event: ${securityType}`, payload);
+        get().addLog({
+          level: 'warning',
+          message: `MCP App security event (${securityType})${sessionId ? ` [session:${sessionId}]` : ''}`,
+          serverId,
+          serverName: get().servers.find((s) => s.id === serverId)?.name,
+          logger: 'mcp-app-security',
+          data: payload,
+        });
+      });
+
       // Load initial servers
       await get().loadServers();
 
@@ -349,6 +384,16 @@ export const useMcpStore = create<McpState>((set, get) => ({
     });
     getPluginEventHooks().dispatchMCPToolResult(serverId, toolName, result);
     return result;
+  },
+
+  callToolFromUi: async (serverId, sessionId, origin, toolName, args) => {
+    return invoke<ToolCallResult>('mcp_call_tool_from_ui', {
+      serverId,
+      sessionId,
+      origin,
+      toolName,
+      arguments: args,
+    });
   },
 
   readResource: async (serverId, uri) => {
@@ -678,6 +723,14 @@ export const useMcpStore = create<McpState>((set, get) => ({
     if (unlistenServerHealth) {
       unlistenServerHealth();
       unlistenServerHealth = null;
+    }
+    if (unlistenAppBridge) {
+      unlistenAppBridge();
+      unlistenAppBridge = null;
+    }
+    if (unlistenAppSecurity) {
+      unlistenAppSecurity();
+      unlistenAppSecurity = null;
     }
     set({ isInitialized: false, serverHealthMap: new Map<string, ServerHealth>() });
   },

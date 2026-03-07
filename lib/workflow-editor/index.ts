@@ -112,3 +112,10 @@ export {
   workflowTriggerSyncService,
   getTriggerSyncBadgeVariant,
 } from './trigger-sync-service';
+
+export {
+  mapEditorToWorkflowExecutionStatus,
+  isEditorExecutionTerminalStatus,
+  getExecutionControlState,
+  type ExecutionControlState,
+} from './execution-status';

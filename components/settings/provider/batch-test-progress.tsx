@@ -48,12 +48,18 @@ interface TestResultsSummaryProps {
   success: number;
   failed: number;
   total: number;
+  completed?: number;
+  expectedTotal?: number;
+  canceled?: boolean;
 }
 
 export const TestResultsSummary = React.memo(function TestResultsSummary({
   success,
   failed,
   total,
+  completed,
+  expectedTotal,
+  canceled = false,
 }: TestResultsSummaryProps) {
   const t = useTranslations('providers');
 
@@ -77,6 +83,13 @@ export const TestResultsSummary = React.memo(function TestResultsSummary({
           </span>
         )}
       </div>
+      {typeof completed === 'number' && typeof expectedTotal === 'number' && (
+        <span className="text-xs text-muted-foreground ml-auto">
+          {canceled
+            ? `${t('cancel')}: ${completed}/${expectedTotal}`
+            : `${completed}/${expectedTotal}`}
+        </span>
+      )}
     </div>
   );
 });

@@ -234,6 +234,13 @@ pub mod methods {
     // Logging
     pub const LOGGING_SET_LEVEL: &str = "logging/setLevel";
 
+    // MCP Apps UI bridge
+    pub const UI_INITIALIZE: &str = "ui/initialize";
+    pub const UI_NOTIFICATION_TOOL_INPUT: &str = "ui/notifications/tool-input";
+    pub const UI_NOTIFICATION_TOOL_RESULT: &str = "ui/notifications/tool-result";
+    pub const UI_MESSAGE: &str = "ui/message";
+    pub const UI_UPDATE_MODEL_CONTEXT: &str = "ui/update-model-context";
+
     // Notifications
     pub const NOTIFICATION_PROGRESS: &str = "notifications/progress";
     pub const NOTIFICATION_MESSAGE: &str = "notifications/message";
@@ -630,6 +637,21 @@ mod tests {
     #[test]
     fn test_sampling_methods() {
         assert_eq!(methods::SAMPLING_CREATE_MESSAGE, "sampling/createMessage");
+    }
+
+    #[test]
+    fn test_ui_bridge_methods() {
+        assert_eq!(methods::UI_INITIALIZE, "ui/initialize");
+        assert_eq!(
+            methods::UI_NOTIFICATION_TOOL_INPUT,
+            "ui/notifications/tool-input"
+        );
+        assert_eq!(
+            methods::UI_NOTIFICATION_TOOL_RESULT,
+            "ui/notifications/tool-result"
+        );
+        assert_eq!(methods::UI_MESSAGE, "ui/message");
+        assert_eq!(methods::UI_UPDATE_MODEL_CONTEXT, "ui/update-model-context");
     }
 
     #[test]

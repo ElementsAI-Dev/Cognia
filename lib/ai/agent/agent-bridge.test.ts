@@ -12,6 +12,27 @@ import {
 } from './agent-bridge';
 import type { SharedMemoryEntry } from '@/types/agent/agent-team';
 
+const backgroundListeners = new Map<string, Set<(payload: unknown) => void>>();
+const mockBackgroundEventEmitter = {
+  on: jest.fn((event: string, listener: (payload: unknown) => void) => {
+    if (!backgroundListeners.has(event)) {
+      backgroundListeners.set(event, new Set());
+    }
+    backgroundListeners.get(event)!.add(listener);
+    return () => {
+      backgroundListeners.get(event)?.delete(listener);
+    };
+  }),
+};
+
+function emitBackgroundEvent(event: string, payload: unknown): void {
+  backgroundListeners.get(event)?.forEach((listener) => listener(payload));
+}
+
+jest.mock('./background-agent-events', () => ({
+  getBackgroundAgentEventEmitter: () => mockBackgroundEventEmitter,
+}));
+
 // ============================================================================
 // BridgeEventEmitter Tests
 // ============================================================================
@@ -294,6 +315,8 @@ describe('AgentBridge delegation', () => {
 
   beforeEach(() => {
     bridge = new AgentBridge();
+    backgroundListeners.clear();
+    mockBackgroundEventEmitter.on.mockClear();
   });
 
   afterEach(() => {
@@ -432,5 +455,117 @@ describe('AgentBridge delegation', () => {
 
     expect(delegation.status).toBe('failed');
     expect(delegation.error).toBe('Background manager not available');
+  });
+
+  describe('delegateToBackground terminal outcomes', () => {
+    const baseAgent = {
+      id: 'bg-delegated-1',
+      sessionId: 'session-team',
+      name: 'Delegated Agent',
+    };
+
+    const mockBackgroundManager = {
+      createAgent: jest.fn(() => ({ ...baseAgent })),
+      queueAgent: jest.fn(() => true),
+      getAgent: jest.fn(() => ({ ...baseAgent })),
+    };
+
+    const mockTeamManager = {
+      getTeam: jest.fn(() => ({ id: 'team-1', sessionId: 'session-team' })),
+    };
+
+    beforeEach(() => {
+      mockBackgroundManager.createAgent.mockClear();
+      mockBackgroundManager.queueAgent.mockClear();
+      mockBackgroundManager.getAgent.mockClear();
+      mockTeamManager.getTeam.mockClear();
+      bridge.setBackgroundManagerGetter(
+        () =>
+          mockBackgroundManager as unknown as import('./background-agent-manager').BackgroundAgentManager
+      );
+      bridge.setTeamManagerGetter(
+        () => mockTeamManager as unknown as import('./agent-team').AgentTeamManager
+      );
+    });
+
+    it('resolves completed delegations and cleans terminal listeners', async () => {
+      const promise = bridge.delegateToBackground({
+        task: 'Ship feature',
+        sourceType: 'team',
+        sourceId: 'team-1',
+      });
+      await Promise.resolve();
+
+      emitBackgroundEvent('agent:completed', {
+        agent: { id: baseAgent.id },
+        result: { finalResponse: 'Done' },
+      });
+
+      const delegation = await promise;
+      expect(delegation.status).toBe('completed');
+      expect(delegation.result).toBe('Done');
+      expect(mockBackgroundEventEmitter.on).toHaveBeenCalledTimes(4);
+      expect(backgroundListeners.get('agent:completed')?.size || 0).toBe(0);
+      expect(backgroundListeners.get('agent:failed')?.size || 0).toBe(0);
+      expect(backgroundListeners.get('agent:cancelled')?.size || 0).toBe(0);
+      expect(backgroundListeners.get('agent:timeout')?.size || 0).toBe(0);
+    });
+
+    it('resolves cancelled delegations with cancelled status', async () => {
+      const promise = bridge.delegateToBackground({
+        task: 'Ship feature',
+        sourceType: 'team',
+        sourceId: 'team-1',
+      });
+      await Promise.resolve();
+
+      emitBackgroundEvent('agent:cancelled', {
+        agent: { id: baseAgent.id },
+      });
+
+      const delegation = await promise;
+      expect(delegation.status).toBe('cancelled');
+      expect(delegation.error).toContain('cancelled');
+    });
+
+    it('resolves timeout delegations as failed with timeout reason', async () => {
+      const promise = bridge.delegateToBackground({
+        task: 'Ship feature',
+        sourceType: 'team',
+        sourceId: 'team-1',
+      });
+      await Promise.resolve();
+
+      emitBackgroundEvent('agent:timeout', {
+        agent: { id: baseAgent.id },
+        duration: 4000,
+      });
+
+      const delegation = await promise;
+      expect(delegation.status).toBe('failed');
+      expect(delegation.error).toContain('timed out');
+    });
+
+    it('inherits session context from source team when options omit sessionId', async () => {
+      const promise = bridge.delegateToBackground({
+        task: 'Ship feature',
+        sourceType: 'team',
+        sourceId: 'team-1',
+      });
+      await Promise.resolve();
+
+      emitBackgroundEvent('agent:failed', {
+        agent: { id: baseAgent.id },
+        error: 'boom',
+      });
+
+      await promise;
+      expect(mockBackgroundManager.createAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId: 'session-team',
+        })
+      );
+      expect(mockTeamManager.getTeam).toHaveBeenCalledWith('team-1');
+    });
   });
 });

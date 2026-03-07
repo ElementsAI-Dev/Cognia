@@ -62,6 +62,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSkillStore } from '@/stores/skills';
 import { parseSkillMd } from '@/lib/skills/parser';
 import { SKILL_CATEGORY_KEYS } from '@/lib/settings/tools';
+import { useSkillActions } from '@/hooks/skills/use-skill-actions';
+import { toast } from '@/components/ui/toaster';
 import { SkillDetail } from '@/components/skills/skill-detail';
 import { SkillDiscovery } from '@/components/skills/skill-discovery';
 import { SkillMarketplace } from '@/components/skills/skill-marketplace';
@@ -126,20 +128,32 @@ function SkillCardSkeleton({ variant = 'grid' }: { variant?: ViewMode }) {
 export function SkillSettings() {
   const t = useTranslations('skillSettings');
   const tCommon = useTranslations('common');
+  const tSkills = useTranslations('skills');
+
+  const skillActions = useSkillActions();
 
   const {
     skills,
     isLoading,
     error,
-    createSkill,
-    deleteSkill,
-    enableSkill,
-    disableSkill,
-    activateSkill,
-    deactivateSkill,
+    bootstrapState,
+    lastBootstrapError,
+    syncState,
+    lastSyncAt,
+    lastSyncOutcome,
+    lastSyncError,
     clearError,
     importSkill,
   } = useSkillStore();
+
+  const resolveActionError = useCallback((errorKey?: string | null) => {
+    if (!errorKey) return;
+    if (errorKey.startsWith('i18n:')) {
+      toast.error(tSkills(errorKey.replace('i18n:', '')));
+      return;
+    }
+    toast.error(errorKey);
+  }, [tSkills]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<SkillCategory | 'all'>('all');
@@ -173,9 +187,14 @@ export function SkillSettings() {
 
   const handleCreateSkill = useCallback(
     (input: CreateSkillInput) => {
-      createSkill(input);
+      void (async () => {
+        const outcome = await skillActions.createSkill(input);
+        if (outcome.outcome === 'failure') {
+          resolveActionError(outcome.error);
+        }
+      })();
     },
-    [createSkill]
+    [resolveActionError, skillActions]
   );
 
   const handleImportSkill = useCallback(
@@ -199,24 +218,24 @@ export function SkillSettings() {
 
   const handleToggleSkill = useCallback(
     (skill: Skill) => {
-      if (skill.status === 'enabled') {
-        disableSkill(skill.id);
-      } else {
-        enableSkill(skill.id);
-      }
+      void (async () => {
+        const outcome = await skillActions.toggleSkillEnabled(skill);
+        if (outcome.outcome !== 'success') {
+          resolveActionError(outcome.error);
+        }
+      })();
     },
-    [enableSkill, disableSkill]
+    [resolveActionError, skillActions]
   );
 
   const handleActivateSkill = useCallback(
     (skill: Skill) => {
-      if (skill.isActive) {
-        deactivateSkill(skill.id);
-      } else {
-        activateSkill(skill.id);
+      const outcome = skillActions.setSkillActive(skill, !skill.isActive);
+      if (outcome.outcome !== 'success') {
+        resolveActionError(outcome.error);
       }
     },
-    [activateSkill, deactivateSkill]
+    [resolveActionError, skillActions]
   );
 
   const [deleteConfirmSkillId, setDeleteConfirmSkillId] = useState<string | null>(null);
@@ -227,10 +246,18 @@ export function SkillSettings() {
 
   const confirmDeleteSkill = useCallback(() => {
     if (deleteConfirmSkillId) {
-      deleteSkill(deleteConfirmSkillId);
+      const deleting = skills[deleteConfirmSkillId];
+      if (deleting) {
+        void (async () => {
+          const outcome = await skillActions.deleteSkill(deleting);
+          if (outcome.outcome === 'failure') {
+            resolveActionError(outcome.error);
+          }
+        })();
+      }
     }
     setDeleteConfirmSkillId(null);
-  }, [deleteConfirmSkillId, deleteSkill, setDeleteConfirmSkillId]);
+  }, [deleteConfirmSkillId, resolveActionError, setDeleteConfirmSkillId, skillActions, skills]);
 
   const groupedSkills = useMemo(() =>
     filteredSkills.reduce(
@@ -288,6 +315,31 @@ export function SkillSettings() {
                   </Button>
                 </AlertDescription>
               </Alert>
+            )}
+            {(bootstrapState === 'syncing' || syncState === 'syncing') && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>{tSkills('processing')}</AlertTitle>
+                <AlertDescription>{tSkills('bootstrapInProgress')}</AlertDescription>
+              </Alert>
+            )}
+            {(lastBootstrapError || lastSyncError) && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>{tCommon('error')}</AlertTitle>
+                <AlertDescription>
+                  {(lastBootstrapError || lastSyncError || '').startsWith('i18n:')
+                    ? tSkills((lastBootstrapError || lastSyncError || '').replace('i18n:', ''))
+                    : (lastBootstrapError || lastSyncError)}
+                </AlertDescription>
+              </Alert>
+            )}
+            {syncState !== 'idle' && (
+              <div className="text-xs text-muted-foreground flex items-center gap-2">
+                <span>{tSkills('syncStateLabel')}:</span>
+                <Badge variant="secondary">{lastSyncOutcome}</Badge>
+                {lastSyncAt && <span>{new Date(lastSyncAt).toLocaleString()}</span>}
+              </div>
             )}
 
             <Tabs defaultValue="my-skills" className="w-full">

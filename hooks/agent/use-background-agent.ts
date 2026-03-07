@@ -32,6 +32,26 @@ function getManager(): BackgroundAgentManager {
   return getBackgroundAgentManager();
 }
 
+const restoredManagers = new WeakSet<BackgroundAgentManager>();
+const lifecycleSubscriberCount = new WeakMap<BackgroundAgentManager, number>();
+const lifecycleCleanupMap = new WeakMap<BackgroundAgentManager, () => void>();
+const shutdownInFlight = new WeakMap<BackgroundAgentManager, Promise<unknown>>();
+
+function persistAndShutdownBestEffort(manager: BackgroundAgentManager): void {
+  manager.persistState();
+
+  if (shutdownInFlight.has(manager)) return;
+
+  const shutdownPromise = manager
+    .shutdown({ timeoutMs: 1500, forceCancel: false, saveCheckpoints: true })
+    .catch(() => undefined)
+    .finally(() => {
+      shutdownInFlight.delete(manager);
+    });
+
+  shutdownInFlight.set(manager, shutdownPromise);
+}
+
 export interface UseBackgroundAgentOptions {
   sessionId?: string;
 }
@@ -130,6 +150,58 @@ export function useBackgroundAgent(
     selectAgent: storeSelectAgent,
   } = useBackgroundAgentStore();
 
+  // One-time background lifecycle initialization per manager instance.
+  useEffect(() => {
+    const manager = getManager();
+
+    if (!restoredManagers.has(manager)) {
+      manager.restoreState();
+      restoredManagers.add(manager);
+    }
+
+    syncQueueState(manager.getQueueState());
+
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
+    const currentSubscribers = lifecycleSubscriberCount.get(manager) || 0;
+    lifecycleSubscriberCount.set(manager, currentSubscribers + 1);
+
+    if (!lifecycleCleanupMap.has(manager)) {
+      const handleBeforeUnload = () => persistAndShutdownBestEffort(manager);
+      const handlePageHide = () => persistAndShutdownBestEffort(manager);
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'hidden') {
+          manager.persistState();
+        }
+      };
+
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      window.addEventListener('pagehide', handlePageHide);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      lifecycleCleanupMap.set(manager, () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.removeEventListener('pagehide', handlePageHide);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      });
+    }
+
+    return () => {
+      const subscribers = (lifecycleSubscriberCount.get(manager) || 1) - 1;
+
+      if (subscribers <= 0) {
+        lifecycleSubscriberCount.delete(manager);
+        const cleanup = lifecycleCleanupMap.get(manager);
+        cleanup?.();
+        lifecycleCleanupMap.delete(manager);
+      } else {
+        lifecycleSubscriberCount.set(manager, subscribers);
+      }
+    };
+  }, [syncQueueState]);
+
   // Set up providers for BackgroundAgentManager
   useEffect(() => {
     const manager = getManager();
@@ -159,6 +231,23 @@ export function useBackgroundAgent(
 
     const syncAgent = (agent: BackgroundAgent) => {
       if (!isMountedRef.current) return;
+
+      if (!agent.sessionId && sessionId) {
+        const hydrated = manager.hydrateAgent(
+          {
+            ...agent,
+            sessionId,
+            metadata: {
+              ...agent.metadata,
+              recoveredLegacySessionId: true,
+            },
+          },
+          { normalizeRunningToQueued: agent.status === 'running' }
+        );
+        upsertAgentSnapshot(hydrated);
+        return;
+      }
+
       upsertAgentSnapshot(agent);
     };
 
@@ -237,7 +326,7 @@ export function useBackgroundAgent(
       unsubQueuePaused();
       unsubQueueResumed();
     };
-  }, [syncQueueState, upsertAgentSnapshot]);
+  }, [sessionId, syncQueueState, upsertAgentSnapshot]);
 
   // Get agents for current session
   const agents = useMemo(() => {
@@ -286,18 +375,31 @@ export function useBackgroundAgent(
       const storeAgent = getAgent(agentId);
       if (!storeAgent) return undefined;
 
-      return manager.hydrateAgent(storeAgent, hydrateOptions);
+      const normalizedSnapshot =
+        !storeAgent.sessionId && sessionId
+          ? {
+              ...storeAgent,
+              sessionId,
+              metadata: {
+                ...storeAgent.metadata,
+                recoveredLegacySessionId: true,
+              },
+            }
+          : storeAgent;
+
+      return manager.hydrateAgent(normalizedSnapshot, hydrateOptions);
     },
-    [getAgent]
+    [getAgent, sessionId]
   );
 
   // Create agent
   const createAgent = useCallback(
     (input: Omit<CreateBackgroundAgentInput, 'sessionId'>): BackgroundAgent => {
       const manager = getManager();
+      const resolvedSessionId = sessionId || 'background-global-session';
       const managedAgent = manager.createAgent({
         ...input,
-        sessionId,
+        sessionId: resolvedSessionId,
       });
 
       upsertAgentSnapshot(managedAgent);
@@ -312,18 +414,24 @@ export function useBackgroundAgent(
   const updateAgent = useCallback(
     (id: string, updates: UpdateBackgroundAgentInput): void => {
       const manager = getManager();
-      storeUpdateAgent(id, updates);
-      manager.updateAgent(id, updates);
+      const managed = manager.updateAgent(id, updates);
+      if (managed) {
+        upsertAgentSnapshot(managed);
+      } else {
+        storeUpdateAgent(id, updates);
+      }
     },
-    [storeUpdateAgent]
+    [storeUpdateAgent, upsertAgentSnapshot]
   );
 
   // Delete agent
   const deleteAgent = useCallback(
     (id: string): void => {
       const manager = getManager();
-      manager.deleteAgent(id);
-      storeDeleteAgent(id);
+      const deleted = manager.deleteAgent(id);
+      if (!deleted) {
+        storeDeleteAgent(id);
+      }
       syncQueueState(manager.getQueueState());
     },
     [storeDeleteAgent, syncQueueState]

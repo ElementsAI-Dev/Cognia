@@ -23,6 +23,18 @@ import {
 } from '@/lib/skills/marketplace';
 import { parseSkillMd, inferCategoryFromContent, extractTagsFromContent } from '@/lib/skills/parser';
 import { useSkillStore } from './skill-store';
+import type { Skill } from '@/types/system/skill';
+import {
+  buildNativeLinkedSkillUpdate,
+  promoteSkillToNative,
+} from '@/lib/skills/skill-actions';
+import { isNativeSkillAvailable } from '@/lib/native/skill';
+
+interface InstallRetryMetadata {
+  skillId: string;
+  directory: string;
+  reason: string;
+}
 
 interface SkillMarketplaceState {
   // State
@@ -45,6 +57,7 @@ interface SkillMarketplaceState {
   // Installation tracking
   installingItems: Map<string, SkillInstallStatus>;
   installErrors: Map<string, string>;
+  installRetryMetadata: Map<string, InstallRetryMetadata>;
 
   // API Key
   apiKey: string | null;
@@ -114,6 +127,7 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
       isLoadingDetail: false,
       installingItems: new Map(),
       installErrors: new Map(),
+      installRetryMetadata: new Map(),
       apiKey: null,
       favorites: new Set(),
       searchHistory: [],
@@ -221,6 +235,62 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
         });
 
         try {
+          const retryMetadata = get().installRetryMetadata.get(item.id);
+          const skillStore = useSkillStore.getState();
+
+          if (retryMetadata) {
+            const retrySkill = skillStore.getAllSkills().find((skill) => skill.id === retryMetadata.skillId);
+            if (retrySkill && isNativeSkillAvailable()) {
+              const retryPromotion = await promoteSkillToNative({
+                skill: retrySkill,
+                directory: retryMetadata.directory,
+              });
+
+              if (retryPromotion.data) {
+                skillStore.updateSkill(
+                  retrySkill.id,
+                  buildNativeLinkedSkillUpdate(retrySkill, retryPromotion.data, retryPromotion.error ?? null)
+                );
+              }
+
+              if (retryPromotion.outcome === 'success') {
+                set((s) => {
+                  const newInstalling = new Map(s.installingItems);
+                  const newErrors = new Map(s.installErrors);
+                  const newRetry = new Map(s.installRetryMetadata);
+                  newInstalling.set(item.id, 'installed');
+                  newErrors.delete(item.id);
+                  newRetry.delete(item.id);
+                  return {
+                    installingItems: newInstalling,
+                    installErrors: newErrors,
+                    installRetryMetadata: newRetry,
+                  };
+                });
+                return true;
+              }
+
+              set((s) => {
+                const newInstalling = new Map(s.installingItems);
+                const newErrors = new Map(s.installErrors);
+                const newRetry = new Map(s.installRetryMetadata);
+                newInstalling.set(item.id, 'error');
+                newErrors.set(item.id, retryPromotion.error || 'i18n:nativePromotionPartial');
+                newRetry.set(item.id, {
+                  skillId: retrySkill.id,
+                  directory: retryMetadata.directory,
+                  reason: retryPromotion.error || 'i18n:nativePromotionPartial',
+                });
+                return {
+                  installingItems: newInstalling,
+                  installErrors: newErrors,
+                  installRetryMetadata: newRetry,
+                };
+              });
+              return false;
+            }
+          }
+
           // Download skill content with API key for resource fetching
           const apiKey = get().apiKey || undefined;
           const content = await downloadSkillContent(item.id, apiKey);
@@ -258,7 +328,6 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
           });
 
           // Create skill in local store
-          const skillStore = useSkillStore.getState();
           const skill = skillStore.importSkill({
             metadata: { name, description },
             content: contentBody,
@@ -273,22 +342,70 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
             license: item.license,
           });
 
+          let installState: SkillInstallStatus = 'installed';
+          let installError: string | null = null;
+          let retryDirectory = name;
+
+          if (isNativeSkillAvailable()) {
+            const promotion = await promoteSkillToNative({
+              skill: skill as Skill,
+            });
+
+            retryDirectory = promotion.directory;
+
+            if (promotion.data) {
+              skillStore.updateSkill(
+                skill.id,
+                buildNativeLinkedSkillUpdate(skill as Skill, promotion.data, promotion.error ?? null)
+              );
+            } else if (promotion.outcome !== 'success') {
+              skillStore.updateSkill(skill.id, {
+                lastSyncError: promotion.error || 'i18n:nativePromotionPartial',
+              });
+            }
+
+            if (promotion.outcome !== 'success') {
+              installState = 'error';
+              installError = promotion.error || 'i18n:nativePromotionPartial';
+            }
+          }
+
           // Update status to installed
           set((s) => {
             const newInstalling = new Map(s.installingItems);
-            newInstalling.set(item.id, 'installed');
-            return { installingItems: newInstalling };
+            const newErrors = new Map(s.installErrors);
+            const newRetry = new Map(s.installRetryMetadata);
+            newInstalling.set(item.id, installState);
+            if (installError) {
+              newErrors.set(item.id, installError);
+              newRetry.set(item.id, {
+                skillId: skill.id,
+                directory: retryDirectory,
+                reason: installError,
+              });
+            } else {
+              newErrors.delete(item.id);
+              newRetry.delete(item.id);
+            }
+            return {
+              installingItems: newInstalling,
+              installErrors: newErrors,
+              installRetryMetadata: newRetry,
+            };
           });
 
-          return !!skill;
+          return installState === 'installed';
         } catch (error) {
           // Update status to error
           set((s) => {
             const newInstalling = new Map(s.installingItems);
             const newErrors = new Map(s.installErrors);
             newInstalling.set(item.id, 'error');
-            newErrors.set(item.id, error instanceof Error ? error.message : 'Install failed');
-            return { installingItems: newInstalling, installErrors: newErrors };
+            newErrors.set(item.id, error instanceof Error ? error.message : 'i18n:marketplace.installFailed');
+            return {
+              installingItems: newInstalling,
+              installErrors: newErrors,
+            };
           });
 
           return false;
@@ -367,6 +484,7 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
 
       isItemInstalled: (skillId) => {
         const status = get().installingItems.get(skillId);
+        if (status === 'error') return false;
         if (status === 'installed') return true;
 
         // Also check skill store
@@ -400,6 +518,7 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
         searchHistory: state.searchHistory,
         viewMode: state.viewMode,
         installingItems: Array.from(state.installingItems.entries()),
+        installRetryMetadata: Array.from(state.installRetryMetadata.entries()),
       }),
       merge: (persisted, current) => {
         const persistedState = persisted as {
@@ -408,6 +527,7 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
           searchHistory?: string[];
           viewMode?: 'grid' | 'list';
           installingItems?: [string, SkillInstallStatus][];
+          installRetryMetadata?: [string, InstallRetryMetadata][];
         };
         return {
           ...current,
@@ -416,6 +536,7 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
           searchHistory: persistedState.searchHistory || [],
           viewMode: persistedState.viewMode || 'grid',
           installingItems: new Map(persistedState.installingItems || []),
+          installRetryMetadata: new Map(persistedState.installRetryMetadata || []),
         };
       },
     }

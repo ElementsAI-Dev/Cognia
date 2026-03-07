@@ -13,6 +13,7 @@
 
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { loggers } from '@/lib/logger';
+import { toast } from '@/components/ui/sonner';
 import { useMediaStore } from '@/stores';
 import { useVideoGeneration } from '@/hooks/media/use-video-generation';
 import {
@@ -29,7 +30,9 @@ import {
   type VideoStyle,
 } from '@/types/media/video';
 import { DURATION_OPTIONS } from '@/components/video-studio/constants';
-import type { VideoJob } from '@/types/video-studio/types';
+import type { VideoJob, CameraMotion } from '@/types/video-studio/types';
+import { DEFAULT_CAMERA_MOTION } from '@/types/video-studio/types';
+import { cameraMotionToPrompt } from '@/components/video-studio/generation/camera-motion-controls';
 
 export interface UseAIGenerationModeReturn {
   // Tabs
@@ -88,6 +91,10 @@ export interface UseAIGenerationModeReturn {
   setSeed: React.Dispatch<React.SetStateAction<number | undefined>>;
   estimatedCost: number;
 
+  // Camera motion
+  cameraMotion: CameraMotion;
+  setCameraMotion: React.Dispatch<React.SetStateAction<CameraMotion>>;
+
   // Image-to-video
   referenceImage: string | null;
   handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -116,7 +123,7 @@ export function useAIGenerationMode(): UseAIGenerationModeReturn {
   const [previewVideo, setPreviewVideo] = useState<VideoJob | null>(null);
 
   // Settings visibility
-  const [showSettings, setShowSettings] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
   const [showMoreTemplates, setShowMoreTemplates] = useState(false);
   const [filterFavorites, setFilterFavorites] = useState(false);
 
@@ -132,6 +139,9 @@ export function useAIGenerationMode(): UseAIGenerationModeReturn {
   const [includeAudio, setIncludeAudio] = useState(false);
   const [audioPrompt, setAudioPrompt] = useState('');
   const [seed, setSeed] = useState<number | undefined>(undefined);
+
+  // Camera motion
+  const [cameraMotion, setCameraMotion] = useState<CameraMotion>(DEFAULT_CAMERA_MOTION);
 
   // Image-to-video
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
@@ -201,6 +211,7 @@ export function useAIGenerationMode(): UseAIGenerationModeReturn {
       const matchingJob = videoJobs.find((j) => j.jobId === video.id);
       if (matchingJob && video.url) {
         savedJobIdsRef.current.add(video.id || '');
+        toast.success(`Video generated: ${matchingJob.prompt.substring(0, 50)}${matchingJob.prompt.length > 50 ? '…' : ''}`);
         mediaStore.addVideo({
           jobId: video.id,
           url: video.url,
@@ -241,7 +252,10 @@ export function useAIGenerationMode(): UseAIGenerationModeReturn {
 
     setVideoJobs((prev) => [newJob, ...prev]);
 
-    const result = await videoGen.generate(prompt.trim(), {
+    const cameraSuffix = cameraMotionToPrompt(cameraMotion);
+    const fullPrompt = prompt.trim() + cameraSuffix;
+
+    const result = await videoGen.generate(fullPrompt, {
       provider,
       model,
       resolution,
@@ -289,6 +303,7 @@ export function useAIGenerationMode(): UseAIGenerationModeReturn {
     audioPrompt,
     seed,
     referenceImage,
+    cameraMotion,
     videoGen,
   ]);
 
@@ -431,6 +446,10 @@ export function useAIGenerationMode(): UseAIGenerationModeReturn {
     seed,
     setSeed,
     estimatedCost,
+
+    // Camera motion
+    cameraMotion,
+    setCameraMotion,
 
     // Image-to-video
     referenceImage,

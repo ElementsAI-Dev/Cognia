@@ -247,10 +247,18 @@
       "favorites": "Favorites",
       "recent": "Recent"
     },
+    "source": {
+      "remote": "Remote data",
+      "fallback": "Fallback data",
+      "healthy": "Connection healthy",
+      "remoteFirst": "Remote-first",
+      "refresh": "Refresh"
+    },
     "search": {
       "placeholder": "Search prompts...",
       "results": "Search Results",
       "noResults": "No prompts found",
+      "noResultsDesc": "Try adjusting filters or searching with different keywords.",
       "clearFilters": "Clear filters",
       "clearSearch": "Clear search",
       "matchingFilters": "Matching your filters"
@@ -358,9 +366,18 @@
       "importFailed": "Import failed",
       "imported": "Imported",
       "skipped": "Skipped",
+      "failed": "Failed",
       "invalidFormat": "Invalid file format",
       "parseError": "Failed to parse JSON",
-      "failedToImport": "Failed to import"
+      "failedToImport": "Failed to import",
+      "conflictStrategy": "Conflict strategy",
+      "strategy": {
+        "skip": "Skip duplicates",
+        "overwrite": "Overwrite installed",
+        "duplicate": "Import as duplicate"
+      },
+      "copyFailed": "Failed to copy export content",
+      "downloadFailed": "Failed to download export file"
     },
     "author": {
       "back": "Back",
@@ -394,7 +411,12 @@
       "publishButton": "Publish Prompt",
       "publishing": "Publishing...",
       "success": "Prompt published successfully!",
-      "failed": "Failed to publish prompt"
+      "failed": "Failed to publish prompt",
+      "validation": {
+        "nameRequired": "Prompt name is required",
+        "descriptionRequired": "Prompt description is required",
+        "categoryInvalid": "Selected category cannot be published"
+      }
     },
     "detail": {
       "ratings": "ratings",
@@ -421,8 +443,12 @@
       "shareLinkCopied": "Share link copied!",
       "addToFavorites": "Add to favorites",
       "removeFromFavorites": "Remove from favorites",
+      "addedToFavorites": "Added to favorites",
+      "removedFromFavorites": "Removed from favorites",
       "copyPromptContent": "Copy prompt content",
+      "copyFailed": "Failed to copy prompt content",
       "sharePrompt": "Share prompt",
+      "shareFailed": "Failed to copy share link",
       "installPrompt": "Install Prompt",
       "installed": "Installed",
       "installing": "Installing...",
@@ -441,6 +467,11 @@
       "testWithAI": "Test with AI",
       "testing": "Testing...",
       "testResult": "Test Result",
+      "testFailed": "Prompt test failed",
+      "testErrorPrefix": "Error",
+      "unknownTestingError": "Unknown test error",
+      "noResponseReceived": "No response received",
+      "missingRequiredVariables": "Missing required variables: {variables}",
       "copyResult": "Copy Result",
       "sendToChat": "Send to Chat",
       "reviewSubmitted": "Review submitted successfully!",
@@ -449,6 +480,7 @@
       "alreadyReviewed": "You have already reviewed this prompt",
       "userReviews": "User Reviews",
       "helpful": "Helpful",
+      "markedHelpful": "Marked as helpful",
       "runTestHint": "Run a test to see the AI response here",
       "copyToClipboard": "Copy to clipboard"
     }

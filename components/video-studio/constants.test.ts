@@ -4,6 +4,8 @@ import {
   RESOLUTION_OPTIONS,
   ASPECT_RATIO_OPTIONS,
   DURATION_OPTIONS,
+  CAMERA_PRESETS,
+  VIDEO_ZOOM_LEVELS,
 } from './constants';
 
 describe('Video Studio Constants', () => {
@@ -131,6 +133,72 @@ describe('Video Studio Constants', () => {
       const values = DURATION_OPTIONS.map((d) => d.value);
       expect(values).toContain('5s');
       expect(values).toContain('10s');
+    });
+  });
+
+  describe('CAMERA_PRESETS', () => {
+    it('should have at least 8 presets', () => {
+      expect(CAMERA_PRESETS.length).toBeGreaterThanOrEqual(8);
+    });
+
+    it('should have valid preset structure', () => {
+      CAMERA_PRESETS.forEach((preset) => {
+        expect(preset).toHaveProperty('id');
+        expect(preset).toHaveProperty('label');
+        expect(preset).toHaveProperty('icon');
+        expect(preset).toHaveProperty('motion');
+        expect(typeof preset.id).toBe('string');
+        expect(typeof preset.label).toBe('string');
+        expect(typeof preset.icon).toBe('string');
+        expect(preset.motion).toHaveProperty('horizontal');
+        expect(preset.motion).toHaveProperty('vertical');
+        expect(preset.motion).toHaveProperty('pan');
+        expect(preset.motion).toHaveProperty('tilt');
+        expect(preset.motion).toHaveProperty('zoom');
+        expect(preset.motion).toHaveProperty('roll');
+      });
+    });
+
+    it('should have unique ids', () => {
+      const ids = CAMERA_PRESETS.map((p) => p.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it('should include a static preset with all zeros', () => {
+      const staticPreset = CAMERA_PRESETS.find((p) => p.id === 'static');
+      expect(staticPreset).toBeDefined();
+      expect(Object.values(staticPreset!.motion).every((v) => v === 0)).toBe(true);
+    });
+
+    it('should have motion values in valid range (-100 to 100)', () => {
+      CAMERA_PRESETS.forEach((preset) => {
+        Object.values(preset.motion).forEach((v) => {
+          expect(v).toBeGreaterThanOrEqual(-100);
+          expect(v).toBeLessThanOrEqual(100);
+        });
+      });
+    });
+  });
+
+  describe('VIDEO_ZOOM_LEVELS', () => {
+    it('should have at least 3 zoom levels', () => {
+      expect(VIDEO_ZOOM_LEVELS.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('should have valid zoom level structure', () => {
+      VIDEO_ZOOM_LEVELS.forEach((level) => {
+        expect(level).toHaveProperty('label');
+        expect(level).toHaveProperty('cols');
+        expect(typeof level.label).toBe('string');
+        expect(typeof level.cols).toBe('number');
+        expect(level.cols).toBeGreaterThan(0);
+      });
+    });
+
+    it('should have increasing column counts', () => {
+      const cols = VIDEO_ZOOM_LEVELS.map((l) => l.cols);
+      const sorted = [...cols].sort((a, b) => a - b);
+      expect(cols).toEqual(sorted);
     });
   });
 });

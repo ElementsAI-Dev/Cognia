@@ -12,6 +12,22 @@ import {
   getAutoLoadSkillsForTools,
 } from '@/lib/skills/executor';
 
+const mockStoreCreateBackgroundAgent = jest.fn(() => ({
+  id: 'bg-agent-1',
+  name: 'Test Agent',
+  status: 'pending',
+}));
+const mockOpenBackgroundPanel = jest.fn();
+const mockBackgroundManager = {
+  createAgent: jest.fn(() => ({
+    id: 'managed-bg-agent-1',
+    name: 'Test Agent',
+    status: 'idle',
+  })),
+  queueAgent: jest.fn(() => true),
+  startAgent: jest.fn().mockResolvedValue(true),
+};
+
 // Mock stores
 jest.mock('@/stores', () => ({
   useSettingsStore: jest.fn((selector) => {
@@ -56,15 +72,24 @@ jest.mock('@/stores', () => ({
 jest.mock('@/stores/agent', () => ({
   useBackgroundAgentStore: jest.fn((selector) => {
     const state = {
-      createAgent: jest.fn(() => ({
-        id: 'bg-agent-1',
-        name: 'Test Agent',
-        status: 'pending',
-      })),
-      openPanel: jest.fn(),
+      createAgent: mockStoreCreateBackgroundAgent,
+      openPanel: mockOpenBackgroundPanel,
     };
     return selector(state);
   }),
+}));
+
+jest.mock('@/stores/chat', () => ({
+  useSessionStore: jest.fn((selector) => {
+    const state = {
+      getActiveSession: () => ({ id: 'session-1' }),
+    };
+    return selector(state);
+  }),
+}));
+
+jest.mock('@/lib/ai/agent/background-agent-manager', () => ({
+  getBackgroundAgentManager: jest.fn(() => mockBackgroundManager),
 }));
 
 // Mock agent functions
@@ -327,7 +352,7 @@ describe('useAgent', () => {
   });
 
   describe('runInBackground', () => {
-    it('should create background agent', () => {
+    it('should create and queue a managed background agent with session binding', () => {
       const { result } = renderHook(() => useAgent());
 
       let agent;
@@ -336,7 +361,16 @@ describe('useAgent', () => {
       });
 
       expect(agent).toBeDefined();
-      expect((agent as unknown as { id: string }).id).toBe('bg-agent-1');
+      expect((agent as unknown as { id: string }).id).toBe('managed-bg-agent-1');
+      expect(mockBackgroundManager.createAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId: 'session-1',
+          name: 'Test Agent',
+          task: 'Do something',
+        })
+      );
+      expect(mockBackgroundManager.queueAgent).toHaveBeenCalledWith('managed-bg-agent-1');
+      expect(mockOpenBackgroundPanel).toHaveBeenCalled();
     });
   });
 

@@ -124,12 +124,23 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
 
           const currentTriggers = saved.settings.triggers || [];
           let syncErrorCount = 0;
+          let syncErrorDetails: string[] = [];
           let syncFailedMessage: string | null = null;
 
           if (currentTriggers.length > 0) {
             try {
               const syncedTriggers = await workflowTriggerSyncService.syncAll(saved);
-              syncErrorCount = syncedTriggers.filter((trigger) => trigger.config.syncStatus === 'error').length;
+              const failedTriggers = syncedTriggers.filter(
+                (trigger) => trigger.config.syncStatus === 'error'
+              );
+              syncErrorCount = failedTriggers.length;
+              syncErrorDetails = failedTriggers.map((trigger) => {
+                const taskRef = trigger.config.bindingTaskId
+                  ? `task ${trigger.config.bindingTaskId}`
+                  : 'task unbound';
+                const reason = trigger.config.lastSyncError || 'unknown sync error';
+                return `${trigger.name} (${taskRef}): ${reason}`;
+              });
 
               if (!areTriggersEquivalent(currentTriggers, syncedTriggers)) {
                 saved = await workflowRepository.save({
@@ -171,8 +182,13 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
           }
 
           if (syncErrorCount > 0) {
+            const detailPreview = syncErrorDetails.slice(0, 2).join('; ');
+            const moreCount = Math.max(syncErrorDetails.length - 2, 0);
             toast.warning('Workflow saved with trigger sync errors', {
-              description: `${syncErrorCount} trigger(s) need attention`,
+              description:
+                detailPreview.length > 0
+                  ? `${detailPreview}${moreCount > 0 ? `; +${moreCount} more` : ''}`
+                  : `${syncErrorCount} trigger(s) need attention`,
             });
             return;
           }

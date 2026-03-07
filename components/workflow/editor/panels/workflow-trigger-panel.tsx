@@ -22,6 +22,7 @@ import {
   Link2,
   Unplug,
   Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TimezoneSelect } from '@/components/scheduler/timezone-select';
@@ -102,6 +103,10 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
   }, [currentWorkflow?.settings]);
 
   const [expandedTrigger, setExpandedTrigger] = useState<string | null>(null);
+  const failedSyncTriggers = useMemo(
+    () => triggers.filter((trigger) => trigger.config.syncStatus === 'error'),
+    [triggers]
+  );
 
   const setTriggerSyncing = useCallback((triggerId: string, syncing: boolean) => {
     setSyncingTriggerIds((current) => {
@@ -377,6 +382,25 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
           </div>
 
           <Separator />
+
+          {failedSyncTriggers.length > 0 && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
+              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                Trigger sync issues ({failedSyncTriggers.length})
+              </div>
+              <div className="space-y-1 text-xs text-destructive/90">
+                {failedSyncTriggers.map((trigger) => (
+                  <p key={trigger.id}>
+                    {trigger.name}
+                    {trigger.config.bindingTaskId
+                      ? ` · impacted task: ${trigger.config.bindingTaskId}`
+                      : ' · impacted task: unbound'}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Trigger list */}
           {triggers.length === 0 ? (

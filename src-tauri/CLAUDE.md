@@ -10,21 +10,31 @@ Tauri Rust backend for native capabilities. This module provides desktop-specifi
 
 ## Directory Structure
 
-- `awareness/` — System awareness (activity tracker, focus tracker, system monitor, smart suggestions)
-- `chat_widget/` — Chat widget window management
 - `assistant_bubble/` — Assistant bubble window management
-- `commands/` — Tauri commands (API, clipboard, Ollama, port, local provider, vector, selection, screenshot, OCR, context, awareness, sandbox, model download, environment, Jupyter, proxy, screen recording, chat widget, assistant bubble, window diagnostics, Git, process, academic, plugin, skill)
+- `awareness/` — System awareness (activity tracker, focus tracker, system monitor, smart suggestions)
+- `chat_runtime/` — Chat runtime engine
+- `chat_widget/` — Chat widget window management
+- `commands/` — Tauri commands (70+ files: API, clipboard, Ollama, port, local provider, vector, selection, screenshot, OCR, context, awareness, sandbox, model download, environment, Jupyter, proxy, screen recording, chat widget, assistant bubble, window diagnostics, Git, process, academic, plugin, skill, external agent)
 - `context/` — Context detection (app context, browser context, editor context, file context, screen content, window info)
+- `convex/` — Convex integration
+- `external_agent/` — External agent process management (ACP protocol, stdio transport)
+- `input_completion/` — Input completion system
 - `jupyter/` — Jupyter integration (kernel, session, protocol)
 - `mcp/` — MCP support (client, config, error, manager, protocol, transport, types)
 - `plugin/` — Plugin system
 - `process/` — Process management
 - `sandbox/` — Code execution sandbox (db, docker, languages, native, podman, runtime)
+- `scheduler/` — Scheduler runtime
 - `screen_recording/` — Screen recording (history, recorder, video processor)
 - `screenshot/` — Screenshot system (annotator, capture, OCR, providers, region selector, window manager, history, Windows OCR)
 - `selection/` — Selection system (analyzer, clipboard context, clipboard history, detector, expander, extractor, history, mouse hook, smart selection, toolbar window, types)
 - `skill/` — Skill service
-- `tray/` — System tray
+- `skill_seekers/` — SkillSeekers system
+- `speedpass_runtime/` — SpeedPass runtime
+- `workflow_runtime/` — Workflow execution runtime
+- `http.rs` — HTTP server
+- `port_utils.rs` — Port utilities
+- `tray.rs` — System tray
 
 ## Entry Points
 
@@ -220,8 +230,9 @@ pub async fn get_data(state: State<'_, MyState>) -> Result<Vec<String>, String> 
 
 ## Testing
 
-- **Framework**: None (Rust tests not configured)
-- **Coverage**: Partial
+- **Framework**: Rust `#[cfg(test)]` modules (process, awareness, and other modules have unit tests)
+- **Run**: `cargo test` from `src-tauri/`
+- **Coverage**: Partial — not all modules have tests
 
 ## Related Files
 

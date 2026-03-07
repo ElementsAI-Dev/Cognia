@@ -84,6 +84,8 @@ export interface MonacoLspAdapterOptions {
   languageId: string;
   rootUri?: string;
   protocolV2Enabled?: boolean;
+  requestTimeoutMs?: number;
+  workspaceSymbolsTimeoutMs?: number;
   extendedFeaturesEnabled?: boolean;
   autoInstall?: boolean;
   preferredProviders?: LspProvider[];
@@ -624,6 +626,13 @@ function resolveFeatureSupport(
   };
 }
 
+function normalizeRequestTimeout(value: number | undefined, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.max(1_000, Math.min(120_000, Math.round(value)));
+}
+
 export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): MonacoLspAdapter {
   const {
     monaco,
@@ -631,12 +640,19 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
     languageId,
     rootUri = 'file:///workspace',
     protocolV2Enabled = true,
+    requestTimeoutMs,
+    workspaceSymbolsTimeoutMs,
     extendedFeaturesEnabled = true,
     autoInstall = true,
     preferredProviders,
     allowFallback = true,
     onStatusChange,
   } = options;
+  const baseRequestTimeoutMs = normalizeRequestTimeout(requestTimeoutMs, 10_000);
+  const workspaceSymbolRequestTimeoutMs = normalizeRequestTimeout(
+    workspaceSymbolsTimeoutMs,
+    Math.max(baseRequestTimeoutMs, 15_000)
+  );
   const disposables: Monaco.IDisposable[] = [];
   let unlistenDiagnostics: (() => void) | null = null;
   let sessionId: string | null = null;
@@ -667,7 +683,7 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
     `${featureKey}:${Date.now()}:${nextRequestSequence++}`;
 
   const featureTimeoutMs = (featureKey: string): number =>
-    featureKey === 'workspaceSymbols' ? 15_000 : 10_000;
+    featureKey === 'workspaceSymbols' ? workspaceSymbolRequestTimeoutMs : baseRequestTimeoutMs;
 
   const runCancelableRequest = async <T>(
     featureKey: string,

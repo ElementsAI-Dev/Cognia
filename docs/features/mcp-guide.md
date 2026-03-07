@@ -409,6 +409,34 @@ Read the last 50 messages from #general and summarize key points.
 - Requires network
 - More complex setup
 
+### MCP Apps Host (Interactive Widget Runtime)
+
+Cognia supports MCP Apps widget hosting behind feature flags.
+
+Required flags:
+
+- Backend (Rust/Tauri): `COGNIA_ENABLE_MCP_APPS_HOST=true`
+- Frontend (Next.js): `NEXT_PUBLIC_ENABLE_MCP_APPS_HOST=true`
+
+If either flag is disabled, Cognia keeps legacy MCP behavior and renders normal text/resource tool outputs.
+
+Widget runtime behavior:
+
+- Renders `text/html;profile=mcp-app` resources in a sandboxed iframe.
+- Pushes `ui/initialize`, `ui/notifications/tool-input`, and `ui/notifications/tool-result`.
+- Accepts validated bridge requests for:
+  - `tools/call`
+  - `ui/message`
+  - `ui/update-model-context`
+  - `ui/open-external`
+
+Security controls:
+
+- session-bound bridge validation (`widgetSessionId`)
+- allowlist-based origin checks for bridge traffic and external links
+- deny-by-default CSP injection from widget metadata policy
+- backend UI tool-call permission checks before execution
+
 ### Environment Variables
 
 Set environment variables for MCP servers:
@@ -767,6 +795,26 @@ Create custom prompts in server configuration:
 - Increase timeout values
 - Use faster servers
 
+### MCP Apps Host Issues
+
+**Widget does not render**
+
+- Confirm both feature flags are enabled.
+- Verify tool result contains `text/html;profile=mcp-app` resource content.
+- Check MCP server reported extension capability `io.modelcontextprotocol/ui`.
+
+**Widget bridge tool call denied**
+
+- Check tool metadata visibility (`_meta.ui.visibility` should include `app`, or `openai/widgetAccessible=true`).
+- Confirm bridge origin and session ID are valid.
+- Inspect `mcp:app-security-event` logs for explicit denial reason.
+
+**Unexpected fallback to text/resource**
+
+- CSP/domain allowlist may have blocked runtime behavior.
+- Invalid/malformed widget resource payload triggers safe fallback by design.
+- Review `mcp:app-bridge` telemetry for bridge init or tool-call failures.
+
 ## Best Practices
 
 ### Server Management
@@ -919,6 +967,15 @@ asyncio.run(main())
 3. **Audit Logs**: Review tool usage
 4. **Network Isolation**: Restrict external access
 5. **Data Encryption**: Encrypt sensitive data
+
+### MCP Apps Rollback
+
+If MCP Apps runtime causes regressions:
+
+1. Set `NEXT_PUBLIC_ENABLE_MCP_APPS_HOST=false`.
+2. Set `COGNIA_ENABLE_MCP_APPS_HOST=false`.
+3. Restart Cognia desktop process.
+4. Verify tool output returns to legacy renderer path.
 
 ### Data Privacy
 

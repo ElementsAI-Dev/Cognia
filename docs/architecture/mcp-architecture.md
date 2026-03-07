@@ -929,6 +929,57 @@ components/settings/
 - File system access via Tauri plugins (user must approve)
 - No network access without user configuration
 
+### MCP Apps Host Security (Desktop)
+
+When `COGNIA_ENABLE_MCP_APPS_HOST=true` and `NEXT_PUBLIC_ENABLE_MCP_APPS_HOST=true`, Cognia enables MCP Apps widget hosting with additional controls:
+
+- **Sandboxed iframe runtime**:
+  - widgets are rendered via `srcDoc` in a sandboxed iframe
+  - parent DOM access remains blocked by default browser sandbox boundaries
+- **Bridge validation**:
+  - JSON-RPC bridge traffic is session-scoped (`widgetSessionId`)
+  - host validates message source, allowed origin, method allowlist, and payload shape before side effects
+- **Tool invocation policy**:
+  - UI-initiated `tools/call` goes through `mcp_call_tool_from_ui`
+  - backend rejects calls when tool visibility policy denies app access
+- **Origin/CSP policy**:
+  - host injects deny-by-default CSP into widget HTML
+  - allowed origins are derived from vetted widget metadata (`ui.csp`, `openai/widgetCSP`)
+- **External navigation mediation**:
+  - widget link-open requests are allowlist checked before host opens external URLs
+
+### MCP Apps Bridge Channels
+
+Bridge-related methods/events currently used by Cognia:
+
+- Widget notification push to iframe:
+  - `ui/initialize`
+  - `ui/notifications/tool-input`
+  - `ui/notifications/tool-result`
+- Widget request methods handled by host:
+  - `tools/call` (proxied to backend)
+  - `ui/message`
+  - `ui/update-model-context`
+  - `ui/open-external`
+- Backend-to-frontend observability events:
+  - `mcp:app-bridge` (tool-call bridge lifecycle)
+  - `mcp:app-security-event` (policy denials / validation failures)
+
+### MCP Apps Rollout and Rollback
+
+Rollout should happen in staged desktop environments:
+
+1. Enable backend flag only (`COGNIA_ENABLE_MCP_APPS_HOST=true`) in internal builds.
+2. Enable frontend flag (`NEXT_PUBLIC_ENABLE_MCP_APPS_HOST=true`) for selected QA users.
+3. Monitor `mcp:app-bridge` and `mcp:app-security-event` logs for session errors/policy denials.
+4. Expand rollout only after verifying fallback behavior remains stable.
+
+Rollback is immediate:
+
+1. Set either feature flag to `false` (or unset it).
+2. Restart the desktop app.
+3. Cognia falls back to legacy text/resource rendering for tool results.
+
 ## Configuration Management
 
 ### Config File Location

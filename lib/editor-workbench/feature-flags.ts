@@ -1,4 +1,4 @@
-import { useSettingsStore } from '@/stores/settings';
+import { useSettingsStore } from '@/stores';
 
 export type EditorFeatureFlag =
   | 'editor.workbench.v2'
@@ -55,4 +55,3 @@ export function isEditorFeatureFlagEnabled(flag: EditorFeatureFlag): boolean {
   }
   return flags[flag];
 }
-

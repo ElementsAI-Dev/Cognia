@@ -199,4 +199,44 @@ describe('AgentTeamPanel', () => {
     render(<AgentTeamPanel />);
     expect(screen.getByText('selectTeam')).toBeInTheDocument();
   });
+
+  it('invokes delegate callback from task item action', () => {
+    const onDelegateTaskToBackground = jest.fn();
+    mockStoreState = {
+      ...emptyStore,
+      teams: {
+        't1': {
+          id: 't1',
+          name: 'Delegation Team',
+          status: 'executing',
+          description: '',
+          teammateIds: [],
+          taskIds: ['task-1'],
+          messageIds: [],
+          progress: 20,
+          totalTokenUsage: { totalTokens: 0, promptTokens: 0, completionTokens: 0 },
+        },
+      },
+      tasks: {
+        'task-1': {
+          id: 'task-1',
+          teamId: 't1',
+          title: 'Background-capable task',
+          description: 'Delegate this task',
+          status: 'pending',
+          priority: 'normal',
+          dependencies: [],
+          tags: [],
+          createdAt: new Date('2026-03-05T08:00:00.000Z'),
+          order: 0,
+        },
+      },
+      activeTeamId: 't1',
+    };
+
+    render(<AgentTeamPanel onDelegateTaskToBackground={onDelegateTaskToBackground} />);
+
+    fireEvent.click(screen.getByText('Delegate'));
+    expect(onDelegateTaskToBackground).toHaveBeenCalledWith('t1', 'task-1');
+  });
 });

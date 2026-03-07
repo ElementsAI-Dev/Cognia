@@ -27,6 +27,8 @@ pub mod events {
     pub const TOOL_CALL_PROGRESS: &str = "mcp:tool-call-progress";
     pub const SERVER_HEALTH: &str = "mcp:server-health";
     pub const LOG_MESSAGE: &str = "mcp:log-message";
+    pub const APP_BRIDGE: &str = "mcp:app-bridge";
+    pub const APP_SECURITY_EVENT: &str = "mcp:app-security-event";
 }
 
 /// Internal state for a connected server
@@ -112,6 +114,70 @@ impl McpManager {
         }
 
         None
+    }
+
+    /// Feature flag guard for MCP Apps host runtime.
+    ///
+    /// Enabled when COGNIA_ENABLE_MCP_APPS_HOST is one of:
+    /// 1, true, yes, on (case-insensitive).
+    fn parse_truthy_flag(value: &str) -> bool {
+        matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    }
+
+    fn is_mcp_apps_host_enabled() -> bool {
+        std::env::var("COGNIA_ENABLE_MCP_APPS_HOST")
+            .map(|v| Self::parse_truthy_flag(&v))
+            .unwrap_or(false)
+    }
+
+    /// Determine whether a tool can be invoked by MCP App UI runtime.
+    ///
+    /// Rules:
+    /// - If `_meta.ui.visibility` exists, it must include `"app"`
+    /// - Else if `_meta["openai/widgetAccessible"]` exists, use its boolean value
+    /// - Else default allow (compatible with MCP Apps default visibility ["model","app"])
+    fn is_tool_ui_visible(tool: &McpTool) -> bool {
+        let Some(meta) = tool.meta.as_ref() else {
+            return true;
+        };
+
+        if let Some(visible) = meta
+            .get("ui")
+            .and_then(|ui| ui.get("visibility"))
+            .and_then(|v| v.as_array())
+        {
+            return visible.iter().any(|entry| entry.as_str() == Some("app"));
+        }
+
+        if let Some(widget_accessible) = meta
+            .get("openai/widgetAccessible")
+            .and_then(|v| v.as_bool())
+        {
+            return widget_accessible;
+        }
+
+        true
+    }
+
+    fn emit_app_bridge_event(
+        app_handle: &AppHandle,
+        event_type: &str,
+        server_id: &str,
+        session_id: &str,
+        payload: serde_json::Value,
+    ) {
+        let _ = app_handle.emit(
+            events::APP_BRIDGE,
+            &serde_json::json!({
+                "type": event_type,
+                "serverId": server_id,
+                "sessionId": session_id,
+                "payload": payload
+            }),
+        );
     }
 
     /// Create a client based on connection type
@@ -725,6 +791,122 @@ impl McpManager {
         }
 
         result
+    }
+
+    /// Call a tool from MCP Apps UI bridge with session/origin validation.
+    pub async fn call_tool_from_ui(
+        &self,
+        server_id: &str,
+        session_id: &str,
+        origin: &str,
+        tool_name: &str,
+        arguments: serde_json::Value,
+    ) -> McpResult<ToolCallResult> {
+        if !Self::is_mcp_apps_host_enabled() {
+            return Err(McpError::ProtocolError(
+                "MCP Apps host runtime is disabled by feature flag".to_string(),
+            ));
+        }
+
+        if session_id.trim().is_empty() {
+            let _ = self.app_handle.emit(
+                events::APP_SECURITY_EVENT,
+                &serde_json::json!({
+                    "type": "invalid_session_id",
+                    "serverId": server_id,
+                    "sessionId": session_id
+                }),
+            );
+            return Err(McpError::ProtocolError(
+                "Invalid MCP Apps session id".to_string(),
+            ));
+        }
+
+        let parsed_origin = reqwest::Url::parse(origin).map_err(|_| {
+            let _ = self.app_handle.emit(
+                events::APP_SECURITY_EVENT,
+                &serde_json::json!({
+                    "type": "invalid_origin",
+                    "serverId": server_id,
+                    "sessionId": session_id,
+                    "origin": origin
+                }),
+            );
+            McpError::ProtocolError(format!("Invalid MCP Apps bridge origin: {}", origin))
+        })?;
+        if parsed_origin.scheme() != "https" && parsed_origin.scheme() != "http" {
+            let _ = self.app_handle.emit(
+                events::APP_SECURITY_EVENT,
+                &serde_json::json!({
+                    "type": "invalid_origin_scheme",
+                    "serverId": server_id,
+                    "sessionId": session_id,
+                    "origin": origin
+                }),
+            );
+            return Err(McpError::ProtocolError(format!(
+                "Disallowed origin scheme for MCP Apps bridge: {}",
+                parsed_origin.scheme()
+            )));
+        }
+
+        {
+            let servers = self.servers.read().await;
+            let instance = servers
+                .get(server_id)
+                .ok_or_else(|| McpError::ServerNotFound(server_id.to_string()))?;
+            let tool = instance
+                .state
+                .tools
+                .iter()
+                .find(|t| t.name == tool_name)
+                .ok_or_else(|| {
+                    McpError::ProtocolError(format!("Tool not found for UI bridge: {}", tool_name))
+                })?;
+
+            if !Self::is_tool_ui_visible(tool) {
+                let _ = self.app_handle.emit(
+                    events::APP_SECURITY_EVENT,
+                    &serde_json::json!({
+                        "type": "tool_visibility_denied",
+                        "serverId": server_id,
+                        "sessionId": session_id,
+                        "toolName": tool_name
+                    }),
+                );
+                return Err(McpError::ProtocolError(format!(
+                    "Tool '{}' is not visible to app runtime",
+                    tool_name
+                )));
+            }
+        }
+
+        Self::emit_app_bridge_event(
+            &self.app_handle,
+            "tool_call_requested",
+            server_id,
+            session_id,
+            serde_json::json!({
+                "origin": origin,
+                "toolName": tool_name
+            }),
+        );
+
+        let result = self.call_tool(server_id, tool_name, arguments).await?;
+
+        Self::emit_app_bridge_event(
+            &self.app_handle,
+            "tool_call_completed",
+            server_id,
+            session_id,
+            serde_json::json!({
+                "origin": origin,
+                "toolName": tool_name,
+                "isError": result.is_error
+            }),
+        );
+
+        Ok(result)
     }
 
     /// Read a resource from a connected server
@@ -1676,6 +1858,7 @@ impl McpManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     // ============================================================================
     // Event Constants Tests
@@ -1689,6 +1872,68 @@ mod tests {
         assert_eq!(events::TOOL_CALL_PROGRESS, "mcp:tool-call-progress");
         assert_eq!(events::SERVER_HEALTH, "mcp:server-health");
         assert_eq!(events::LOG_MESSAGE, "mcp:log-message");
+        assert_eq!(events::APP_BRIDGE, "mcp:app-bridge");
+        assert_eq!(events::APP_SECURITY_EVENT, "mcp:app-security-event");
+    }
+
+    #[test]
+    fn test_parse_truthy_flag_enabled_values() {
+        assert!(McpManager::parse_truthy_flag("1"));
+        assert!(McpManager::parse_truthy_flag("true"));
+        assert!(McpManager::parse_truthy_flag("yes"));
+        assert!(McpManager::parse_truthy_flag("on"));
+        assert!(McpManager::parse_truthy_flag(" TRUE "));
+    }
+
+    #[test]
+    fn test_parse_truthy_flag_disabled_values() {
+        assert!(!McpManager::parse_truthy_flag("0"));
+        assert!(!McpManager::parse_truthy_flag("false"));
+        assert!(!McpManager::parse_truthy_flag("off"));
+        assert!(!McpManager::parse_truthy_flag("no"));
+        assert!(!McpManager::parse_truthy_flag(""));
+    }
+
+    #[test]
+    fn test_tool_ui_visibility_default_allowed() {
+        let tool = McpTool {
+            name: "list_items".to_string(),
+            description: Some("List items".to_string()),
+            input_schema: json!({ "type": "object" }),
+            output_schema: None,
+            meta: None,
+        };
+        assert!(McpManager::is_tool_ui_visible(&tool));
+    }
+
+    #[test]
+    fn test_tool_ui_visibility_from_meta_visibility() {
+        let tool = McpTool {
+            name: "private_tool".to_string(),
+            description: Some("Private".to_string()),
+            input_schema: json!({ "type": "object" }),
+            output_schema: None,
+            meta: Some(json!({
+                "ui": {
+                    "visibility": ["model"]
+                }
+            })),
+        };
+        assert!(!McpManager::is_tool_ui_visible(&tool));
+    }
+
+    #[test]
+    fn test_tool_ui_visibility_from_widget_accessible() {
+        let tool = McpTool {
+            name: "widget_tool".to_string(),
+            description: Some("Widget".to_string()),
+            input_schema: json!({ "type": "object" }),
+            output_schema: None,
+            meta: Some(json!({
+                "openai/widgetAccessible": true
+            })),
+        };
+        assert!(McpManager::is_tool_ui_visible(&tool));
     }
 
     // ============================================================================
@@ -1829,6 +2074,8 @@ mod tests {
         assert!(events::TOOL_CALL_PROGRESS.starts_with("mcp:"));
         assert!(events::SERVER_HEALTH.starts_with("mcp:"));
         assert!(events::LOG_MESSAGE.starts_with("mcp:"));
+        assert!(events::APP_BRIDGE.starts_with("mcp:"));
+        assert!(events::APP_SECURITY_EVENT.starts_with("mcp:"));
     }
 
     // ============================================================================
@@ -1908,6 +2155,8 @@ mod tests {
         assert!(event_names.insert(events::TOOL_CALL_PROGRESS));
         assert!(event_names.insert(events::SERVER_HEALTH));
         assert!(event_names.insert(events::LOG_MESSAGE));
+        assert!(event_names.insert(events::APP_BRIDGE));
+        assert!(event_names.insert(events::APP_SECURITY_EVENT));
     }
 
     #[test]
@@ -1918,6 +2167,8 @@ mod tests {
         assert_eq!(events::TOOL_CALL_PROGRESS, "mcp:tool-call-progress");
         assert_eq!(events::SERVER_HEALTH, "mcp:server-health");
         assert_eq!(events::LOG_MESSAGE, "mcp:log-message");
+        assert_eq!(events::APP_BRIDGE, "mcp:app-bridge");
+        assert_eq!(events::APP_SECURITY_EVENT, "mcp:app-security-event");
     }
 
     // ============================================================================

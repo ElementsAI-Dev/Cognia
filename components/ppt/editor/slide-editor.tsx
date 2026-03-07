@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -58,7 +59,25 @@ export function SlideEditor({
     stopEditing,
     showGrid,
     showGuides,
-  } = usePPTEditorStore();
+  } = usePPTEditorStore(
+    useShallow((state) => ({
+      updateSlide: state.updateSlide,
+      addElement: state.addElement,
+      updateElement: state.updateElement,
+      deleteElement: state.deleteElement,
+      duplicateElement: state.duplicateElement,
+      bringToFront: state.bringToFront,
+      sendToBack: state.sendToBack,
+      selection: state.selection,
+      selectElement: state.selectElement,
+      addToSelection: state.addToSelection,
+      clearSelection: state.clearSelection,
+      startEditing: state.startEditing,
+      stopEditing: state.stopEditing,
+      showGrid: state.showGrid,
+      showGuides: state.showGuides,
+    }))
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
 

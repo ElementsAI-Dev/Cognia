@@ -37,3 +37,15 @@ lib/designer/                       → 34 designer utilities
 2. AI generates the initial layout and components
 3. Fine-tune with the visual editor or additional prompts
 4. Export the finished design as code or deploy
+
+## Desktop LSP Management
+
+When running in desktop (Tauri) mode, Designer editor settings include an LSP management surface for:
+
+- Viewing active-language server readiness and resolved launch details
+- Reviewing recommended servers from OpenVSX / VS Marketplace
+- Searching registry entries by language
+- Installing and uninstalling language servers
+- Applying provider fallback order (`OpenVSX -> Marketplace` or `Marketplace -> OpenVSX`)
+
+If a preferred provider fails during server preparation, Cognia falls back to the next configured provider before entering editor fallback mode.

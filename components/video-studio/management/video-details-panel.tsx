@@ -10,6 +10,8 @@ import {
   Trash2,
   RefreshCw,
   AlertCircle,
+  Scissors,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -31,10 +33,12 @@ export interface VideoDetailsPanelProps {
   onToggleFavorite?: (videoId: string) => void;
   onDelete?: (videoId: string) => void;
   onRegenerate?: (video: VideoJob) => void;
+  onSendToEditor?: (video: VideoJob) => void;
+  onUseAsReference?: (video: VideoJob) => void;
 }
 
 export const VideoDetailsPanel = forwardRef<HTMLVideoElement, VideoDetailsPanelProps>(
-  function VideoDetailsPanel({ video, onDownload, onToggleFavorite, onDelete, onRegenerate }, ref) {
+  function VideoDetailsPanel({ video, onDownload, onToggleFavorite, onDelete, onRegenerate, onSendToEditor, onUseAsReference }, ref) {
     const t = useTranslations('videoDetails');
     return (
       <aside className="w-80 border-l p-4 overflow-y-auto">
@@ -145,19 +149,41 @@ export const VideoDetailsPanel = forwardRef<HTMLVideoElement, VideoDetailsPanelP
           </div>
 
           {/* Actions */}
-          {onRegenerate && (
-            <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
+            {onRegenerate && (
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1"
+                className="w-full"
                 onClick={() => onRegenerate(video)}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 {t('regenerate')}
               </Button>
-            </div>
-          )}
+            )}
+            {video.status === 'completed' && onSendToEditor && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => onSendToEditor(video)}
+              >
+                <Scissors className="h-4 w-4 mr-2" />
+                Send to Editor
+              </Button>
+            )}
+            {video.status === 'completed' && onUseAsReference && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => onUseAsReference(video)}
+              >
+                <ImageIcon className="h-4 w-4 mr-2" />
+                Use as Reference
+              </Button>
+            )}
+          </div>
         </div>
       </aside>
     );

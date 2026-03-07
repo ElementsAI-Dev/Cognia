@@ -45,6 +45,10 @@ export interface McpTool {
   description?: string;
   /** JSON Schema for input parameters */
   inputSchema: Record<string, unknown>;
+  /** JSON Schema for output (optional) */
+  outputSchema?: Record<string, unknown>;
+  /** Metadata passthrough (for extension-specific fields like MCP Apps) */
+  _meta?: Record<string, unknown>;
 }
 
 /** MCP Resource definition */
@@ -86,6 +90,7 @@ export interface ServerCapabilities {
   prompts?: { listChanged?: boolean };
   sampling?: Record<string, unknown>;
   logging?: Record<string, unknown>;
+  extensions?: Record<string, Record<string, unknown>>;
 }
 
 /** Runtime state for a server (received from backend) */
@@ -131,6 +136,8 @@ export interface EmbeddedResource {
 /** Tool call result */
 export interface ToolCallResult {
   content: ContentItem[];
+  structuredContent?: Record<string, unknown>;
+  _meta?: Record<string, unknown>;
   isError: boolean;
 }
 

@@ -30,6 +30,10 @@ jest.mock('../constants', () => ({
     { value: '5', label: '5 seconds' },
     { value: '10', label: '10 seconds' },
   ],
+  CAMERA_PRESETS: [
+    { id: 'static', label: 'Static', icon: '📌', motion: { horizontal: 0, vertical: 0, pan: 0, tilt: 0, zoom: 0, roll: 0 } },
+    { id: 'dolly-in', label: 'Dolly In', icon: '🔍', motion: { horizontal: 0, vertical: 0, pan: 0, tilt: 0, zoom: 50, roll: 0 } },
+  ],
 }));
 
 const messages = {
@@ -60,6 +64,7 @@ const messages = {
     estimatedCost: 'Estimated Cost',
     generating: 'Generating...',
     generate: 'Generate Video',
+    cameraMotion: 'Camera Motion',
     templates: {
       Nature: 'Nature',
       City: 'City',
@@ -110,6 +115,8 @@ const defaultProps: AIGenerationSidebarProps = {
   onAudioPromptChange: jest.fn(),
   seed: undefined,
   onSeedChange: jest.fn(),
+  cameraMotion: { horizontal: 0, vertical: 0, pan: 0, tilt: 0, zoom: 0, roll: 0 },
+  onCameraMotionChange: jest.fn(),
   isGenerating: false,
   error: null,
   estimatedCost: 0.5,

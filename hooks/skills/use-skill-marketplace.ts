@@ -19,6 +19,7 @@ export function useSkillMarketplace() {
     (item: SkillsMarketplaceItem): boolean => {
       // Check by marketplace ID first
       const status = store.installingItems.get(item.id);
+      if (status === 'error') return false;
       if (status === 'installed') return true;
 
       // Check local skills by name or marketplace ID

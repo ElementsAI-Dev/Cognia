@@ -22,6 +22,7 @@ import { loggers } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 import { DEFAULT_PPT_THEMES } from '@/types/workflow';
 import { generateMarpMarkdown } from '@/lib/ai/workflows/ppt-workflow';
+import { exportPresentationClient } from '@/lib/ppt/ppt-export-client';
 import {
   Download,
   Edit,
@@ -33,8 +34,6 @@ import {
   Palette,
   Presentation,
 } from 'lucide-react';
-
-import { downloadPPTX } from '@/lib/export/document/pptx-export';
 import { SingleSlideView } from './single-slide-view';
 import { GridView } from './grid-view';
 import { OutlineView } from './outline-view';
@@ -61,6 +60,7 @@ export function PPTPreview({
   const [copied, setCopied] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [lastExportFormat, setLastExportFormat] = useState<PPTExportFormat | null>(null);
 
   const currentSlide = presentation.slides[currentSlideIndex];
   const totalSlides = presentation.slides.length;
@@ -135,64 +135,20 @@ export function PPTPreview({
   const handleExport = async (format: PPTExportFormat) => {
     setIsExporting(true);
     setExportError(null);
+    setLastExportFormat(format);
     
     try {
       onExport?.(format);
-
-      // For PPTX format, use real pptxgenjs to generate native .pptx file
-      if (format === 'pptx') {
-        const pptxResult = await downloadPPTX(presentation, {
-          includeNotes: true,
-          includeSlideNumbers: true,
-          author: presentation.author || 'Cognia',
-          quality: 'high',
-        });
-        if (!pptxResult.success) {
-          setExportError(pptxResult.error || 'PPTX export failed');
-          loggers.ui.error('PPTX export failed:', undefined, { error: pptxResult.error });
-        }
-        return;
-      }
-
-      // Import the export function dynamically for other formats
-      const { executePPTExport } = await import('@/lib/ai/tools/ppt-tool');
-      
-      const result = executePPTExport({
-        presentation,
-        format,
+      const result = await exportPresentationClient(presentation, format, {
         includeNotes: true,
         includeAnimations: false,
         quality: 'high',
       });
 
-      if (!result.success || !result.data) {
-        setExportError(result.error || 'Export failed');
+      if (!result.success) {
+        setExportError(result.error?.message || 'Export failed');
         loggers.ui.error('Export failed:', undefined, { error: result.error });
-        return;
       }
-
-      const { content, filename } = result.data as { content: string; filename: string };
-      
-      // For PDF, open print-ready HTML in new window
-      if (format === 'pdf') {
-        const blob = new Blob([content], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
-        return;
-      }
-
-      // For other formats, direct download
-      const mimeType = format === 'marp' ? 'text/markdown' : 'text/html';
-      const blob = new Blob([content], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Export failed';
       setExportError(errorMessage);
@@ -373,16 +329,26 @@ export function PPTPreview({
         )}
         
         {exportError && (
-          <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
-            {exportError}
-            <button 
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+          {exportError}
+          <div className="mt-2 flex items-center gap-2">
+            {lastExportFormat && (
+              <button
+                onClick={() => void handleExport(lastExportFormat)}
+                className="text-xs underline hover:no-underline"
+              >
+                {t('retry')}
+              </button>
+            )}
+            <button
               onClick={() => setExportError(null)}
-              className="ml-2 text-xs underline hover:no-underline"
+              className="text-xs underline hover:no-underline"
             >
               {t('dismiss')}
             </button>
           </div>
-        )}
+        </div>
+      )}
 
         {viewMode === 'single' && currentSlide && (
           <SingleSlideView

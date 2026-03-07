@@ -15,7 +15,7 @@ export function ContextSyncInitializer() {
   const { start, stop } = useAutoSync({
     syncOnMount: false,
     syncIntervalMs: 0,
-    syncOnChange: false,
+    syncOnChange: true,
   });
 
   useEffect(() => {

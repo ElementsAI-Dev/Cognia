@@ -113,3 +113,27 @@ export {
   getAllBuiltinSkills,
   initializeBuiltinSkills,
 } from './builtin';
+
+export {
+  EMPTY_RECONCILIATION_DIAGNOSTICS,
+  normalizeSkillName,
+  createBuiltinSkillFingerprint,
+  createNativeSkillFingerprint,
+  getDefaultSyncOrigin,
+  buildCanonicalSkillId,
+  findFrontendSkillForNative,
+  type NativeMatchReason,
+  type NativeMatchResult,
+  type ReconciliationDiagnostics,
+} from './reconciliation';
+
+export {
+  isNativeManagedSkill,
+  buildNativeLinkedSkillUpdate,
+  promoteSkillToNative,
+  promoteGeneratedSkillPathToNative,
+  type SkillActionOutcomeState,
+  type SkillActionOutcome,
+  type PromoteSkillToNativeInput,
+  type PromoteSkillToNativeResult,
+} from './skill-actions';

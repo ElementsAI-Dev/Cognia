@@ -18,6 +18,7 @@ import type { SlideshowSettings } from '@/components/ppt/types';
 
 // Debounce timer for history pushes during rapid operations (e.g. dragging)
 let historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingHistoryDescription: string | null = null;
 const HISTORY_DEBOUNCE_MS = 300;
 
 // History entry for undo/redo
@@ -38,8 +39,8 @@ export interface SelectionState {
 
 // Clipboard content
 export interface ClipboardContent {
-  type: 'slide' | 'element' | 'slides';
-  data: PPTSlide | PPTSlideElement | PPTSlide[];
+  type: 'slide' | 'element' | 'elements' | 'slides';
+  data: PPTSlide | PPTSlideElement | PPTSlideElement[] | PPTSlide[];
 }
 
 interface PPTEditorState {
@@ -204,6 +205,45 @@ const initialState: PPTEditorState = {
   slideshowSettings: DEFAULT_SLIDESHOW_SETTINGS,
 };
 
+function commitHistorySnapshot(
+  presentation: PPTPresentation,
+  history: HistoryEntry[],
+  historyIndex: number,
+  maxHistorySize: number,
+  description: string
+): { history: HistoryEntry[]; historyIndex: number } {
+  const newHistory = history.slice(0, historyIndex + 1);
+  const lastEntry = newHistory[newHistory.length - 1];
+  const now = Date.now();
+
+  if (
+    lastEntry &&
+    lastEntry.description === description &&
+    now - lastEntry.timestamp < 1000
+  ) {
+    newHistory[newHistory.length - 1] = {
+      presentation: structuredClone(presentation),
+      timestamp: now,
+      description,
+    };
+  } else {
+    newHistory.push({
+      presentation: structuredClone(presentation),
+      timestamp: now,
+      description,
+    });
+  }
+
+  if (newHistory.length > maxHistorySize) {
+    newHistory.shift();
+  }
+
+  return {
+    history: newHistory,
+    historyIndex: newHistory.length - 1,
+  };
+}
+
 // Generate unique ID
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -214,6 +254,11 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
 
       // Presentation management
       loadPresentation: (presentation) => {
+        if (historyDebounceTimer) {
+          clearTimeout(historyDebounceTimer);
+          historyDebounceTimer = null;
+          pendingHistoryDescription = null;
+        }
         set({
           presentation,
           currentSlideIndex: 0,
@@ -239,6 +284,11 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
       },
 
       clearPresentation: () => {
+        if (historyDebounceTimer) {
+          clearTimeout(historyDebounceTimer);
+          historyDebounceTimer = null;
+          pendingHistoryDescription = null;
+        }
         set({
           ...initialState,
         });
@@ -756,6 +806,13 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
 
           if (elements.length === 1) {
             set({ clipboard: { type: 'element', data: elements[0] } });
+          } else if (elements.length > 1) {
+            set({
+              clipboard: {
+                type: 'elements',
+                data: structuredClone(elements),
+              },
+            });
           }
         } else {
           // Copy current slide
@@ -788,8 +845,12 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
       },
 
       paste: () => {
-        const { clipboard, currentSlideIndex, presentation, addSlide, addElement } = get();
+        const { clipboard, currentSlideIndex, presentation, selection, addSlide, addElement } = get();
         if (!clipboard || !presentation) return;
+        const selectedSlide = selection.slideId
+          ? presentation.slides.find((slide) => slide.id === selection.slideId)
+          : null;
+        const targetSlide = selectedSlide || presentation.slides[currentSlideIndex];
 
         if (clipboard.type === 'slide') {
           const slideData = clipboard.data as PPTSlide;
@@ -815,8 +876,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           }
         } else if (clipboard.type === 'element') {
           const elementData = clipboard.data as PPTSlideElement;
-          const currentSlide = presentation.slides[currentSlideIndex];
-          if (currentSlide) {
+          if (targetSlide) {
             const { id: _id, ...elementWithoutId } = elementData;
             const newElement = {
               ...elementWithoutId,
@@ -828,7 +888,24 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
                   }
                 : undefined,
             };
-            addElement(currentSlide.id, newElement);
+            addElement(targetSlide.id, newElement);
+          }
+        } else if (clipboard.type === 'elements') {
+          const elementData = clipboard.data as PPTSlideElement[];
+          if (targetSlide && elementData.length > 0) {
+            elementData.forEach((element, index) => {
+              const { id: _id, ...elementWithoutId } = element;
+              addElement(targetSlide.id, {
+                ...elementWithoutId,
+                position: element.position
+                  ? {
+                      ...element.position,
+                      x: element.position.x + 2 + index,
+                      y: element.position.y + 2 + index,
+                    }
+                  : undefined,
+              });
+            });
           }
         }
       },
@@ -839,50 +916,45 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         if (historyDebounceTimer) {
           clearTimeout(historyDebounceTimer);
         }
+        pendingHistoryDescription = description;
 
         historyDebounceTimer = setTimeout(() => {
           const { presentation, history, historyIndex, maxHistorySize } = get();
-          if (!presentation) return;
-
-          // Remove any future history if we're not at the end
-          const newHistory = history.slice(0, historyIndex + 1);
-
-          // Merge with previous entry if same description within debounce window
-          const lastEntry = newHistory[newHistory.length - 1];
-          if (lastEntry && lastEntry.description === description && Date.now() - lastEntry.timestamp < 1000) {
-            // Update the last entry instead of adding a new one
-            newHistory[newHistory.length - 1] = {
-              presentation: structuredClone(presentation),
-              timestamp: Date.now(),
-              description,
-            };
-          } else {
-            // Add new entry
-            newHistory.push({
-              presentation: structuredClone(presentation),
-              timestamp: Date.now(),
-              description,
-            });
+          const descriptionToCommit = pendingHistoryDescription;
+          pendingHistoryDescription = null;
+          if (!presentation || !descriptionToCommit) {
+            historyDebounceTimer = null;
+            return;
           }
 
-          // Limit history size
-          if (newHistory.length > maxHistorySize) {
-            newHistory.shift();
-          }
-
-          set({
-            history: newHistory,
-            historyIndex: newHistory.length - 1,
-          });
-
+          const snapshot = commitHistorySnapshot(
+            presentation,
+            history,
+            historyIndex,
+            maxHistorySize,
+            descriptionToCommit
+          );
+          set(snapshot);
           historyDebounceTimer = null;
         }, HISTORY_DEBOUNCE_MS);
       },
 
       undo: () => {
         // Flush any pending debounced history push before undoing
-        if (historyDebounceTimer) {
+        if (historyDebounceTimer && pendingHistoryDescription) {
           clearTimeout(historyDebounceTimer);
+          const { presentation, history, historyIndex, maxHistorySize } = get();
+          if (presentation) {
+            const snapshot = commitHistorySnapshot(
+              presentation,
+              history,
+              historyIndex,
+              maxHistorySize,
+              pendingHistoryDescription
+            );
+            set(snapshot);
+          }
+          pendingHistoryDescription = null;
           historyDebounceTimer = null;
         }
         const { history, historyIndex } = get();
@@ -899,6 +971,22 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
       },
 
       redo: () => {
+        if (historyDebounceTimer && pendingHistoryDescription) {
+          clearTimeout(historyDebounceTimer);
+          const { presentation, history, historyIndex, maxHistorySize } = get();
+          if (presentation) {
+            const snapshot = commitHistorySnapshot(
+              presentation,
+              history,
+              historyIndex,
+              maxHistorySize,
+              pendingHistoryDescription
+            );
+            set(snapshot);
+          }
+          pendingHistoryDescription = null;
+          historyDebounceTimer = null;
+        }
         const { history, historyIndex } = get();
         if (historyIndex >= history.length - 1) return;
 
@@ -1029,24 +1117,41 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
       },
 
       reorderSlides: (slideIds) => {
-        const { presentation, pushHistory } = get();
+        const { presentation, pushHistory, currentSlideIndex, selection } = get();
         if (!presentation) return;
 
         const slideMap = new Map(presentation.slides.map((s) => [s.id, s]));
-        const newSlides = slideIds
+        const orderedSlides = slideIds
           .map((id) => slideMap.get(id))
           .filter((s): s is PPTSlide => s !== undefined);
+        const orderedIdSet = new Set(orderedSlides.map((slide) => slide.id));
+        const missingSlides = presentation.slides.filter((slide) => !orderedIdSet.has(slide.id));
+        const newSlides = [...orderedSlides, ...missingSlides];
+        const currentSlideId = presentation.slides[currentSlideIndex]?.id || null;
 
         // Update order for all slides
         newSlides.forEach((slide, i) => {
           slide.order = i;
         });
 
+        const newCurrentIndex = currentSlideId
+          ? Math.max(
+              0,
+              newSlides.findIndex((slide) => slide.id === currentSlideId)
+            )
+          : 0;
+
         set({
           presentation: {
             ...presentation,
             slides: newSlides,
             updatedAt: new Date(),
+          },
+          currentSlideIndex: newCurrentIndex,
+          selection: {
+            slideId: newSlides[newCurrentIndex]?.id || selection.slideId,
+            elementIds:
+              selection.slideId === newSlides[newCurrentIndex]?.id ? selection.elementIds : [],
           },
           isDirty: true,
         });
@@ -1072,10 +1177,66 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
 export const selectCurrentSlide = (state: PPTEditorState) =>
   state.presentation?.slides[state.currentSlideIndex] || null;
 
+const EMPTY_SELECTED_ELEMENTS: PPTSlideElement[] = [];
+const selectedElementsCache: {
+  presentation: PPTPresentation | null;
+  slideId: string | null;
+  slideElementsRef: PPTSlideElement[] | null;
+  elementIdsKey: string;
+  result: PPTSlideElement[];
+} = {
+  presentation: null,
+  slideId: null,
+  slideElementsRef: null,
+  elementIdsKey: '',
+  result: EMPTY_SELECTED_ELEMENTS,
+};
+
 export const selectSelectedElements = (state: PPTEditorState) => {
-  const slide = state.presentation?.slides.find((s) => s.id === state.selection.slideId);
-  if (!slide) return [];
-  return slide.elements.filter((el) => state.selection.elementIds.includes(el.id));
+  const { presentation, selection } = state;
+  const { slideId, elementIds } = selection;
+
+  if (!presentation || !slideId || elementIds.length === 0) {
+    selectedElementsCache.presentation = presentation;
+    selectedElementsCache.slideId = slideId;
+    selectedElementsCache.slideElementsRef = null;
+    selectedElementsCache.elementIdsKey = '';
+    selectedElementsCache.result = EMPTY_SELECTED_ELEMENTS;
+    return EMPTY_SELECTED_ELEMENTS;
+  }
+
+  const slide = presentation.slides.find((candidate) => candidate.id === slideId);
+  if (!slide || slide.elements.length === 0) {
+    selectedElementsCache.presentation = presentation;
+    selectedElementsCache.slideId = slideId;
+    selectedElementsCache.slideElementsRef = slide?.elements ?? null;
+    selectedElementsCache.elementIdsKey = elementIds.join('|');
+    selectedElementsCache.result = EMPTY_SELECTED_ELEMENTS;
+    return EMPTY_SELECTED_ELEMENTS;
+  }
+
+  const elementIdsKey = elementIds.join('|');
+  const isCached =
+    selectedElementsCache.presentation === presentation &&
+    selectedElementsCache.slideId === slideId &&
+    selectedElementsCache.slideElementsRef === slide.elements &&
+    selectedElementsCache.elementIdsKey === elementIdsKey;
+
+  if (isCached) {
+    return selectedElementsCache.result;
+  }
+
+  const selectedSet = new Set(elementIds);
+  const selected = slide.elements.filter((element) => selectedSet.has(element.id));
+  const result = selected.length > 0 ? selected : EMPTY_SELECTED_ELEMENTS;
+
+  selectedElementsCache.presentation = presentation;
+  selectedElementsCache.slideId = slideId;
+  selectedElementsCache.slideElementsRef = slide.elements;
+  selectedElementsCache.elementIdsKey = elementIdsKey;
+  selectedElementsCache.result = result;
+
+  return result;
 };
 
 export const selectSlideCount = (state: PPTEditorState) => state.presentation?.slides.length || 0;

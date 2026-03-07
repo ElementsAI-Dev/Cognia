@@ -17,6 +17,22 @@ jest.mock('@/lib/skills/packager', () => ({
 jest.mock('@/hooks/skills/use-skill-ai', () => ({
   useSkillAI: () => jest.fn().mockResolvedValue('AI result'),
 }));
+const mockCreateSkillAction = jest.fn();
+const mockDuplicateSkillAction = jest.fn();
+const mockToggleSkillEnabledAction = jest.fn();
+const mockSetSkillActiveAction = jest.fn();
+const mockDeleteSkillAction = jest.fn();
+const mockUpdateSkillContentAction = jest.fn();
+jest.mock('@/hooks/skills/use-skill-actions', () => ({
+  useSkillActions: () => ({
+    createSkill: mockCreateSkillAction,
+    duplicateSkill: mockDuplicateSkillAction,
+    toggleSkillEnabled: mockToggleSkillEnabledAction,
+    setSkillActive: mockSetSkillActiveAction,
+    deleteSkill: mockDeleteSkillAction,
+    updateSkillContent: mockUpdateSkillContentAction,
+  }),
+}));
 jest.mock('@/components/layout/feedback/empty-state', () => ({
   EmptyState: ({ title, description, actions }: { title?: string; description?: string; actions?: Array<{ label: string }> }) => (
     <div data-testid="empty-state">
@@ -100,6 +116,12 @@ describe('SkillPanel', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCreateSkillAction.mockResolvedValue({ outcome: 'success' });
+    mockDuplicateSkillAction.mockResolvedValue({ outcome: 'success' });
+    mockToggleSkillEnabledAction.mockResolvedValue({ outcome: 'success' });
+    mockSetSkillActiveAction.mockReturnValue({ outcome: 'success' });
+    mockDeleteSkillAction.mockResolvedValue({ outcome: 'success' });
+    mockUpdateSkillContentAction.mockResolvedValue({ outcome: 'success' });
     mockSearchSkills.mockReturnValue({ skills: [mockSkill1, mockSkill2] });
     mockGetAllSkills.mockReturnValue([mockSkill1, mockSkill2]);
     mockCreateSkill.mockReturnValue({ id: 'new-skill' });

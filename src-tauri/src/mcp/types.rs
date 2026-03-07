@@ -172,6 +172,14 @@ pub struct McpTool {
 
     /// JSON Schema for input parameters
     pub input_schema: serde_json::Value,
+
+    /// JSON Schema for output (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_schema: Option<serde_json::Value>,
+
+    /// Tool metadata passthrough (for extension-specific fields like MCP Apps)
+    #[serde(rename = "_meta", skip_serializing_if = "Option::is_none")]
+    pub meta: Option<serde_json::Value>,
 }
 
 /// MCP Resource definition
@@ -243,6 +251,10 @@ pub struct ServerCapabilities {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub logging: Option<LoggingCapability>,
+
+    /// Extension capabilities negotiated during initialize
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extensions: Option<HashMap<String, serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -321,6 +333,14 @@ pub struct InitializeResult {
 #[serde(rename_all = "camelCase")]
 pub struct ToolCallResult {
     pub content: Vec<ContentItem>,
+
+    /// Structured tool result content surfaced to model + UI runtime
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub structured_content: Option<serde_json::Value>,
+
+    /// Tool result private metadata for widget runtime only
+    #[serde(rename = "_meta", skip_serializing_if = "Option::is_none")]
+    pub meta: Option<serde_json::Value>,
 
     #[serde(default)]
     pub is_error: bool,
@@ -1558,12 +1578,25 @@ mod tests {
                     "param1": {"type": "string"}
                 }
             }),
+            output_schema: Some(serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "result": {"type": "string"}
+                }
+            })),
+            meta: Some(serde_json::json!({
+                "ui": {
+                    "resourceUri": "ui://widget/tool.html"
+                }
+            })),
         };
 
         let json = serde_json::to_value(&tool).unwrap();
         assert_eq!(json["name"], "my_tool");
         assert_eq!(json["description"], "A test tool");
         assert_eq!(json["inputSchema"]["type"], "object");
+        assert_eq!(json["outputSchema"]["type"], "object");
+        assert_eq!(json["_meta"]["ui"]["resourceUri"], "ui://widget/tool.html");
     }
 
     #[test]
@@ -1572,11 +1605,15 @@ mod tests {
             name: "simple_tool".to_string(),
             description: None,
             input_schema: serde_json::json!({}),
+            output_schema: None,
+            meta: None,
         };
 
         let json = serde_json::to_value(&tool).unwrap();
         assert_eq!(json["name"], "simple_tool");
         assert!(json.get("description").is_none());
+        assert!(json.get("outputSchema").is_none());
+        assert!(json.get("_meta").is_none());
     }
 
     // ============================================================================
@@ -1698,12 +1735,20 @@ mod tests {
             content: vec![ContentItem::Text {
                 text: "Success".to_string(),
             }],
+            structured_content: Some(serde_json::json!({
+                "status": "ok"
+            })),
+            meta: Some(serde_json::json!({
+                "widgetSessionId": "widget-123"
+            })),
             is_error: false,
         };
 
         let json = serde_json::to_value(&result).unwrap();
         assert_eq!(json["isError"], false);
         assert_eq!(json["content"][0]["text"], "Success");
+        assert_eq!(json["structuredContent"]["status"], "ok");
+        assert_eq!(json["_meta"]["widgetSessionId"], "widget-123");
     }
 
     #[test]
@@ -1712,6 +1757,8 @@ mod tests {
             content: vec![ContentItem::Text {
                 text: "Error occurred".to_string(),
             }],
+            structured_content: None,
+            meta: None,
             is_error: true,
         };
 
@@ -1731,6 +1778,7 @@ mod tests {
         assert!(caps.prompts.is_none());
         assert!(caps.sampling.is_none());
         assert!(caps.logging.is_none());
+        assert!(caps.extensions.is_none());
     }
 
     #[test]
@@ -1748,11 +1796,21 @@ mod tests {
             }),
             sampling: Some(SamplingCapability {}),
             logging: Some(LoggingCapability {}),
+            extensions: Some(HashMap::from([(
+                "io.modelcontextprotocol/ui".to_string(),
+                serde_json::json!({
+                    "mimeTypes": ["text/html;profile=mcp-app"]
+                }),
+            )])),
         };
 
         let json = serde_json::to_value(&caps).unwrap();
         assert_eq!(json["tools"]["listChanged"], true);
         assert_eq!(json["resources"]["subscribe"], true);
+        assert_eq!(
+            json["extensions"]["io.modelcontextprotocol/ui"]["mimeTypes"][0],
+            "text/html;profile=mcp-app"
+        );
     }
 
     // ============================================================================

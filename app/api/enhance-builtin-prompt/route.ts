@@ -1,35 +1,14 @@
 /**
  * API Route: Enhance Built-in Prompts using AI
- * Generates and improves quick prompts for presets
+ * Legacy compatibility adapter. Canonical path:
+ * lib/ai/presets/preset-ai-service.ts#generateBuiltinPrompts
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { generateObject } from 'ai';
-import { z } from 'zod';
-import { 
-  getProviderModelFromConfig, 
-  isValidProvider,
-  type ProviderName 
-} from '@/lib/ai/core/client';
-
-const EnhancedPromptsSchema = z.object({
-  prompts: z.array(z.object({
-    name: z.string().describe('Short, descriptive name for the prompt'),
-    content: z.string().describe('The actual prompt content'),
-    description: z.string().describe('Brief description of what this prompt does'),
-  })).describe('Array of enhanced or generated prompts'),
-});
-
-const ENHANCE_PROMPT = `You are an expert prompt engineer. Your task is to either:
-1. Enhance existing prompts to make them more effective
-2. Generate new useful prompts based on the context
-
-Guidelines:
-- Make prompts clear, specific, and actionable
-- Include placeholders like [topic], [subject] where user input is needed
-- Keep prompts concise but comprehensive
-- Ensure prompts are practical and commonly useful
-- Match the style and purpose of the preset context`;
+import { isValidProvider, type ProviderName } from '@/lib/ai/core/client';
+import { generateBuiltinPrompts } from '@/lib/ai/presets/preset-ai-service';
+import { applyLegacyGenerationRouteHeaders } from '@/lib/ai/generation/legacy-route-deprecation';
+import { getProviderConfig } from '@/types/provider';
 
 interface EnhanceRequest {
   presetName: string;
@@ -58,58 +37,77 @@ export async function POST(request: NextRequest) {
       baseURL,
     } = body;
 
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Missing required field: apiKey' },
-        { status: 400 }
+    if (!presetName) {
+      return applyLegacyGenerationRouteHeaders(
+        NextResponse.json(
+          { error: 'Missing required field: presetName' },
+          { status: 400 }
+        ),
+        '/api/enhance-builtin-prompt'
       );
     }
 
     // Validate provider and use unified client
     const validProvider = isValidProvider(provider) ? provider as ProviderName : 'openai';
-    const { model: aiModel } = getProviderModelFromConfig({
-      provider: validProvider,
-      apiKey,
-      baseURL,
-    });
+    const providerConfig = getProviderConfig(validProvider);
+    const requiresApiKey = providerConfig?.apiKeyRequired ?? true;
 
-    let userPrompt: string;
-
-    if (action === 'enhance' && existingPrompts && existingPrompts.length > 0) {
-      userPrompt = `Enhance these existing prompts for the "${presetName}" preset:
-${existingPrompts.map((p, i) => `${i + 1}. ${p.name}: ${p.content}`).join('\n')}
-
-Context:
-- Preset: ${presetName}
-- Description: ${presetDescription || 'N/A'}
-- System Prompt: ${systemPrompt || 'N/A'}`;
-    } else {
-      userPrompt = `Generate ${count} useful quick prompts for the "${presetName}" preset.
-
-Context:
-- Preset: ${presetName}
-- Description: ${presetDescription || 'N/A'}
-- System Prompt: ${systemPrompt || 'N/A'}
-
-Create practical prompts that users would commonly need for this use case.`;
+    if (requiresApiKey && !apiKey) {
+      return applyLegacyGenerationRouteHeaders(
+        NextResponse.json(
+          { error: `Missing required field: apiKey for provider ${validProvider}` },
+          { status: 400 }
+        ),
+        '/api/enhance-builtin-prompt'
+      );
     }
 
-    const result = await generateObject({
-      model: aiModel,
-      schema: EnhancedPromptsSchema,
-      system: ENHANCE_PROMPT,
-      prompt: userPrompt,
-    });
+    const actionCount = Math.max(1, count);
+    const sourcePrompts =
+      action === 'enhance'
+        ? (existingPrompts || []).map((prompt) => ({
+            name: prompt.name,
+            content: prompt.content,
+          }))
+        : [];
 
-    return NextResponse.json({
-      prompts: result.object.prompts,
-      usage: result.usage,
-    });
+    const result = await generateBuiltinPrompts(
+      presetName,
+      presetDescription,
+      systemPrompt,
+      sourcePrompts,
+      {
+        provider: validProvider,
+        apiKey: apiKey || '',
+        baseURL,
+      },
+      actionCount
+    );
+
+    if (!result.success || !result.prompts) {
+      return applyLegacyGenerationRouteHeaders(
+        NextResponse.json(
+          { error: result.error || 'Failed to enhance prompts' },
+          { status: 500 }
+        ),
+        '/api/enhance-builtin-prompt'
+      );
+    }
+
+    return applyLegacyGenerationRouteHeaders(
+      NextResponse.json({
+        prompts: result.prompts,
+      }),
+      '/api/enhance-builtin-prompt'
+    );
   } catch (error) {
     console.error('Prompt enhancement error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to enhance prompts' },
-      { status: 500 }
+    return applyLegacyGenerationRouteHeaders(
+      NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Failed to enhance prompts' },
+        { status: 500 }
+      ),
+      '/api/enhance-builtin-prompt'
     );
   }
 }

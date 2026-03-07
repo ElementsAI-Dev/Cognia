@@ -174,7 +174,7 @@ export function AppSidebar() {
   const isBackgroundActive = isBackgroundRenderable(backgroundSettings);
 
   const sessions = useSessionStore((state) => state.sessions);
-  const folders = useSessionStore((state) => state.folders) || [];
+  const folders = useSessionStore((state) => state.folders);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const createFolder = useSessionStore((state) => state.createFolder);
 
@@ -1395,7 +1395,7 @@ function SessionMenuItem({
   const duplicateSession = useSessionStore((state) => state.duplicateSession);
   const togglePinSession = useSessionStore((state) => state.togglePinSession);
   const setSessionCustomIcon = useSessionStore((state) => state.setSessionCustomIcon);
-  const folders = useSessionStore((state) => state.folders) || [];
+  const folders = useSessionStore((state) => state.folders);
   const moveSessionToFolder = useSessionStore((state) => state.moveSessionToFolder);
   const toggleSelectSession = useSessionStore((state) => state.toggleSelectSession);
   const rangeSelectSessions = useSessionStore((state) => state.rangeSelectSessions);

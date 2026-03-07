@@ -6,11 +6,13 @@
  */
 
 import { generateText } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { useSettingsStore } from "@/stores/settings";
-import type { ProviderName } from "@/types/provider";
+import {
+  getProviderModelFromConfig,
+  isValidProvider,
+  type ProviderName,
+} from "@/lib/ai/core/client";
+import { getProviderConfig } from "@/types/provider";
 
 export type SelectionAIAction =
   | "explain"
@@ -61,20 +63,70 @@ const PROMPT_TEMPLATES: Record<SelectionAIAction, (text: string, options?: { tar
     `Check and correct any grammar, spelling, or punctuation errors in the following text. Only provide the corrected version:\n\n"${text}"`,
 };
 
-/**
- * Get a provider instance based on provider name
- */
-function getProvider(providerName: ProviderName, apiKey: string) {
-  switch (providerName) {
-    case "openai":
-      return createOpenAI({ apiKey });
-    case "anthropic":
-      return createAnthropic({ apiKey });
-    case "google":
-      return createGoogleGenerativeAI({ apiKey });
-    default:
-      return createOpenAI({ apiKey });
+interface SelectionProviderConfigResult {
+  provider: ProviderName;
+  model: string;
+  apiKey: string;
+  baseURL?: string;
+}
+
+function resolveSelectionProviderConfig():
+  | { ok: true; config: SelectionProviderConfigResult }
+  | { ok: false; error: string } {
+  const settings = useSettingsStore.getState();
+  const configuredProvider = settings.defaultProvider || "openai";
+  const provider = isValidProvider(configuredProvider)
+    ? (configuredProvider as ProviderName)
+    : "openai";
+  const providerSettings =
+    settings.providerSettings[configuredProvider] ||
+    settings.providerSettings[provider];
+
+  if (!providerSettings) {
+    return {
+      ok: false,
+      error: `Provider ${provider} has no settings. Configure provider settings before using selection AI.`,
+    };
   }
+
+  if (providerSettings.enabled === false) {
+    return {
+      ok: false,
+      error: `Provider ${provider} is disabled. Enable it in settings to continue.`,
+    };
+  }
+
+  const providerMeta = getProviderConfig(provider);
+  const requiresApiKey = providerMeta?.apiKeyRequired ?? true;
+  const apiKey =
+    providerSettings.apiKey?.trim() ||
+    providerSettings.apiKeys?.find((key) => key?.trim()) ||
+    "";
+
+  if (requiresApiKey && !apiKey) {
+    return {
+      ok: false,
+      error: `Provider ${provider} requires an API key. Add a key in settings before using selection AI.`,
+    };
+  }
+
+  const model = providerSettings.defaultModel?.trim();
+  if (!model) {
+    return {
+      ok: false,
+      error: `Provider ${provider} has no default model configured. Select a model in settings first.`,
+    };
+  }
+
+  return {
+    ok: true,
+    config: {
+      provider,
+      model,
+      apiKey,
+      baseURL: providerSettings.baseURL,
+    },
+  };
 }
 
 /**
@@ -87,30 +139,30 @@ export async function processSelectionWithAI(
   const { action, text, targetLanguage, customPrompt } = options;
 
   try {
-    // Get current settings
-    const settings = useSettingsStore.getState();
-    const providerId = settings.defaultProvider;
-    const providerSettings = settings.providerSettings[providerId];
-
-    if (!providerSettings?.apiKey) {
+    const providerResolution = resolveSelectionProviderConfig();
+    if (!providerResolution.ok) {
       return {
         success: false,
-        error: "No API key configured. Please configure a provider in settings.",
+        error: providerResolution.error,
         action,
         originalText: text,
         processingTime: Date.now() - startTime,
       };
     }
-
-    // Get provider instance
-    const provider = getProvider(providerId as ProviderName, providerSettings.apiKey);
+    const { config } = providerResolution;
 
     // Build prompt
     const prompt = customPrompt || PROMPT_TEMPLATES[action](text, { targetLanguage });
+    const { model } = getProviderModelFromConfig({
+      provider: config.provider,
+      model: config.model,
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
+    });
 
     // Generate response
     const { text: result } = await generateText({
-      model: provider(providerSettings.defaultModel),
+      model,
       prompt,
     });
 

@@ -44,6 +44,8 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/toaster';
 import { useSkillSeekersStore, selectActiveJob, selectPresetsByCategory } from '@/stores/skill-seekers';
+import { useSkillActions } from '@/hooks/skills/use-skill-actions';
+import { useNativeSkillAvailable } from '@/hooks/skills';
 import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 import type { EnhanceProvider } from '@/lib/native/skill-seekers';
 
@@ -58,6 +60,8 @@ interface SkillGeneratorPanelProps {
 
 export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGeneratorPanelProps) {
   const t = useTranslations('skills');
+  const skillActions = useSkillActions();
+  const isNativeAvailable = useNativeSkillAvailable();
 
   const {
     isInstalled,
@@ -151,7 +155,20 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
     onCancel?.();
   }, [activeJob, cancelJob, onCancel]);
 
-  const handleComplete = useCallback(() => {
+  const handleComplete = useCallback(async () => {
+    if (activeJob?.skillPath && isNativeAvailable) {
+      const promotionOutcome = await skillActions.promoteGeneratedSkillPath(
+        activeJob.skillPath,
+        activeJob.name
+      );
+      if (promotionOutcome.outcome !== 'success' && promotionOutcome.error) {
+        const message = promotionOutcome.error.startsWith('i18n:')
+          ? t(promotionOutcome.error.replace('i18n:', ''))
+          : promotionOutcome.error;
+        toast.error(message);
+      }
+    }
+
     if (activeJob?.skillPath) {
       onComplete?.(activeJob.skillPath);
     }
@@ -160,7 +177,7 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
     setSkillName('');
     setGithubRepo('');
     setSelectedPreset(null);
-  }, [activeJob, onComplete]);
+  }, [activeJob, isNativeAvailable, onComplete, skillActions, t]);
 
   const canGenerate = useCallback(() => {
     switch (sourceTab) {
@@ -481,7 +498,7 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
                 <RefreshCw className="mr-2 h-4 w-4" />
                 {t('skillSeekers.generateAnother')}
               </Button>
-              <Button onClick={handleComplete}>
+              <Button onClick={() => void handleComplete()}>
                 <CheckCircle2 className="mr-2 h-4 w-4" />
                 {t('done')}
               </Button>

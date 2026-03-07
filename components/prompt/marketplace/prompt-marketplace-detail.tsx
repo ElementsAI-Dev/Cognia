@@ -55,7 +55,11 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { MarketplacePrompt, PromptReview, PromptAuthor } from '@/types/content/prompt-marketplace';
+import type {
+  MarketplacePrompt,
+  PromptAuthor,
+  PromptReview,
+} from '@/types/content/prompt-marketplace';
 import { QUALITY_TIER_INFO } from '@/types/content/prompt-marketplace';
 import { usePromptMarketplaceStore } from '@/stores/prompt/prompt-marketplace-store';
 import { PromptPreviewDialog } from './prompt-preview-dialog';
@@ -67,6 +71,8 @@ interface PromptMarketplaceDetailProps {
   onOpenChange: (open: boolean) => void;
   onViewAuthor?: (author: PromptAuthor) => void;
 }
+
+const EMPTY_REVIEWS: PromptReview[] = [];
 
 export function PromptMarketplaceDetail({
   prompt,
@@ -80,7 +86,6 @@ export function PromptMarketplaceDetail({
   const [showFullContent, setShowFullContent] = useState(false);
   const [userRating, setUserRating] = useState(0);
   const [userReview, setUserReview] = useState('');
-  const [reviews, setReviews] = useState<PromptReview[]>([]);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showUninstallConfirm, setShowUninstallConfirm] = useState(false);
@@ -100,6 +105,9 @@ export function PromptMarketplaceDetail({
   const fetchPromptReviews = usePromptMarketplaceStore(state => state.fetchPromptReviews);
   const submitReviewAction = usePromptMarketplaceStore(state => state.submitReview);
   const markReviewHelpful = usePromptMarketplaceStore(state => state.markReviewHelpful);
+  const reviews = usePromptMarketplaceStore(state =>
+    prompt ? state.reviews[prompt.id] || EMPTY_REVIEWS : EMPTY_REVIEWS
+  );
   const hasReviewed = usePromptMarketplaceStore(state => 
     prompt ? state.userActivity.reviewed.includes(prompt.id) : false
   );
@@ -111,7 +119,8 @@ export function PromptMarketplaceDetail({
       await installPrompt(prompt);
       toast.success(t('installSuccess'));
     } catch (error) {
-      toast.error(t('installFailed'));
+      const message = error instanceof Error ? error.message : t('installFailed');
+      toast.error(message);
       loggers.ui.error('Failed to install prompt:', error);
     } finally {
       setIsInstalling(false);
@@ -126,7 +135,8 @@ export function PromptMarketplaceDetail({
       toast.success(t('uninstallSuccess'));
       setShowUninstallConfirm(false);
     } catch (error) {
-      toast.error(t('uninstallFailed'));
+      const message = error instanceof Error ? error.message : t('uninstallFailed');
+      toast.error(message);
       loggers.ui.error('Failed to uninstall prompt:', error);
     } finally {
       setIsUninstalling(false);
@@ -137,30 +147,41 @@ export function PromptMarketplaceDetail({
     if (!prompt) return;
     if (isFavorite) {
       removeFromFavorites(prompt.id);
+      toast.success(t('removedFromFavorites'));
     } else {
       addToFavorites(prompt.id);
+      toast.success(t('addedToFavorites'));
     }
-  }, [prompt, isFavorite, addToFavorites, removeFromFavorites]);
+  }, [prompt, isFavorite, addToFavorites, removeFromFavorites, t]);
 
   const handleCopyContent = useCallback(async () => {
     if (!prompt) return;
-    await navigator.clipboard.writeText(prompt.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    toast.success(t('copiedToClipboard'));
+    try {
+      await navigator.clipboard.writeText(prompt.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast.success(t('copiedToClipboard'));
+    } catch (error) {
+      loggers.ui.error('Failed to copy prompt content:', error);
+      toast.error(t('copyFailed'));
+    }
   }, [prompt, t]);
 
   const handleShare = useCallback(async () => {
     if (!prompt) return;
-    const shareUrl = `${window.location.origin}/marketplace/prompt/${prompt.id}`;
-    await navigator.clipboard.writeText(shareUrl);
-    toast.success(t('shareLinkCopied'));
+    try {
+      const shareUrl = `${window.location.origin}/marketplace/prompt/${prompt.id}`;
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success(t('shareLinkCopied'));
+    } catch (error) {
+      loggers.ui.error('Failed to share prompt link:', error);
+      toast.error(t('shareFailed'));
+    }
   }, [prompt, t]);
 
   const loadReviews = useCallback(() => {
     if (!prompt) return;
-    const reviewsList = fetchPromptReviews(prompt.id);
-    setReviews(reviewsList);
+    fetchPromptReviews(prompt.id);
   }, [prompt, fetchPromptReviews]);
 
   const handleSubmitReview = useCallback(async () => {
@@ -173,7 +194,8 @@ export function PromptMarketplaceDetail({
       setUserReview('');
       loadReviews();
     } catch (error) {
-      toast.error(t('reviewFailed'));
+      const message = error instanceof Error ? error.message : t('reviewFailed');
+      toast.error(message);
       loggers.ui.error('Failed to submit review:', error);
     } finally {
       setIsSubmittingReview(false);
@@ -181,9 +203,16 @@ export function PromptMarketplaceDetail({
   }, [prompt, userRating, userReview, submitReviewAction, t, loadReviews]);
 
   const handleMarkHelpful = useCallback(async (reviewId: string) => {
-    await markReviewHelpful(reviewId);
-    loadReviews();
-  }, [markReviewHelpful, loadReviews]);
+    try {
+      await markReviewHelpful(reviewId);
+      toast.success(t('markedHelpful'));
+      loadReviews();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('reviewFailed');
+      toast.error(message);
+      loggers.ui.error('Failed to mark review as helpful:', error);
+    }
+  }, [markReviewHelpful, loadReviews, t]);
 
   if (!prompt) return null;
 

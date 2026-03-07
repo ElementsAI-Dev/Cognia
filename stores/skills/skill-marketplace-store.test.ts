@@ -14,6 +14,8 @@ import {
   selectSkillMarketplaceError,
   selectSkillMarketplaceApiKey,
 } from './skill-marketplace-store';
+import { promoteSkillToNative } from '@/lib/skills/skill-actions';
+import { isNativeSkillAvailable } from '@/lib/native/skill';
 
 // Mock the marketplace API
 jest.mock('@/lib/skills/marketplace', () => ({
@@ -36,14 +38,31 @@ jest.mock('@/lib/skills/parser', () => ({
   extractTagsFromContent: jest.fn(() => ['auto-tag']),
 }));
 
+jest.mock('@/lib/skills/skill-actions', () => ({
+  promoteSkillToNative: jest.fn(),
+  buildNativeLinkedSkillUpdate: jest.fn((_skill, installed, error) => ({
+    source: 'imported',
+    nativeSkillId: installed.id,
+    nativeDirectory: installed.directory,
+    syncOrigin: 'native',
+    lastSyncError: error ?? null,
+  })),
+}));
+
+jest.mock('@/lib/native/skill', () => ({
+  isNativeSkillAvailable: jest.fn(() => false),
+}));
+
 // Mock skill store
-const mockImportSkill = jest.fn(() => ({ id: 'installed-skill-id', metadata: { name: 'test' } }));
+const mockImportSkill = jest.fn<any, any[]>(() => ({ id: 'installed-skill-id', metadata: { name: 'test' } }));
+const mockUpdateSkill = jest.fn();
+const mockGetAllSkills = jest.fn<any[], []>(() => []);
 jest.mock('./skill-store', () => ({
   useSkillStore: {
     getState: () => ({
       createSkill: jest.fn(() => ({ id: 'test-skill-id' })),
-      updateSkill: jest.fn(),
-      getAllSkills: jest.fn(() => []),
+      updateSkill: mockUpdateSkill,
+      getAllSkills: mockGetAllSkills,
       importSkill: mockImportSkill,
     }),
   },
@@ -52,6 +71,8 @@ jest.mock('./skill-store', () => ({
 // Get mocked functions
 const mockMarketplace = jest.requireMock('@/lib/skills/marketplace');
 const mockParser = jest.requireMock('@/lib/skills/parser');
+const mockPromoteSkillToNative = jest.mocked(promoteSkillToNative);
+const mockIsNativeSkillAvailable = jest.mocked(isNativeSkillAvailable);
 
 describe('Skill Marketplace Store', () => {
   beforeEach(() => {
@@ -70,12 +91,20 @@ describe('Skill Marketplace Store', () => {
       isLoadingDetail: false,
       installingItems: new Map(),
       installErrors: new Map(),
+      installRetryMetadata: new Map(),
       apiKey: null,
       favorites: new Set(),
       searchHistory: [],
       viewMode: 'grid',
     });
     jest.clearAllMocks();
+    mockGetAllSkills.mockReturnValue([]);
+    mockIsNativeSkillAvailable.mockReturnValue(false);
+    mockPromoteSkillToNative.mockResolvedValue({
+      outcome: 'success',
+      directory: 'parsed-skill',
+      error: null,
+    } as Awaited<ReturnType<typeof promoteSkillToNative>>);
   });
 
   describe('Initial State', () => {
@@ -425,6 +454,109 @@ describe('Skill Marketplace Store', () => {
 
       // Should have an install error for this item
       expect(result.current.installErrors.get('fail/skill')).toBeDefined();
+    });
+
+    it('marks install as retryable error when desktop native promotion partially fails', async () => {
+      const mockItem: SkillsMarketplaceItem = {
+        id: 'desktop/skill',
+        name: 'Desktop Skill',
+        description: 'Desktop skill',
+        author: 'desktop-author',
+        repository: 'desktop/repo',
+        directory: 'skills/desktop',
+        stars: 120,
+        createdAt: '2024-01-01',
+        updatedAt: '2024-01-02',
+      };
+
+      mockIsNativeSkillAvailable.mockReturnValue(true);
+      mockMarketplace.downloadSkillContent.mockResolvedValueOnce({
+        skillmd: '---\\nname: desktop-skill\\ndescription: desktop\\n---\\nDesktop content',
+        resources: [],
+      });
+      mockPromoteSkillToNative.mockResolvedValueOnce({
+        outcome: 'partial',
+        directory: 'desktop-skill',
+        error: 'i18n:nativePromotionPartial',
+        retryable: true,
+      } as Awaited<ReturnType<typeof promoteSkillToNative>>);
+
+      const { result } = renderHook(() => useSkillMarketplaceStore());
+      act(() => {
+        result.current.setApiKey('desktop-key');
+      });
+
+      await act(async () => {
+        const installed = await result.current.installSkill(mockItem);
+        expect(installed).toBe(false);
+      });
+
+      expect(result.current.getInstallStatus('desktop/skill')).toBe('error');
+      expect(result.current.installErrors.get('desktop/skill')).toBe('i18n:nativePromotionPartial');
+      expect(result.current.installRetryMetadata.get('desktop/skill')).toBeDefined();
+    });
+
+    it('retries native promotion using stored retry metadata', async () => {
+      const mockItem: SkillsMarketplaceItem = {
+        id: 'retry/skill',
+        name: 'Retry Skill',
+        description: 'Retry skill',
+        author: 'retry-author',
+        repository: 'retry/repo',
+        directory: 'skills/retry',
+        stars: 42,
+        createdAt: '2024-01-01',
+        updatedAt: '2024-01-02',
+      };
+
+      const existingSkill = {
+        id: 'installed-skill-id',
+        metadata: { name: 'retry-skill', description: 'retry' },
+      };
+
+      mockIsNativeSkillAvailable.mockReturnValue(true);
+      mockMarketplace.downloadSkillContent.mockResolvedValueOnce({
+        skillmd: '---\\nname: retry-skill\\ndescription: retry\\n---\\nretry content',
+        resources: [],
+      });
+      mockPromoteSkillToNative
+        .mockResolvedValueOnce({
+          outcome: 'partial',
+          directory: 'retry-skill',
+          error: 'i18n:nativePromotionPartial',
+          retryable: true,
+        } as Awaited<ReturnType<typeof promoteSkillToNative>>)
+        .mockResolvedValueOnce({
+          outcome: 'success',
+          directory: 'retry-skill',
+          error: null,
+          data: {
+            id: 'local:retry-skill',
+            directory: 'retry-skill',
+          },
+        } as Awaited<ReturnType<typeof promoteSkillToNative>>);
+
+      mockImportSkill.mockReturnValue(existingSkill as never);
+
+      const { result } = renderHook(() => useSkillMarketplaceStore());
+      act(() => {
+        result.current.setApiKey('retry-key');
+      });
+
+      await act(async () => {
+        await result.current.installSkill(mockItem);
+      });
+
+      expect(result.current.getInstallStatus('retry/skill')).toBe('error');
+      mockGetAllSkills.mockReturnValue([existingSkill]);
+
+      await act(async () => {
+        const installed = await result.current.installSkill(mockItem);
+        expect(installed).toBe(true);
+      });
+
+      expect(result.current.getInstallStatus('retry/skill')).toBe('installed');
+      expect(result.current.installRetryMetadata.get('retry/skill')).toBeUndefined();
     });
   });
 

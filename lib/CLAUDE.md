@@ -25,34 +25,72 @@ Domain utilities and business logic for the Cognia application. This module cont
 
 ---
 
-## Directory Structure
+## Directory Structure (52 subdirectories)
+
+### Core
 
 - `ai/` — AI integration with multi-provider support, agent system, RAG, memory, and workflows
+- `db/` — Database utilities and Dexie setup
+- `i18n/` — Internationalization with `next-intl`
+- `logger/` — Unified logging system (see `lib/logger/CLAUDE.md`)
+- `utils.ts` — Common utilities (cn, formatDate, etc.)
+- `constants/` — Shared constants
+- `stubs/` — Tauri/Node.js package stubs for browser builds
+
+### Content & Data
+
 - `a2ui/` — A2UI app generation, templates, and utilities
 - `academic/` — Academic paper search, Zotero integration, and analysis
-- `db/` — Database utilities and Dexie setup
 - `document/` — Document parsing, formatting, and RAG integration
 - `export/` — Multi-format export (Markdown, HTML, PDF, diagrams)
 - `file/` — File system utilities
-- `i18n/` — Internationalization with `next-intl`
 - `search/` — External search API integrations (Tavily)
-- `themes/` — Theme management
-- `vector/` — Vector database clients (Pinecone, Qdrant, ChromaDB)
-- `native/` — Native feature bridges (Tauri runtime)
-- `skills/` — Skill execution framework
-- `learning/` — Learning mode prompts and utilities
-- `designer/` — Visual designer AI, export, and templates
-- `canvas/` — Canvas utilities
-- `media/` — Media processing (video, audio, images)
-- `plugin/` — Plugin system (loader, API, devtools)
-- `observability/` — System monitoring and metrics
-- `chat/` — Chat utilities (slash commands, etc.)
-- `context/` — Context detection utilities
-- `rag/` — RAG (Retrieval-Augmented Generation) utilities
-- `router/` — Routing utilities
-- `sandbox/` — Code execution sandbox utilities
 - `storage/` — Storage utilities
-- `utils.ts` — Common utilities (cn, formatDate, etc.)
+- `vector/` — Vector database clients (Pinecone, Qdrant, ChromaDB)
+
+### UI & Design
+
+- `canvas/` — Canvas utilities
+- `designer/` — Visual designer AI, export, and templates
+- `latex/` — LaTeX rendering config, caching, and utilities
+- `monaco/` — Monaco editor utilities
+- `themes/` — Theme management
+- `ui/` — UI utilities
+
+### Features
+
+- `agent/` — Agent utilities
+- `agent-trace/` — Agent trace and blame analysis
+- `arena/` — Arena logic
+- `artifacts/` — Artifact utilities
+- `chat/` — Chat utilities (slash commands, etc.)
+- `chat-widget/` — Chat widget utilities
+- `context/` — Context detection utilities
+- `git/` — Git integration
+- `image-studio/` — Image studio utilities
+- `learning/` — Learning mode prompts and utilities
+- `media/` — Media processing (video, audio, images)
+- `presets/` — Preset management
+- `prompts/` — Prompt templates
+- `screenshot/` — Screenshot utilities
+- `settings/` — Settings utilities
+- `workflow/` — Workflow utilities
+- `workflow-editor/` — Workflow editor logic
+
+### Infrastructure
+
+- `mcp/` — MCP utilities
+- `native/` — Native feature bridges (Tauri runtime)
+- `network/` — Network utilities
+- `plugin/` — Plugin system (loader, API, devtools)
+- `sandbox/` — Code execution sandbox utilities
+- `scheduler/` — Task scheduler (see `lib/scheduler/CLAUDE.md`)
+- `skills/` — Skill execution framework
+- `sync/` — Sync utilities
+- `geolocation/` — Geolocation utilities
+- `observability/` — System monitoring and metrics
+- `project/` — Project utilities
+- `editor-workbench/` — Editor workbench utilities
 
 ## Entry Points
 

@@ -11,6 +11,12 @@ export {
   selectSkillsByCategory,
   selectIsLoading as selectSkillsLoading,
   selectError as selectSkillsError,
+  selectBootstrapState,
+  selectLastBootstrapError,
+  selectSyncState,
+  selectLastSyncOutcome,
+  selectLastSyncError,
+  selectSyncDiagnostics,
 } from './skill-store';
 
 export {

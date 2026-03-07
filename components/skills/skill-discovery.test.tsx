@@ -39,6 +39,9 @@ jest.mock('next-intl', () => ({
       installedCount: `${params?.count || 0} installed`,
       close: 'Close',
       installFailed: 'Installation Failed',
+      syncStateLabel: 'Sync State',
+      processing: 'Processing...',
+      retry: 'Retry',
     };
     return translations[key] || key;
   },
@@ -50,6 +53,13 @@ jest.mock('@/hooks/skills', () => ({
   useSkillSyncAvailable: jest.fn(),
   useNativeSkills: jest.fn(),
   useNativeSkillAvailable: jest.fn(),
+}));
+
+const mockInstallDiscoveredSkill = jest.fn();
+jest.mock('@/hooks/skills/use-skill-actions', () => ({
+  useSkillActions: () => ({
+    installDiscoveredSkill: mockInstallDiscoveredSkill,
+  }),
 }));
 
 // Mock toast
@@ -106,6 +116,7 @@ describe('SkillDiscovery', () => {
 
   const mockDiscoverFromRepos = jest.fn();
   const mockInstallFromRepo = jest.fn();
+  const mockRefreshAll = jest.fn();
   const mockAddRepo = jest.fn();
   const mockRemoveRepo = jest.fn();
   const mockToggleRepo = jest.fn();
@@ -120,6 +131,15 @@ describe('SkillDiscovery', () => {
       isSyncing: false,
       lastSyncAt: null,
       syncError: null,
+      syncState: 'idle',
+      lastSyncOutcome: 'idle',
+      lastSyncDirection: null,
+      syncDiagnostics: {
+        added: 0,
+        updated: 0,
+        skipped: 0,
+        conflicted: 0,
+      },
       discoverable: [],
       isDiscovering: false,
       syncFromNative: jest.fn(),
@@ -127,7 +147,12 @@ describe('SkillDiscovery', () => {
       installFromRepo: mockInstallFromRepo,
       uninstallNativeSkill: jest.fn(),
       discoverFromRepos: mockDiscoverFromRepos,
-      refreshAll: jest.fn(),
+      refreshAll: mockRefreshAll,
+    });
+    mockInstallDiscoveredSkill.mockResolvedValue({
+      outcome: 'success',
+      data: { id: 'test', metadata: { name: 'test' } },
+      error: null,
     });
 
     mockUseNativeSkills.mockReturnValue({
@@ -309,18 +334,18 @@ describe('SkillDiscovery', () => {
     });
 
     it('should call installFromRepo when install button is clicked', async () => {
-      mockInstallFromRepo.mockResolvedValue({ id: 'test', metadata: { name: 'Test' } });
+      mockInstallDiscoveredSkill.mockResolvedValue({ outcome: 'success', data: { id: 'test' } });
 
       render(<SkillDiscovery />);
 
       const installButton = screen.getByRole('button', { name: /install/i });
       await userEvent.click(installButton);
 
-      expect(mockInstallFromRepo).toHaveBeenCalledWith(mockDiscoverableSkill);
+      expect(mockInstallDiscoveredSkill).toHaveBeenCalledWith(mockDiscoverableSkill);
     });
 
     it('should show success toast on successful installation', async () => {
-      mockInstallFromRepo.mockResolvedValue({ id: 'test', metadata: { name: 'Test' } });
+      mockInstallDiscoveredSkill.mockResolvedValue({ outcome: 'success', data: { id: 'test' } });
 
       render(<SkillDiscovery />);
 
@@ -333,7 +358,10 @@ describe('SkillDiscovery', () => {
     });
 
     it('should show error toast on failed installation', async () => {
-      mockInstallFromRepo.mockRejectedValue(new Error('Installation failed'));
+      mockInstallDiscoveredSkill.mockResolvedValue({
+        outcome: 'failure',
+        error: 'i18n:installFailed',
+      });
 
       render(<SkillDiscovery />);
 
@@ -346,7 +374,7 @@ describe('SkillDiscovery', () => {
     });
 
     it('should call onSkillInstalled callback on success', async () => {
-      mockInstallFromRepo.mockResolvedValue({ id: 'test', metadata: { name: 'Test' } });
+      mockInstallDiscoveredSkill.mockResolvedValue({ outcome: 'success', data: { id: 'test' } });
       const onSkillInstalled = jest.fn();
 
       render(<SkillDiscovery onSkillInstalled={onSkillInstalled} />);
@@ -393,6 +421,41 @@ describe('SkillDiscovery', () => {
       render(<SkillDiscovery />);
 
       expect(screen.getByText('Failed to discover skills')).toBeInTheDocument();
+    });
+
+    it('provides retry action for sync errors', async () => {
+      mockUseSkillSync.mockReturnValue({
+        ...mockUseSkillSync(),
+        syncError: 'Failed to discover skills',
+      });
+
+      render(<SkillDiscovery />);
+
+      const retryButton = screen.getByRole('button', { name: /retry/i });
+      await userEvent.click(retryButton);
+
+      expect(mockRefreshAll).toHaveBeenCalled();
+    });
+  });
+
+  describe('Sync State', () => {
+    it('renders sync status summary after reconciliation', () => {
+      mockUseSkillSync.mockReturnValue({
+        ...mockUseSkillSync(),
+        syncState: 'ready',
+        lastSyncOutcome: 'success',
+        syncDiagnostics: {
+          added: 2,
+          updated: 1,
+          skipped: 0,
+          conflicted: 0,
+        },
+      });
+
+      render(<SkillDiscovery />);
+
+      expect(screen.getByText(/sync state/i)).toBeInTheDocument();
+      expect(screen.getByText(/\+2/)).toBeInTheDocument();
     });
   });
 

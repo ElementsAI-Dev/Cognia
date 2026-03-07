@@ -27,7 +27,7 @@ export { PPTPreview, PPTPreviewWithErrorBoundary, SingleSlideView, GridView, Out
 export { SlideshowView, SlideshowControls, KeyboardHelpModal, ThumbnailNavigator, PresenterMode } from './slideshow';
 
 // Generation components
-export { PPTGenerationDialog, PPTQuickAction, PPTOutlinePreview, PPTCreationHub, PPTGenerationLivePreview, PPTTemplateGallery } from './generation';
+export { PPTGenerationDialog, PPTQuickAction, PPTOutlinePreview, PPTCreationHub, PPTCreationForm, PPTGenerationLivePreview, PPTTemplateGallery } from './generation';
 
 // Theme components
 export { ThemeCustomizer, ThemeMenuItem, ThemePreviewCard } from './theme';

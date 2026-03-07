@@ -200,4 +200,50 @@ describe('VideoDetailsPanel', () => {
     // FPS might not be displayed in the current implementation
     // This test documents expected behavior
   });
+
+  describe('action buttons', () => {
+    it('renders Send to Editor button for completed video', () => {
+      const onSendToEditor = jest.fn();
+      render(
+        <VideoDetailsPanel {...defaultProps} onSendToEditor={onSendToEditor} />
+      );
+      const btn = screen.getByText('Send to Editor');
+      expect(btn).toBeInTheDocument();
+      fireEvent.click(btn);
+      expect(onSendToEditor).toHaveBeenCalledWith(mockCompletedJob);
+    });
+
+    it('renders Use as Reference button for completed video', () => {
+      const onUseAsReference = jest.fn();
+      render(
+        <VideoDetailsPanel {...defaultProps} onUseAsReference={onUseAsReference} />
+      );
+      const btn = screen.getByText('Use as Reference');
+      expect(btn).toBeInTheDocument();
+      fireEvent.click(btn);
+      expect(onUseAsReference).toHaveBeenCalledWith(mockCompletedJob);
+    });
+
+    it('does not render Send to Editor for processing video', () => {
+      const onSendToEditor = jest.fn();
+      render(
+        <VideoDetailsPanel {...defaultProps} video={mockProcessingJob} onSendToEditor={onSendToEditor} />
+      );
+      expect(screen.queryByText('Send to Editor')).not.toBeInTheDocument();
+    });
+
+    it('does not render Use as Reference for failed video', () => {
+      const onUseAsReference = jest.fn();
+      render(
+        <VideoDetailsPanel {...defaultProps} video={mockFailedJob} onUseAsReference={onUseAsReference} />
+      );
+      expect(screen.queryByText('Use as Reference')).not.toBeInTheDocument();
+    });
+
+    it('does not render action buttons when callbacks are not provided', () => {
+      render(<VideoDetailsPanel {...defaultProps} />);
+      expect(screen.queryByText('Send to Editor')).not.toBeInTheDocument();
+      expect(screen.queryByText('Use as Reference')).not.toBeInTheDocument();
+    });
+  });
 });

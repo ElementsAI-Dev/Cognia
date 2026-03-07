@@ -8,12 +8,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { LoadingSpinner } from '@/components/ui/loading-states';
@@ -209,23 +203,17 @@ export function AIToolbar({
       )}
 
       {/* Regenerate */}
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs gap-1"
-              onClick={handleRegenerate}
-              disabled={isProcessing}
-            >
-              {isProcessing ? <LoadingSpinner size="sm" /> : <RefreshCw className="h-3.5 w-3.5" />}
-              {t('regenerate') || 'Regenerate'}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('regenerateSlideContent') || 'Regenerate slide content with AI'}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 text-xs gap-1"
+        onClick={handleRegenerate}
+        disabled={isProcessing}
+        title={t('regenerateSlideContent') || 'Regenerate slide content with AI'}
+      >
+        {isProcessing ? <LoadingSpinner size="sm" /> : <RefreshCw className="h-3.5 w-3.5" />}
+        {t('regenerate') || 'Regenerate'}
+      </Button>
 
       {/* Optimize content dropdown */}
       <Popover>
@@ -275,43 +263,31 @@ export function AIToolbar({
 
       {/* Expand bullets */}
       {slide.bullets && slide.bullets.length > 0 && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs gap-1"
-                onClick={handleExpandBullets}
-                disabled={isProcessing || slide.bullets.length >= 8}
-              >
-                <ListPlus className="h-3.5 w-3.5" />
-                {t('expandBullets') || 'Expand'}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('expandBulletsTooltip') || 'Add more bullet points with AI'}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs gap-1"
+          onClick={handleExpandBullets}
+          disabled={isProcessing || slide.bullets.length >= 8}
+          title={t('expandBulletsTooltip') || 'Add more bullet points with AI'}
+        >
+          <ListPlus className="h-3.5 w-3.5" />
+          {t('expandBullets') || 'Expand'}
+        </Button>
       )}
 
       {/* Improve notes */}
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs gap-1"
-              onClick={handleImproveNotes}
-              disabled={isProcessing}
-            >
-              <FileText className="h-3.5 w-3.5" />
-              {t('improveNotes') || 'Notes'}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('improveNotesTooltip') || 'Generate/improve speaker notes'}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 text-xs gap-1"
+        onClick={handleImproveNotes}
+        disabled={isProcessing}
+        title={t('improveNotesTooltip') || 'Generate/improve speaker notes'}
+      >
+        <FileText className="h-3.5 w-3.5" />
+        {t('improveNotes') || 'Notes'}
+      </Button>
 
       {/* Improve content */}
       <Popover>
@@ -340,20 +316,14 @@ export function AIToolbar({
 
       {/* Layout suggestion badge */}
       {suggestedLayout && suggestedLayout !== slide.layout && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge
-                variant="outline"
-                className="h-6 text-[10px] cursor-pointer hover:bg-primary/10"
-                onClick={() => onSlideUpdate({ layout: suggestedLayout })}
-              >
-                {t('suggestLayout') || 'Try'}: {suggestedLayout}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>{t('suggestLayoutTooltip') || 'AI suggests this layout might work better'}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Badge
+          variant="outline"
+          className="h-6 text-[10px] cursor-pointer hover:bg-primary/10"
+          onClick={() => onSlideUpdate({ layout: suggestedLayout })}
+          title={t('suggestLayoutTooltip') || 'AI suggests this layout might work better'}
+        >
+          {t('suggestLayout') || 'Try'}: {suggestedLayout}
+        </Badge>
       )}
 
       {/* AI Suggestions */}

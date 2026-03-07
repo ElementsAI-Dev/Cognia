@@ -4,6 +4,7 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useToolbarActions } from './use-toolbar-actions';
+import { toast } from 'sonner';
 
 // Mock store state with proper types
 const mockStore: {
@@ -14,7 +15,7 @@ const mockStore: {
   selectedNodes: string[];
   history: object[];
   historyIndex: number;
-  validationErrors: { id: string; message: string }[];
+  validationErrors: { id: string; message: string; severity?: string }[];
   showNodePalette: boolean;
   showConfigPanel: boolean;
   showMinimap: boolean;
@@ -70,6 +71,13 @@ jest.mock('@/stores/workflow', () => ({
 
 jest.mock('zustand/react/shallow', () => ({
   useShallow: jest.fn((selector) => selector),
+}));
+
+jest.mock('sonner', () => ({
+  toast: {
+    info: jest.fn(),
+    error: jest.fn(),
+  },
 }));
 
 describe('useToolbarActions', () => {
@@ -230,6 +238,26 @@ describe('useToolbarActions', () => {
 
       expect(mockStore.validate).toHaveBeenCalled();
       expect(mockStore.startExecution).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith('Workflow validation failed', {
+        description: 'Fix validation warnings before running',
+      });
+    });
+
+    it('should show first validation error when errors include severity', () => {
+      mockStore.validate.mockReturnValue([
+        { id: '1', message: 'Major issue', severity: 'error' },
+      ]);
+
+      const { result } = renderHook(() => useToolbarActions());
+
+      act(() => {
+        result.current.handleRun();
+      });
+
+      expect(mockStore.startExecution).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith('Workflow validation failed', {
+        description: 'Major issue',
+      });
     });
 
     it('should not run when canRun is false', () => {

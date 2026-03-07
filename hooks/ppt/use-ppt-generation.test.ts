@@ -22,6 +22,7 @@ jest.mock('@/stores', () => ({
   useWorkflowStore: jest.fn((selector) => {
     const state = {
       addPresentation: jest.fn(),
+      setActivePresentation: jest.fn(),
     };
     return selector(state);
   }),
@@ -90,6 +91,8 @@ describe('usePPTGeneration', () => {
       expect(result.current.progress.stage).toBe('idle');
       expect(result.current.progress.currentSlide).toBe(0);
       expect(result.current.error).toBeNull();
+      expect(result.current.errorCode).toBeNull();
+      expect(result.current.canRetry).toBe(false);
       expect(result.current.presentation).toBeNull();
       expect(result.current.outline).toBeNull();
     });
@@ -100,6 +103,7 @@ describe('usePPTGeneration', () => {
       expect(typeof result.current.generateOutline).toBe('function');
       expect(typeof result.current.generateFromOutline).toBe('function');
       expect(typeof result.current.generate).toBe('function');
+      expect(typeof result.current.retry).toBe('function');
       expect(typeof result.current.cancel).toBe('function');
       expect(typeof result.current.reset).toBe('function');
     });

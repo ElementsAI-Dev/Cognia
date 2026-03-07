@@ -247,10 +247,18 @@
       "favorites": "收藏",
       "recent": "最近"
     },
+    "source": {
+      "remote": "远程数据",
+      "fallback": "回退数据",
+      "healthy": "连接正常",
+      "remoteFirst": "远程优先",
+      "refresh": "刷新"
+    },
     "search": {
       "placeholder": "搜索提示...",
       "results": "搜索结果",
       "noResults": "未找到提示",
+      "noResultsDesc": "请尝试调整筛选条件或使用其他关键词。",
       "clearFilters": "清除筛选",
       "clearSearch": "清除搜索",
       "matchingFilters": "符合筛选条件"
@@ -357,9 +365,18 @@
       "importFailed": "导入失败",
       "imported": "已导入",
       "skipped": "已跳过",
+      "failed": "失败",
       "invalidFormat": "无效的文件格式",
       "parseError": "解析 JSON 失败",
-      "failedToImport": "导入失败"
+      "failedToImport": "导入失败",
+      "conflictStrategy": "冲突处理策略",
+      "strategy": {
+        "skip": "跳过重复项",
+        "overwrite": "覆盖已安装项",
+        "duplicate": "作为副本导入"
+      },
+      "copyFailed": "复制导出内容失败",
+      "downloadFailed": "下载导出文件失败"
     },
     "author": {
       "back": "返回",
@@ -393,7 +410,12 @@
       "publishButton": "发布提示",
       "publishing": "发布中...",
       "success": "提示发布成功！",
-      "failed": "发布提示失败"
+      "failed": "发布提示失败",
+      "validation": {
+        "nameRequired": "提示名称不能为空",
+        "descriptionRequired": "提示描述不能为空",
+        "categoryInvalid": "所选分类不可发布"
+      }
     },
     "detail": {
       "ratings": "评分",
@@ -420,8 +442,12 @@
       "shareLinkCopied": "分享链接已复制！",
       "addToFavorites": "添加到收藏",
       "removeFromFavorites": "取消收藏",
+      "addedToFavorites": "已添加到收藏",
+      "removedFromFavorites": "已取消收藏",
       "copyPromptContent": "复制提示内容",
+      "copyFailed": "复制提示内容失败",
       "sharePrompt": "分享提示",
+      "shareFailed": "复制分享链接失败",
       "installPrompt": "安装提示",
       "installed": "已安装",
       "installing": "安装中...",
@@ -440,6 +466,11 @@
       "testWithAI": "使用 AI 测试",
       "testing": "测试中...",
       "testResult": "测试结果",
+      "testFailed": "提示测试失败",
+      "testErrorPrefix": "错误",
+      "unknownTestingError": "未知测试错误",
+      "noResponseReceived": "未收到响应",
+      "missingRequiredVariables": "缺少必填变量：{variables}",
       "copyResult": "复制结果",
       "sendToChat": "发送到聊天",
       "reviewSubmitted": "评价提交成功！",
@@ -448,6 +479,7 @@
       "alreadyReviewed": "您已经评价过此提示",
       "userReviews": "用户评价",
       "helpful": "有帮助",
+      "markedHelpful": "已标记为有帮助",
       "runTestHint": "运行测试以查看 AI 响应",
       "copyToClipboard": "复制到剪贴板"
     }

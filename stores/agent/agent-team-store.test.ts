@@ -4,7 +4,14 @@
 
 import { act } from '@testing-library/react';
 import { useAgentTeamStore } from './agent-team-store';
-import { BUILT_IN_TEAM_TEMPLATES, DEFAULT_TEAM_CONFIG } from '@/types/agent/agent-team';
+import {
+  BUILT_IN_TEAM_TEMPLATES,
+  DEFAULT_TEAM_CONFIG,
+  type AgentTeam,
+  type AgentTeammate,
+  type AgentTeamTask,
+  type AgentTeamMessage,
+} from '@/types/agent/agent-team';
 
 const getStore = () => useAgentTeamStore.getState();
 
@@ -106,6 +113,166 @@ describe('AgentTeamStore', () => {
       const state = getStore();
       expect(state.teams[team.id]).toBeUndefined();
       expect(state.activeTeamId).toBeNull();
+    });
+  });
+
+  describe('upsert operations', () => {
+    it('upsertTeam should store an externally-created team with same id (no new id generation)', () => {
+      const externalTeam: AgentTeam = {
+        id: 'external-team-id',
+        name: 'External Team',
+        description: 'Imported team',
+        task: 'Imported task',
+        status: 'idle',
+        config: { ...DEFAULT_TEAM_CONFIG },
+        leadId: 'external-lead-id',
+        teammateIds: ['external-lead-id'],
+        taskIds: [],
+        messageIds: [],
+        progress: 0,
+        totalTokenUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      };
+
+      getStore().upsertTeam(externalTeam);
+
+      const state = getStore();
+      expect(state.teams['external-team-id']).toEqual(externalTeam);
+      expect(Object.keys(state.teams)).toEqual(['external-team-id']);
+    });
+
+    it('upsertTask should be idempotent (same id written twice updates entry without duplicates)', () => {
+      const team = getStore().createTeam({ name: 'Team For Upsert', task: 'Validate upsert' });
+
+      const initialTask: AgentTeamTask = {
+        id: 'external-task-id',
+        teamId: team.id,
+        title: 'First title',
+        description: 'First description',
+        status: 'pending',
+        priority: 'normal',
+        dependencies: [],
+        tags: [],
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        order: 0,
+      };
+
+      getStore().upsertTask(initialTask);
+      getStore().upsertTask({
+        ...initialTask,
+        title: 'Updated title',
+        description: 'Updated description',
+      });
+
+      const state = getStore();
+      expect(state.tasks['external-task-id'].title).toBe('Updated title');
+      expect(Object.values(state.tasks)).toHaveLength(1);
+      expect(state.teams[team.id].taskIds.filter(id => id === 'external-task-id')).toHaveLength(1);
+      expect(state.getTeamTasks(team.id).filter(task => task.id === 'external-task-id')).toHaveLength(1);
+    });
+
+    it('upsertTask should no-op when target team does not exist', () => {
+      const team = getStore().createTeam({ name: 'Task Team', task: 'Task Work' });
+      const task = getStore().createTask({ teamId: team.id, title: 'Keep me', description: 'Stay put' });
+
+      getStore().upsertTask({
+        ...task,
+        teamId: 'missing-team',
+        title: 'Moved away',
+      });
+
+      const state = getStore();
+      expect(state.tasks[task.id].teamId).toBe(team.id);
+      expect(state.tasks[task.id].title).toBe('Keep me');
+      expect(state.teams[team.id].taskIds.filter(id => id === task.id)).toHaveLength(1);
+    });
+
+    it('upsertTeammate should be idempotent and keep teammate references exactly once', () => {
+      const team = getStore().createTeam({ name: 'Teammate Team', task: 'Teammate Work' });
+      const teammate = getStore().addTeammate({ teamId: team.id, name: 'Idempotent Teammate' });
+
+      const currentTeammate = getStore().teammates[teammate.id];
+      getStore().upsertTeammate({ ...currentTeammate, description: 'Updated once' });
+      getStore().upsertTeammate({ ...currentTeammate, description: 'Updated twice' });
+
+      const state = getStore();
+      expect(state.teammates[teammate.id].description).toBe('Updated twice');
+      expect(state.teams[team.id].teammateIds.filter(id => id === teammate.id)).toHaveLength(1);
+      expect(state.getTeammates(team.id).filter(tm => tm.id === teammate.id)).toHaveLength(1);
+    });
+
+    it('upsertTeammate should no-op when target team does not exist', () => {
+      const team = getStore().createTeam({ name: 'Source Team', task: 'Keep teammate stable' });
+      const teammate = getStore().addTeammate({ teamId: team.id, name: 'Stable Teammate' });
+
+      const currentTeammate = getStore().teammates[teammate.id];
+      getStore().upsertTeammate({
+        ...currentTeammate,
+        teamId: 'missing-team',
+        description: 'Should not apply',
+      });
+
+      const state = getStore();
+      expect(state.teammates[teammate.id].teamId).toBe(team.id);
+      expect(state.teammates[teammate.id].description).toBe(currentTeammate.description);
+      expect(state.teams[team.id].teammateIds.filter(id => id === teammate.id)).toHaveLength(1);
+    });
+
+    it('upsertTeammate should not move a lead to another team', () => {
+      const sourceTeam = getStore().createTeam({ name: 'Source Team', task: 'Source task' });
+      const targetTeam = getStore().createTeam({ name: 'Target Team', task: 'Target task' });
+      const sourceLeadId = sourceTeam.leadId;
+      const sourceLead = getStore().teammates[sourceLeadId] as AgentTeammate;
+
+      getStore().upsertTeammate({
+        ...sourceLead,
+        teamId: targetTeam.id,
+      });
+
+      const state = getStore();
+      expect(state.teammates[sourceLeadId].teamId).toBe(sourceTeam.id);
+      expect(state.teams[sourceTeam.id].leadId).toBe(sourceLeadId);
+      expect(state.teams[sourceTeam.id].teammateIds).toContain(sourceLeadId);
+      expect(state.teams[targetTeam.id].teammateIds).not.toContain(sourceLeadId);
+    });
+
+    it('upsertMessage should be idempotent and keep message references exactly once', () => {
+      const team = getStore().createTeam({ name: 'Message Team', task: 'Message work' });
+      const message = getStore().addMessage({
+        teamId: team.id,
+        senderId: team.leadId,
+        content: 'Initial',
+      });
+
+      const existingMessage = getStore().messages[message.id];
+      getStore().upsertMessage({ ...existingMessage, content: 'Updated once' });
+      getStore().upsertMessage({ ...existingMessage, content: 'Updated twice' });
+
+      const state = getStore();
+      expect(state.messages[message.id].content).toBe('Updated twice');
+      expect(state.teams[team.id].messageIds.filter(id => id === message.id)).toHaveLength(1);
+      expect(state.getTeamMessages(team.id).filter(msg => msg.id === message.id)).toHaveLength(1);
+    });
+
+    it('upsertMessage should no-op when target team does not exist', () => {
+      const team = getStore().createTeam({ name: 'Stable Message Team', task: 'Do not move message' });
+      const message = getStore().addMessage({
+        teamId: team.id,
+        senderId: team.leadId,
+        content: 'Stay here',
+      });
+
+      const existingMessage = getStore().messages[message.id] as AgentTeamMessage;
+      getStore().upsertMessage({
+        ...existingMessage,
+        teamId: 'missing-team',
+        content: 'Should not apply',
+      });
+
+      const state = getStore();
+      expect(state.messages[message.id].teamId).toBe(team.id);
+      expect(state.messages[message.id].content).toBe('Stay here');
+      expect(state.teams[team.id].messageIds.filter(id => id === message.id)).toHaveLength(1);
     });
   });
 

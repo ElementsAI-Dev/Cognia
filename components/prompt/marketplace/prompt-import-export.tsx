@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Download,
@@ -23,19 +23,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { usePromptMarketplaceStore } from '@/stores/prompt/prompt-marketplace-store';
-import type { MarketplacePrompt } from '@/types/content/prompt-marketplace';
+import { toast } from '@/components/ui/sonner';
+import type {
+  PromptMarketplaceImportConflictStrategy,
+  PromptMarketplaceImportReport,
+} from '@/lib/prompts/marketplace-utils';
 
 interface PromptImportExportProps {
   trigger?: React.ReactNode;
-}
-
-interface ImportResult {
-  success: boolean;
-  imported: number;
-  skipped: number;
-  errors: string[];
 }
 
 export function PromptImportExport({ trigger }: PromptImportExportProps) {
@@ -43,54 +47,54 @@ export function PromptImportExport({ trigger }: PromptImportExportProps) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'export' | 'import'>('export');
   const [importText, setImportText] = useState('');
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [importResult, setImportResult] = useState<PromptMarketplaceImportReport | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [conflictStrategy, setConflictStrategy] =
+    useState<PromptMarketplaceImportConflictStrategy>('skip');
+  const [exportData, setExportData] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const installedPrompts = usePromptMarketplaceStore((state) => state.userActivity.installed);
-  const getPromptById = usePromptMarketplaceStore((state) => state.getPromptById);
-  const installPrompt = usePromptMarketplaceStore((state) => state.installPrompt);
+  const exportInstalledPrompts = usePromptMarketplaceStore((state) => state.exportInstalledPrompts);
+  const importPrompts = usePromptMarketplaceStore((state) => state.importPrompts);
 
-  const installedPromptsList = installedPrompts
-    .map((i) => getPromptById(i.marketplaceId))
-    .filter(Boolean) as MarketplacePrompt[];
-
-  const exportData = JSON.stringify(
-    {
-      version: '1.0',
-      exportedAt: new Date().toISOString(),
-      prompts: installedPromptsList.map((p) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        content: p.content,
-        category: p.category,
-        tags: p.tags,
-        variables: p.variables,
-        author: p.author,
-      })),
-    },
-    null,
-    2
-  );
+  useEffect(() => {
+    if (!open || activeTab !== 'export') {
+      return;
+    }
+    try {
+      const payload = exportInstalledPrompts();
+      setExportData(JSON.stringify(payload, null, 2));
+    } catch {
+      setExportData('');
+    }
+  }, [open, activeTab, installedPrompts, exportInstalledPrompts]);
 
   const handleCopyExport = async () => {
-    await navigator.clipboard.writeText(exportData);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(exportData);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error(t('copyFailed'));
+    }
   };
 
   const handleDownloadExport = () => {
-    const blob = new Blob([exportData], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `prompts-export-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    try {
+      const blob = new Blob([exportData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `prompts-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error(t('downloadFailed'));
+    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,76 +113,16 @@ export function PromptImportExport({ trigger }: PromptImportExportProps) {
     setImportResult(null);
 
     try {
-      const data = JSON.parse(importText);
-      const result: ImportResult = {
-        success: true,
-        imported: 0,
-        skipped: 0,
-        errors: [],
-      };
-
-      if (!data.prompts || !Array.isArray(data.prompts)) {
-        result.success = false;
-        result.errors.push(t('invalidFormat'));
-        setImportResult(result);
-        return;
-      }
-
-      for (const prompt of data.prompts) {
-        try {
-          // Check if already installed
-          const isInstalled = installedPrompts.some(
-            (i) => i.marketplaceId === prompt.id
-          );
-          if (isInstalled) {
-            result.skipped++;
-            continue;
-          }
-
-          // Try to get existing prompt from store cache
-          const existingPrompt = getPromptById(prompt.id);
-          if (existingPrompt) {
-            await installPrompt(existingPrompt);
-          } else {
-            // Construct a full MarketplacePrompt from imported data
-            const now = new Date();
-            const fullPrompt: MarketplacePrompt = {
-              id: prompt.id,
-              name: prompt.name || 'Imported Prompt',
-              description: prompt.description || '',
-              content: prompt.content || '',
-              category: prompt.category || 'chat',
-              tags: prompt.tags || [],
-              variables: prompt.variables || [],
-              targets: prompt.targets || ['chat'],
-              author: prompt.author || { id: 'imported', name: 'Imported' },
-              source: 'marketplace',
-              qualityTier: prompt.qualityTier || 'community',
-              version: prompt.version || '1.0.0',
-              versions: [],
-              stats: prompt.stats || { downloads: 0, weeklyDownloads: 0, favorites: 0, shares: 0, views: 0 },
-              rating: prompt.rating || { average: 0, count: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } },
-              reviewCount: 0,
-              icon: prompt.icon,
-              color: prompt.color,
-              createdAt: now,
-              updatedAt: now,
-            };
-            await installPrompt(fullPrompt);
-          }
-          result.imported++;
-        } catch {
-          result.errors.push(`${t('failedToImport')}: ${prompt.name || prompt.id}`);
-        }
-      }
-
+      const result = await importPrompts(importText, conflictStrategy);
       setImportResult(result);
     } catch {
       setImportResult({
         success: false,
         imported: 0,
         skipped: 0,
+        failed: 1,
         errors: [t('parseError')],
+        items: [],
       });
     } finally {
       setIsProcessing(false);
@@ -216,14 +160,14 @@ export function PromptImportExport({ trigger }: PromptImportExportProps) {
           <TabsContent value="export" className="space-y-4 mt-4">
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                {t('exportDesc', { count: installedPromptsList.length })}
+                {t('exportDesc', { count: installedPrompts.length })}
               </p>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleCopyExport}
-                  disabled={installedPromptsList.length === 0}
+                  disabled={installedPrompts.length === 0}
                   className="gap-1.5"
                 >
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -232,7 +176,7 @@ export function PromptImportExport({ trigger }: PromptImportExportProps) {
                 <Button
                   size="sm"
                   onClick={handleDownloadExport}
-                  disabled={installedPromptsList.length === 0}
+                  disabled={installedPrompts.length === 0}
                   className="gap-1.5"
                 >
                   <Download className="h-4 w-4" />
@@ -242,7 +186,7 @@ export function PromptImportExport({ trigger }: PromptImportExportProps) {
             </div>
             <ScrollArea className="h-[300px] border rounded-lg">
               <pre className="p-4 text-xs font-mono">
-                {installedPromptsList.length > 0 ? exportData : t('noPromptsToExport')}
+                {installedPrompts.length > 0 ? exportData : t('noPromptsToExport')}
               </pre>
             </ScrollArea>
           </TabsContent>
@@ -274,6 +218,25 @@ export function PromptImportExport({ trigger }: PromptImportExportProps) {
                 onChange={(e) => setImportText(e.target.value)}
                 className="h-[200px] font-mono text-xs"
               />
+
+              <div className="space-y-2">
+                <span className="text-sm text-muted-foreground">{t('conflictStrategy')}</span>
+                <Select
+                  value={conflictStrategy}
+                  onValueChange={(value) =>
+                    setConflictStrategy(value as PromptMarketplaceImportConflictStrategy)
+                  }
+                >
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="skip">{t('strategy.skip')}</SelectItem>
+                    <SelectItem value="overwrite">{t('strategy.overwrite')}</SelectItem>
+                    <SelectItem value="duplicate">{t('strategy.duplicate')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {importResult && (
@@ -298,6 +261,7 @@ export function PromptImportExport({ trigger }: PromptImportExportProps) {
                     <div className="flex gap-3 text-sm">
                       <Badge variant="secondary">{t('imported')}: {importResult.imported}</Badge>
                       <Badge variant="outline">{t('skipped')}: {importResult.skipped}</Badge>
+                      <Badge variant="outline">{t('failed')}: {importResult.failed}</Badge>
                     </div>
                     {importResult.errors.length > 0 && (
                       <ul className="text-sm text-red-600 mt-2 space-y-1">
@@ -305,6 +269,31 @@ export function PromptImportExport({ trigger }: PromptImportExportProps) {
                           <li key={i}>• {err}</li>
                         ))}
                       </ul>
+                    )}
+                    {importResult.items.length > 0 && (
+                      <ScrollArea className="mt-3 h-[120px] rounded border bg-background/60 p-2">
+                        <ul className="space-y-1 text-xs">
+                          {importResult.items.map((item, index) => (
+                            <li key={`${item.sourcePromptId}-${index}`} className="flex items-center gap-2">
+                              <Badge
+                                variant={
+                                  item.status === 'imported'
+                                    ? 'secondary'
+                                    : item.status === 'skipped'
+                                      ? 'outline'
+                                      : 'destructive'
+                                }
+                              >
+                                {item.status}
+                              </Badge>
+                              <span className="truncate">
+                                {item.promptName}
+                                {item.targetPromptId ? ` -> ${item.targetPromptId}` : ''}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </ScrollArea>
                     )}
                   </div>
                 </div>

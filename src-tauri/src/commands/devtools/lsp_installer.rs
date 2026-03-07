@@ -662,6 +662,48 @@ pub fn get_server_status(
     })
 }
 
+fn resolve_provider_order(preferred_providers: Option<Vec<LspProvider>>) -> Vec<LspProvider> {
+    let mut order = Vec::new();
+    if let Some(preferred) = preferred_providers {
+        for provider in preferred {
+            if !order.contains(&provider) {
+                order.push(provider);
+            }
+        }
+    }
+
+    if !order.contains(&LspProvider::OpenVsx) {
+        order.push(LspProvider::OpenVsx);
+    }
+    if !order.contains(&LspProvider::VsMarketplace) {
+        order.push(LspProvider::VsMarketplace);
+    }
+    order
+}
+
+fn format_provider_fallback_error(
+    language_id: &str,
+    extension_id: &str,
+    errors: &[(LspProvider, String)],
+) -> String {
+    if errors.is_empty() {
+        return format!(
+            "LSP_DEPENDENCY_MISSING: failed to prepare '{}' for '{}' via configured providers",
+            extension_id, language_id
+        );
+    }
+
+    let details = errors
+        .iter()
+        .map(|(provider, error)| format!("{}: {}", provider.as_str(), error))
+        .collect::<Vec<String>>()
+        .join("; ");
+    format!(
+        "LSP_DEPENDENCY_MISSING: failed to prepare '{}' for '{}' via configured providers ({})",
+        extension_id, language_id, details
+    )
+}
+
 pub async fn ensure_server_ready(
     app: &AppHandle,
     language_id: &str,
@@ -687,30 +729,48 @@ pub async fn ensure_server_ready(
     let Some(extension_id) = recommended_extension_id(language_id) else {
         return resolve_launch_for_language(language_id);
     };
-    let provider = preferred_providers
-        .as_ref()
-        .and_then(|providers| providers.first())
-        .cloned()
-        .unwrap_or(LspProvider::OpenVsx);
+    let provider_order = resolve_provider_order(preferred_providers);
+    let mut attempt_errors: Vec<(LspProvider, String)> = Vec::new();
 
-    let _ = install_server(
-        app,
-        LspInstallServerRequest {
-            extension_id,
-            language_id: Some(language_id.to_string()),
-            version: None,
-            provider: Some(provider),
-            expected_sha256: None,
-        },
-    )
-    .await;
+    for provider in provider_order {
+        let install_result = install_server(
+            app,
+            LspInstallServerRequest {
+                extension_id: extension_id.clone(),
+                language_id: Some(language_id.to_string()),
+                version: None,
+                provider: Some(provider.clone()),
+                expected_sha256: None,
+            },
+        )
+        .await;
 
-    resolve_launch(
-        app,
-        LspResolveLaunchRequest {
-            language_id: language_id.to_string(),
-        },
-    )
+        match install_result {
+            Ok(_) => match resolve_launch(
+                app,
+                LspResolveLaunchRequest {
+                    language_id: language_id.to_string(),
+                },
+            ) {
+                Ok(launch) => return Ok(launch),
+                Err(error) => {
+                    attempt_errors.push((
+                        provider,
+                        format!("launch resolution failed after install: {}", error),
+                    ));
+                }
+            },
+            Err(error) => {
+                attempt_errors.push((provider, error));
+            }
+        }
+    }
+
+    Err(format_provider_fallback_error(
+        language_id,
+        &extension_id,
+        &attempt_errors,
+    ))
 }
 
 #[cfg(test)]
@@ -745,5 +805,55 @@ mod tests {
             languages,
             vec!["typescript".to_string(), "json".to_string()]
         );
+    }
+
+    fn simulate_provider_attempts(
+        providers: Vec<LspProvider>,
+        attempt_results: Vec<Result<(), &'static str>>,
+    ) -> Result<LspProvider, Vec<(LspProvider, String)>> {
+        let mut errors = Vec::new();
+        for (provider, result) in providers.into_iter().zip(attempt_results.into_iter()) {
+            match result {
+                Ok(()) => return Ok(provider),
+                Err(error) => errors.push((provider, error.to_string())),
+            }
+        }
+        Err(errors)
+    }
+
+    #[test]
+    fn resolves_provider_order_with_deduped_defaults() {
+        let order = resolve_provider_order(Some(vec![
+            LspProvider::VsMarketplace,
+            LspProvider::VsMarketplace,
+        ]));
+        assert_eq!(
+            order,
+            vec![LspProvider::VsMarketplace, LspProvider::OpenVsx]
+        );
+    }
+
+    #[test]
+    fn provider_fallback_can_succeed_on_later_provider() {
+        let providers =
+            resolve_provider_order(Some(vec![LspProvider::OpenVsx, LspProvider::VsMarketplace]));
+        let result = simulate_provider_attempts(providers, vec![Err("primary failed"), Ok(())])
+            .expect("should succeed on second provider");
+        assert_eq!(result, LspProvider::VsMarketplace);
+    }
+
+    #[test]
+    fn provider_fallback_reports_full_failure_details() {
+        let providers =
+            resolve_provider_order(Some(vec![LspProvider::OpenVsx, LspProvider::VsMarketplace]));
+        let errors = simulate_provider_attempts(
+            providers.clone(),
+            vec![Err("openvsx down"), Err("marketplace blocked")],
+        )
+        .expect_err("should fail on all providers");
+        assert_eq!(errors.len(), 2);
+        let message = format_provider_fallback_error("typescript", "demo.lsp", &errors);
+        assert!(message.contains("open_vsx: openvsx down"));
+        assert!(message.contains("vs_marketplace: marketplace blocked"));
     }
 }

@@ -33,6 +33,7 @@ import {
   X,
 } from 'lucide-react';
 import type { SlideshowSettings } from '../types';
+import { PPT_TEST_IDS } from '@/lib/ppt/test-selectors';
 
 interface SlideshowControlsProps {
   currentIndex: number;
@@ -337,6 +338,7 @@ export function SlideshowControls({
                   size="icon"
                   className="text-white hover:bg-white/20"
                   onClick={onExit}
+                  data-testid={PPT_TEST_IDS.slideshow.exit}
                 >
                   <Minimize2 className="h-4 w-4" />
                 </Button>

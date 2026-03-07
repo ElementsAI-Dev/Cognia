@@ -412,6 +412,11 @@ export async function generateImagesBatchWithSDK(
 }
 
 /**
+ * Model capability tags for UI badges
+ */
+export type ModelCapability = 'hd' | 'edit' | 'seed' | 'batch' | 'style' | 'fast';
+
+/**
  * Get available image models for a provider
  */
 export function getAvailableImageModels(provider: ImageProviderType): Array<{
@@ -419,6 +424,7 @@ export function getAvailableImageModels(provider: ImageProviderType): Array<{
   name: string;
   supportedSizes: ImageSizeOption[];
   maxImages: number;
+  capabilities?: ModelCapability[];
 }> {
   switch (provider) {
     case 'openai':
@@ -428,18 +434,21 @@ export function getAvailableImageModels(provider: ImageProviderType): Array<{
           name: 'DALL-E 3',
           supportedSizes: ['1024x1024', '1024x1792', '1792x1024'],
           maxImages: 1,
+          capabilities: ['hd', 'style'],
         },
         {
           id: 'dall-e-2',
           name: 'DALL-E 2',
           supportedSizes: ['256x256', '512x512', '1024x1024'],
           maxImages: 10,
+          capabilities: ['edit', 'batch'],
         },
         {
           id: 'gpt-image-1',
           name: 'GPT Image 1',
           supportedSizes: ['1024x1024', '1536x1024', '1024x1536'],
           maxImages: 1,
+          capabilities: ['hd', 'edit'],
         },
       ];
 
@@ -450,6 +459,7 @@ export function getAvailableImageModels(provider: ImageProviderType): Array<{
           name: 'Grok 2 Image',
           supportedSizes: ['1024x1024'],
           maxImages: 1,
+          capabilities: ['fast'],
         },
       ];
 
@@ -460,18 +470,21 @@ export function getAvailableImageModels(provider: ImageProviderType): Array<{
           name: 'FLUX.1 Schnell',
           supportedSizes: ['512x512', '1024x1024'],
           maxImages: 4,
+          capabilities: ['fast', 'batch', 'seed'],
         },
         {
           id: 'black-forest-labs/FLUX.1-dev',
           name: 'FLUX.1 Dev',
           supportedSizes: ['512x512', '1024x1024'],
           maxImages: 4,
+          capabilities: ['hd', 'batch', 'seed'],
         },
         {
           id: 'stabilityai/stable-diffusion-xl-base-1.0',
           name: 'Stable Diffusion XL',
           supportedSizes: ['512x512', '1024x1024'],
           maxImages: 4,
+          capabilities: ['batch', 'seed'],
         },
       ];
 
@@ -482,12 +495,14 @@ export function getAvailableImageModels(provider: ImageProviderType): Array<{
           name: 'FLUX.1 Schnell',
           supportedSizes: ['1024x1024'],
           maxImages: 4,
+          capabilities: ['fast', 'batch'],
         },
         {
           id: 'accounts/fireworks/models/flux-1-dev-fp8',
           name: 'FLUX.1 Dev',
           supportedSizes: ['1024x1024'],
           maxImages: 4,
+          capabilities: ['hd', 'batch'],
         },
       ];
 
@@ -498,18 +513,21 @@ export function getAvailableImageModels(provider: ImageProviderType): Array<{
           name: 'FLUX.1 Schnell',
           supportedSizes: ['1024x1024'],
           maxImages: 4,
+          capabilities: ['fast', 'batch'],
         },
         {
           id: 'black-forest-labs/FLUX-1-dev',
           name: 'FLUX.1 Dev',
           supportedSizes: ['1024x1024'],
           maxImages: 4,
+          capabilities: ['hd', 'batch'],
         },
         {
           id: 'stabilityai/sd3.5',
           name: 'Stable Diffusion 3.5',
           supportedSizes: ['1024x1024'],
           maxImages: 4,
+          capabilities: ['hd', 'batch'],
         },
       ];
 

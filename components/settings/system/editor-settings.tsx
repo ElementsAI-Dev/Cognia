@@ -1,11 +1,15 @@
 'use client';
 
-import { Code2, Command, Gauge, Languages } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Code2, Command, Gauge, Languages, RefreshCw, Search } from 'lucide-react';
 import { useSettingsStore } from '@/stores';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -14,13 +18,177 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { EditorDiagnosticsSeverity } from '@/stores/settings/settings-store';
+import {
+  isTauriRuntime,
+  lspGetServerStatus,
+  lspInstallServer,
+  lspListInstalledServers,
+  lspRegistryGetRecommended,
+  lspRegistrySearch,
+  lspResolveLaunch,
+  lspUninstallServer,
+} from '@/lib/monaco/lsp/lsp-client';
+import type {
+  LspInstalledServerRecord,
+  LspProvider,
+  LspRegistryEntry,
+  LspResolvedLaunch,
+  LspServerStatus,
+} from '@/types/designer/lsp';
 
 const MIN_SEVERITIES: EditorDiagnosticsSeverity[] = ['hint', 'info', 'warning', 'error'];
+const LSP_MANAGER_LANGUAGES = ['typescript', 'javascript', 'html', 'css', 'json', 'eslint'];
+
+function normalizeProvider(provider: string | undefined): LspProvider {
+  return provider === 'vs_marketplace' ? 'vs_marketplace' : 'open_vsx';
+}
+
+function dedupeRegistryEntries(entries: LspRegistryEntry[]): LspRegistryEntry[] {
+  const seen = new Set<string>();
+  const deduped: LspRegistryEntry[] = [];
+  for (const entry of entries) {
+    const key = `${entry.extensionId}::${entry.provider}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    deduped.push(entry);
+  }
+  return deduped;
+}
 
 export function EditorSettings() {
   const editorSettings = useSettingsStore((state) => state.editorSettings);
   const setEditorSettings = useSettingsStore((state) => state.setEditorSettings);
   const resetEditorSettings = useSettingsStore((state) => state.resetEditorSettings);
+  const isDesktopLspRuntime = useMemo(() => isTauriRuntime(), []);
+  const providerOrder = useMemo<LspProvider[]>(
+    () =>
+      editorSettings.lsp.providerOrder.length > 0
+        ? editorSettings.lsp.providerOrder
+        : ['open_vsx', 'vs_marketplace'],
+    [editorSettings.lsp.providerOrder]
+  );
+
+  const [managedLanguageId, setManagedLanguageId] = useState<string>('typescript');
+  const [lspServerStatus, setLspServerStatus] = useState<LspServerStatus | null>(null);
+  const [lspResolvedLaunch, setLspResolvedLaunch] = useState<LspResolvedLaunch | null>(null);
+  const [installedServers, setInstalledServers] = useState<LspInstalledServerRecord[]>([]);
+  const [recommendedServers, setRecommendedServers] = useState<LspRegistryEntry[]>([]);
+  const [registryQuery, setRegistryQuery] = useState('');
+  const [registryResults, setRegistryResults] = useState<LspRegistryEntry[]>([]);
+  const [lspManagerMessage, setLspManagerMessage] = useState<string>('');
+  const [isLspManagerLoading, setIsLspManagerLoading] = useState(false);
+  const [isRegistrySearching, setIsRegistrySearching] = useState(false);
+
+  const refreshLspServerData = useCallback(async () => {
+    if (!isDesktopLspRuntime) {
+      return;
+    }
+
+    setIsLspManagerLoading(true);
+    try {
+      const [status, launch, installed, recommended] = await Promise.all([
+        lspGetServerStatus(managedLanguageId),
+        lspResolveLaunch(managedLanguageId).catch(() => null),
+        lspListInstalledServers().catch(() => []),
+        lspRegistryGetRecommended(managedLanguageId, providerOrder)
+          .then((response) => response.entries)
+          .catch(() => []),
+      ]);
+      setLspServerStatus(status);
+      setLspResolvedLaunch(launch);
+      setInstalledServers(installed);
+      setRecommendedServers(dedupeRegistryEntries(recommended));
+      setLspManagerMessage('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load LSP server state';
+      setLspManagerMessage(message);
+    } finally {
+      setIsLspManagerLoading(false);
+    }
+  }, [isDesktopLspRuntime, managedLanguageId, providerOrder]);
+
+  useEffect(() => {
+    void refreshLspServerData();
+  }, [refreshLspServerData]);
+
+  const runRegistrySearch = useCallback(async () => {
+    if (!isDesktopLspRuntime) {
+      return;
+    }
+
+    const query = registryQuery.trim();
+    if (!query) {
+      setRegistryResults([]);
+      return;
+    }
+
+    setIsRegistrySearching(true);
+    try {
+      const results = await lspRegistrySearch({
+        query,
+        languageId: managedLanguageId,
+        providers: providerOrder,
+      });
+      setRegistryResults(dedupeRegistryEntries(results));
+      setLspManagerMessage('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Registry search failed';
+      setLspManagerMessage(message);
+      setRegistryResults([]);
+    } finally {
+      setIsRegistrySearching(false);
+    }
+  }, [isDesktopLspRuntime, managedLanguageId, providerOrder, registryQuery]);
+
+  const handleInstallServer = useCallback(
+    async (entry: LspRegistryEntry) => {
+      if (!isDesktopLspRuntime) {
+        return;
+      }
+
+      setIsLspManagerLoading(true);
+      try {
+        await lspInstallServer({
+          extensionId: entry.extensionId,
+          languageId: managedLanguageId,
+          provider: normalizeProvider(entry.provider),
+        });
+        setLspManagerMessage(`Installed ${entry.extensionId}`);
+        await refreshLspServerData();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : `Failed to install ${entry.extensionId}`;
+        setLspManagerMessage(message);
+      } finally {
+        setIsLspManagerLoading(false);
+      }
+    },
+    [isDesktopLspRuntime, managedLanguageId, refreshLspServerData]
+  );
+
+  const handleUninstallServer = useCallback(
+    async (extensionId: string) => {
+      if (!isDesktopLspRuntime) {
+        return;
+      }
+
+      setIsLspManagerLoading(true);
+      try {
+        await lspUninstallServer(extensionId);
+        setLspManagerMessage(`Uninstalled ${extensionId}`);
+        await refreshLspServerData();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : `Failed to uninstall ${extensionId}`;
+        setLspManagerMessage(message);
+      } finally {
+        setIsLspManagerLoading(false);
+      }
+    },
+    [isDesktopLspRuntime, refreshLspServerData]
+  );
+
+  const providerOrderValue = providerOrder.join(',');
 
   return (
     <div className="space-y-4">
@@ -233,6 +401,225 @@ export function EditorSettings() {
               max={60_000}
               step={500}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs">Provider Order</Label>
+            <Select
+              value={providerOrderValue}
+              onValueChange={(value) =>
+                setEditorSettings({
+                  lsp: {
+                    providerOrder: value.split(',') as LspProvider[],
+                  },
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="open_vsx,vs_marketplace">
+                  OpenVSX → VS Marketplace
+                </SelectItem>
+                <SelectItem value="vs_marketplace,open_vsx">
+                  VS Marketplace → OpenVSX
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-3 rounded-md border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-medium">LSP Server Management</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Discover, install, uninstall, and inspect language-server runtime details.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void refreshLspServerData()}
+                disabled={!isDesktopLspRuntime || isLspManagerLoading}
+              >
+                <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                Refresh
+              </Button>
+            </div>
+
+            {!isDesktopLspRuntime && (
+              <p className="text-xs text-muted-foreground">
+                LSP server management is available in desktop runtime only.
+              </p>
+            )}
+
+            {isDesktopLspRuntime && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Language</Label>
+                    <Select value={managedLanguageId} onValueChange={setManagedLanguageId}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LSP_MANAGER_LANGUAGES.map((languageId) => (
+                          <SelectItem key={languageId} value={languageId}>
+                            {languageId}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Server Status</Label>
+                    <div className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs">
+                      <Badge variant={lspServerStatus?.ready ? 'default' : 'secondary'}>
+                        {lspServerStatus?.ready ? 'ready' : 'not ready'}
+                      </Badge>
+                      <span className="text-muted-foreground">
+                        {lspServerStatus?.supported ? 'supported' : 'unsupported'}
+                      </span>
+                      {lspServerStatus?.provider && (
+                        <span className="text-muted-foreground">provider: {lspServerStatus.provider}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {(lspResolvedLaunch || lspServerStatus) && (
+                  <div className="space-y-1 rounded-md border px-2 py-2 text-[11px]">
+                    <p>
+                      Launch source:{' '}
+                      <span className="font-medium">
+                        {lspResolvedLaunch?.source ?? lspServerStatus?.reason ?? 'unknown'}
+                      </span>
+                    </p>
+                    {lspResolvedLaunch?.command && (
+                      <p className="text-muted-foreground">
+                        Command: {lspResolvedLaunch.command} {lspResolvedLaunch.args.join(' ')}
+                      </p>
+                    )}
+                    {lspServerStatus?.reason && (
+                      <p className="text-muted-foreground">Reason: {lspServerStatus.reason}</p>
+                    )}
+                  </div>
+                )}
+
+                {lspManagerMessage && (
+                  <p className="text-xs text-muted-foreground">{lspManagerMessage}</p>
+                )}
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Installed Servers</Label>
+                  <div className="space-y-1">
+                    {installedServers.length === 0 && (
+                      <p className="text-xs text-muted-foreground">No installed LSP servers.</p>
+                    )}
+                    {installedServers.map((server) => (
+                      <div
+                        key={`${server.extensionId}:${server.version}:${server.provider}`}
+                        className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs"
+                      >
+                        <div>
+                          <p className="font-medium">{server.extensionId}</p>
+                          <p className="text-muted-foreground">
+                            {server.provider} · {server.version}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void handleUninstallServer(server.extensionId)}
+                          disabled={isLspManagerLoading}
+                        >
+                          Uninstall
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Recommended Servers</Label>
+                  <div className="space-y-1">
+                    {recommendedServers.length === 0 && (
+                      <p className="text-xs text-muted-foreground">No recommendations found.</p>
+                    )}
+                    {recommendedServers.map((entry) => (
+                      <div
+                        key={`${entry.extensionId}:${entry.provider}`}
+                        className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs"
+                      >
+                        <div>
+                          <p className="font-medium">{entry.displayName || entry.extensionId}</p>
+                          <p className="text-muted-foreground">
+                            {entry.extensionId} · {entry.provider}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void handleInstallServer(entry)}
+                          disabled={isLspManagerLoading}
+                        >
+                          Install
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Registry Search</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={registryQuery}
+                      onChange={(event) => setRegistryQuery(event.target.value)}
+                      placeholder="Search language servers"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void runRegistrySearch()}
+                      disabled={isRegistrySearching}
+                    >
+                      <Search className="mr-1 h-3.5 w-3.5" />
+                      Search
+                    </Button>
+                  </div>
+                  <div className="space-y-1">
+                    {registryResults.map((entry) => (
+                      <div
+                        key={`${entry.extensionId}:${entry.provider}:search`}
+                        className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs"
+                      >
+                        <div>
+                          <p className="font-medium">{entry.displayName || entry.extensionId}</p>
+                          <p className="text-muted-foreground">
+                            {entry.extensionId} · {entry.provider}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void handleInstallServer(entry)}
+                          disabled={isLspManagerLoading}
+                        >
+                          Install
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

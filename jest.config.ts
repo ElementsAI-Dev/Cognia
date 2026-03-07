@@ -231,6 +231,7 @@ const config: Config = {
   modulePathIgnorePatterns: [
     "<rootDir>/out/",
     "<rootDir>/.next/",
+    "<rootDir>/.worktrees/",
   ],
 
   // Activates notifications for test results
@@ -316,6 +317,7 @@ const config: Config = {
     "/node_modules/",
     "/.next/",
     "/out/",
+    "/.worktrees/",
     "/src-tauri/",
     "/e2e/",
     // Skip tests with severe memory issues (require dedicated Node heap increase)

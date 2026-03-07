@@ -24,37 +24,43 @@ Zustand state management stores with localStorage persistence. Stores are organi
 
 ---
 
-## Directory Structure
+## Directory Structure (36 directories)
 
+- `a2ui/` — A2UI mini-apps state (a2ui-store)
+- `academic/` — Academic mode state (academic-store, knowledge-map-store, zotero-slice)
 - `agent/` — Agent execution tracking (agent-store, background-agent-store, sub-agent-store, custom-mode-store)
+- `agent-trace/` — Agent trace state
+- `ai/` — AI state
+- `arena/` — Arena state (arena-store, leaderboard-sync-store)
 - `artifact/` — Artifacts, canvas, versions (artifact-store)
+- `canvas/` — Canvas state (comment-store, keybinding-store, chunked-document-store)
 - `chat/` — Chat sessions, widget state (chat-store, chat-widget-store, session-store, quote-store, summary-store)
-- `context/` — Clipboard context (clipboard-context-store)
+- `context/` — Context state (clipboard-context-store, selection-store, and more)
 - `data/` — Recent files, templates, vectors (recent-files-store, template-store, vector-store, memory-store)
 - `designer/` — Designer state, history (designer-store, designer-history-store)
 - `document/` — Document management (document-store)
+- `git/` — Git state (git-store)
+- `input-completion/` — Input completion state (input-completion-store)
+- `jupyter/` — Jupyter state
+- `latex/` — LaTeX state
 - `learning/` — Learning mode state (learning-store, speedpass-store)
 - `mcp/` — MCP servers, marketplace (mcp-store, mcp-marketplace-store)
 - `media/` — Media, screen recording (media-store, image-studio-store, screen-recording-store, screenshot-store, video-editor-store)
+- `observability/` — Observability state
+- `plugin/` — Plugin state (plugin-store)
 - `project/` — Projects, activities (project-store, project-activity-store)
+- `prompt/` — Prompt templates and marketplace (prompt-template-store, prompt-marketplace-store)
+- `sandbox/` — Sandbox state (sandbox-store)
 - `scheduler/` — Task automation (scheduler-store)
+- `screenshot/` — Screenshot editor state (editor-store)
 - `settings/` — User preferences, presets (settings-store, preset-store, custom-theme-store, settings-profiles-store, completion-settings-store)
+- `skill-seekers/` — SkillSeekers state (skill-seekers-store)
+- `skills/` — Skills state (skill-store)
+- `sync/` — Sync state
 - `system/` — Native state, proxy, usage (native-store, proxy-store, usage-store, window-store, environment-store, virtual-env-store, ui-store)
+- `tool-history/` — Tool usage history (tool-history-store)
 - `tools/` — Skills, tools (skill-store, template-store, ppt-editor-store, jupyter-store)
 - `workflow/` — Workflow definitions and execution (workflow-store, workflow-editor-store)
-- `git/` — Git state (git-store)
-- `a2ui/` — A2UI mini-apps state (a2ui-store)
-- `academic/` — Academic mode state (academic-store, knowledge-map-store, zotero-slice)
-- `plugin/` — Plugin state (plugin-store)
-- `prompt/` — Prompt templates and marketplace (prompt-template-store, prompt-marketplace-store)
-- `tool-history/` — Tool usage history (tool-history-store)
-- `sandbox/` — Sandbox state (sandbox-store)
-- `skills/` — Skills state (skill-store)
-- `skill-seekers/` — SkillSeekers state (skill-seekers-store)
-- `input-completion/` — Input completion state (input-completion-store)
-- `canvas/` — Canvas state (comment-store, keybinding-store, chunked-document-store)
-- `screenshot/` — Screenshot editor state (editor-store)
-- `arena/` — Arena state (arena-store, leaderboard-sync-store)
 
 ## Entry Points
 

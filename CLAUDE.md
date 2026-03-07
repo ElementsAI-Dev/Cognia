@@ -4,6 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Changelog
 
+### 2026-02-27
+
+- **CLAUDE.md Quality Audit**
+  - Fixed Tauri version (2.9 → 2.10), static export config (now opt-in via `COGNIA_STATIC_EXPORT`)
+  - Updated module diagram with ~30 missing directories across all modules
+  - Added `build:export` command to development commands
+  - Trimmed low-value coverage stats section
+  - Updated all 9 module-level CLAUDE.md files with missing directories
+  - Fixed `components/workflow-editor/` → `workflow/` directory name
+  - Fixed `src-tauri` testing claim (Rust tests do exist)
+  - Added 4 missing files to `lib/scheduler/` architecture tree
+
 ### 2026-02-13
 
 - **Module Updates**
@@ -49,10 +61,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Cognia is an AI-native chat and creation application with multi-provider support, built as a hybrid web/desktop application:
 
 - **Frontend**: Next.js 16.1 with React 19.2, TypeScript 5.9, and Tailwind CSS v4
-- **Desktop Framework**: Tauri 2.9 for cross-platform desktop apps
+- **Desktop Framework**: Tauri 2.10 for cross-platform desktop apps
 - **UI Components**: shadcn/ui with Radix UI primitives and Lucide icons
 - **State Management**: Zustand v5 stores + Dexie v4 for IndexedDB persistence
-- **AI Integration**: Vercel AI SDK v5 with 14+ providers (OpenAI, Anthropic, Google, DeepSeek, Groq, Mistral, Ollama, xAI, Together AI, OpenRouter, Cohere, Fireworks, Cerebras, SambaNova)
+- **AI Integration**: Vercel AI SDK v5 (`ai@^5.0`) with 14+ providers (OpenAI, Anthropic, Google, DeepSeek, Groq, Mistral, Ollama, xAI, Together AI, OpenRouter, Cohere, Fireworks, Cerebras, SambaNova)
 - **Agent System**: Autonomous agent execution with tool calling, planning, sub-agent orchestration
 - **MCP Support**: Full Model Context Protocol support for extended capabilities
 - **Native Tools**: Desktop-only features (selection, awareness, context, screenshot) on Windows/macOS/Linux
@@ -73,10 +85,20 @@ graph TD
     Root --> E2E["e2e/ - E2E Tests"]
 
     App --> AppMain["(main)/ - Main Routes"]
-    App --> AppSettings["settings/ - Settings Pages"]
     App --> AppStandalone["Standalone Windows"]
-    App --> AppAPI["api/ - API Routes"]
-    App --> AppSpeedpass["speedpass/ - SpeedPass Learning"]
+
+    AppMain --> AppChat["(chat)/ - Chat Interface"]
+    AppMain --> AppSettings["settings/ - Settings"]
+    AppMain --> AppArena["arena/ - Model Arena"]
+    AppMain --> AppImageStudio["image-studio/ - Image Studio"]
+    AppMain --> AppLatex["latex/ - LaTeX Editor"]
+    AppMain --> AppNotebook["notebook/ - Notebook"]
+    AppMain --> AppPPT["ppt/ - PPT Generation"]
+    AppMain --> AppVideoStudio["video-studio/ - Video Studio"]
+    AppMain --> AppAcademic["academic/ - Academic Mode"]
+    AppMain --> AppScheduler["scheduler/ - Task Scheduler"]
+    AppMain --> AppSpeedpass["speedpass/ - SpeedPass Learning"]
+    AppMain --> AppMore["+ designer, git, workflows, skills, plugins, sandbox, observability, ..."]
 
     Components --> CompUI["ui/ - shadcn Components"]
     Components --> CompChat["chat/ - Chat Components"]
@@ -85,13 +107,17 @@ graph TD
     Components --> CompA2UI["a2ui/ - A2UI Mini-Apps"]
     Components --> CompDesigner["designer/ - Visual Designer"]
     Components --> CompNative["native/ - Native Features"]
-    Components --> CompWorkflow["workflow-editor/ - Workflow Editor"]
+    Components --> CompWorkflow["workflow/ - Workflow Editor"]
     Components --> CompProviders["providers/ - Provider System"]
     Components --> CompLayout["layout/ - Layout Components"]
     Components --> CompVideoStudio["video-studio/ - Video Studio"]
-    Components --> CompObservability["observability/ - Observability"]
-    Components --> CompSpeedpass["speedpass/ - SpeedPass Components"]
-    Components --> CompScreenshot["screenshot/ - Screenshot Editor"]
+    Components --> CompImageStudio["image-studio/ - Image Studio"]
+    Components --> CompPPT["ppt/ - PPT Components"]
+    Components --> CompPlugin["plugin/ - Plugin Components"]
+    Components --> CompArena["arena/ - Arena Components"]
+    Components --> CompGit["git/ - Git Components"]
+    Components --> CompPrompt["prompt/ - Prompt Components"]
+    Components --> CompMore["+ academic, artifacts, canvas, scheduler, screenshot, settings, sidebar, skills, speedpass, ..."]
 
     Lib --> LibAI["ai/ - AI Integration"]
     Lib --> LibDB["db/ - Database"]
@@ -100,11 +126,15 @@ graph TD
     Lib --> LibDesigner["designer/ - Designer Logic"]
     Lib --> LibDocument["document/ - Document Processing"]
     Lib --> LibVector["vector/ - Vector Databases"]
-    Lib --> LibObservability["observability/ - Observability"]
     Lib --> LibCanvas["canvas/ - Canvas Utilities"]
     Lib --> LibMedia["media/ - Media Processing"]
     Lib --> LibLearning["learning/ - Learning System"]
     Lib --> LibA2UI["a2ui/ - A2UI App Generation"]
+    Lib --> LibArena["arena/ - Arena Logic"]
+    Lib --> LibLatex["latex/ - LaTeX Utilities"]
+    Lib --> LibGit["git/ - Git Integration"]
+    Lib --> LibScheduler["scheduler/ - Task Scheduler"]
+    Lib --> LibMore["+ agent-trace, i18n, logger, plugin, search, storage, ..."]
 
     Hooks --> HooksAI["ai/ - AI Hooks"]
     Hooks --> HooksAgent["agent/ - Agent Hooks"]
@@ -113,11 +143,15 @@ graph TD
     Hooks --> HooksUI["ui/ - UI Hooks"]
     Hooks --> HooksRAG["rag/ - RAG Hooks"]
     Hooks --> HooksDesigner["designer/ - Designer Hooks"]
-    Hooks --> HooksVideoStudio["video-studio/ - Video Studio Hooks"]
+    Hooks --> HooksVideoStudio["video-studio/ - Video Hooks"]
     Hooks --> HooksLearning["learning/ - Learning Hooks"]
-    Hooks --> HooksSkillSeekers["skill-seekers/ - SkillSeekers Hooks"]
-    Hooks --> HooksInputCompletion["input-completion/ - Input Completion"]
     Hooks --> HooksA2UI["a2ui/ - A2UI Hooks"]
+    Hooks --> HooksArena["arena/ - Arena Hooks"]
+    Hooks --> HooksImageStudio["image-studio/ - Image Hooks"]
+    Hooks --> HooksLatex["latex/ - LaTeX Hooks"]
+    Hooks --> HooksMCP["mcp/ - MCP Hooks"]
+    Hooks --> HooksPlugin["plugin/ - Plugin Hooks"]
+    Hooks --> HooksMore["+ agent-trace, artifacts, canvas, context, db, export, git, map, presets, projects, sandbox, scheduler, search, settings, skills, storage, sync, ..."]
 
     Stores --> StoresAgent["agent/ - Agent State"]
     Stores --> StoresChat["chat/ - Chat State"]
@@ -126,14 +160,13 @@ graph TD
     Stores --> StoresSystem["system/ - System State"]
     Stores --> StoresMedia["media/ - Media State"]
     Stores --> StoresProject["project/ - Projects"]
-    Stores --> StoresSkills["skills/ - Skills State"]
     Stores --> StoresLearning["learning/ - Learning State"]
-    Stores --> StoresSkillSeekers["skill-seekers/ - SkillSeekers State"]
-    Stores --> StoresInputCompletion["input-completion/ - Input Completion State"]
     Stores --> StoresCanvas["canvas/ - Canvas State"]
-    Stores --> StoresScreenshot["screenshot/ - Screenshot State"]
     Stores --> StoresA2UI["a2ui/ - A2UI State"]
     Stores --> StoresAcademic["academic/ - Academic State"]
+    Stores --> StoresArena["arena/ - Arena State"]
+    Stores --> StoresLatex["latex/ - LaTeX State"]
+    Stores --> StoresMore["+ agent-trace, artifact, context, designer, document, git, jupyter, plugin, prompt, sandbox, scheduler, screenshot, skills, sync, workflow, ..."]
 
     SrcTauri --> TauriCommands["commands/ - Tauri Commands"]
     SrcTauri --> TauriMCP["mcp/ - MCP Manager"]
@@ -141,10 +174,9 @@ graph TD
     SrcTauri --> TauriScreenshot["screenshot/ - Screenshot System"]
     SrcTauri --> TauriAwareness["awareness/ - Awareness System"]
     SrcTauri --> TauriSandbox["sandbox/ - Code Execution"]
-    SrcTauri --> TauriJupyter["jupyter/ - Jupyter Integration"]
-    SrcTauri --> TauriScreenRecording["screen_recording/ - Screen Recording"]
-    SrcTauri --> TauriSkillSeekers["skill_seekers/ - SkillSeekers"]
-    SrcTauri --> TauriInputCompletion["input_completion/ - Input Completion"]
+    SrcTauri --> TauriExternalAgent["external_agent/ - External Agents"]
+    SrcTauri --> TauriWorkflowRuntime["workflow_runtime/ - Workflow Runtime"]
+    SrcTauri --> TauriMore["+ chat_runtime, convex, jupyter, screen_recording, scheduler, skill, skill_seekers, input_completion, ..."]
 
     click App "D:\\Project\\Cognia\\app\\CLAUDE.md" "View app module docs"
     click Components "D:\\Project\\Cognia\\components\\CLAUDE.md" "View components module docs"
@@ -173,7 +205,8 @@ graph TD
 ```bash
 # Frontend
 pnpm dev              # Start Next.js dev server (localhost:3000)
-pnpm build            # Production build (static export to out/)
+pnpm build            # Production build
+pnpm build:export     # Static export build for Tauri (generates out/)
 pnpm start            # Serve production build
 pnpm lint             # Run ESLint
 pnpm lint --fix       # Auto-fix ESLint issues
@@ -218,7 +251,7 @@ Cognia is a hybrid web/desktop application that:
 2. Builds to static HTML for Tauri desktop distribution (`pnpm build`)
 3. Uses Tauri's Rust backend for native capabilities (MCP process management, file system access, clipboard, screenshots, system monitoring)
 
-**Key constraint**: Production builds use `output: "export"` for static site generation (`next.config.ts`). No server-side API routes can be used in deployed desktop apps—Tauri loads static files from `out/`.
+**Key constraint**: Static export is opt-in via `COGNIA_STATIC_EXPORT=true` (`pnpm build:export`). When enabled, `next.config.ts` sets `output: "export"` for static site generation. No server-side API routes can be used in deployed desktop apps—Tauri loads static files from `out/`.
 
 ### Path Aliases
 
@@ -365,8 +398,9 @@ The application uses an 11-layer provider architecture:
 
 ### Static Export Compatibility
 
-- No server-side API routes in production (Tauri loads static files from `out/`)
-- Tauri plugins are aliased to stubs in `next.config.ts` for browser builds
+- Static export is opt-in: `COGNIA_STATIC_EXPORT=true pnpm build` (or `pnpm build:export`)
+- When enabled, Tauri loads static files from `out/` — no server-side API routes
+- Tauri plugins and Node.js-only packages are aliased to stubs in `next.config.ts` (both Turbopack and webpack)
 - Session management uses Zustand state instead of URL parameters
 
 ### Security Notes
@@ -406,44 +440,12 @@ When working with this codebase:
 5. **Test your changes** - run `pnpm test:coverage` before committing
 6. **Check static export compatibility** - ensure no server-side only features are added
 
-## Coverage Report
-
-- **Total Files**: 3,850+
-- **Scanned Files**: 3,850+
-- **Coverage**: 100%
-- **Status**: Complete - all major modules and files indexed
-
-### Language Breakdown
-
-| Language | Files | Percentage |
-|----------|-------|------------|
-| TypeScript | 2,450 | 64% |
-| TSX | 1,080 | 28% |
-| Rust | 150 | 4% |
-| JSON | 100 | 3% |
-| Other | 70 | 1% |
-
-### Module Coverage Summary
-
-| Module | Files | Dirs | Coverage | Notes |
-|--------|-------|------|----------|-------|
-| app | 60 | 9 | Good | All routes, API routes, and layouts documented |
-| components | 350 | 50+ | Good | 50+ component directories indexed |
-| lib | 250 | 25+ | Good | All subdirectories documented |
-| hooks | 120 | 25+ | Good | 25+ hook categories indexed |
-| stores | 120 | 28+ | Good | 28+ store directories documented |
-| types | 120 | 25+ | Complete | All type definitions indexed |
-| src-tauri | 150 | 17+ | Partial | Rust modules documented |
-| e2e | 100 | 4 | Good | Playwright test files |
-
 ## Documentation System
 
-This project has a comprehensive documentation system:
-
-- **Root Documentation**: `CLAUDE.md` (this file)
-- **Module Documentation**: `*/CLAUDE.md` in each major module directory
-- **Feature Documentation**: `llmdoc/index.md` with detailed feature docs
-- **Index**: `.claude/index.json` with complete file inventory
+- **Root**: `CLAUDE.md` (this file)
+- **Module-level**: `app/`, `components/`, `hooks/`, `lib/`, `stores/`, `types/`, `src-tauri/` each have their own `CLAUDE.md`
+- **Deep modules**: `lib/scheduler/`, `lib/logger/`, `lib/ai/agent/external/`, `plugins/ai-tools/` have dedicated `CLAUDE.md` files
+- **Feature docs**: `docs/` directory with architecture and feature documentation
 
 ## Global Shortcuts
 

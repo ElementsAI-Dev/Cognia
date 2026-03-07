@@ -2,8 +2,10 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ProviderSettings } from './provider-settings';
+import { testProviderConnection } from '@/lib/ai/infrastructure/api-test';
+import { toast } from '@/components/ui/sonner';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -232,6 +234,13 @@ jest.mock('@/lib/utils', () => ({
 describe('ProviderSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSettingsState.providerSettings = {
+      openai: { apiKey: 'test-key', enabled: true },
+      anthropic: { apiKey: '', enabled: false },
+      google: { apiKey: '', enabled: false },
+      ollama: { enabled: true, baseURL: 'http://localhost:11434' },
+    };
+    mockSettingsState.customProviders = {};
     mockSettingsState.providerUIPreferences = {
       viewMode: 'cards',
       sortBy: 'name',
@@ -308,5 +317,44 @@ describe('ProviderSettings', () => {
     const switches = screen.getAllByRole('switch');
     fireEvent.click(switches[0]);
     expect(mockUpdateProviderSettings).toHaveBeenCalled();
+  });
+
+  it('blocks enabling providers that have no credential configured', () => {
+    render(<ProviderSettings />);
+    const switches = screen.getAllByRole('switch');
+    const blockedSwitch = switches.find((node) => node.hasAttribute('disabled'));
+    expect(blockedSwitch).toBeDefined();
+    fireEvent.click(blockedSwitch!);
+    expect(mockUpdateProviderSettings).not.toHaveBeenCalledWith('anthropic', { enabled: true });
+  });
+
+  it('tests only selected + visible + eligible providers in table mode batch test', async () => {
+    mockSettingsState.providerUIPreferences.viewMode = 'table';
+    render(<ProviderSettings />);
+
+    const rowSelectors = screen.getAllByLabelText('selectProviderRow');
+    fireEvent.click(rowSelectors[0]); // openai
+    fireEvent.click(rowSelectors[1]); // anthropic (no key, should be filtered out by eligibility)
+    fireEvent.click(screen.getByText('testSelected'));
+
+    await waitFor(() => {
+      expect(testProviderConnection).toHaveBeenCalledTimes(1);
+    });
+    expect(testProviderConnection).toHaveBeenCalledWith('openai', 'test-key', undefined);
+  });
+
+  it('shows warning when testing selected providers with no eligible candidates', async () => {
+    mockSettingsState.providerUIPreferences.viewMode = 'table';
+    mockSettingsState.providerSettings.openai = { apiKey: '', enabled: true };
+    render(<ProviderSettings />);
+
+    const rowSelectors = screen.getAllByLabelText('selectProviderRow');
+    fireEvent.click(rowSelectors[0]); // openai
+    fireEvent.click(rowSelectors[1]); // anthropic
+    fireEvent.click(screen.getByText('testSelected'));
+
+    await waitFor(() => {
+      expect((toast.warning as jest.Mock)).toHaveBeenCalled();
+    });
   });
 });

@@ -20,6 +20,10 @@ const mockActivateSkill = jest.fn();
 const mockDeactivateSkill = jest.fn();
 const mockClearError = jest.fn();
 const mockImportSkill = jest.fn();
+const mockCreateSkillAction = jest.fn();
+const mockToggleSkillEnabledAction = jest.fn();
+const mockSetSkillActiveAction = jest.fn();
+const mockDeleteSkillAction = jest.fn();
 
 jest.mock('@/stores/skills', () => ({
   useSkillStore: () => ({
@@ -67,6 +71,15 @@ jest.mock('@/stores/skills', () => ({
     deactivateSkill: mockDeactivateSkill,
     clearError: mockClearError,
     importSkill: mockImportSkill,
+  }),
+}));
+
+jest.mock('@/hooks/skills/use-skill-actions', () => ({
+  useSkillActions: () => ({
+    createSkill: mockCreateSkillAction,
+    toggleSkillEnabled: mockToggleSkillEnabledAction,
+    setSkillActive: mockSetSkillActiveAction,
+    deleteSkill: mockDeleteSkillAction,
   }),
 }));
 
@@ -330,6 +343,10 @@ describe('SkillSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     window.confirm = jest.fn().mockReturnValue(true);
+    mockCreateSkillAction.mockResolvedValue({ outcome: 'success' });
+    mockToggleSkillEnabledAction.mockResolvedValue({ outcome: 'success' });
+    mockSetSkillActiveAction.mockReturnValue({ outcome: 'success' });
+    mockDeleteSkillAction.mockResolvedValue({ outcome: 'success' });
   });
 
   it('renders without crashing', () => {

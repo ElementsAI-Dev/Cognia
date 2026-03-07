@@ -10,7 +10,6 @@ import {
   type DBKnowledgeFile,
   type DBMCPServer,
   type DBMessage,
-  type DBProject,
   type DBSummary,
   type DBWorkflow,
   type DBWorkflowExecution,

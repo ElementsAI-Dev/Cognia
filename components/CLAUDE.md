@@ -34,32 +34,47 @@ Feature-based React components for the Cognia application. Components are organi
 - `chat/` — Chat interface components
 - `chat-widget/` — Chat widget for standalone window
 - `designer/` — Visual web page designer
-- `workflow-editor/` — Visual workflow editor with React Flow
+- `workflow/` — Visual workflow editor with React Flow
 - `native/` — Native feature UI (clipboard, screenshot, focus tracking)
 - `learning/` — Learning mode components
 - `a2ui/` — A2UI mini-app system (Quick App Builder, surfaces, data components)
 
 ### Supporting Components
 
+- `arena/` — Model arena / blind comparison UI
 - `artifacts/` — Artifact rendering and creation
 - `canvas/` — Canvas components with collaboration support
-- `projects/` — Project management UI
-- `scheduler/` — Task scheduler UI (task-list, task-form, task-details, workflow-schedule-dialog, backup-schedule-dialog)
-- `settings/` — Settings pages (MCP, data, general)
-- `sidebar/` — Sidebar components
-- `presets/` — Preset management
-- `skills/` — Skill management UI
+- `document/` — Document components
 - `export/` — Export dialogs and utilities
-- `layout/` — Layout components (app shell, command palette, global search)
-- `providers/` — React context providers
-- `selection-toolbar/` — Selection toolbar UI
-- `screenshot/` — Screenshot editor and history
-- `screen-recording/` — Screen recording controls and history
-- `video-studio/` — Video editing timeline and effects
+- `git/` — Git integration UI
 - `image-studio/` — Image editing tools
+- `input-completion/` — Input completion UI
 - `jupyter/` — Jupyter notebook components
+- `latex/` — LaTeX components
+- `layout/` — Layout components (app shell, command palette, global search)
+- `logging/` — Logging UI
+- `map/` — Map components
 - `mcp/` — MCP tool call visualization
 - `observability/` — System monitoring UI
+- `onboarding/` — Onboarding flow
+- `plugin/` — Plugin management UI
+- `ppt/` — PPT generation and editing
+- `presets/` — Preset management
+- `projects/` — Project management UI
+- `prompt/` — Prompt templates and marketplace UI
+- `providers/` — React context providers
+- `sandbox/` — Sandbox components
+- `scheduler/` — Task scheduler UI (task-list, task-form, task-details, workflow-schedule-dialog, backup-schedule-dialog)
+- `screenshot/` — Screenshot editor and history
+- `screen-recording/` — Screen recording controls and history
+- `search/` — Search components
+- `selection-toolbar/` — Selection toolbar UI
+- `settings/` — Settings pages (MCP, data, general)
+- `sidebar/` — Sidebar components
+- `skills/` — Skill management UI
+- `speedpass/` — SpeedPass learning components
+- `sync/` — Sync components
+- `video-studio/` — Video editing timeline and effects
 - `academic/` — Academic paper analysis UI
 
 ## Entry Points

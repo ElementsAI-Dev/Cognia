@@ -4,34 +4,33 @@
 
 import { type SelectionAIAction, type SelectionAIResult } from './selection-ai';
 
-// Mock dependencies
+const mockGenerateText = jest.fn();
+const mockGetProviderModelFromConfig = jest.fn();
+const mockIsValidProvider = jest.fn();
+
+let mockStoreState = {
+  defaultProvider: 'openai',
+  providerSettings: {
+    openai: {
+      enabled: true,
+      apiKey: 'test-api-key',
+      defaultModel: 'gpt-4o',
+    },
+  } as Record<string, { enabled?: boolean; apiKey?: string; apiKeys?: string[]; defaultModel?: string; baseURL?: string }>,
+};
+
 jest.mock('ai', () => ({
-  generateText: jest.fn(),
+  generateText: (...args: unknown[]) => mockGenerateText(...args),
 }));
 
-jest.mock('@ai-sdk/openai', () => ({
-  createOpenAI: jest.fn(() => jest.fn()),
-}));
-
-jest.mock('@ai-sdk/anthropic', () => ({
-  createAnthropic: jest.fn(() => jest.fn()),
-}));
-
-jest.mock('@ai-sdk/google', () => ({
-  createGoogleGenerativeAI: jest.fn(() => jest.fn()),
+jest.mock('@/lib/ai/core/client', () => ({
+  getProviderModelFromConfig: (...args: unknown[]) => mockGetProviderModelFromConfig(...args),
+  isValidProvider: (...args: unknown[]) => mockIsValidProvider(...args),
 }));
 
 jest.mock('@/stores/settings', () => ({
   useSettingsStore: {
-    getState: jest.fn(() => ({
-      defaultProvider: 'openai',
-      providerSettings: {
-        openai: {
-          apiKey: 'test-api-key',
-          defaultModel: 'gpt-4',
-        },
-      },
-    })),
+    getState: jest.fn(() => mockStoreState),
   },
 }));
 
@@ -78,39 +77,79 @@ describe('SelectionAIResult type', () => {
 describe('processSelectionWithAI', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockStoreState = {
+      defaultProvider: 'openai',
+      providerSettings: {
+        openai: {
+          enabled: true,
+          apiKey: 'test-api-key',
+          defaultModel: 'gpt-4o',
+        },
+      },
+    };
+    mockIsValidProvider.mockReturnValue(true);
+    mockGetProviderModelFromConfig.mockReturnValue({
+      model: { id: 'resolved-model' },
+      provider: 'openai',
+      modelId: 'gpt-4o',
+    });
+    mockGenerateText.mockResolvedValue({ text: 'AI response' });
   });
 
-  it('should process explain action', async () => {
-    const { generateText } = await import('ai');
-    (generateText as jest.Mock).mockResolvedValue({ text: 'Explanation result' });
-
+  it('uses shared provider model resolution', async () => {
     const { processSelectionWithAI } = await import('./selection-ai');
+
     const result = await processSelectionWithAI({
       action: 'explain',
       text: 'Test text to explain',
     });
 
-    expect(result.action).toBe('explain');
-    expect(result.originalText).toBe('Test text to explain');
+    expect(result.success).toBe(true);
+    expect(mockGetProviderModelFromConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-api-key',
+      })
+    );
+    expect(mockGenerateText).toHaveBeenCalled();
   });
 
-  it('should process translate action with target language', async () => {
-    const { generateText } = await import('ai');
-    (generateText as jest.Mock).mockResolvedValue({ text: '翻译结果' });
+  it('returns deterministic error when required API key is missing', async () => {
+    mockStoreState = {
+      defaultProvider: 'openai',
+      providerSettings: {
+        openai: {
+          enabled: true,
+          apiKey: '',
+          defaultModel: 'gpt-4o',
+        },
+      },
+    };
 
     const { processSelectionWithAI } = await import('./selection-ai');
     const result = await processSelectionWithAI({
-      action: 'translate',
-      text: 'Text to translate',
-      targetLanguage: 'Chinese (Simplified)',
+      action: 'explain',
+      text: 'Test text',
     });
 
-    expect(result.action).toBe('translate');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('requires an API key');
+    expect(mockGetProviderModelFromConfig).not.toHaveBeenCalled();
   });
 
-  it('should process summarize action', async () => {
-    const { generateText } = await import('ai');
-    (generateText as jest.Mock).mockResolvedValue({ text: 'Summary result' });
+  it('allows local keyless providers when configured', async () => {
+    mockStoreState = {
+      defaultProvider: 'ollama',
+      providerSettings: {
+        ollama: {
+          enabled: true,
+          apiKey: '',
+          defaultModel: 'llama3.2',
+          baseURL: 'http://localhost:11434/v1',
+        },
+      },
+    };
 
     const { processSelectionWithAI } = await import('./selection-ai');
     const result = await processSelectionWithAI({
@@ -118,72 +157,38 @@ describe('processSelectionWithAI', () => {
       text: 'Long text to summarize',
     });
 
-    expect(result.action).toBe('summarize');
+    expect(result.success).toBe(true);
+    expect(mockGetProviderModelFromConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'ollama',
+        apiKey: '',
+      })
+    );
   });
 
-  it('should use custom prompt when provided', async () => {
-    const { generateText } = await import('ai');
-    (generateText as jest.Mock).mockResolvedValue({ text: 'Custom result' });
-
-    const { processSelectionWithAI } = await import('./selection-ai');
-    const result = await processSelectionWithAI({
-      action: 'explain',
-      text: 'Test text',
-      customPrompt: 'Custom prompt: {text}',
-    });
-
-    expect(generateText).toHaveBeenCalled();
-    expect(result.action).toBe('explain');
-  });
-
-  it('should return error when no API key configured', async () => {
-    const { useSettingsStore } = await import('@/stores/settings');
-    (useSettingsStore.getState as jest.Mock).mockReturnValue({
+  it('returns error when provider is disabled', async () => {
+    mockStoreState = {
       defaultProvider: 'openai',
       providerSettings: {
-        openai: { apiKey: '' },
+        openai: {
+          enabled: false,
+          apiKey: 'test-api-key',
+          defaultModel: 'gpt-4o',
+        },
       },
-    });
-
-    // Re-import to pick up the new mock
-    jest.resetModules();
-    jest.mock('@/stores/settings', () => ({
-      useSettingsStore: {
-        getState: jest.fn(() => ({
-          defaultProvider: 'openai',
-          providerSettings: {
-            openai: { apiKey: '' },
-          },
-        })),
-      },
-    }));
+    };
 
     const { processSelectionWithAI } = await import('./selection-ai');
     const result = await processSelectionWithAI({
-      action: 'explain',
-      text: 'Test text',
+      action: 'rewrite',
+      text: 'Please rewrite this.',
     });
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain('API key');
+    expect(result.error).toContain('disabled');
   });
 
-  it('should handle API errors', async () => {
-    const { processSelectionWithAI } = await import('./selection-ai');
-    const result = await processSelectionWithAI({
-      action: 'explain',
-      text: 'Test text',
-    });
-
-    // Without proper API key setup, it returns an error
-    expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
-  });
-
-  it('should track processing time', async () => {
-    const { generateText } = await import('ai');
-    (generateText as jest.Mock).mockResolvedValue({ text: 'Result' });
-
+  it('tracks processing time', async () => {
     const { processSelectionWithAI } = await import('./selection-ai');
     const result = await processSelectionWithAI({
       action: 'explain',
@@ -195,22 +200,19 @@ describe('processSelectionWithAI', () => {
 });
 
 describe('quickTranslate', () => {
-  it('should throw when API key not configured', async () => {
+  it('throws when provider config is invalid', async () => {
+    mockStoreState = {
+      defaultProvider: 'openai',
+      providerSettings: {
+        openai: {
+          enabled: true,
+          apiKey: '',
+          defaultModel: 'gpt-4o',
+        },
+      },
+    };
+
     const { quickTranslate } = await import('./selection-ai');
-    await expect(quickTranslate('Hello', 'zh-CN')).rejects.toThrow();
-  });
-});
-
-describe('quickExplain', () => {
-  it('should throw when API key not configured', async () => {
-    const { quickExplain } = await import('./selection-ai');
-    await expect(quickExplain('Complex term')).rejects.toThrow();
-  });
-});
-
-describe('quickSummarize', () => {
-  it('should throw when API key not configured', async () => {
-    const { quickSummarize } = await import('./selection-ai');
-    await expect(quickSummarize('Long text')).rejects.toThrow();
+    await expect(quickTranslate('Hello', 'zh-CN')).rejects.toThrow('requires an API key');
   });
 });

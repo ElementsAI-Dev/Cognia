@@ -56,6 +56,12 @@ import { CLIProxyAPISettings } from './cliproxyapi-settings';
 import { BatchTestProgress, TestResultsSummary } from './batch-test-progress';
 import { ProviderFilters, type CapabilityFilter } from './provider-filters';
 import { CustomProvidersList } from './custom-providers-list';
+import {
+  getBuiltInProviderReadiness,
+  getCustomProviderReadiness,
+  getProviderEnableEligibility,
+  getVisibleSelectedProviderIds,
+} from './provider-readiness';
 
 // Dynamic imports for heavy dialog components (code splitting)
 const CustomProviderDialog = dynamic(() => import('./custom-provider-dialog').then(mod => ({ default: mod.CustomProviderDialog })), { ssr: false });
@@ -100,6 +106,7 @@ export function ProviderSettings() {
   const [isBatchTesting, setIsBatchTesting] = useState(false);
   const [batchTestProgress, setBatchTestProgress] = useState(0);
   const [batchTestCancelRequested, setBatchTestCancelRequested] = useState(false);
+  const [batchTestSummary, setBatchTestSummary] = useState<{ completed: number; total: number; canceled: boolean } | null>(null);
   const batchTestCancelRef = useRef(false);
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -127,6 +134,15 @@ export function ProviderSettings() {
   }, []);
 
   const handleSetDefaultModel = (providerId: string, modelId: string) => {
+    const providerState = getBuiltInProviderReadiness(
+      providerId,
+      providerSettings[providerId],
+      testResults[providerId]
+    );
+    if (!providerState.eligibility.defaultModel.allowed) {
+      toast.warning(providerState.eligibility.defaultModel.reason || t('configureApiKey'));
+      return;
+    }
     updateProviderSettings(providerId, { defaultModel: modelId });
   };
 
@@ -143,16 +159,19 @@ export function ProviderSettings() {
     setApiKeyRotation(providerId, true, strategy);
   };
 
-  // Get count of configured providers
-  const configuredCount = Object.entries(providerSettings).filter(
-    ([id, settings]) =>
-      settings?.enabled &&
-      (settings?.apiKey || (settings?.apiKeys && settings.apiKeys.length > 0) || PROVIDER_CATEGORIES[id] === 'local')
-  ).length;
+  // Get count of configured providers based on derived readiness.
+  const configuredCount = Object.keys(PROVIDERS).filter((providerId) => {
+    const settings = providerSettings[providerId];
+    if (!settings?.enabled) return false;
+    const readiness = getBuiltInProviderReadiness(providerId, settings, testResults[providerId]);
+    return readiness.readiness !== 'unconfigured';
+  }).length;
 
-  const configuredCustomCount = Object.values(customProviders).filter(
-    (provider) => provider.enabled && !!provider.baseURL && !!provider.apiKey
-  ).length;
+  const configuredCustomCount = Object.values(customProviders).filter((provider) => {
+    if (!provider.enabled) return false;
+    const readiness = getCustomProviderReadiness(provider);
+    return readiness.readiness !== 'unconfigured';
+  }).length;
 
   const totalConfiguredCount = configuredCount + configuredCustomCount;
 
@@ -161,18 +180,27 @@ export function ProviderSettings() {
   };
 
   const handleToggleProvider = (providerId: string, enabled: boolean) => {
+    const eligibility = getProviderEnableEligibility(providerId, providerSettings[providerId], enabled);
+    if (!eligibility.allowed) {
+      toast.warning(eligibility.reason || t('configureApiKey'));
+      return false;
+    }
     updateProviderSettings(providerId, { enabled });
+    return true;
   };
 
   const handleTestConnection = useCallback(async (providerId: string) => {
     const settings = providerSettings[providerId];
+    const providerState = getBuiltInProviderReadiness(providerId, settings, testResults[providerId]);
+    if (!providerState.eligibility.testConnection.allowed) {
+      toast.warning(providerState.eligibility.testConnection.reason || t('connectionFailed'));
+      return undefined;
+    }
     const activeApiKey =
       settings?.apiKey ||
       settings?.apiKeys?.[settings.currentKeyIndex || 0] ||
       settings?.apiKeys?.[0] ||
       '';
-
-    if (!activeApiKey && PROVIDER_CATEGORIES[providerId] !== 'local') return undefined;
 
     setTestingProviders((prev) => ({ ...prev, [providerId]: true }));
     setTestResults((prev) => ({ ...prev, [providerId]: null }));
@@ -198,11 +226,22 @@ export function ProviderSettings() {
     } finally {
       setTestingProviders((prev) => ({ ...prev, [providerId]: false }));
     }
-  }, [providerSettings]);
+  }, [providerSettings, testResults, t]);
 
   const handleTestCustomProvider = useCallback(async (providerId: string) => {
     const provider = customProviders[providerId];
-    if (!provider?.baseURL || !provider?.apiKey) return;
+    const readiness = getCustomProviderReadiness(provider);
+    if (!readiness.eligibility.testConnection.allowed) {
+      const message = readiness.eligibility.testConnection.reason || t('connectionFailed');
+      setCustomTestResults((prev) => ({ ...prev, [providerId]: 'error' }));
+      setCustomTestMessages((prev) => ({ ...prev, [providerId]: message }));
+      toast.warning(message);
+      return { success: false, message };
+    }
+    if (!provider?.baseURL || !provider.apiKey) {
+      const message = t('connectionFailed');
+      return { success: false, message };
+    }
 
     try {
       new URL(provider.baseURL);
@@ -262,14 +301,20 @@ export function ProviderSettings() {
   const handleBatchTest = useCallback(async () => {
     const enabledProviders = Object.entries(providerSettings)
       .filter(
-        ([id, settings]) =>
-          settings?.enabled &&
-          (settings?.apiKey || (settings?.apiKeys && settings.apiKeys.length > 0) || PROVIDER_CATEGORIES[id] === 'local')
+        ([id, settings]) => {
+          if (!settings?.enabled) return false;
+          const providerState = getBuiltInProviderReadiness(id, settings, testResults[id]);
+          return providerState.eligibility.testConnection.allowed;
+        }
       )
       .map(([id]) => id);
 
     const enabledCustomProviders = Object.entries(customProviders)
-      .filter(([_id, provider]) => provider.enabled && !!provider.baseURL && !!provider.apiKey)
+      .filter(([_id, provider]) => {
+        if (!provider.enabled) return false;
+        const readiness = getCustomProviderReadiness(provider);
+        return readiness.eligibility.testConnection.allowed;
+      })
       .map(([id]) => id);
 
     const totalProvidersToTest = enabledProviders.length + enabledCustomProviders.length;
@@ -280,6 +325,7 @@ export function ProviderSettings() {
     setBatchTestCancelRequested(false);
     setIsBatchTesting(true);
     setBatchTestProgress(0);
+    setBatchTestSummary(null);
     setTestResults({});
     setCustomTestResults({});
     setCustomTestMessages({});
@@ -304,12 +350,17 @@ export function ProviderSettings() {
         completed += 1;
         setBatchTestProgress((completed / totalProvidersToTest) * 100);
       }
+      setBatchTestSummary({
+        completed,
+        total: totalProvidersToTest,
+        canceled: batchTestCancelRef.current,
+      });
     } finally {
       setIsBatchTesting(false);
       setBatchTestCancelRequested(false);
       batchTestCancelRef.current = false;
     }
-  }, [providerSettings, customProviders, handleTestConnection, handleTestCustomProvider]);
+  }, [providerSettings, customProviders, handleTestConnection, handleTestCustomProvider, testResults]);
 
   // Count test results
   const testResultsSummary = {
@@ -384,16 +435,14 @@ export function ProviderSettings() {
             break;
           }
           case 'status': {
-            const statusA =
-              settingsA.enabled &&
-              (settingsA.apiKey || (settingsA.apiKeys && settingsA.apiKeys.length > 0) || idA === 'ollama')
-                ? 1
-                : 0;
-            const statusB =
-              settingsB.enabled &&
-              (settingsB.apiKey || (settingsB.apiKeys && settingsB.apiKeys.length > 0) || idB === 'ollama')
-                ? 1
-                : 0;
+            const statusA = settingsA.enabled &&
+              getBuiltInProviderReadiness(idA, settingsA, testResults[idA]).readiness !== 'unconfigured'
+              ? 1
+              : 0;
+            const statusB = settingsB.enabled &&
+              getBuiltInProviderReadiness(idB, settingsB, testResults[idB]).readiness !== 'unconfigured'
+              ? 1
+              : 0;
             comparison = statusA - statusB;
             break;
           }
@@ -403,7 +452,7 @@ export function ProviderSettings() {
     }
 
     return filtered;
-  }, [categoryFilter, deferredSearchQuery, viewMode, sortBy, sortOrder, providerSettings, capabilityFilters]);
+  }, [categoryFilter, deferredSearchQuery, viewMode, sortBy, sortOrder, providerSettings, capabilityFilters, testResults]);
 
   const visibleProviderIds = useMemo(
     () => filteredProviders.map(([providerId]) => providerId),
@@ -464,31 +513,50 @@ export function ProviderSettings() {
   };
 
   const handleBatchTestSelected = useCallback(async () => {
-    const selectedIds = visibleProviderIds.filter((id) => selectedProviderIds.has(id));
-    if (selectedIds.length === 0) return;
+    const selectedVisibleIds = getVisibleSelectedProviderIds(visibleProviderIds, selectedProviderIds);
+    const selectedIds = selectedVisibleIds.filter((providerId) => {
+      const providerState = getBuiltInProviderReadiness(
+        providerId,
+        providerSettings[providerId],
+        testResults[providerId]
+      );
+      return providerState.eligibility.testConnection.allowed;
+    });
+    if (selectedIds.length === 0) {
+      toast.warning(t('noProvidersFound'));
+      return;
+    }
 
     batchTestCancelRef.current = false;
     setBatchTestCancelRequested(false);
     setIsBatchTesting(true);
     setBatchTestProgress(0);
+    setBatchTestSummary(null);
 
     try {
+      let completed = 0;
       for (let i = 0; i < selectedIds.length; i++) {
         if (batchTestCancelRef.current) break;
         const providerId = selectedIds[i];
         await handleTestConnection(providerId);
         if (batchTestCancelRef.current) break;
-        setBatchTestProgress(((i + 1) / selectedIds.length) * 100);
+        completed += 1;
+        setBatchTestProgress((completed / selectedIds.length) * 100);
       }
+      setBatchTestSummary({
+        completed,
+        total: selectedIds.length,
+        canceled: batchTestCancelRef.current,
+      });
     } finally {
       setIsBatchTesting(false);
       setBatchTestCancelRequested(false);
       batchTestCancelRef.current = false;
     }
-  }, [handleTestConnection, selectedProviderIds, visibleProviderIds]);
+  }, [handleTestConnection, providerSettings, selectedProviderIds, t, testResults, visibleProviderIds]);
 
   const handleSetSelectedEnabled = (enabled: boolean) => {
-    const selectedIds = visibleProviderIds.filter((id) => selectedProviderIds.has(id));
+    const selectedIds = getVisibleSelectedProviderIds(visibleProviderIds, selectedProviderIds);
     if (selectedIds.length === 0) return;
     for (const providerId of selectedIds) {
       handleToggleProvider(providerId, enabled);
@@ -526,9 +594,11 @@ export function ProviderSettings() {
     const settings = providerSettings[providerId] || {};
     const isExpanded = expandedProviders[providerId] ?? false;
     const isEnabled = settings.enabled !== false;
-    const apiKey = settings.apiKey || '';
-    const hasAnyApiKey = apiKey.length > 0 || (settings.apiKeys && settings.apiKeys.length > 0);
     const testResult = testResults[providerId];
+    const providerState = getBuiltInProviderReadiness(providerId, settings, testResult);
+    const enableGuard = getProviderEnableEligibility(providerId, settings, !isEnabled);
+    const testGuard = providerState.eligibility.testConnection;
+    const defaultModelGuard = providerState.eligibility.defaultModel;
 
     return (
       <div id={`provider-${providerId}`} key={providerId} className="scroll-mt-24">
@@ -590,8 +660,15 @@ export function ProviderSettings() {
         rotationStrategy={settings.apiKeyRotationStrategy || 'round-robin'}
         onRotationStrategyChange={(strategy) => handleRotationStrategyChange(providerId, strategy)}
         onReorderApiKeys={(fromIndex, toIndex) => reorderApiKeys(providerId, fromIndex, toIndex)}
+        readinessState={providerState.readiness}
+        enableToggleDisabled={!enableGuard.allowed}
+        enableToggleDisabledReason={enableGuard.reason}
+        testConnectionDisabled={!testGuard.allowed || !!testingProviders[providerId]}
+        testConnectionDisabledReason={testGuard.reason}
+        defaultModelDisabled={!defaultModelGuard.allowed}
+        defaultModelDisabledReason={defaultModelGuard.reason}
       >
-        {isEnabled && hasAnyApiKey && <ProviderHealthStatus providerId={providerId} />}
+        {isEnabled && providerState.hasCredential && <ProviderHealthStatus providerId={providerId} />}
 
         {provider.supportsOAuth && isEnabled && <OAuthLoginButton providerId={providerId} />}
 
@@ -689,6 +766,9 @@ export function ProviderSettings() {
           success={testResultsSummary.success}
           failed={testResultsSummary.failed}
           total={testResultsSummary.total}
+          completed={batchTestSummary?.completed}
+          expectedTotal={batchTestSummary?.total}
+          canceled={batchTestSummary?.canceled}
         />
       )}
 
@@ -721,8 +801,34 @@ export function ProviderSettings() {
       {categoryFilter !== 'local' && (
         <TooltipProvider delayDuration={300}>
           {filteredProviders.length === 0 ? (
-            <div className="text-center py-8 text-sm text-muted-foreground">
-              {t('noProvidersFound')}
+            <div className="rounded-lg border border-dashed p-6 text-center space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {t('noProvidersFound')}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {t('enterApiKeyForProvider')}
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setProviderCategoryFilter('all')}
+                  disabled={categoryFilter === 'all'}
+                >
+                  {t('filterAll')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setCapabilityFilters([]);
+                  }}
+                  disabled={!searchQuery.trim() && capabilityFilters.length === 0}
+                >
+                  {t('clearSelection')}
+                </Button>
+              </div>
             </div>
           ) : viewMode === 'table' ? (
           <>
@@ -817,8 +923,10 @@ export function ProviderSettings() {
                 {filteredProviders.map(([providerId, provider]) => {
                   const settings = providerSettings[providerId] || {};
                   const isEnabled = settings.enabled !== false;
-                  const apiKey = settings.apiKey || '';
-                  const hasAnyApiKey = apiKey.length > 0 || (settings.apiKeys && settings.apiKeys.length > 0);
+                  const providerState = getBuiltInProviderReadiness(providerId, settings, testResults[providerId]);
+                  const enableGuard = getProviderEnableEligibility(providerId, settings, !isEnabled);
+                  const testGuard = providerState.eligibility.testConnection;
+                  const defaultModelGuard = providerState.eligibility.defaultModel;
                   const defaultModel = provider.models.find(m => m.id === (settings.defaultModel || provider.defaultModel));
                   const testResult = testResults[providerId];
                   const pricedModels = provider.models.filter((m) => m.pricing);
@@ -919,8 +1027,8 @@ export function ProviderSettings() {
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {isEnabled && hasAnyApiKey ? (
-                          testResult?.success ? (
+                        {isEnabled ? (
+                          testResult?.success || providerState.readiness === 'verified' ? (
                             <Badge variant="default" className="text-[10px] bg-green-600">
                               <Check className="h-3 w-3 mr-0.5" />
                               {t('connected')}
@@ -930,11 +1038,13 @@ export function ProviderSettings() {
                               <AlertCircle className="h-3 w-3 mr-0.5" />
                               {t('failed')}
                             </Badge>
-                          ) : (
+                          ) : providerState.readiness === 'configured' ? (
                             <Badge variant="default" className="text-[10px]">
                               <Check className="h-3 w-3 mr-0.5" />
                               {t('ready')}
                             </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px]">{t('notConfigured')}</Badge>
                           )
                         ) : (
                           <Badge variant="outline" className="text-[10px]">{t('notSet')}</Badge>
@@ -949,7 +1059,8 @@ export function ProviderSettings() {
                                 size="icon"
                                 className="h-7 w-7"
                                 onClick={() => handleTestConnection(providerId)}
-                                disabled={(!hasAnyApiKey && providerId !== 'ollama') || testingProviders[providerId]}
+                                disabled={!testGuard.allowed || testingProviders[providerId]}
+                                title={!testGuard.allowed ? testGuard.reason : undefined}
                               >
                                 {testingProviders[providerId] ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -960,11 +1071,14 @@ export function ProviderSettings() {
                             </TooltipTrigger>
                             <TooltipContent>{t('testConnection')}</TooltipContent>
                           </Tooltip>
-                          <Switch
-                            checked={isEnabled}
-                            onCheckedChange={(checked) => handleToggleProvider(providerId, checked)}
-                            className="scale-75"
-                          />
+                          <div title={!enableGuard.allowed ? enableGuard.reason : undefined}>
+                            <Switch
+                              checked={isEnabled}
+                              onCheckedChange={(checked) => handleToggleProvider(providerId, checked)}
+                              className="scale-75"
+                              disabled={!enableGuard.allowed}
+                            />
+                          </div>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -993,8 +1107,16 @@ export function ProviderSettings() {
                                   <Badge 
                                     key={model.id}
                                     variant={model.id === defaultModel?.id ? 'default' : 'outline'}
-                                    className="text-xs cursor-pointer hover:bg-primary/80"
-                                    onClick={() => handleSetDefaultModel(providerId, model.id)}
+                                    className={cn(
+                                      'text-xs',
+                                      defaultModelGuard.allowed ? 'cursor-pointer hover:bg-primary/80' : 'opacity-60 cursor-not-allowed'
+                                    )}
+                                    onClick={() => {
+                                      if (defaultModelGuard.allowed) {
+                                        handleSetDefaultModel(providerId, model.id);
+                                      }
+                                    }}
+                                    title={!defaultModelGuard.allowed ? defaultModelGuard.reason : undefined}
                                   >
                                     {model.name}
                                     {model.supportsVision && <ImageIcon className="ml-1 h-3 w-3" />}
@@ -1039,7 +1161,8 @@ export function ProviderSettings() {
                                   size="sm"
                                   className="h-7 text-xs"
                                   onClick={() => handleTestConnection(providerId)}
-                                  disabled={(!hasAnyApiKey && providerId !== 'ollama') || testingProviders[providerId]}
+                                  disabled={!testGuard.allowed || testingProviders[providerId]}
+                                  title={!testGuard.allowed ? testGuard.reason : undefined}
                                 >
                                   {testingProviders[providerId] ? t('testing') : t('testConnection')}
                                 </Button>
@@ -1083,7 +1206,14 @@ export function ProviderSettings() {
           setEditingProviderId(providerId);
           setShowCustomDialog(true);
         }}
-        onToggleProvider={(providerId, enabled) => updateCustomProvider(providerId, { enabled })}
+        onToggleProvider={(providerId, enabled) => {
+          const readiness = getCustomProviderReadiness(customProviders[providerId]);
+          if (enabled && !readiness.eligibility.enable.allowed) {
+            toast.warning(readiness.eligibility.enable.reason || t('configureApiKey'));
+            return;
+          }
+          updateCustomProvider(providerId, { enabled });
+        }}
         onAddProvider={() => {
           setEditingProviderId(null);
           setShowCustomDialog(true);

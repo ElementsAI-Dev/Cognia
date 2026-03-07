@@ -48,25 +48,24 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
   const { syncState = true, enableKeyboardShortcuts = true } = options;
   const unlistenersRef = useRef<Array<() => void>>([]);
 
-  const {
-    isMaximized,
-    isMinimized,
-    isFullscreen,
-    isAlwaysOnTop,
-    isFocused,
-    isVisible,
-    preferences,
-    setIsMaximized,
-    setIsMinimized,
-    setIsFullscreen,
-    setIsAlwaysOnTop,
-    setIsFocused,
-    setIsVisible,
-    setSize,
-    setPosition,
-    setScaleFactor,
-    updateWindowState,
-  } = useWindowStore();
+  // Use field-level selectors to keep snapshot references stable in React 19.
+  const isMaximized = useWindowStore((state) => state.isMaximized);
+  const isMinimized = useWindowStore((state) => state.isMinimized);
+  const isFullscreen = useWindowStore((state) => state.isFullscreen);
+  const isAlwaysOnTop = useWindowStore((state) => state.isAlwaysOnTop);
+  const isFocused = useWindowStore((state) => state.isFocused);
+  const isVisible = useWindowStore((state) => state.isVisible);
+  const preferences = useWindowStore((state) => state.preferences);
+  const setIsMaximized = useWindowStore((state) => state.setIsMaximized);
+  const setIsMinimized = useWindowStore((state) => state.setIsMinimized);
+  const setIsFullscreen = useWindowStore((state) => state.setIsFullscreen);
+  const setIsAlwaysOnTop = useWindowStore((state) => state.setIsAlwaysOnTop);
+  const setIsFocused = useWindowStore((state) => state.setIsFocused);
+  const setIsVisible = useWindowStore((state) => state.setIsVisible);
+  const setSize = useWindowStore((state) => state.setSize);
+  const setPosition = useWindowStore((state) => state.setPosition);
+  const setScaleFactor = useWindowStore((state) => state.setScaleFactor);
+  const updateWindowState = useWindowStore((state) => state.updateWindowState);
 
   // Check if running in Tauri environment
   const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;

@@ -71,6 +71,7 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
     search,
     aiSearch,
     install,
+    getInstallError,
     setFilters,
     selectItem,
     fetchItemDetail,
@@ -158,10 +159,15 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
       if (success) {
         toast.success(t('marketplace.installSuccess'));
       } else {
-        toast.error(t('marketplace.installFailed'));
+        const installError = getInstallError(itemId);
+        if (installError?.startsWith('i18n:')) {
+          toast.error(t(installError.replace('i18n:', '')));
+        } else {
+          toast.error(installError || t('marketplace.installFailed'));
+        }
       }
     },
-    [itemsWithStatus, install, t]
+    [getInstallError, itemsWithStatus, install, t]
   );
 
   // Handle item click for detail
@@ -285,7 +291,7 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
-            <span>{error}</span>
+            <span>{error.startsWith('i18n:') ? t(error.replace('i18n:', '')) : error}</span>
             <Button variant="ghost" size="sm" onClick={clearError}>
               <X className="h-4 w-4" />
             </Button>

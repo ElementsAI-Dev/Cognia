@@ -7,14 +7,14 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
 import { SkillProvider, useInitializeSkills, initializeSkillsSync } from './skill-provider';
 import { useSkillStore } from '@/stores/skills';
+import { useSkillBootstrap } from '@/hooks/skills/use-skill-bootstrap';
 import * as builtinSkills from '@/lib/skills/builtin';
 
-// Mock the skill store
 jest.mock('@/stores/skills', () => ({
   useSkillStore: Object.assign(
     jest.fn(() => ({
-      importBuiltinSkills: jest.fn(),
       createSkill: jest.fn(),
+      importBuiltinSkills: jest.fn(),
       skills: {},
       reset: jest.fn(),
     })),
@@ -22,35 +22,43 @@ jest.mock('@/stores/skills', () => ({
       getState: jest.fn(() => ({
         skills: {},
         importBuiltinSkills: jest.fn(),
-        createSkill: jest.fn(),
-        reset: jest.fn(),
       })),
     }
   ),
 }));
 
-// Mock builtin skills
+jest.mock('@/hooks/skills/use-skill-bootstrap', () => ({
+  useSkillBootstrap: jest.fn(() => ({
+    bootstrapState: 'idle',
+    lastBootstrapAt: null,
+    lastBootstrapError: null,
+    runBootstrap: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
 jest.mock('@/lib/skills/builtin', () => ({
   getAllBuiltinSkills: jest.fn(() => [
-    { id: 'skill1', name: 'Skill 1', description: 'Test skill 1' },
-    { id: 'skill2', name: 'Skill 2', description: 'Test skill 2' },
+    { id: 'skill1', name: 'Skill 1', description: 'Test skill 1', content: 'content-1' },
+    { id: 'skill2', name: 'Skill 2', description: 'Test skill 2', content: 'content-2' },
   ]),
 }));
 
 const mockUseSkillStore = useSkillStore as jest.MockedFunction<typeof useSkillStore>;
+const mockUseSkillBootstrap = useSkillBootstrap as jest.MockedFunction<typeof useSkillBootstrap>;
 const mockGetAllBuiltinSkills = builtinSkills.getAllBuiltinSkills as jest.Mock;
 
 describe('SkillProvider', () => {
-  const mockImportBuiltinSkills = jest.fn();
   const mockCreateSkill = jest.fn();
   const mockReset = jest.fn();
+  const mockImportBuiltinSkills = jest.fn();
+  const mockRunBootstrap = jest.fn().mockResolvedValue(undefined);
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     mockUseSkillStore.mockReturnValue({
-      importBuiltinSkills: mockImportBuiltinSkills,
       createSkill: mockCreateSkill,
+      importBuiltinSkills: mockImportBuiltinSkills,
       skills: {},
       reset: mockReset,
     } as unknown as ReturnType<typeof useSkillStore>);
@@ -58,209 +66,121 @@ describe('SkillProvider', () => {
     (useSkillStore.getState as jest.Mock).mockReturnValue({
       skills: {},
       importBuiltinSkills: mockImportBuiltinSkills,
-      createSkill: mockCreateSkill,
-      reset: mockReset,
     });
 
-    // Suppress console.log
-    jest.spyOn(console, 'log').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
-  describe('rendering', () => {
-    it('renders children', () => {
-      render(
-        <SkillProvider>
-          <div>Child content</div>
-        </SkillProvider>
-      );
-
-      expect(screen.getByText('Child content')).toBeInTheDocument();
+    mockUseSkillBootstrap.mockReturnValue({
+      bootstrapState: 'idle',
+      lastBootstrapAt: null,
+      lastBootstrapError: null,
+      runBootstrap: mockRunBootstrap,
     });
   });
 
-  describe('loading built-in skills', () => {
-    it('loads built-in skills by default when no skills exist', async () => {
-      render(
-        <SkillProvider>
-          <div>Test</div>
-        </SkillProvider>
-      );
+  it('renders children', () => {
+    render(
+      <SkillProvider>
+        <div>Child content</div>
+      </SkillProvider>
+    );
 
-      await waitFor(() => {
-        expect(mockGetAllBuiltinSkills).toHaveBeenCalled();
-        expect(mockImportBuiltinSkills).toHaveBeenCalled();
-      });
-    });
+    expect(screen.getByText('Child content')).toBeInTheDocument();
+  });
 
-    it('does not load built-in skills when loadBuiltinSkills is false', async () => {
-      render(
-        <SkillProvider loadBuiltinSkills={false}>
-          <div>Test</div>
-        </SkillProvider>
-      );
+  it('runs bootstrap with built-in loading by default', async () => {
+    render(
+      <SkillProvider>
+        <div>Test</div>
+      </SkillProvider>
+    );
 
-      await waitFor(() => {
-        expect(screen.getByText('Test')).toBeInTheDocument();
-      });
-
-      expect(mockGetAllBuiltinSkills).not.toHaveBeenCalled();
-    });
-
-    it('does not reload skills when all built-in skills already exist', async () => {
-      // Mock existing skills that match the built-in skill names (hyphen-cased)
-      (useSkillStore.getState as jest.Mock).mockReturnValue({
-        skills: {
-          skill1: { id: 'skill1', source: 'builtin', metadata: { name: 'skill-1' } },
-          skill2: { id: 'skill2', source: 'builtin', metadata: { name: 'skill-2' } },
-        },
-        importBuiltinSkills: mockImportBuiltinSkills,
-        createSkill: mockCreateSkill,
-        reset: mockReset,
-      });
-
-      render(
-        <SkillProvider>
-          <div>Test</div>
-        </SkillProvider>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByText('Test')).toBeInTheDocument();
-      });
-
-      expect(mockImportBuiltinSkills).not.toHaveBeenCalled();
-    });
-
-    it('re-imports missing built-in skills when some are missing', async () => {
-      // Only one built-in skill exists, the other is missing
-      (useSkillStore.getState as jest.Mock).mockReturnValue({
-        skills: {
-          skill1: { id: 'skill1', source: 'builtin', metadata: { name: 'skill-1' } },
-          custom1: { id: 'custom1', source: 'custom', metadata: { name: 'my-custom' } },
-        },
-        importBuiltinSkills: mockImportBuiltinSkills,
-        createSkill: mockCreateSkill,
-        reset: mockReset,
-      });
-
-      render(
-        <SkillProvider>
-          <div>Test</div>
-        </SkillProvider>
-      );
-
-      await waitFor(() => {
-        // Should re-import only the missing built-in skill (Skill 2)
-        expect(mockImportBuiltinSkills).toHaveBeenCalledTimes(1);
-        const importedSkills = mockImportBuiltinSkills.mock.calls[0][0];
-        expect(importedSkills).toHaveLength(1);
-        expect(importedSkills[0].name).toBe('Skill 2');
-      });
+    await waitFor(() => {
+      expect(mockRunBootstrap).toHaveBeenCalledWith({ loadBuiltinSkills: true });
     });
   });
 
-  describe('loading custom skills', () => {
-    it('loads custom skills when provided', async () => {
-      const customSkills = [
-        { name: 'Custom 1', description: 'Custom skill 1', content: 'test' },
-      ];
+  it('respects loadBuiltinSkills false', async () => {
+    render(
+      <SkillProvider loadBuiltinSkills={false}>
+        <div>Test</div>
+      </SkillProvider>
+    );
 
-      render(
-        <SkillProvider customSkills={customSkills}>
-          <div>Test</div>
-        </SkillProvider>
-      );
-
-      await waitFor(() => {
-        expect(mockCreateSkill).toHaveBeenCalledWith(customSkills[0]);
-      });
-    });
-
-    it('loads multiple custom skills', async () => {
-      const customSkills = [
-        { name: 'Custom 1', description: 'Custom skill 1', content: 'test1' },
-        { name: 'Custom 2', description: 'Custom skill 2', content: 'test2' },
-      ];
-
-      render(
-        <SkillProvider customSkills={customSkills}>
-          <div>Test</div>
-        </SkillProvider>
-      );
-
-      await waitFor(() => {
-        expect(mockCreateSkill).toHaveBeenCalledTimes(2);
-      });
+    await waitFor(() => {
+      expect(mockRunBootstrap).toHaveBeenCalledWith({ loadBuiltinSkills: false });
     });
   });
 
-  describe('onInitialized callback', () => {
-    it('calls onInitialized after initialization', async () => {
-      const onInitialized = jest.fn();
+  it('loads custom skills when provided', async () => {
+    const customSkills = [
+      { name: 'Custom 1', description: 'Custom skill 1', content: 'test' },
+    ];
 
-      render(
-        <SkillProvider onInitialized={onInitialized}>
-          <div>Test</div>
-        </SkillProvider>
-      );
+    render(
+      <SkillProvider customSkills={customSkills}>
+        <div>Test</div>
+      </SkillProvider>
+    );
 
-      await waitFor(() => {
-        expect(onInitialized).toHaveBeenCalled();
-      });
+    await waitFor(() => {
+      expect(mockCreateSkill).toHaveBeenCalledWith(customSkills[0]);
     });
   });
 
-  describe('initialization guard', () => {
-    it('only initializes once', async () => {
-      const { rerender } = render(
-        <SkillProvider>
-          <div>Test</div>
-        </SkillProvider>
-      );
+  it('calls onInitialized after initialization', async () => {
+    const onInitialized = jest.fn();
 
-      await waitFor(() => {
-        expect(mockImportBuiltinSkills).toHaveBeenCalledTimes(1);
-      });
+    render(
+      <SkillProvider onInitialized={onInitialized}>
+        <div>Test</div>
+      </SkillProvider>
+    );
 
-      rerender(
-        <SkillProvider>
-          <div>Test Updated</div>
-        </SkillProvider>
-      );
-
-      // Should still be 1
-      expect(mockImportBuiltinSkills).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(onInitialized).toHaveBeenCalled();
     });
+  });
+
+  it('only initializes once', async () => {
+    const { rerender } = render(
+      <SkillProvider>
+        <div>Test</div>
+      </SkillProvider>
+    );
+
+    await waitFor(() => {
+      expect(mockRunBootstrap).toHaveBeenCalledTimes(1);
+    });
+
+    rerender(
+      <SkillProvider>
+        <div>Test Updated</div>
+      </SkillProvider>
+    );
+
+    expect(mockRunBootstrap).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('useInitializeSkills hook', () => {
-  const mockImportBuiltinSkills = jest.fn();
   const mockCreateSkill = jest.fn();
   const mockReset = jest.fn();
+  const mockRunBootstrap = jest.fn().mockResolvedValue(undefined);
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     mockUseSkillStore.mockReturnValue({
-      importBuiltinSkills: mockImportBuiltinSkills,
       createSkill: mockCreateSkill,
       skills: {},
       reset: mockReset,
     } as unknown as ReturnType<typeof useSkillStore>);
 
-    (useSkillStore.getState as jest.Mock).mockReturnValue({
-      skills: {},
-      importBuiltinSkills: mockImportBuiltinSkills,
-      createSkill: mockCreateSkill,
-      reset: mockReset,
+    mockUseSkillBootstrap.mockReturnValue({
+      bootstrapState: 'idle',
+      lastBootstrapAt: null,
+      lastBootstrapError: null,
+      runBootstrap: mockRunBootstrap,
     });
-
-    jest.spyOn(console, 'log').mockImplementation(() => {});
   });
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -277,7 +197,6 @@ describe('useInitializeSkills hook', () => {
 
   it('returns skillCount', async () => {
     mockUseSkillStore.mockReturnValue({
-      importBuiltinSkills: mockImportBuiltinSkills,
       createSkill: mockCreateSkill,
       skills: { skill1: {}, skill2: {} },
       reset: mockReset,
@@ -298,6 +217,10 @@ describe('useInitializeSkills hook', () => {
 
     await waitFor(() => {
       expect(mockReset).toHaveBeenCalled();
+      expect(mockRunBootstrap).toHaveBeenCalledWith({
+        loadBuiltinSkills: true,
+        force: true,
+      });
     });
   });
 
@@ -332,8 +255,9 @@ describe('initializeSkillsSync function', () => {
   it('imports skills when no skills exist', () => {
     const count = initializeSkillsSync();
 
+    expect(mockGetAllBuiltinSkills).toHaveBeenCalled();
     expect(mockImportBuiltinSkills).toHaveBeenCalled();
-    expect(count).toBe(2); // From mock
+    expect(count).toBe(2);
   });
 
   it('returns existing count when skills exist', () => {

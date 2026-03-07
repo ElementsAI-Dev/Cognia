@@ -22,6 +22,7 @@ import type {
 } from '@/types/agent/agent-team';
 import type { SubAgentResult } from '@/types/agent/sub-agent';
 import type { BackgroundAgentResult } from '@/types/agent/background-agent';
+import { getBackgroundAgentEventEmitter } from './background-agent-events';
 
 const log = loggers.agent;
 
@@ -429,6 +430,28 @@ export class AgentBridge {
     return delegation;
   }
 
+  private resolveDelegationSessionId(options: DelegateToBackgroundOptions): string {
+    if (options.sessionId?.trim()) {
+      return options.sessionId.trim();
+    }
+
+    if (options.sourceType === 'team' && this.teamManagerGetter) {
+      const sourceTeam = this.teamManagerGetter().getTeam(options.sourceId);
+      if (sourceTeam?.sessionId?.trim()) {
+        return sourceTeam.sessionId.trim();
+      }
+    }
+
+    if (options.sourceType === 'background' && this.backgroundManagerGetter) {
+      const sourceAgent = this.backgroundManagerGetter().getAgent(options.sourceId);
+      if (sourceAgent?.sessionId?.trim()) {
+        return sourceAgent.sessionId.trim();
+      }
+    }
+
+    return `unscoped-${options.sourceType}-${options.sourceId}`;
+  }
+
   /**
    * Delegate a task to an AgentTeam
    * BackgroundAgent or SubAgent can spawn a team for complex decomposable tasks
@@ -549,9 +572,10 @@ export class AgentBridge {
 
     try {
       const bgManager = this.backgroundManagerGetter();
+      const resolvedSessionId = this.resolveDelegationSessionId(options);
 
       const agent = bgManager.createAgent({
-        sessionId: options.sessionId || '',
+        sessionId: resolvedSessionId,
         name: options.name || `Delegated: ${options.task.slice(0, 50)}`,
         description: options.description || `Auto-delegated from ${options.sourceType}:${options.sourceId}`,
         task: options.task,
@@ -567,18 +591,34 @@ export class AgentBridge {
       delegation.status = 'active';
       this.eventEmitter.emit('delegation:started', { delegation });
 
-      // Queue the agent
-      bgManager.queueAgent(agent.id);
-
-      // Wait for completion via event
-      const bgEventEmitter = (await import('./background-agent-events')).getBackgroundAgentEventEmitter();
+      const bgEventEmitter = getBackgroundAgentEventEmitter();
 
       return new Promise<AgentDelegation>((resolve) => {
-        const onCompleted = bgEventEmitter.on('agent:completed', ({ agent: completedAgent, result }) => {
-          if (completedAgent.id === agent.id) {
-            onCompleted();
-            onFailed();
+        let settled = false;
+        let unsubCompleted = () => {};
+        let unsubFailed = () => {};
+        let unsubCancelled = () => {};
+        let unsubTimeout = () => {};
 
+        const cleanup = () => {
+          unsubCompleted();
+          unsubFailed();
+          unsubCancelled();
+          unsubTimeout();
+        };
+
+        const finalize = (applyResult: () => void) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          applyResult();
+          resolve(delegation);
+        };
+
+        unsubCompleted = bgEventEmitter.on('agent:completed', ({ agent: completedAgent, result }) => {
+          if (completedAgent.id !== agent.id) return;
+
+          finalize(() => {
             delegation.status = 'completed';
             delegation.result = result.finalResponse;
             delegation.completedAt = new Date();
@@ -586,7 +626,7 @@ export class AgentBridge {
             this.sharedMemory.write(
               'results',
               `delegation:${delegation.id}`,
-              delegation.result,
+              delegation.result || '',
               agent.id,
               { writerName: agent.name, tags: ['delegation', 'background_result'] }
             );
@@ -595,16 +635,13 @@ export class AgentBridge {
               delegation,
               result: delegation.result || '',
             });
-
-            resolve(delegation);
-          }
+          });
         });
 
-        const onFailed = bgEventEmitter.on('agent:failed', ({ agent: failedAgent, error }) => {
-          if (failedAgent.id === agent.id) {
-            onCompleted();
-            onFailed();
+        unsubFailed = bgEventEmitter.on('agent:failed', ({ agent: failedAgent, error }) => {
+          if (failedAgent.id !== agent.id) return;
 
+          finalize(() => {
             delegation.status = 'failed';
             delegation.error = error;
             delegation.completedAt = new Date();
@@ -613,10 +650,57 @@ export class AgentBridge {
               delegation,
               error,
             });
-
-            resolve(delegation);
-          }
+          });
         });
+
+        unsubCancelled = bgEventEmitter.on('agent:cancelled', ({ agent: cancelledAgent }) => {
+          if (cancelledAgent.id !== agent.id) return;
+
+          finalize(() => {
+            delegation.status = 'cancelled';
+            delegation.error =
+              cancelledAgent.error || 'Delegated background agent was cancelled';
+            delegation.completedAt = new Date();
+
+            this.eventEmitter.emit('delegation:cancelled', {
+              delegation,
+            });
+          });
+        });
+
+        unsubTimeout = bgEventEmitter.on('agent:timeout', ({ agent: timeoutAgent, duration }) => {
+          if (timeoutAgent.id !== agent.id) return;
+
+          finalize(() => {
+            delegation.status = 'failed';
+            delegation.error =
+              timeoutAgent.error ||
+              `Delegated background agent timed out after ${Math.max(
+                1,
+                Math.round(duration / 1000)
+              )}s`;
+            delegation.completedAt = new Date();
+
+            this.eventEmitter.emit('delegation:failed', {
+              delegation,
+              error: delegation.error,
+            });
+          });
+        });
+
+        const queued = bgManager.queueAgent(agent.id);
+        if (!queued) {
+          finalize(() => {
+            delegation.status = 'failed';
+            delegation.error = 'Failed to queue delegated background agent';
+            delegation.completedAt = new Date();
+
+            this.eventEmitter.emit('delegation:failed', {
+              delegation,
+              error: delegation.error,
+            });
+          });
+        }
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

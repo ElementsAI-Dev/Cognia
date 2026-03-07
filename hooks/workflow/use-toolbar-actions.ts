@@ -106,6 +106,16 @@ export function useToolbarActions() {
       const errors = validate();
       if (errors.length === 0) {
         startExecution({});
+      } else {
+        const errorCount = errors.filter((error) => error.severity === 'error').length;
+        const firstError = errors.find((error) => error.severity === 'error')?.message;
+        toast.error('Workflow validation failed', {
+          description:
+            firstError ||
+            (errorCount > 0
+              ? `${errorCount} validation error(s) must be fixed before running`
+              : 'Fix validation warnings before running'),
+        });
       }
     }
   }, [state.canRun, validate, startExecution]);

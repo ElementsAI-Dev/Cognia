@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { loggers } from '@/lib/logger';
 import {
@@ -67,6 +67,16 @@ export function PromptPreviewDialog({
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const defaultModel = providerSettings[defaultProvider]?.defaultModel || 'gpt-4o-mini';
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    setVariableValues({});
+    setTestResult('');
+    setIsTesting(false);
+    setCopied(false);
+  }, [open, prompt?.id]);
+
   // Generate prompt content with filled variables
   const generatedPrompt = useMemo(() => {
     if (!prompt) return '';
@@ -83,15 +93,19 @@ export function PromptPreviewDialog({
   }, [prompt, variableValues]);
 
   // Check if all required variables are filled
-  const allRequiredFilled = useMemo(() => {
-    if (!prompt) return false;
+  const missingRequiredVariables = useMemo(() => {
+    if (!prompt) return [];
     return prompt.variables
       .filter((v) => v.required)
-      .every((v) => variableValues[v.name]?.trim() || v.defaultValue);
+      .filter((v) => !(variableValues[v.name]?.trim() || v.defaultValue))
+      .map((v) => v.name);
   }, [prompt, variableValues]);
+
+  const allRequiredFilled = missingRequiredVariables.length === 0;
 
   const handleVariableChange = useCallback((name: string, value: string) => {
     setVariableValues((prev) => ({ ...prev, [name]: value }));
+    setTestResult('');
   }, []);
 
   const handleCopyPrompt = useCallback(async () => {
@@ -103,6 +117,12 @@ export function PromptPreviewDialog({
 
   const handleTestWithAI = useCallback(async () => {
     if (!generatedPrompt) return;
+    if (!allRequiredFilled) {
+      toast.error(
+        t('missingRequiredVariables', { variables: missingRequiredVariables.join(', ') })
+      );
+      return;
+    }
     
     setIsTesting(true);
     setTestResult('');
@@ -129,15 +149,24 @@ export function PromptPreviewDialog({
         maxOutputTokens: 1000,
       });
 
-      setTestResult(result.text || 'No response received');
+      setTestResult(result.text || t('noResponseReceived'));
     } catch (error) {
       loggers.ui.error('AI test failed:', error);
-      toast.error(t('testing') + ' failed');
-      setTestResult('Error: Failed to get AI response. Please check your API settings.');
+      const errorMessage = error instanceof Error ? error.message : t('unknownTestingError');
+      toast.error(t('testFailed'));
+      setTestResult(`${t('testErrorPrefix')}: ${errorMessage}`);
     } finally {
       setIsTesting(false);
     }
-  }, [generatedPrompt, defaultProvider, defaultModel, providerSettings, t]);
+  }, [
+    generatedPrompt,
+    allRequiredFilled,
+    defaultProvider,
+    defaultModel,
+    missingRequiredVariables,
+    providerSettings,
+    t,
+  ]);
 
   const handleSendToChat = useCallback(() => {
     if (onSendToChat) {

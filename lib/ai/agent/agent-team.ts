@@ -1738,6 +1738,7 @@ Respond with a JSON object: {"optionIndex": <0-based index>, "reasoning": "<your
     if (!team || !task) return null;
 
     const bridge = getAgentBridge();
+    this.updateTaskStatus(taskId, 'in_progress');
 
     const delegation = await bridge.delegateToBackground({
       task: task.description,
@@ -1758,6 +1759,10 @@ Respond with a JSON object: {"optionIndex": <0-based index>, "reasoning": "<your
       ...task.metadata,
       delegationId: delegation.id,
       delegatedToBackground: true,
+      delegationStatus: delegation.status,
+      delegatedBackgroundAgentId: delegation.targetId,
+      delegationError: delegation.error,
+      delegationCompletedAt: delegation.completedAt?.toISOString(),
     };
 
     // Track on team
@@ -1770,11 +1775,23 @@ Respond with a JSON object: {"optionIndex": <0-based index>, "reasoning": "<your
       delegationId: delegation.id,
     });
 
-    // When delegation completes, update the task result
+    // Synchronize terminal delegation outcome with task lifecycle.
     if (delegation.status === 'completed') {
       this.updateTaskStatus(taskId, 'completed', delegation.result);
+    } else if (delegation.status === 'cancelled') {
+      this.updateTaskStatus(
+        taskId,
+        'cancelled',
+        undefined,
+        delegation.error || 'Task delegation was cancelled'
+      );
     } else if (delegation.status === 'failed') {
-      this.updateTaskStatus(taskId, 'failed', undefined, delegation.error);
+      this.updateTaskStatus(
+        taskId,
+        'failed',
+        undefined,
+        delegation.error || 'Task delegation failed'
+      );
     }
 
     return delegation.id;

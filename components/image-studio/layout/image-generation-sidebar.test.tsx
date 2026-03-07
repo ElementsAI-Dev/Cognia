@@ -73,7 +73,7 @@ jest.mock('@/components/ui/alert', () => ({
 
 // Mock Select
 jest.mock('@/components/ui/select', () => ({
-  Select: ({ children, value, onValueChange }: { children: React.ReactNode; value?: string; onValueChange?: (v: string) => void }) =>
+  Select: ({ children, value, onValueChange: _onValueChange }: { children: React.ReactNode; value?: string; onValueChange?: (v: string) => void }) =>
     React.createElement('div', { 'data-testid': 'select', 'data-value': value }, children),
   SelectTrigger: ({ children }: { children: React.ReactNode }) =>
     React.createElement('div', { 'data-testid': 'select-trigger' }, children),
@@ -98,18 +98,18 @@ jest.mock('@/components/ui/tabs', () => ({
 
 // Mock Badge
 jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('span', { 'data-testid': 'badge' }, children),
+  Badge: ({ children, onClick, className }: { children: React.ReactNode; onClick?: () => void; className?: string }) =>
+    React.createElement('span', { 'data-testid': 'badge', onClick, className }, children),
 }));
 
 // Mock Slider
 jest.mock('@/components/ui/slider', () => ({
-  Slider: ({ value, onValueChange }: { value: number[]; onValueChange: (v: number[]) => void }) =>
+  Slider: ({ value, onValueChange: _onValueChange }: { value: number[]; onValueChange: (v: number[]) => void }) =>
     React.createElement('input', {
       'data-testid': 'slider',
       type: 'range',
       value: value[0],
-      onChange: (e: React.ChangeEvent<HTMLInputElement>) => onValueChange([Number(e.target.value)]),
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => _onValueChange([Number(e.target.value)]),
     }),
 }));
 
@@ -138,6 +138,8 @@ const defaultProps = {
   seed: null,
   onSeedChange: jest.fn(),
   estimatedCost: 0.04,
+  referenceImage: null,
+  onReferenceImageChange: jest.fn(),
   editImageFile: null,
   onEditImageFileChange: jest.fn(),
   maskFile: null,
@@ -188,13 +190,13 @@ describe('ImageGenerationSidebar', () => {
   describe('Prompt Input', () => {
     it('should render prompt textarea', () => {
       render(<ImageGenerationSidebar {...defaultProps} />);
-      const textarea = screen.getByPlaceholderText('promptPlaceholder');
+      const textarea = screen.getByPlaceholderText('Describe the image you want to create...');
       expect(textarea).toBeInTheDocument();
     });
 
     it('should call onPromptChange when typing in prompt', () => {
       render(<ImageGenerationSidebar {...defaultProps} />);
-      const textarea = screen.getByPlaceholderText('promptPlaceholder');
+      const textarea = screen.getByPlaceholderText('Describe the image you want to create...');
       fireEvent.change(textarea, { target: { value: 'new prompt' } });
       expect(defaultProps.onPromptChange).toHaveBeenCalledWith('new prompt');
     });
@@ -247,24 +249,24 @@ describe('ImageGenerationSidebar', () => {
   describe('Generate Button', () => {
     it('should disable generate button when prompt is empty', () => {
       render(<ImageGenerationSidebar {...defaultProps} prompt="" />);
-      const genBtn = screen.getByText('generateImage').closest('button');
+      const genBtn = screen.getByText('Generate Image').closest('button');
       expect(genBtn).toBeDisabled();
     });
 
     it('should enable generate button when prompt has text', () => {
       render(<ImageGenerationSidebar {...defaultProps} prompt="A test" />);
-      const genBtn = screen.getByText('generateImage').closest('button');
+      const genBtn = screen.getByText('Generate Image').closest('button');
       expect(genBtn).not.toBeDisabled();
     });
 
     it('should show generating state', () => {
       render(<ImageGenerationSidebar {...defaultProps} prompt="test" isGenerating={true} />);
-      expect(screen.getByText('generating')).toBeInTheDocument();
+      expect(screen.getByText('Generating...')).toBeInTheDocument();
     });
 
     it('should call onGenerate when generate button is clicked', () => {
       render(<ImageGenerationSidebar {...defaultProps} prompt="A test" />);
-      fireEvent.click(screen.getByText('generateImage'));
+      fireEvent.click(screen.getByText('Generate Image'));
       expect(defaultProps.onGenerate).toHaveBeenCalled();
     });
   });
@@ -310,7 +312,7 @@ describe('ImageGenerationSidebar', () => {
   describe('Settings Panel', () => {
     it('should render settings toggle button', () => {
       render(<ImageGenerationSidebar {...defaultProps} />);
-      expect(screen.getByText('settings')).toBeInTheDocument();
+      expect(screen.getByText('Settings')).toBeInTheDocument();
     });
 
     it('should render estimated cost', () => {
@@ -334,30 +336,31 @@ describe('ImageGenerationSidebar', () => {
   });
 
   describe('i18n', () => {
-    it('should render tab labels via i18n keys', () => {
+    it('should render tab labels via i18n', () => {
       render(<ImageGenerationSidebar {...defaultProps} />);
-      expect(screen.getByText('tabGenerate')).toBeInTheDocument();
-      expect(screen.getByText('tabEdit')).toBeInTheDocument();
-      expect(screen.getByText('tabVariations')).toBeInTheDocument();
+      // Tab triggers contain icons + translated text
+      expect(screen.getByTestId('tab-generate')).toBeInTheDocument();
+      expect(screen.getByTestId('tab-edit')).toBeInTheDocument();
+      expect(screen.getByTestId('tab-variations')).toBeInTheDocument();
     });
 
     it('should render prompt label via i18n', () => {
       render(<ImageGenerationSidebar {...defaultProps} />);
-      expect(screen.getByText('prompt')).toBeInTheDocument();
+      expect(screen.getByText('Prompt')).toBeInTheDocument();
     });
   });
 
   describe('Ctrl+Enter Shortcut', () => {
     it('should call onGenerate on Ctrl+Enter in prompt textarea', () => {
       render(<ImageGenerationSidebar {...defaultProps} prompt="A test prompt" />);
-      const textarea = screen.getByPlaceholderText('promptPlaceholder');
+      const textarea = screen.getByPlaceholderText('Describe the image you want to create...');
       fireEvent.keyDown(textarea, { key: 'Enter', ctrlKey: true });
       expect(defaultProps.onGenerate).toHaveBeenCalled();
     });
 
     it('should NOT call onGenerate on Ctrl+Enter when prompt is empty', () => {
       render(<ImageGenerationSidebar {...defaultProps} prompt="" />);
-      const textarea = screen.getByPlaceholderText('promptPlaceholder');
+      const textarea = screen.getByPlaceholderText('Describe the image you want to create...');
       fireEvent.keyDown(textarea, { key: 'Enter', ctrlKey: true });
       expect(defaultProps.onGenerate).not.toHaveBeenCalled();
     });

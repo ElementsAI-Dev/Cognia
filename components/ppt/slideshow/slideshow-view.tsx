@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { ThumbnailNavigator } from './thumbnail-navigator';
 import { SlideshowControls, KeyboardHelpModal } from './slideshow-controls';
 import { PresenterMode } from './presenter-mode';
@@ -11,6 +12,7 @@ import { PPTPreviewErrorBoundary } from '../rendering/error-boundary';
 import { DrawingOverlay, type PointerMode } from './drawing-overlay';
 import { usePPTEditorStore } from '@/stores/tools/ppt-editor-store';
 import type { SlideshowViewProps, SlideshowSettings } from '../types';
+import { PPT_TEST_IDS } from '@/lib/ppt/test-selectors';
 
 // Layout constants
 const SLIDESHOW_LAYOUT = {
@@ -300,7 +302,18 @@ export function SlideshowView({
     return { opacity: 1, transform: 'translateX(0) scale(1)' };
   };
 
-  if (!slide) return null;
+  if (!slide) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-black text-white">
+        <div className="rounded-lg border border-white/20 bg-black/60 p-6 text-center">
+          <p className="text-sm">{t('invalidPresentation')}</p>
+          <Button variant="outline" className="mt-4" onClick={onExit}>
+            {t('exitPresentation')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // Presenter mode - dual-panel view with notes and timer
   if (showPresenterMode) {
@@ -319,6 +332,7 @@ export function SlideshowView({
   return (
     <div
       ref={containerRef}
+      data-testid={PPT_TEST_IDS.slideshow.root}
       className="flex-1 flex relative overflow-hidden"
       style={{ backgroundColor: theme.backgroundColor }}
       onTouchStart={handleTouchStart}

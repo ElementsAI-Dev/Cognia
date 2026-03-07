@@ -36,6 +36,7 @@ import {
   useNativeSkillAvailable,
   type DiscoverableSkill,
 } from '@/hooks/skills';
+import { useSkillActions } from '@/hooks/skills/use-skill-actions';
 import { SkillRepoManagerDialog } from './skill-repo-manager-dialog';
 
 interface SkillDiscoveryProps {
@@ -129,14 +130,19 @@ export function SkillDiscovery({ className, onSkillInstalled }: SkillDiscoveryPr
   const t = useTranslations('skills');
   const isAvailable = useSkillSyncAvailable();
   const isNativeAvailable = useNativeSkillAvailable();
+  const skillActions = useSkillActions();
 
   const {
     discoverable,
     isDiscovering,
-    isSyncing: _isSyncing, // Used for future sync status indicator
+    isSyncing,
     syncError,
+    syncState,
+    lastSyncAt,
+    lastSyncOutcome,
+    syncDiagnostics,
     discoverFromRepos,
-    installFromRepo,
+    refreshAll,
   } = useSkillSync();
 
   const {
@@ -182,10 +188,15 @@ export function SkillDiscovery({ className, onSkillInstalled }: SkillDiscoveryPr
     async (skill: DiscoverableSkill) => {
       setInstallingIds((prev) => new Set(prev).add(skill.key));
       try {
-        const result = await installFromRepo(skill);
-        if (result) {
+        const outcome = await skillActions.installDiscoveredSkill(skill);
+        if (outcome.outcome === 'success') {
           toast.success(t('installed'), skill.name);
           onSkillInstalled?.(skill.name);
+        } else {
+          const message = outcome.error && outcome.error.startsWith('i18n:')
+            ? t(outcome.error.replace('i18n:', ''))
+            : (outcome.error || t('installFailed'));
+          toast.error(t('installFailed'), message);
         }
       } catch (error) {
         toast.error(t('installFailed'), String(error));
@@ -197,7 +208,7 @@ export function SkillDiscovery({ className, onSkillInstalled }: SkillDiscoveryPr
         });
       }
     },
-    [installFromRepo, onSkillInstalled, t]
+    [onSkillInstalled, skillActions, t]
   );
 
   // Not available in web mode
@@ -259,10 +270,28 @@ export function SkillDiscovery({ className, onSkillInstalled }: SkillDiscoveryPr
       {syncError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {syncError.startsWith('i18n:') ? t(syncError.replace('i18n:', '')) : syncError}
+          <AlertDescription className="flex items-center justify-between gap-3">
+            <span>
+              {syncError.startsWith('i18n:') ? t(syncError.replace('i18n:', '')) : syncError}
+            </span>
+            <Button variant="outline" size="sm" onClick={refreshAll}>
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              {t('retry')}
+            </Button>
           </AlertDescription>
         </Alert>
+      )}
+
+      {(syncState !== 'idle' || isSyncing) && (
+        <div className="text-xs text-muted-foreground flex items-center justify-between border rounded-md px-3 py-2">
+          <span>
+            {t('syncStateLabel')}: {isSyncing ? t('processing') : lastSyncOutcome}
+          </span>
+          <span>
+            +{syncDiagnostics.added} / ~{syncDiagnostics.updated} / !{syncDiagnostics.conflicted}
+            {lastSyncAt ? ` • ${new Date(lastSyncAt).toLocaleTimeString()}` : ''}
+          </span>
+        </div>
       )}
 
       {/* Skills grid */}

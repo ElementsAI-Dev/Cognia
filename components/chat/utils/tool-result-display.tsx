@@ -26,6 +26,7 @@ import {
 import type { ToolCallResult, ContentItem } from '@/types/mcp';
 import { A2UIToolOutput, A2UIStructuredOutput, hasA2UIToolOutput } from '@/components/a2ui';
 import { parseA2UIInput } from '@/lib/a2ui/parser';
+import { MCPAppHost, hasMcpAppResource, isMcpAppsHostEnabled } from '@/components/mcp/mcp-app-host';
 
 interface ToolResultDisplayProps {
   /** Server ID */
@@ -36,6 +37,8 @@ interface ToolResultDisplayProps {
   result: ToolCallResult;
   /** Whether the tool is currently executing */
   isExecuting?: boolean;
+  /** Tool input arguments used to invoke the tool (optional) */
+  toolInput?: Record<string, unknown>;
   /** Additional class names */
   className?: string;
 }
@@ -45,11 +48,13 @@ export function ToolResultDisplay({
   toolName,
   result,
   isExecuting = false,
+  toolInput = {},
   className,
 }: ToolResultDisplayProps) {
   const t = useTranslations('toolResultDisplay');
   const [isExpanded, setIsExpanded] = useState(true);
   const [copied, setCopied] = useState(false);
+  const shouldRenderMcpApp = isMcpAppsHostEnabled() && hasMcpAppResource(result);
 
   const handleCopy = async () => {
     const text = formatResultAsText(result);
@@ -129,6 +134,13 @@ export function ToolResultDisplay({
               toolId={`${serverId}-${toolName}`}
               toolName={toolName}
               output={result}
+            />
+          ) : shouldRenderMcpApp ? (
+            <MCPAppHost
+              serverId={serverId}
+              toolName={toolName}
+              result={result}
+              toolInput={toolInput}
             />
           ) : (
             result.content.map((item, index) => (

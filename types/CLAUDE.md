@@ -8,24 +8,66 @@
 
 TypeScript type definitions organized by domain. This module provides type safety across the entire application.
 
-## Directory Structure
+## Directory Structure (43 directories)
+
+### Core & Chat
 
 - `core/` — Core chat types (message, session, chat-input, chat-history-context)
 - `chat/` — Chat flow types (flow-chat)
+
+### AI & Agent
+
 - `provider/` — AI provider types (provider, auto-router, memory-provider, openrouter, local-provider, load-balancer)
 - `agent/` — Agent types (agent, agent-mode, sub-agent, background-agent, tool, tool-history)
+- `agent-trace/` — Agent trace types
 - `workflow/` — Workflow types (workflow, workflow-editor)
-- `plugin/` — Plugin types (plugin, plugin-extended, plugin-hooks, plugin-hooks-extended)
-- `mcp/` — MCP types (mcp, mcp-marketplace)
-- `document/` — Document and RAG types (document, document-formatting, rag, vector)
+
+### Content & Data
+
 - `artifact/` — Artifact types (artifact, a2ui)
+- `content/` — Content types (prompt, prompt-template, preset, structured-output, template, prompt-marketplace)
+- `document/` — Document and RAG types (document, document-formatting, rag, vector)
+- `export/` — Export types
+- `import/` — Import types
+- `search/` — Search types (search, research)
+
+### UI & Design
+
+- `a2ui/` — A2UI types
+- `canvas/` — Canvas types
 - `designer/` — Designer types (designer, designer-dnd)
+- `editor/` — Editor types
+- `ui/` — UI types
+- `shortcut/` — Shortcut types
+
+### Features
+
+- `academic/` — Academic types
+- `arena/` — Arena types
+- `git/` — Git types
+- `jupyter/` — Jupyter types
+- `latex/` — LaTeX types
+- `learning/` — Learning types (learning, academic, knowledge-map, summary)
+- `map/` — Map types
+- `observability/` — Observability types
+- `presets/` — Preset types
+- `routing/` — Routing types
+- `screenshot/` — Screenshot types
+- `settings/` — Settings types
+- `video-studio/` — Video studio types
+
+### Infrastructure
+
 - `media/` — Media types (audio, video, speech, tts, subtitle, image-studio)
+- `mcp/` — MCP types (mcp, mcp-marketplace)
+- `plugin/` — Plugin types (plugin, plugin-extended, plugin-hooks, plugin-hooks-extended)
 - `project/` — Project types (project, project-activity, project-template)
 - `scheduler/` — Task automation types (scheduled-task, task-execution, task-trigger, task-notification)
-- `search/` — Search types (search, research)
-- `content/` — Content types (prompt, prompt-template, preset, structured-output, template, prompt-marketplace)
-- `learning/` — Learning types (learning, academic, knowledge-map, summary)
+- `skill/` — Skill types
+- `skill-seekers/` — SkillSeekers types
+- `sync/` — Sync types
+- `input-completion/` — Input completion types
+- `transformers/` — Transformer types
 - `system/` — System types (environment, sandbox, skill, tokenizer, usage, cache, compression, logger, websocket, geolocation, proxy, git, context, jupyter, selection-toolbar, tauri-plugins)
 
 ## Entry Points

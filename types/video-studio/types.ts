@@ -213,6 +213,32 @@ export interface AIGenerationSettings {
   seed?: number;
 }
 
+// Camera motion control for AI video generation
+export interface CameraMotion {
+  horizontal: number; // -100 to 100 (left/right dolly)
+  vertical: number; // -100 to 100 (up/down crane)
+  pan: number; // -100 to 100 (horizontal rotation)
+  tilt: number; // -100 to 100 (vertical rotation)
+  zoom: number; // -100 to 100 (zoom in/out)
+  roll: number; // -100 to 100 (clockwise/counter-clockwise)
+}
+
+export interface CameraPreset {
+  id: string;
+  label: string;
+  icon: string;
+  motion: CameraMotion;
+}
+
+export const DEFAULT_CAMERA_MOTION: CameraMotion = {
+  horizontal: 0,
+  vertical: 0,
+  pan: 0,
+  tilt: 0,
+  zoom: 0,
+  roll: 0,
+};
+
 // Recording export state
 export interface ExportState {
   isExporting: boolean;

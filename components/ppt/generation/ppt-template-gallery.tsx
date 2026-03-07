@@ -47,6 +47,16 @@ const CATEGORY_LABELS: Record<string, string> = {
   data: 'Data',
 };
 
+const CATEGORY_COLORS: Record<string, string> = {
+  business: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
+  marketing: 'bg-orange-500/10 text-orange-700 dark:text-orange-400',
+  education: 'bg-green-500/10 text-green-700 dark:text-green-400',
+  quick: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+  content: 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
+  creative: 'bg-pink-500/10 text-pink-700 dark:text-pink-400',
+  data: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400',
+};
+
 export interface PPTTemplateGalleryProps {
   onSelect: (template: WorkflowTemplate) => void;
   compact?: boolean;
@@ -95,11 +105,11 @@ export function PPTTemplateGallery({
       </Tabs>
 
       {/* Template grid */}
-      <ScrollArea className={compact ? 'max-h-48' : 'max-h-72'}>
+      <ScrollArea className={compact ? 'max-h-48' : 'max-h-96'}>
         <div
           className={cn(
-            'grid gap-2',
-            compact ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'
+            'grid gap-2.5',
+            compact ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
           )}
         >
           {filteredTemplates.map((tpl) => {
@@ -109,7 +119,7 @@ export function PPTTemplateGallery({
             return (
               <Card
                 key={tpl.id}
-                className="cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-colors"
+                className="cursor-pointer hover:border-primary/50 hover:bg-accent/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
                 onClick={() => onSelect(tpl)}
               >
                 <CardContent className={cn('flex flex-col gap-1.5', compact ? 'p-2.5' : 'p-3')}>
@@ -127,7 +137,7 @@ export function PPTTemplateGallery({
                     </p>
                   )}
                   <div className="flex flex-wrap gap-1">
-                    <Badge variant="outline" className="text-[10px] h-4 px-1">
+                    <Badge variant="outline" className={cn('text-[10px] h-4 px-1 border-0', CATEGORY_COLORS[tpl.category] || '')}>
                       {CATEGORY_LABELS[tpl.category] || tpl.category}
                     </Badge>
                     {Boolean(inputs?.slideCount) && (

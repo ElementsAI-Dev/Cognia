@@ -107,11 +107,15 @@ mod tests {
                     name: "tool1".to_string(),
                     description: Some("First tool".to_string()),
                     input_schema: serde_json::json!({"type": "object"}),
+                    output_schema: None,
+                    meta: None,
                 },
                 McpTool {
                     name: "tool2".to_string(),
                     description: None,
                     input_schema: serde_json::json!({}),
+                    output_schema: None,
+                    meta: None,
                 },
             ],
             next_cursor: Some("page2".to_string()),
@@ -132,6 +136,8 @@ mod tests {
                         "input": {"type": "string"}
                     }
                 }),
+                output_schema: None,
+                meta: None,
             }],
             next_cursor: None,
         };
@@ -261,6 +267,8 @@ mod tests {
                 name: format!("tool_{}", i),
                 description: Some(format!("Tool number {}", i)),
                 input_schema: serde_json::json!({}),
+                output_schema: None,
+                meta: None,
             })
             .collect();
 

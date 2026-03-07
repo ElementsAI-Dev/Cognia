@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { loggers } from '@/lib/logger';
 import {
@@ -38,6 +38,7 @@ import { usePromptTemplateStore } from '@/stores/prompt/prompt-template-store';
 import { MARKETPLACE_CATEGORIES } from '@/types/content/prompt-marketplace';
 import type { MarketplaceCategory } from '@/types/content/prompt-marketplace';
 import { toast } from '@/components/ui/sonner';
+import { isPublishableMarketplaceCategory, normalizeTags } from '@/lib/prompts/marketplace-utils';
 
 interface PromptPublishDialogProps {
   templateId?: string;
@@ -61,6 +62,11 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
   const [tagsInput, setTagsInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [icon, setIcon] = useState('💡');
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    description?: string;
+    category?: string;
+  }>({});
 
   const templates = usePromptTemplateStore((state) => state.templates);
   const publishPrompt = usePromptMarketplaceStore((state) => state.publishPrompt);
@@ -81,15 +87,16 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
     if (tmpl) {
       setName(tmpl.name);
       setDescription(tmpl.description || '');
-      setTags(tmpl.tags || []);
+      setTags(normalizeTags(tmpl.tags || []));
     }
+    setFieldErrors({});
     setStep('configure');
   };
 
   const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && tagsInput.trim()) {
       e.preventDefault();
-      const newTag = tagsInput.trim().toLowerCase();
+      const newTag = normalizeTags([tagsInput])[0];
       if (!tags.includes(newTag)) {
         setTags([...tags, newTag]);
       }
@@ -101,8 +108,24 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
     setTags(tags.filter((t) => t !== tag));
   };
 
+  const validateForm = useCallback(() => {
+    const errors: typeof fieldErrors = {};
+    if (!name.trim()) {
+      errors.name = t('publish.validation.nameRequired');
+    }
+    if (!description.trim()) {
+      errors.description = t('publish.validation.descriptionRequired');
+    }
+    if (!isPublishableMarketplaceCategory(category)) {
+      errors.category = t('publish.validation.categoryInvalid');
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [name, description, category, t]);
+
   const handlePublish = async () => {
-    if (!selectedTemplateId || !name.trim()) return;
+    if (!selectedTemplateId || !validateForm()) return;
 
     setIsPublishing(true);
     try {
@@ -110,7 +133,7 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
         name: name.trim(),
         description: description.trim(),
         category,
-        tags,
+        tags: normalizeTags(tags),
         icon,
       });
       toast.success(t('publish.success'));
@@ -118,7 +141,7 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
       resetForm();
     } catch (error) {
       loggers.ui.error('Publish failed:', error);
-      toast.error(t('publish.failed'));
+      toast.error(error instanceof Error ? error.message : t('publish.failed'));
     } finally {
       setIsPublishing(false);
     }
@@ -133,6 +156,7 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
     setTags([]);
     setTagsInput('');
     setIcon('💡');
+    setFieldErrors({});
   };
 
   const canProceedToReview = name.trim() && description.trim() && category;
@@ -239,9 +263,18 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
                 <Input
                   id="publish-name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (fieldErrors.name) {
+                      setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                    }
+                  }}
                   placeholder={t('publish.namePlaceholder')}
+                  className={cn(fieldErrors.name && 'border-destructive focus-visible:ring-destructive')}
                 />
+                {fieldErrors.name && (
+                  <p className="text-xs text-destructive">{fieldErrors.name}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -249,16 +282,33 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
                 <Textarea
                   id="publish-desc"
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    if (fieldErrors.description) {
+                      setFieldErrors((prev) => ({ ...prev, description: undefined }));
+                    }
+                  }}
                   placeholder={t('publish.descriptionPlaceholder')}
                   rows={3}
+                  className={cn(fieldErrors.description && 'border-destructive focus-visible:ring-destructive')}
                 />
+                {fieldErrors.description && (
+                  <p className="text-xs text-destructive">{fieldErrors.description}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>{t('publish.category')}</Label>
-                  <Select value={category} onValueChange={(v) => setCategory(v as MarketplaceCategory)}>
+                  <Select
+                    value={category}
+                    onValueChange={(v) => {
+                      setCategory(v as MarketplaceCategory);
+                      if (fieldErrors.category) {
+                        setFieldErrors((prev) => ({ ...prev, category: undefined }));
+                      }
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -275,6 +325,9 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
                         ))}
                     </SelectContent>
                   </Select>
+                  {fieldErrors.category && (
+                    <p className="text-xs text-destructive">{fieldErrors.category}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -325,7 +378,11 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
                   {tDetail('cancel')}
                 </Button>
                 <Button
-                  onClick={() => setStep('review')}
+                  onClick={() => {
+                    if (validateForm()) {
+                      setStep('review');
+                    }
+                  }}
                   disabled={!canProceedToReview}
                 >
                   {t('publish.next')}

@@ -117,7 +117,7 @@ export function ImageStudioHeader({
                 <Undo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{t('undo')}</TooltipContent>
+            <TooltipContent>{t('undo')} <kbd className="ml-1 text-[10px] opacity-60">Ctrl+Z</kbd></TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -131,7 +131,7 @@ export function ImageStudioHeader({
                 <Redo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{t('redo')}</TooltipContent>
+            <TooltipContent>{t('redo')} <kbd className="ml-1 text-[10px] opacity-60">Ctrl+Y</kbd></TooltipContent>
           </Tooltip>
         </div>
 
@@ -147,7 +147,7 @@ export function ImageStudioHeader({
               {t('favorites')}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{filterFavorites ? t('showAll') : t('showFavoritesOnly')}</TooltipContent>
+          <TooltipContent>{filterFavorites ? t('showAll') : t('showFavoritesOnly')} <kbd className="ml-1 text-[10px] opacity-60">F</kbd></TooltipContent>
         </Tooltip>
 
         {/* Search */}
