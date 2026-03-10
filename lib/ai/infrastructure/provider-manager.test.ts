@@ -8,7 +8,17 @@ import type { ProviderManagerConfig } from './provider-manager';
 // Mock dependencies
 jest.mock('./circuit-breaker', () => ({
   circuitBreakerRegistry: {
-    get: jest.fn(),
+    get: jest.fn().mockReturnValue({
+      canExecute: jest.fn().mockReturnValue(true),
+      execute: jest.fn(async (fn: () => Promise<unknown>) => {
+        try {
+          const data = await fn();
+          return { success: true, data };
+        } catch (error) {
+          return { success: false, error };
+        }
+      }),
+    }),
     create: jest.fn(),
     reset: jest.fn(),
     getState: jest.fn().mockReturnValue('closed'),
@@ -26,13 +36,19 @@ jest.mock('./load-balancer', () => ({
     getMetrics: jest.fn().mockReturnValue({}),
     getProviderMetrics: jest.fn().mockReturnValue(null),
     initialize: jest.fn(),
+    recordRequestStart: jest.fn(),
+    recordRequestEnd: jest.fn(),
+    setProviderHealth: jest.fn(),
+    setProviderAvailability: jest.fn(),
   })),
 }));
 
 jest.mock('./quota-manager', () => ({
   QuotaManager: jest.fn().mockImplementation(() => ({
     getQuotaStatus: jest.fn().mockReturnValue({ tokensUsed: 0, tokensRemaining: 100000 }),
+    canMakeRequest: jest.fn().mockReturnValue({ allowed: true }),
     recordUsage: jest.fn(),
+    onAlert: jest.fn(() => jest.fn()),
     reset: jest.fn(),
   })),
   calculateRequestCost: jest.fn().mockReturnValue(0.001),
@@ -40,8 +56,12 @@ jest.mock('./quota-manager', () => ({
 
 jest.mock('./availability-monitor', () => ({
   AvailabilityMonitor: jest.fn().mockImplementation(() => ({
-    getAvailability: jest.fn().mockReturnValue({ isAvailable: true, uptime: 0.99 }),
+    getAvailability: jest.fn().mockReturnValue({ status: 'available', uptime: 0.99 }),
     checkHealth: jest.fn().mockResolvedValue({ healthy: true }),
+    checkProvider: jest.fn().mockResolvedValue({ healthy: true }),
+    checkAllProviders: jest.fn().mockResolvedValue(new Map()),
+    getSummary: jest.fn().mockReturnValue({ available: 1, degraded: 0 }),
+    subscribe: jest.fn(() => jest.fn()),
     start: jest.fn(),
     stop: jest.fn(),
     registerProvider: jest.fn(),
@@ -51,7 +71,8 @@ jest.mock('./availability-monitor', () => ({
 jest.mock('./rate-limit', () => ({
   getRateLimiter: jest.fn().mockReturnValue({
     tryAcquire: jest.fn().mockReturnValue({ allowed: true }),
-    getStatus: jest.fn().mockReturnValue({ tokensRemaining: 100 }),
+    getStatus: jest.fn().mockResolvedValue({ success: true, retryAfter: 0 }),
+    limit: jest.fn().mockResolvedValue({ success: true, remaining: 100 }),
   }),
 }));
 
@@ -140,6 +161,57 @@ describe('provider-manager', () => {
       expect(result).toBeDefined();
     });
 
+  });
+
+  describe('runtime completeness', () => {
+    it('allows keyless local provider with valid base URL', async () => {
+      manager.registerProvider('ollama', { baseURL: 'http://localhost:11434' }, true);
+      const result = await manager.canUseProvider('ollama', { modelId: 'llama3.2' });
+      expect(result.allowed).toBe(true);
+    });
+
+    it('returns configuration failure when credential is missing', async () => {
+      manager.registerProvider('openai', { apiKey: '' }, true);
+      const result = await manager.execute(async () => 'ok', {
+        preferredProvider: 'openai',
+        modelId: 'gpt-4o',
+        maxRetries: 1,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.terminalCategory).toBe('configuration');
+      expect(result.attempts).toHaveLength(1);
+      expect(result.attempts[0].failureCategory).toBe('configuration');
+    });
+
+    it('uses ordered fallback policy with traceable attempts', async () => {
+      manager.registerProvider('openai', { apiKey: 'key-openai' }, true);
+      manager.registerProvider('anthropic', { apiKey: 'key-anthropic' }, true);
+
+      const result = await manager.execute(
+        async (ctx) => {
+          if (ctx.providerId === 'openai') {
+            throw new Error('primary execution failed');
+          }
+          return 'ok';
+        },
+        {
+          preferredProvider: 'openai',
+          fallbackPolicy: 'ordered',
+          fallbackProviderOrder: ['anthropic'],
+          modelId: 'gpt-4o',
+          maxRetries: 3,
+        }
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.fallbackUsed).toBe(true);
+      expect(result.attempts).toHaveLength(2);
+      expect(result.attempts[0].providerId).toBe('openai');
+      expect(result.attempts[0].success).toBe(false);
+      expect(result.attempts[1].providerId).toBe('anthropic');
+      expect(result.attempts[1].success).toBe(true);
+    });
   });
 
   describe('setProviderEnabled', () => {

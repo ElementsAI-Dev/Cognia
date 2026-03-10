@@ -19,6 +19,7 @@ import { DEFAULT_PPT_THEMES } from '@/types/workflow';
 import { PPTWorkflowExecutor, type PPTExecutorConfig } from '@/lib/ai/workflows/ppt-executor';
 import {
   classifyPPTError,
+  isRetryablePPTErrorCode,
   type PPTErrorCode,
 } from '@/lib/ppt/ppt-state';
 import {
@@ -397,11 +398,15 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         if (isCancellationError(err)) {
           return null;
         }
-        const classified = classifyPPTError(err, 'generation_failed');
+        const classified = classifyPPTError(err, 'generation_error');
         const message = classified.message;
         setError(message);
         setErrorCode(classified.code);
-        setLastFailedRequest({ type: 'generate', config });
+        if (isRetryablePPTErrorCode(classified.code)) {
+          setLastFailedRequest({ type: 'generate', config });
+        } else {
+          setLastFailedRequest(null);
+        }
         setProgress({
           stage: 'error',
           currentSlide: 0,
@@ -482,7 +487,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         if (isCancellationError(err)) {
           return null;
         }
-        const classified = classifyPPTError(err, 'generation_failed');
+        const classified = classifyPPTError(err, 'generation_error');
         const message = classified.message;
         setError(message);
         setErrorCode(classified.code);
@@ -591,11 +596,15 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         if (isCancellationError(err)) {
           return null;
         }
-        const classified = classifyPPTError(err, 'generation_failed');
+        const classified = classifyPPTError(err, 'generation_error');
         const message = classified.message;
         setError(message);
         setErrorCode(classified.code);
-        setLastFailedRequest({ type: 'generate', config });
+        if (isRetryablePPTErrorCode(classified.code)) {
+          setLastFailedRequest({ type: 'generate', config });
+        } else {
+          setLastFailedRequest(null);
+        }
         setProgress({
           stage: 'error',
           currentSlide: 0,
@@ -697,11 +706,15 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         if (isCancellationError(err)) {
           return null;
         }
-        const classified = classifyPPTError(err, 'material_processing_failed');
+        const classified = classifyPPTError(err, 'generation_error');
         const message = classified.message;
         setError(message);
         setErrorCode(classified.code);
-        setLastFailedRequest({ type: 'materials', config });
+        if (isRetryablePPTErrorCode(classified.code)) {
+          setLastFailedRequest({ type: 'materials', config });
+        } else {
+          setLastFailedRequest(null);
+        }
         setProgress({
           stage: 'error',
           currentSlide: 0,

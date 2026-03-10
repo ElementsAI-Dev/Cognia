@@ -71,7 +71,7 @@ describe('useProviderTest', () => {
       expect(result.current.state.results.openai?.message).toBe('Network error');
     });
 
-    it('should return undefined for empty apiKey', async () => {
+    it('should return blocked result for missing required apiKey', async () => {
       const { result } = renderHook(() => useProviderTest());
 
       let testResult;
@@ -79,7 +79,10 @@ describe('useProviderTest', () => {
         testResult = await result.current.testProvider('openai', '');
       });
 
-      expect(testResult).toBeUndefined();
+      expect(testResult).toEqual({
+        success: false,
+        message: 'Add an API key before testing this provider.',
+      });
       expect(mockTestProviderConnection).not.toHaveBeenCalled();
     });
 
@@ -129,10 +132,10 @@ describe('useProviderTest', () => {
       });
 
       expect(result.current.state.customResults['custom-1']).toBe('error');
-      expect(result.current.state.customMessages['custom-1']).toBe('Invalid base URL');
+      expect(result.current.state.customMessages['custom-1']).toBe('Configure a valid base URL before testing this provider.');
     });
 
-    it('should return undefined for empty baseURL or apiKey', async () => {
+    it('should return blocked result for empty baseURL or apiKey', async () => {
       const { result } = renderHook(() => useProviderTest());
 
       let testResult;
@@ -140,7 +143,10 @@ describe('useProviderTest', () => {
         testResult = await result.current.testCustomProvider('custom-1', '', 'key-123', 'openai');
       });
 
-      expect(testResult).toBeUndefined();
+      expect(testResult).toEqual({
+        success: false,
+        message: 'Configure a valid base URL before testing this provider.',
+      });
     });
   });
 

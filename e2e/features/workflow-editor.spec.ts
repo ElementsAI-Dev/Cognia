@@ -61,6 +61,16 @@ test.describe('Workflow Editor (Real Flow)', () => {
     await page.getByTestId('workflow-page-schedule-button').click();
     await expect(page.locator('#task-name')).toBeVisible();
   });
+
+  test('shows execution history surface after workflow run', async ({ page }) => {
+    await openWorkflowEditor(page);
+
+    await page.getByTestId('workflow-page-run-button').click();
+
+    await expect(
+      page.locator('text=/Execution History|executionHistory/i').first()
+    ).toBeVisible({ timeout: 20000 });
+  });
 });
 
 test.describe('Workflow Webhook API', () => {

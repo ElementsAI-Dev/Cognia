@@ -18,6 +18,11 @@ import type { WorkflowRuntimeExecutionResult } from '@/lib/workflow-editor/runti
 import { workflowRepository } from '@/lib/db/repositories';
 import { workflowOrchestrator } from '@/lib/workflow-editor/orchestrator';
 import { loggers } from '@/lib/logger';
+import {
+  isEditorExecutionTerminalStatus,
+  reconcileEditorExecutionStatus,
+} from '@/lib/workflow-editor/execution-status';
+import { createWorkflowErrorEnvelope } from '@/lib/workflow-editor/workflow-error';
 
 function createNodeStateMap(
   workflow: VisualWorkflow
@@ -87,6 +92,12 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
         completedAt: new Date(),
         input,
         error: `Validation failed: ${errorMessage}`,
+        errorEnvelope: createWorkflowErrorEnvelope({
+          stage: 'validation',
+          code: 'workflow.validation.failed',
+          message: errorMessage,
+          retryable: true,
+        }),
         triggerId: options?.triggerId,
         isReplay: options?.isReplay,
         logs: [
@@ -163,33 +174,49 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
         triggerId: options?.triggerId,
         isReplay: options?.isReplay,
         onEvent: (event) => {
-          const currentState = get().executionState;
-          if (!currentState) {
-            return;
-          }
+          const updateExecutionState = (
+            updater: (current: WorkflowExecutionState) => WorkflowExecutionState | null
+          ): void => {
+            set((state) => {
+              const current = state.executionState;
+              if (!current) {
+                return {};
+              }
+              const next = updater(current);
+              if (!next) {
+                return {};
+              }
+              return { executionState: next };
+            });
+          };
 
           switch (event.type) {
             case 'execution_started':
-              set({
-                executionState: {
-                  ...currentState,
-                  executionId: event.executionId,
-                  runtime: event.runtime,
-                  status: 'running',
-                  startedAt: currentState.startedAt || event.timestamp,
-                },
-              });
+              updateExecutionState((currentState) => ({
+                ...currentState,
+                executionId: event.executionId,
+                runtime: event.runtime,
+                status: reconcileEditorExecutionStatus(currentState.status, 'running'),
+                startedAt: currentState.startedAt || event.timestamp,
+              }));
               break;
             case 'execution_progress':
-              set({
-                executionState: {
+              updateExecutionState((currentState) => {
+                if (isEditorExecutionTerminalStatus(currentState.status)) {
+                  return null;
+                }
+                return {
                   ...currentState,
-                  progress: event.progress ?? currentState.progress,
-                },
+                  progress: Math.max(currentState.progress, event.progress ?? currentState.progress),
+                };
               });
               break;
             case 'step_started':
               if (event.stepId) {
+                const live = get().executionState;
+                if (!live || isEditorExecutionTerminalStatus(live.status)) {
+                  return;
+                }
                 get().updateNodeExecutionState(event.stepId, {
                   status: 'running',
                   startedAt: event.timestamp,
@@ -211,6 +238,10 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
               break;
             case 'step_completed':
               if (event.stepId) {
+                const live = get().executionState;
+                if (!live || isEditorExecutionTerminalStatus(live.status)) {
+                  return;
+                }
                 get().updateNodeExecutionState(event.stepId, {
                   status: 'completed',
                   completedAt: event.timestamp,
@@ -233,6 +264,10 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
               break;
             case 'step_failed':
               if (event.stepId) {
+                const live = get().executionState;
+                if (!live || isEditorExecutionTerminalStatus(live.status)) {
+                  return;
+                }
                 get().updateNodeExecutionState(event.stepId, {
                   status: 'failed',
                   completedAt: event.timestamp,
@@ -274,14 +309,12 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
               });
               break;
             case 'execution_completed':
-              set({
-                executionState: {
-                  ...currentState,
-                  status: 'completed',
-                  progress: 100,
-                  completedAt: event.timestamp,
-                },
-              });
+              updateExecutionState((currentState) => ({
+                ...currentState,
+                status: reconcileEditorExecutionStatus(currentState.status, 'completed'),
+                progress: 100,
+                completedAt: currentState.completedAt || event.timestamp,
+              }));
               appendExecutionLog({
                 timestamp: event.timestamp,
                 level: 'info',
@@ -289,14 +322,19 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
               });
               break;
             case 'execution_failed':
-              set({
-                executionState: {
-                  ...currentState,
-                  status: 'failed',
-                  completedAt: event.timestamp,
-                  error: event.error || currentState.error,
-                },
-              });
+              updateExecutionState((currentState) => ({
+                ...currentState,
+                status: reconcileEditorExecutionStatus(currentState.status, 'failed'),
+                completedAt: currentState.completedAt || event.timestamp,
+                error: event.error || currentState.error,
+                errorEnvelope: createWorkflowErrorEnvelope({
+                  stage: 'runtime',
+                  code: event.code || 'workflow.execution.failed',
+                  message: event.error || currentState.error || 'Workflow execution failed',
+                  retryable: true,
+                  affectedTargets: event.stepId ? [event.stepId] : undefined,
+                }),
+              }));
               appendExecutionLog({
                 timestamp: event.timestamp,
                 level: 'error',
@@ -306,13 +344,11 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
               });
               break;
             case 'execution_cancelled':
-              set({
-                executionState: {
-                  ...currentState,
-                  status: 'cancelled',
-                  completedAt: event.timestamp,
-                },
-              });
+              updateExecutionState((currentState) => ({
+                ...currentState,
+                status: reconcileEditorExecutionStatus(currentState.status, 'cancelled'),
+                completedAt: currentState.completedAt || event.timestamp,
+              }));
               break;
             default:
               break;
@@ -335,16 +371,17 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
         lastLog && lastLog.level === completionLog.level && lastLog.message === completionLog.message
           ? existingLogs
           : [...existingLogs, completionLog];
+      const reconciledStatus = reconcileEditorExecutionStatus(currentState?.status, result.status);
 
       const finalState: WorkflowExecutionState = {
         executionId: result.executionId,
         workflowId: result.workflowId,
         runtime: result.runtime,
-        status: result.status,
+        status: reconciledStatus,
         progress:
-          result.status === 'completed'
+          reconciledStatus === 'completed'
             ? 100
-            : currentState?.progress || (result.status === 'failed' ? 100 : 0),
+            : currentState?.progress || (reconciledStatus === 'failed' ? 100 : 0),
         currentNodeId: currentState?.currentNodeId,
         nodeStates: result.nodeStates,
         startedAt: result.startedAt || currentState?.startedAt,
@@ -355,7 +392,16 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
             : undefined,
         input,
         output: result.output,
-        error: result.error,
+        error: result.error || currentState?.error,
+        errorEnvelope:
+          reconciledStatus === 'failed'
+            ? createWorkflowErrorEnvelope({
+                stage: 'runtime',
+                code: 'workflow.execution.failed',
+                message: result.error || currentState?.error || 'Workflow execution failed',
+                retryable: true,
+              })
+            : undefined,
         triggerId: result.triggerId,
         isReplay: result.isReplay,
         logs: mergedLogs,
@@ -389,6 +435,12 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
         triggerId: options?.triggerId,
         runtime: currentState?.runtime || workflowOrchestrator.runtime,
         error: errorMessage,
+        errorEnvelope: createWorkflowErrorEnvelope({
+          stage: 'execute',
+          code: 'workflow.execution.exception',
+          message: errorMessage,
+          retryable: true,
+        }),
         completedAt: new Date(),
         logs: [
           ...(currentState?.logs || initialExecutionState.logs),

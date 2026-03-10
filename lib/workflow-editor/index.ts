@@ -115,7 +115,20 @@ export {
 
 export {
   mapEditorToWorkflowExecutionStatus,
+  mapAnyToWorkflowExecutionStatus,
   isEditorExecutionTerminalStatus,
+  reconcileEditorExecutionStatus,
+  deriveCanonicalExecutionState,
+  getWorkflowLifecycleCapability,
   getExecutionControlState,
   type ExecutionControlState,
+  type WorkflowLifecycleAction,
+  type WorkflowLifecycleActionState,
+  type WorkflowLifecycleCapability,
+  type CanonicalExecutionState,
 } from './execution-status';
+
+export {
+  createWorkflowErrorEnvelope,
+  formatWorkflowErrorEnvelope,
+} from './workflow-error';

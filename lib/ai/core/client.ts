@@ -15,6 +15,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createMistral } from '@ai-sdk/mistral';
 import type { ProviderName, CustomProviderSettings, ApiProtocol } from '@/types/provider';
 import type { LanguageModel } from 'ai';
+import { evaluateRuntimeEligibility } from '@/lib/ai/providers/completeness';
 
 export interface ProviderConfig {
   provider: ProviderName;
@@ -388,7 +389,16 @@ export function isValidProvider(provider: string): provider is ProviderName {
 export function getProviderModelFromConfig(config: ProviderConfig) {
   const { provider, apiKey, baseURL } = config;
   const modelId = config.model || getDefaultModel(provider);
-  
+
+  const eligibility = evaluateRuntimeEligibility(provider, {
+    apiKey,
+    baseURL,
+    enabled: true,
+  });
+  if (!eligibility.allowed) {
+    throw new Error(eligibility.reason || `Provider ${provider} is not eligible for runtime execution`);
+  }
+
   if (provider === 'auto') {
     // Auto mode defaults to OpenAI
     return {

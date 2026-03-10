@@ -134,8 +134,14 @@ describe('WorkflowScheduleDialog', () => {
           },
           payload: {
             workflowId: 'workflow-123',
+            workflowName: 'Test Workflow',
             input: {},
+            scheduleContext: expect.objectContaining({
+              source: 'workflow-schedule-dialog',
+              triggerType: 'cron',
+            }),
           },
+          tags: ['workflow-schedule', 'workflow-123'],
         })
       );
     });
@@ -297,7 +303,12 @@ describe('WorkflowScheduleDialog', () => {
         expect.objectContaining({
           payload: {
             workflowId: 'workflow-123',
+            workflowName: 'Test Workflow',
             input: { topic: 'AI', retries: 2 },
+            scheduleContext: expect.objectContaining({
+              source: 'workflow-schedule-dialog',
+              triggerType: 'cron',
+            }),
           },
         })
       );
@@ -312,7 +323,7 @@ describe('WorkflowScheduleDialog', () => {
     fireEvent.click(screen.getByText('schedule'));
 
     await waitFor(() => {
-      expect(screen.getByText('scheduleFailed')).toBeInTheDocument();
+      expect(screen.getByText(/scheduleFailed/i)).toBeInTheDocument();
     });
     expect(screen.getByText('cronPresets')).toBeInTheDocument();
   });

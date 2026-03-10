@@ -37,6 +37,15 @@ describe('Plugin Validation', () => {
       
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('id'))).toBe(true);
+      expect(result.diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            severity: 'error',
+            field: 'id',
+            code: 'manifest.id.missing',
+          }),
+        ])
+      );
     });
 
     it('should reject empty id', () => {
@@ -204,6 +213,26 @@ describe('Plugin Validation', () => {
       
       // Should still be valid but may have warnings
       expect(result.warnings.length).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should return actionable diagnostics for missing pythonMain', () => {
+      const manifest = createValidManifest();
+      manifest.type = 'python';
+      delete manifest.pythonMain;
+
+      const result = validatePluginManifest(manifest);
+
+      expect(result.valid).toBe(false);
+      expect(result.diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            severity: 'error',
+            field: 'pythonMain',
+            code: 'manifest.pythonMain.required',
+            hint: expect.any(String),
+          }),
+        ])
+      );
     });
   });
 

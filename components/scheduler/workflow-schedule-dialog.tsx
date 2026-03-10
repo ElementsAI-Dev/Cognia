@@ -33,6 +33,11 @@ import { useScheduler } from '@/hooks/scheduler';
 import type { TaskTriggerType } from '@/types/scheduler';
 import { getCronExpressionOptions } from '@/types/scheduler';
 import { TimezoneSelect } from '@/components/scheduler/timezone-select';
+import type { WorkflowErrorEnvelope } from '@/types/workflow/workflow-editor';
+import {
+  createWorkflowErrorEnvelope,
+  formatWorkflowErrorEnvelope,
+} from '@/lib/workflow-editor/workflow-error';
 
 interface WorkflowScheduleDialogProps {
   workflowId: string;
@@ -58,6 +63,7 @@ export function WorkflowScheduleDialog({
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [scheduleError, setScheduleError] = useState<WorkflowErrorEnvelope | null>(null);
 
   // Form state
   const [taskName, setTaskName] = useState(`${workflowName} - Scheduled`);
@@ -71,6 +77,7 @@ export function WorkflowScheduleDialog({
 
   const handleSubmit = useCallback(async () => {
     setSubmitError(null);
+    setScheduleError(null);
     setIsSubmitting(true);
     try {
       const trigger = (() => {
@@ -92,8 +99,15 @@ export function WorkflowScheduleDialog({
         trigger,
         payload: {
           workflowId,
+          workflowName,
           input: defaultInput ?? {},
+          scheduleContext: {
+            source: 'workflow-schedule-dialog',
+            triggerType,
+            configuredAt: new Date().toISOString(),
+          },
         },
+        tags: ['workflow-schedule', workflowId],
         notification: {
           onStart: false,
           onComplete: notifyOnComplete,
@@ -107,14 +121,29 @@ export function WorkflowScheduleDialog({
         onScheduled?.(task.id);
         setOpen(false);
       } else {
-        setSubmitError(error || t('scheduleFailed') || 'Failed to schedule workflow');
+        const failed = createWorkflowErrorEnvelope({
+          stage: 'schedule',
+          code: 'workflow.schedule.failed',
+          message: error || t('scheduleFailed') || 'Failed to schedule workflow',
+          retryable: true,
+          affectedTargets: [workflowId],
+        });
+        setScheduleError(failed);
+        setSubmitError(formatWorkflowErrorEnvelope(failed));
       }
     } catch (submitErr) {
-      setSubmitError(
-        submitErr instanceof Error
-          ? submitErr.message
-          : t('scheduleFailed') || 'Failed to schedule workflow'
-      );
+      const failed = createWorkflowErrorEnvelope({
+        stage: 'schedule',
+        code: 'workflow.schedule.exception',
+        message:
+          submitErr instanceof Error
+            ? submitErr.message
+            : t('scheduleFailed') || 'Failed to schedule workflow',
+        retryable: true,
+        affectedTargets: [workflowId],
+      });
+      setScheduleError(failed);
+      setSubmitError(formatWorkflowErrorEnvelope(failed));
     } finally {
       setIsSubmitting(false);
     }
@@ -285,6 +314,21 @@ export function WorkflowScheduleDialog({
           {submitError && (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">
               {submitError}
+              {scheduleError?.retryable && (
+                <div className="mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7"
+                    onClick={() => {
+                      void handleSubmit();
+                    }}
+                  >
+                    {t('retry') || 'Retry'}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>

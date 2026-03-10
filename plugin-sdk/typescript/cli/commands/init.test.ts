@@ -134,6 +134,7 @@ describe('initCommand', () => {
       const pkg = JSON.parse(packageJsonCall![1] as string);
       expect(pkg.scripts.dev).toBe('cognia-plugin dev');
       expect(pkg.scripts.build).toBe('cognia-plugin build');
+      expect(pkg.scripts.pack).toBe('cognia-plugin pack');
       expect(pkg.scripts.validate).toBe('cognia-plugin validate');
 
       mockLog.mockRestore();

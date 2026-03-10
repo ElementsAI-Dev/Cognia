@@ -60,6 +60,68 @@ export type SkillSyncOrigin = 'frontend' | 'builtin' | 'native';
 export type SkillSyncState = 'idle' | 'syncing' | 'ready' | 'error';
 
 /**
+ * Deterministic bootstrap lifecycle phases for skill/plugin loading
+ */
+export type SkillBootstrapPhase =
+  | 'idle'
+  | 'hydrate'
+  | 'discover'
+  | 'validate'
+  | 'resolve_order'
+  | 'activate'
+  | 'verify'
+  | 'ready'
+  | 'failed';
+
+/**
+ * Runtime status for a lifecycle phase event
+ */
+export type SkillBootstrapPhaseStatus = 'idle' | 'running' | 'success' | 'error' | 'skipped';
+
+/**
+ * Failure severity classification for lifecycle failures
+ */
+export type SkillBootstrapFailureSeverity = 'hard' | 'soft';
+
+/**
+ * Structured lifecycle telemetry emitted for each phase transition
+ */
+export interface SkillBootstrapPhaseTelemetry {
+  phase: SkillBootstrapPhase;
+  status: SkillBootstrapPhaseStatus;
+  startedAt: Date;
+  endedAt?: Date;
+  errorCode?: string;
+  errorMessage?: string;
+  affectedSkillIds?: string[];
+}
+
+/**
+ * Rollback action emitted when activation rollback occurs
+ */
+export interface SkillActivationRollbackAction {
+  skillId: string;
+  action: 'deactivate';
+  kept: boolean;
+  reason: string;
+}
+
+/**
+ * Run-scoped activation journal for deterministic commit/rollback behavior
+ */
+export interface SkillActivationJournal {
+  runId: string;
+  attempted: string[];
+  activated: string[];
+  failed: string[];
+  rollbackActions: SkillActivationRollbackAction[];
+  outcome: 'committed' | 'rolled_back';
+  failureSeverity?: SkillBootstrapFailureSeverity;
+  failureCode?: string;
+  failureMessage?: string;
+}
+
+/**
  * Result of a sync run
  */
 export type SkillSyncOutcome = 'idle' | 'success' | 'partial' | 'failure';

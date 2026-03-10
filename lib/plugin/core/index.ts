@@ -15,4 +15,6 @@ export {
 export { PluginSandbox } from './sandbox';
 export { validatePluginManifest, validatePluginConfig, parseManifest } from './validation';
 export type { ValidationError, ValidationResult, ConfigValidationResult } from './validation';
+export { evaluatePluginCompatibility } from './compatibility';
+export type { CompatibilityRuntime, CompatibilityDiagnostic, CompatibilityEvaluation } from './compatibility';
 export { createPluginSystemLogger, pluginLogger, loggers, type PluginSystemLogger } from './logger';

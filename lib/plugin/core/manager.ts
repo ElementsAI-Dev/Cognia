@@ -26,6 +26,11 @@ import { createFullPluginContext } from '@/lib/plugin/core/context';
 import { createPluginA2UIBridge, type PluginA2UIBridge } from '@/lib/plugin/bridge/a2ui-bridge';
 import { PluginLifecycleHooks, getPluginLifecycleHooks } from '@/lib/plugin/messaging/hooks-system';
 import { validatePluginManifest } from '@/lib/plugin/core/validation';
+import {
+  evaluatePluginCompatibility,
+  type CompatibilityDiagnostic,
+  type CompatibilityRuntime,
+} from '@/lib/plugin/core/compatibility';
 import { loggers } from '@/lib/plugin/core/logger';
 import { getPluginSignatureVerifier } from '@/lib/plugin/security/signature';
 import { getPermissionGuard } from '@/lib/plugin/security/permission-guard';
@@ -40,6 +45,8 @@ interface PluginManagerConfig {
   pythonPath?: string;
   autoEnable?: boolean;
   sandboxed?: boolean;
+  hostVersion?: string;
+  compatibilityMode?: 'warn' | 'block';
 }
 
 interface DiscoveredPlugin {
@@ -127,12 +134,19 @@ export class PluginManager {
   private activationInFlight: Set<string> = new Set();
   private warnedActivationEvents: Set<string> = new Set();
   private initialized = false;
+  private compatibilityMode: 'warn' | 'block';
+  private compatibilityRuntime: CompatibilityRuntime;
 
   constructor(config: PluginManagerConfig) {
     this.config = config;
     this.loader = new PluginLoader();
     this.registry = new PluginRegistry();
     this.hooksManager = getPluginLifecycleHooks();
+    this.compatibilityMode = config.compatibilityMode || 'warn';
+    this.compatibilityRuntime = {
+      cogniaVersion: config.hostVersion || '0.1.0',
+      nodeVersion: typeof process !== 'undefined' ? process.versions?.node : undefined,
+    };
   }
 
   private ensureA2UIBridge(): PluginA2UIBridge {
@@ -183,10 +197,51 @@ export class PluginManager {
       await invoke('plugin_python_initialize', {
         pythonPath: this.config.pythonPath,
       });
+      const runtime = await this.getPythonRuntimeInfo().catch(() => null);
+      if (runtime?.version) {
+        this.compatibilityRuntime.pythonVersion = runtime.version;
+      }
     } catch (error) {
       loggers.manager.error('Failed to initialize Python runtime:', error);
       // Continue without Python support
     }
+  }
+
+  private applyCompatibilityPolicy(
+    manifest: PluginManifest,
+    sourceContext: string
+  ): { blocked: boolean; diagnostics: CompatibilityDiagnostic[] } {
+    const result = evaluatePluginCompatibility(manifest, this.compatibilityRuntime);
+    if (result.diagnostics.length === 0) {
+      return { blocked: false, diagnostics: [] };
+    }
+
+    const errors = result.diagnostics.filter((entry) => entry.severity === 'error');
+    const warnings = result.diagnostics.filter((entry) => entry.severity === 'warning');
+
+    if (warnings.length > 0) {
+      loggers.manager.warn(
+        `[plugin:${manifest.id}] compatibility warnings in ${sourceContext}:`,
+        warnings
+      );
+    }
+
+    if (errors.length > 0) {
+      if (this.compatibilityMode === 'block') {
+        loggers.manager.error(
+          `[plugin:${manifest.id}] compatibility blocked in ${sourceContext}:`,
+          errors
+        );
+        return { blocked: true, diagnostics: result.diagnostics };
+      }
+
+      loggers.manager.warn(
+        `[plugin:${manifest.id}] compatibility errors (warn mode) in ${sourceContext}:`,
+        errors
+      );
+    }
+
+    return { blocked: false, diagnostics: result.diagnostics };
   }
 
   private async restorePluginStates(): Promise<void> {
@@ -225,7 +280,12 @@ export class PluginManager {
         // Validate manifest
         const validation = validatePluginManifest(manifest);
         if (!validation.valid) {
-          loggers.manager.warn(`Invalid plugin manifest at ${path}:`, validation.errors);
+          loggers.manager.warn(`Invalid plugin manifest at ${path}:`, validation.diagnostics || validation.errors);
+          continue;
+        }
+
+        const compatibility = this.applyCompatibilityPolicy(manifest, `scan:${path}`);
+        if (compatibility.blocked) {
           continue;
         }
 
@@ -279,6 +339,14 @@ export class PluginManager {
         throw new Error(`Invalid plugin manifest: ${validation.errors.join(', ')}`);
       }
 
+      const compatibility = this.applyCompatibilityPolicy(result.manifest, `install:${type}`);
+      if (compatibility.blocked) {
+        const messages = compatibility.diagnostics
+          .filter((item) => item.severity === 'error')
+          .map((item) => `${item.code}: ${item.message}`);
+        throw new Error(`Incompatible plugin manifest: ${messages.join('; ')}`);
+      }
+
       // Verify signature
       if (!(await this.verifyPluginSignature(result.path, result.manifest.id))) {
         throw new Error(`Signature verification failed for plugin ${result.manifest.id}`);
@@ -309,6 +377,19 @@ export class PluginManager {
     }
 
     try {
+      const validation = validatePluginManifest(plugin.manifest);
+      if (!validation.valid) {
+        throw new Error(`Invalid plugin manifest: ${validation.errors.join(', ')}`);
+      }
+
+      const compatibility = this.applyCompatibilityPolicy(plugin.manifest, 'load');
+      if (compatibility.blocked) {
+        const messages = compatibility.diagnostics
+          .filter((item) => item.severity === 'error')
+          .map((item) => `${item.code}: ${item.message}`);
+        throw new Error(`Incompatible plugin: ${messages.join('; ')}`);
+      }
+
       if (!(await this.verifyPluginSignature(plugin.path, pluginId))) {
         throw new Error(`Signature verification failed for plugin ${pluginId}`);
       }

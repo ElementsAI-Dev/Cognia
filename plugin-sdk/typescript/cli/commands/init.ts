@@ -126,6 +126,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
       pkg.scripts = pkg.scripts || {};
       pkg.scripts.dev = pkg.scripts.dev || 'cognia-plugin dev';
       pkg.scripts.build = pkg.scripts.build || 'cognia-plugin build';
+      pkg.scripts.pack = pkg.scripts.pack || 'cognia-plugin pack';
       pkg.scripts.validate = pkg.scripts.validate || 'cognia-plugin validate';
 
       // Add dev dependencies
@@ -200,6 +201,7 @@ async function runInteractiveInit(cwd: string, manifestPath: string): Promise<vo
           pkg.scripts = pkg.scripts || {};
           pkg.scripts.dev = pkg.scripts.dev || 'cognia-plugin dev';
           pkg.scripts.build = pkg.scripts.build || 'cognia-plugin build';
+          pkg.scripts.pack = pkg.scripts.pack || 'cognia-plugin pack';
           pkg.scripts.validate = pkg.scripts.validate || 'cognia-plugin validate';
 
           // Add dev dependencies

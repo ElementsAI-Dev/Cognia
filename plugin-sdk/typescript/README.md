@@ -10,6 +10,22 @@ npm install @cognia/plugin-sdk
 pnpm add @cognia/plugin-sdk
 ```
 
+## CLI Workflow
+
+```bash
+# Start development workflow
+npm run dev
+
+# Build plugin artifact
+npm run build
+
+# Package distributable output
+npm run pack
+
+# Validate plugin manifest and structure
+npm run validate
+```
+
 ## Quick Start
 
 Create a plugin in seconds:
@@ -66,6 +82,9 @@ Create a `plugin.json` file in your plugin root:
   "description": "My awesome plugin",
   "type": "frontend",
   "main": "dist/index.js",
+  "engines": {
+    "cognia": ">=0.1.0"
+  },
   "capabilities": ["tools", "hooks", "scheduler"],
   "permissions": ["network:fetch"],
   "scheduledTasks": [
@@ -78,6 +97,12 @@ Create a `plugin.json` file in your plugin root:
   ]
 }
 ```
+
+### Production Compatibility
+
+- Declare `engines.cognia` to express host compatibility requirements.
+- `cognia-plugin build` validates required manifest fields and output artifacts (`dist/index.js`, `dist/plugin.json`).
+- `cognia-plugin dev` now emits update/error events with build-on-change flow enabled by default.
 
 ## What's Included
 

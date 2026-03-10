@@ -2,6 +2,12 @@ export const PPT_TEST_IDS = {
   page: {
     newPresentationButton: 'ppt-new-presentation-button',
   },
+  creation: {
+    submitButton: 'ppt-create-submit',
+    materialFeedback: 'ppt-material-feedback',
+    ingestionErrorItem: 'ppt-ingestion-error-item',
+    qualityIssueItem: 'ppt-quality-issue-item',
+  },
   editor: {
     startPresentation: 'ppt-editor-start-presentation',
     exportTrigger: 'ppt-export-trigger',

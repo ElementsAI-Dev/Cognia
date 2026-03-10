@@ -30,6 +30,11 @@ jest.mock('@/stores/skills', () => ({
 jest.mock('@/hooks/skills/use-skill-bootstrap', () => ({
   useSkillBootstrap: jest.fn(() => ({
     bootstrapState: 'idle',
+    bootstrapPhase: 'idle',
+    bootstrapPhaseStatus: 'idle',
+    bootstrapTelemetry: [],
+    bootstrapFailureSeverity: null,
+    lastActivationJournal: null,
     lastBootstrapAt: null,
     lastBootstrapError: null,
     runBootstrap: jest.fn().mockResolvedValue(undefined),
@@ -70,6 +75,11 @@ describe('SkillProvider', () => {
 
     mockUseSkillBootstrap.mockReturnValue({
       bootstrapState: 'idle',
+      bootstrapPhase: 'idle',
+      bootstrapPhaseStatus: 'idle',
+      bootstrapTelemetry: [],
+      bootstrapFailureSeverity: null,
+      lastActivationJournal: null,
       lastBootstrapAt: null,
       lastBootstrapError: null,
       runBootstrap: mockRunBootstrap,
@@ -177,6 +187,11 @@ describe('useInitializeSkills hook', () => {
 
     mockUseSkillBootstrap.mockReturnValue({
       bootstrapState: 'idle',
+      bootstrapPhase: 'idle',
+      bootstrapPhaseStatus: 'idle',
+      bootstrapTelemetry: [],
+      bootstrapFailureSeverity: null,
+      lastActivationJournal: null,
       lastBootstrapAt: null,
       lastBootstrapError: null,
       runBootstrap: mockRunBootstrap,

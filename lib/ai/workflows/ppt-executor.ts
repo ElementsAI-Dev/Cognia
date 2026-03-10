@@ -34,6 +34,7 @@ import {
   executeMaterialSummarize,
 } from '../tools/material-tool';
 import { enhanceSlidesWithImages } from '../tools/slide-image-tool';
+import { validatePPTMaterialQuality } from '@/lib/ppt/material-ingestion';
 
 // =====================
 // Executor Types
@@ -59,6 +60,34 @@ export interface ExecutorState {
   warnings: string[];
   startTime?: Date;
   endTime?: Date;
+}
+
+interface CodedError extends Error {
+  code?: string;
+}
+
+function createWorkflowError(message: string, code: string): CodedError {
+  const error = new Error(message) as CodedError;
+  error.code = code;
+  return error;
+}
+
+function validateMaterialContract(materials: PPTMaterial[]): CodedError | null {
+  for (const material of materials) {
+    if (!material.id || !material.name || !material.content || !material.type) {
+      return createWorkflowError(
+        `Material contract is invalid for item "${material.name || material.id || 'unknown'}".`,
+        'ingestion_error'
+      );
+    }
+  }
+
+  const quality = validatePPTMaterialQuality(materials);
+  if (!quality.isValid) {
+    return createWorkflowError(quality.issues[0].message, 'validation_error');
+  }
+
+  return null;
 }
 
 // =====================
@@ -97,6 +126,13 @@ export class PPTWorkflowExecutor {
     
     const totalSteps = this.calculateTotalSteps(options);
     let completedSteps = 0;
+
+    if (options.materials && options.materials.length > 0) {
+      const materialContractError = validateMaterialContract(options.materials);
+      if (materialContractError) {
+        throw materialContractError;
+      }
+    }
     
     const updateProgress = (stepName: string, stepProgress?: number) => {
       const progress: PPTWorkflowProgress = {

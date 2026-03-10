@@ -150,8 +150,12 @@ jest.mock('@/components/ui/input', () => ({
 }));
 
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, variant }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string }) => (
-    <button onClick={onClick} disabled={disabled} data-variant={variant}>{children}</button>
+  Button: ({
+    children,
+    variant,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string }) => (
+    <button {...props} data-variant={variant}>{children}</button>
   ),
 }));
 
@@ -356,5 +360,51 @@ describe('ProviderSettings', () => {
     await waitFor(() => {
       expect((toast.warning as jest.Mock)).toHaveBeenCalled();
     });
+  });
+
+  it('returns equivalent blocked test guidance across card and table views', () => {
+    mockSettingsState.providerSettings.openai = { apiKey: '', enabled: true };
+
+    const { rerender } = render(<ProviderSettings />);
+    const cardTestButtonWithReason = screen
+      .getAllByRole('button', { name: 'test' })
+      .find((button) => button.getAttribute('title'));
+    const blockedReason = cardTestButtonWithReason?.getAttribute('title');
+    expect(blockedReason).toBeTruthy();
+
+    mockSettingsState.providerUIPreferences.viewMode = 'table';
+    rerender(<ProviderSettings />);
+    expect(screen.getAllByTitle(blockedReason as string).length).toBeGreaterThan(0);
+  });
+
+  it('recomputes readiness after provider config changes invalidate previous verification', async () => {
+    mockSettingsState.providerUIPreferences.viewMode = 'table';
+    const { rerender } = render(<ProviderSettings />);
+
+    const openAiSelector = screen
+      .getAllByLabelText('selectProviderRow')
+      .find((checkbox) => checkbox.closest('tr')?.textContent?.includes('OpenAI'));
+    expect(openAiSelector).toBeDefined();
+    fireEvent.click(openAiSelector!);
+    fireEvent.click(screen.getByText('testSelected'));
+
+    await waitFor(() => {
+      expect(testProviderConnection).toHaveBeenCalledWith('openai', 'test-key', undefined);
+    });
+    expect(screen.getByText('connected')).toBeInTheDocument();
+
+    mockSettingsState.providerSettings = {
+      ...mockSettingsState.providerSettings,
+      openai: {
+        ...mockSettingsState.providerSettings.openai,
+        apiKey: 'updated-key',
+      },
+    };
+    rerender(<ProviderSettings />);
+
+    await waitFor(() => {
+      expect(screen.queryByText('connected')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('ready')).toBeInTheDocument();
   });
 });

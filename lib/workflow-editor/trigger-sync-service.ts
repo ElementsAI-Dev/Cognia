@@ -13,6 +13,7 @@ import {
   updateSystemTask,
 } from '@/lib/native/system-scheduler';
 import { isTauri } from '@/lib/utils';
+import { createWorkflowErrorEnvelope } from './workflow-error';
 import type {
   TriggerBackend,
   TriggerSyncStatus,
@@ -317,18 +318,65 @@ function toSyncedTriggerConfig(
       lastSyncedAt: now(),
       lastSyncError: undefined,
       runtimeSource: backend === 'system' ? 'system-scheduler' : 'app-scheduler',
+      lastSyncOutcome: 'success',
+      impactedTaskIds: [taskId],
+      reconciliationAction: 'none',
+      lastSyncRetryable: false,
+      lastSyncErrorEnvelope: undefined,
     },
   };
 }
 
+type TriggerSyncFailureDetails = {
+  outcome: 'partial' | 'failed';
+  impactedTaskIds: string[];
+  retryable: boolean;
+  reconciliationAction: 'retry_sync' | 'manual_cleanup';
+  code: string;
+  message: string;
+};
+
+class TriggerSyncServiceError extends Error {
+  readonly details: TriggerSyncFailureDetails;
+
+  constructor(details: TriggerSyncFailureDetails) {
+    super(details.message);
+    this.name = 'TriggerSyncServiceError';
+    this.details = details;
+  }
+}
+
 function toSyncErrorTrigger(trigger: WorkflowTrigger, error: unknown): WorkflowTrigger {
+  const details: TriggerSyncFailureDetails =
+    error instanceof TriggerSyncServiceError
+      ? error.details
+      : {
+          outcome: 'failed',
+          impactedTaskIds: trigger.config.bindingTaskId ? [trigger.config.bindingTaskId] : [],
+          retryable: true,
+          reconciliationAction: 'retry_sync',
+          code: 'workflow.trigger.sync.failed',
+          message: error instanceof Error ? error.message : String(error),
+        };
+
   return {
     ...trigger,
     config: {
       ...trigger.config,
       syncStatus: 'error',
-      lastSyncError: error instanceof Error ? error.message : String(error),
+      lastSyncError: details.message,
       lastSyncedAt: now(),
+      lastSyncOutcome: details.outcome,
+      impactedTaskIds: details.impactedTaskIds,
+      reconciliationAction: details.reconciliationAction,
+      lastSyncRetryable: details.retryable,
+      lastSyncErrorEnvelope: createWorkflowErrorEnvelope({
+        stage: 'trigger-sync',
+        code: details.code,
+        message: details.message,
+        retryable: details.retryable,
+        affectedTargets: details.impactedTaskIds,
+      }),
     },
   };
 }
@@ -379,9 +427,14 @@ export class WorkflowTriggerSyncService {
       return toSyncedTriggerConfig(trigger, targetBackend, targetTaskId);
     } catch (migrationError) {
       if (!targetTaskId) {
-        throw new Error(
-          `Trigger migration failed at phase=${migrationPhase}: ${errorMessage(migrationError)}`
-        );
+        throw new TriggerSyncServiceError({
+          outcome: 'failed',
+          impactedTaskIds: [sourceTaskId],
+          retryable: true,
+          reconciliationAction: 'retry_sync',
+          code: 'workflow.trigger.sync.migration.create_target_failed',
+          message: `Trigger migration failed at phase=${migrationPhase}: ${errorMessage(migrationError)}`,
+        });
       }
 
       migrationPhase = 'rollback_target';
@@ -392,18 +445,28 @@ export class WorkflowTriggerSyncService {
         }
         await deleteFromRuntimeSource(targetRuntime, targetTaskId);
       } catch (rollbackError) {
-        throw new Error(
-          `Trigger migration failed at phase=delete_source: ${errorMessage(
+        throw new TriggerSyncServiceError({
+          outcome: 'partial',
+          impactedTaskIds: [sourceTaskId, targetTaskId],
+          retryable: true,
+          reconciliationAction: 'manual_cleanup',
+          code: 'workflow.trigger.sync.migration.rollback_failed',
+          message: `Trigger migration failed at phase=delete_source: ${errorMessage(
             migrationError
-          )}; rollback failed at phase=${migrationPhase}: ${errorMessage(rollbackError)}`
-        );
+          )}; rollback failed at phase=${migrationPhase}: ${errorMessage(rollbackError)}`,
+        });
       }
 
-      throw new Error(
-        `Trigger migration failed at phase=delete_source: ${errorMessage(
+      throw new TriggerSyncServiceError({
+        outcome: 'partial',
+        impactedTaskIds: [sourceTaskId],
+        retryable: true,
+        reconciliationAction: 'retry_sync',
+        code: 'workflow.trigger.sync.migration.delete_source_failed',
+        message: `Trigger migration failed at phase=delete_source: ${errorMessage(
           migrationError
-        )}; target task rollback completed`
-      );
+        )}; target task rollback completed`,
+      });
     }
   }
 
@@ -419,6 +482,11 @@ export class WorkflowTriggerSyncService {
             bindingTaskId: undefined,
             lastSyncedAt: now(),
             lastSyncError: undefined,
+            lastSyncOutcome: 'success',
+            impactedTaskIds: [],
+            reconciliationAction: 'none',
+            lastSyncRetryable: false,
+            lastSyncErrorEnvelope: undefined,
           },
         };
       }
@@ -476,6 +544,11 @@ export class WorkflowTriggerSyncService {
         runtimeSource: undefined,
         lastSyncedAt: now(),
         lastSyncError: undefined,
+        lastSyncOutcome: 'success',
+        impactedTaskIds: [],
+        reconciliationAction: 'none',
+        lastSyncRetryable: false,
+        lastSyncErrorEnvelope: undefined,
       },
     };
   }

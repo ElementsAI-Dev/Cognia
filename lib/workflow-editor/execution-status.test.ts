@@ -1,7 +1,10 @@
 import {
+  deriveCanonicalExecutionState,
   getExecutionControlState,
+  getWorkflowLifecycleCapability,
   isEditorExecutionTerminalStatus,
   mapEditorToWorkflowExecutionStatus,
+  reconcileEditorExecutionStatus,
 } from './execution-status';
 
 describe('execution-status helpers', () => {
@@ -66,6 +69,63 @@ describe('execution-status helpers', () => {
         canPause: false,
         canResume: true,
         canCancel: true,
+      });
+    });
+  });
+
+  describe('getWorkflowLifecycleCapability', () => {
+    it('returns disabled run state with reason when validation errors exist', () => {
+      const capability = getWorkflowLifecycleCapability({
+        hasWorkflow: true,
+        isExecuting: false,
+        status: 'idle',
+        hasValidationErrors: true,
+      });
+
+      expect(capability.actions.run.allowed).toBe(false);
+      expect(capability.actions.run.reason).toContain('Validation');
+      expect(capability.actions.run.recoveryHint).toContain('Fix');
+    });
+  });
+
+  describe('reconcileEditorExecutionStatus', () => {
+    it('keeps terminal state when non-terminal event arrives later', () => {
+      expect(reconcileEditorExecutionStatus('failed', 'running')).toBe('failed');
+    });
+
+    it('allows pause and resume transitions', () => {
+      expect(reconcileEditorExecutionStatus('running', 'paused')).toBe('paused');
+      expect(reconcileEditorExecutionStatus('paused', 'running')).toBe('running');
+    });
+  });
+
+  describe('deriveCanonicalExecutionState', () => {
+    it('prefers runtime state while actively executing', () => {
+      expect(
+        deriveCanonicalExecutionState({
+          isExecuting: true,
+          runtimeStatus: 'running',
+          runtimeProgress: 42,
+          historyStatus: 'completed',
+        })
+      ).toMatchObject({
+        status: 'executing',
+        progress: 42,
+        source: 'runtime',
+      });
+    });
+
+    it('falls back to history when runtime state is absent', () => {
+      expect(
+        deriveCanonicalExecutionState({
+          isExecuting: false,
+          historyStatus: 'completed',
+          historyProgress: 100,
+        })
+      ).toMatchObject({
+        status: 'completed',
+        progress: 100,
+        source: 'history',
       });
     });
   });

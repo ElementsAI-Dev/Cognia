@@ -9,6 +9,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { WorkflowEditorPanel } from '@/components/workflow/editor';
 import { TemplateBrowser } from '@/components/workflow/marketplace/template-browser';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Dialog,
   DialogContent,
@@ -43,10 +44,20 @@ import { useWorkflowEditor } from '@/hooks/designer/use-workflow-editor';
 import { useWorkflowExecutionWithKeyboard } from '@/hooks/designer/use-workflow-execution';
 import { workflowEditorTemplates, getTemplateCategories } from '@/lib/workflow-editor/templates';
 import { definitionToVisual } from '@/lib/workflow-editor/converter';
-import { getExecutionControlState } from '@/lib/workflow-editor';
+import {
+  getWorkflowLifecycleCapability,
+} from '@/lib/workflow-editor';
+import {
+  createWorkflowErrorEnvelope,
+  formatWorkflowErrorEnvelope,
+} from '@/lib/workflow-editor/workflow-error';
 import { WorkflowScheduleDialog } from '@/components/scheduler';
 import { toast } from 'sonner';
-import type { VisualWorkflow, WorkflowEditorTemplate } from '@/types/workflow/workflow-editor';
+import type {
+  VisualWorkflow,
+  WorkflowEditorTemplate,
+  WorkflowErrorEnvelope,
+} from '@/types/workflow/workflow-editor';
 import {
   Plus,
   Search,
@@ -83,6 +94,7 @@ export default function WorkflowsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<string | null>(null);
   const [templateBrowserOpen, setTemplateBrowserOpen] = useState(false);
+  const [actionError, setActionError] = useState<WorkflowErrorEnvelope | null>(null);
 
   const {
     currentWorkflow,
@@ -122,12 +134,23 @@ export default function WorkflowsPage() {
     [validationErrors]
   );
   const executionControls = useMemo(
-    () =>
-      getExecutionControlState({
+    () => {
+      const capability = getWorkflowLifecycleCapability({
+        hasWorkflow: Boolean(currentWorkflow),
         isExecuting,
         status: executionState?.status,
-      }),
-    [isExecuting, executionState?.status]
+        hasValidationErrors: hasErrors,
+      });
+      return {
+        canRun: capability.actions.run.allowed,
+        canPause: capability.actions.pause.allowed,
+        canResume: capability.actions.resume.allowed,
+        canCancel: capability.actions.cancel.allowed,
+        runReason: capability.actions.run.reason,
+        runRecoveryHint: capability.actions.run.recoveryHint,
+      };
+    },
+    [currentWorkflow, hasErrors, isExecuting, executionState?.status]
   );
   const scheduleDefaultInput = useMemo<Record<string, unknown>>(() => {
     if (!currentWorkflow) return {};
@@ -141,6 +164,26 @@ export default function WorkflowsPage() {
       {}
     );
   }, [currentWorkflow]);
+
+  useEffect(() => {
+    if (!executionState) return;
+    if (executionState.status === 'failed') {
+      setActionError(
+        executionState.errorEnvelope ||
+          createWorkflowErrorEnvelope({
+            stage: 'runtime',
+            code: 'workflow.execution.failed',
+            message: executionState.error || 'Workflow execution failed',
+            retryable: true,
+            affectedTargets: [executionState.workflowId],
+          })
+      );
+      return;
+    }
+    if (executionState.status === 'completed') {
+      setActionError(null);
+    }
+  }, [executionState]);
 
   // Load workflows from database
   const loadWorkflows = useCallback(async () => {
@@ -317,18 +360,52 @@ export default function WorkflowsPage() {
   // Handle save workflow
   const handleSaveWorkflow = async () => {
     if (!currentWorkflow) return;
-    await saveWorkflow();
-    await loadWorkflows();
+    setActionError(null);
+    try {
+      await saveWorkflow();
+      await loadWorkflows();
+    } catch (error) {
+      const envelope = createWorkflowErrorEnvelope({
+        stage: 'save',
+        code: 'workflow.save.failed',
+        message: error instanceof Error ? error.message : 'Failed to save workflow',
+        retryable: true,
+        affectedTargets: [currentWorkflow.id],
+      });
+      setActionError(envelope);
+      toast.error(envelope.message);
+    }
   };
 
   // Handle execute workflow
-  const handleExecuteWorkflow = async () => {
+  const handleExecuteWorkflow = async (inputOverride?: Record<string, unknown>) => {
     if (!currentWorkflow) return;
+    setActionError(null);
     if (!validate()) {
-      toast.error(t('validationErrors') || 'Fix validation errors before running');
+      const envelope = createWorkflowErrorEnvelope({
+        stage: 'validation',
+        code: 'workflow.validation.failed',
+        message: t('validationErrors') || 'Fix validation errors before running',
+        retryable: true,
+        affectedTargets: [currentWorkflow.id],
+      });
+      setActionError(envelope);
+      toast.error(envelope.message);
       return;
     }
-    await executeWorkflow();
+    try {
+      await executeWorkflow(inputOverride || {});
+    } catch (error) {
+      const envelope = createWorkflowErrorEnvelope({
+        stage: 'execute',
+        code: 'workflow.execute.failed',
+        message: error instanceof Error ? error.message : 'Workflow execution failed',
+        retryable: true,
+        affectedTargets: [currentWorkflow.id],
+      });
+      setActionError(envelope);
+      toast.error(envelope.message);
+    }
   };
 
   if (viewMode === 'editor') {
@@ -380,8 +457,15 @@ export default function WorkflowsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleExecuteWorkflow}
-              disabled={hasErrors}
+              onClick={() => {
+                void handleExecuteWorkflow();
+              }}
+              disabled={!executionControls.canRun}
+              title={
+                executionControls.canRun
+                  ? undefined
+                  : `${executionControls.runReason || ''} ${executionControls.runRecoveryHint || ''}`.trim()
+              }
               data-testid="workflow-page-run-button"
             >
               <Play className="h-4 w-4 mr-1" />
@@ -431,6 +515,46 @@ export default function WorkflowsPage() {
             {tCommon('save')}
           </Button>
         </div>
+        {actionError && (
+          <div className="px-2 pt-2">
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Workflow Recovery Required</AlertTitle>
+              <AlertDescription>
+                <p>{formatWorkflowErrorEnvelope(actionError)}</p>
+                <div className="flex items-center gap-2 pt-2">
+                  {actionError.stage === 'save' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        void handleSaveWorkflow();
+                      }}
+                    >
+                      Retry Save
+                    </Button>
+                  )}
+                  {(actionError.stage === 'execute' ||
+                    actionError.stage === 'runtime' ||
+                    actionError.stage === 'validation') && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        void handleExecuteWorkflow(executionState?.input || {});
+                      }}
+                    >
+                      Retry Run
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => setActionError(null)}>
+                    Dismiss
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
         <div className="flex-1">
           <WorkflowEditorPanel className="h-full" />
         </div>

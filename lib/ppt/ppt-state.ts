@@ -10,6 +10,9 @@ export type PPTOperationStatus = 'idle' | 'running' | 'succeeded' | 'failed';
 export type PPTErrorCode =
   | 'unknown'
   | 'invalid_presentation'
+  | 'ingestion_error'
+  | 'validation_error'
+  | 'generation_error'
   | 'validation_failed'
   | 'provider_unavailable'
   | 'generation_failed'
@@ -136,6 +139,9 @@ export function validatePPTCreationInput(
 const DEFAULT_ERROR_MESSAGES: Record<PPTErrorCode, string> = {
   unknown: 'Unexpected error occurred.',
   invalid_presentation: 'Presentation data is invalid.',
+  ingestion_error: 'Failed to ingest source materials.',
+  validation_error: 'Input validation failed.',
+  generation_error: 'Presentation generation failed.',
   validation_failed: 'Input validation failed.',
   provider_unavailable: 'AI provider is unavailable.',
   generation_failed: 'Presentation generation failed.',
@@ -162,8 +168,37 @@ export function classifyPPTError(
   error: unknown,
   fallbackCode: PPTErrorCode = 'unknown'
 ): PPTError {
+  const code =
+    error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+      ? error.code.toLowerCase()
+      : '';
   const message = error instanceof Error ? error.message : String(error || '');
   const normalized = message.toLowerCase();
+
+  if (
+    code === 'unsupported_format' ||
+    code === 'extraction_failed' ||
+    code === 'empty_content' ||
+    code === 'invalid_url' ||
+    code === 'ingestion_error' ||
+    code === 'material_processing_failed'
+  ) {
+    return toPPTError('ingestion_error', message || undefined);
+  }
+
+  if (
+    code === 'validation_error' ||
+    code === 'validation_failed' ||
+    code === 'content_too_short' ||
+    code === 'low_readability' ||
+    code === 'noisy_content'
+  ) {
+    return toPPTError('validation_error', message || undefined);
+  }
+
+  if (code === 'generation_error' || code === 'generation_failed') {
+    return toPPTError('generation_error', message || undefined);
+  }
 
   if (normalized.includes('api key') || normalized.includes('provider')) {
     return toPPTError('provider_unavailable', message);
@@ -174,13 +209,37 @@ export function classifyPPTError(
   }
 
   if (normalized.includes('material')) {
-    return toPPTError('material_processing_failed', message);
+    return toPPTError('ingestion_error', message);
+  }
+
+  if (normalized.includes('valid') || normalized.includes('invalid') || normalized.includes('quality')) {
+    return toPPTError('validation_error', message);
+  }
+
+  if (normalized.includes('generation')) {
+    return toPPTError('generation_error', message);
   }
 
   if (normalized.includes('export')) {
     return toPPTError('export_failed', message);
   }
 
+  if (fallbackCode === 'generation_failed') {
+    return toPPTError('generation_error', message || undefined);
+  }
+
+  if (fallbackCode === 'validation_failed') {
+    return toPPTError('validation_error', message || undefined);
+  }
+
+  if (fallbackCode === 'material_processing_failed') {
+    return toPPTError('ingestion_error', message || undefined);
+  }
+
   return toPPTError(fallbackCode, message || undefined);
+}
+
+export function isRetryablePPTErrorCode(code: PPTErrorCode): boolean {
+  return code !== 'ingestion_error' && code !== 'validation_error';
 }
 

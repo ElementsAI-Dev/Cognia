@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { testProviderConnection, testCustomProviderConnectionByProtocol, type ApiTestResult } from '@/lib/ai/infrastructure/api-test';
+import { evaluateBuiltInProviderCompleteness, evaluateCustomProviderCompleteness } from '@/lib/ai/providers/completeness';
 import type { ApiProtocol } from '@/types/provider';
 
 export interface ProviderTestState {
@@ -48,7 +49,22 @@ export function useProviderTest(): UseProviderTestReturn {
     apiKey: string,
     baseURL?: string
   ): Promise<ApiTestResult | undefined> => {
-    if (!apiKey) return undefined;
+    const guard = evaluateBuiltInProviderCompleteness(
+      providerId,
+      { apiKey, baseURL, enabled: true },
+      null
+    ).eligibility.testConnection;
+    if (!guard.allowed) {
+      const blockedResult: ApiTestResult = {
+        success: false,
+        message: guard.reason || 'Provider is not ready for connection testing',
+      };
+      setState(prev => ({
+        ...prev,
+        results: { ...prev.results, [providerId]: blockedResult },
+      }));
+      return blockedResult;
+    }
 
     setState(prev => ({
       ...prev,
@@ -87,13 +103,12 @@ export function useProviderTest(): UseProviderTestReturn {
     apiKey: string,
     protocol: ApiProtocol
   ): Promise<{ success: boolean; message: string } | undefined> => {
-    if (!baseURL || !apiKey) return undefined;
-
-    // Validate URL
-    try {
-      new URL(baseURL);
-    } catch {
-      const message = 'Invalid base URL';
+    const guard = evaluateCustomProviderCompleteness(
+      { baseURL, apiKey, enabled: true },
+      null
+    ).eligibility.testConnection;
+    if (!guard.allowed) {
+      const message = guard.reason || 'Provider is not ready for connection testing';
       setState(prev => ({
         ...prev,
         customResults: { ...prev.customResults, [providerId]: 'error' },

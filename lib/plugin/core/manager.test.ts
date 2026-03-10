@@ -206,6 +206,83 @@ describe('PluginManager', () => {
         /Failed to install plugin/i
       );
     });
+
+    it('blocks incompatible plugin in compatibility block mode', async () => {
+      const store: {
+        plugins: Record<string, Plugin>;
+        discoverPlugin: jest.Mock;
+        installPlugin: jest.Mock;
+      } = {
+        plugins: {},
+        discoverPlugin: jest.fn(),
+        installPlugin: jest.fn(async () => undefined),
+      };
+
+      mockGetState.mockReturnValue(store);
+      mockInvoke.mockResolvedValueOnce({
+        manifest: {
+          ...createManifest('blocked-plugin'),
+          engines: { cognia: '>=9.0.0' },
+        },
+        path: '/plugins/blocked-plugin',
+      });
+
+      const manager = new PluginManager({
+        pluginDirectory: '/plugins',
+        compatibilityMode: 'block',
+        hostVersion: '0.1.0',
+      });
+
+      await expect(manager.installPlugin('/tmp/blocked')).rejects.toThrow(/Incompatible plugin manifest/i);
+      expect(store.discoverPlugin).not.toHaveBeenCalled();
+    });
+
+    it('allows incompatible plugin in compatibility warn mode', async () => {
+      const store: {
+        plugins: Record<string, Plugin>;
+        discoverPlugin: jest.Mock;
+        installPlugin: jest.Mock;
+      } = {
+        plugins: {},
+        discoverPlugin: jest.fn((manifest: PluginManifest, source: string, path: string) => {
+          store.plugins[manifest.id] = {
+            manifest,
+            status: 'discovered',
+            source: source as never,
+            path,
+            config: {},
+          };
+        }),
+        installPlugin: jest.fn(async (pluginId: string) => {
+          const p = store.plugins[pluginId];
+          if (p) {
+            store.plugins[pluginId] = {
+              ...p,
+              status: 'installed',
+              installedAt: new Date(),
+            };
+          }
+        }),
+      };
+
+      mockGetState.mockReturnValue(store);
+      mockInvoke.mockResolvedValueOnce({
+        manifest: {
+          ...createManifest('warn-plugin'),
+          engines: { cognia: '>=9.0.0' },
+        },
+        path: '/plugins/warn-plugin',
+      });
+
+      const manager = new PluginManager({
+        pluginDirectory: '/plugins',
+        compatibilityMode: 'warn',
+        hostVersion: '0.1.0',
+      });
+
+      await expect(manager.installPlugin('/tmp/warn-plugin')).resolves.toBeDefined();
+      expect(store.discoverPlugin).toHaveBeenCalled();
+    });
   });
 
   describe('scanPlugins', () => {

@@ -399,6 +399,7 @@ function getPackageJson(name: string, typescript: boolean): object {
     scripts: {
       dev: 'cognia-plugin dev',
       build: 'cognia-plugin build',
+      pack: 'cognia-plugin pack',
       validate: 'cognia-plugin validate',
       ...(typescript ? { typecheck: 'tsc --noEmit' } : {}),
     },
@@ -649,6 +650,9 @@ npm run dev
 
 # Build for production
 npm run build
+
+# Package for distribution
+npm run pack
 
 # Validate plugin
 npm run validate

@@ -182,6 +182,8 @@ describe('WorkflowTriggerSyncService', () => {
     expect(result.config.bindingTaskId).toBe('app-task-1');
     expect(result.config.runtimeSource).toBe('app-scheduler');
     expect(result.config.syncStatus).toBe('synced');
+    expect(result.config.lastSyncOutcome).toBe('success');
+    expect(result.config.reconciliationAction).toBe('none');
   });
 
   it('uses system scheduler on tauri desktop', async () => {
@@ -202,6 +204,7 @@ describe('WorkflowTriggerSyncService', () => {
     expect(result.config.bindingTaskId).toBe('system-task-1');
     expect(result.config.runtimeSource).toBe('system-scheduler');
     expect(result.config.syncStatus).toBe('synced');
+    expect(result.config.lastSyncOutcome).toBe('success');
   });
 
   it('syncs event triggers to app scheduler when system backend is requested on tauri', async () => {
@@ -253,6 +256,8 @@ describe('WorkflowTriggerSyncService', () => {
 
     expect(result.config.syncStatus).toBe('error');
     expect(result.config.lastSyncError).toContain('requires elevated permissions');
+    expect(result.config.lastSyncOutcome).toBe('failed');
+    expect(result.config.reconciliationAction).toBe('retry_sync');
   });
 
   it('migrates trigger from app scheduler to system scheduler on backend switch', async () => {
@@ -308,9 +313,42 @@ describe('WorkflowTriggerSyncService', () => {
 
     expect(mockDeleteSystemTask).toHaveBeenCalledWith('system-task-rollback');
     expect(result.config.syncStatus).toBe('error');
+    expect(result.config.lastSyncOutcome).toBe('partial');
     expect(result.config.bindingTaskId).toBe('app-task-stale');
     expect(result.config.runtimeSource).toBe('app-scheduler');
+    expect(result.config.reconciliationAction).toBe('retry_sync');
     expect(result.config.lastSyncError).toContain('target task rollback completed');
+  });
+
+  it('returns partial outcome with manual cleanup action when rollback fails', async () => {
+    mockIsTauri.mockReturnValue(true);
+    mockCreateSystemTask.mockResolvedValue({
+      status: 'success',
+      task: { id: 'system-task-manual-cleanup' },
+    });
+    mockDeleteTask.mockRejectedValue(new Error('failed to delete old app task'));
+    mockDeleteSystemTask.mockRejectedValue(new Error('failed to rollback target task'));
+
+    const workflow = createWorkflow();
+    const trigger = createTrigger({
+      config: {
+        cronExpression: '0 9 * * *',
+        timezone: 'UTC',
+        backend: 'system',
+        bindingTaskId: 'app-task-manual-cleanup',
+        runtimeSource: 'app-scheduler',
+      },
+    });
+
+    const result = await service.syncTrigger(workflow, trigger);
+
+    expect(result.config.syncStatus).toBe('error');
+    expect(result.config.lastSyncOutcome).toBe('partial');
+    expect(result.config.reconciliationAction).toBe('manual_cleanup');
+    expect(result.config.impactedTaskIds).toEqual([
+      'app-task-manual-cleanup',
+      'system-task-manual-cleanup',
+    ]);
   });
 
   it('unsyncs app trigger and clears stale binding metadata', async () => {
@@ -329,6 +367,7 @@ describe('WorkflowTriggerSyncService', () => {
     expect(mockDeleteTask).toHaveBeenCalledWith('app-task-2');
     expect(result.config.bindingTaskId).toBeUndefined();
     expect(result.config.syncStatus).toBe('idle');
+    expect(result.config.lastSyncOutcome).toBe('success');
     expect(result.config.runtimeSource).toBeUndefined();
     expect(result.config.lastSyncError).toBeUndefined();
   });

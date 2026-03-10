@@ -7,6 +7,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
+import { execSync } from 'child_process';
 import { WebSocketServer, WebSocket } from 'ws';
 import { watch } from 'chokidar';
 
@@ -14,6 +15,7 @@ interface DevOptions {
   port: string;
   open: boolean;
   watch: boolean;
+  buildOnChange?: boolean;
 }
 
 interface PluginManifest {
@@ -52,6 +54,8 @@ export async function devCommand(options: DevOptions): Promise<void> {
   console.log(`  Version: ${manifest.version}`);
   console.log(`  Port: ${port}`);
   console.log('');
+
+  const buildOnChange = options.buildOnChange ?? true;
 
   // Create HTTP server
   const server = http.createServer((req, res) => {
@@ -138,17 +142,29 @@ export async function devCommand(options: DevOptions): Promise<void> {
 
     watcher.on('change', (filePath: string) => {
       console.log(`📝 File changed: ${path.relative(cwd, filePath)}`);
-      notifyClients('reload', { file: filePath });
+      const buildResult = buildOnChange ? buildPluginBundle(cwd) : { ok: true };
+      notifyClients(buildResult.ok ? 'update' : 'error', {
+        file: filePath,
+        build: buildResult,
+      });
     });
 
     watcher.on('add', (filePath: string) => {
       console.log(`➕ File added: ${path.relative(cwd, filePath)}`);
-      notifyClients('reload', { file: filePath });
+      const buildResult = buildOnChange ? buildPluginBundle(cwd) : { ok: true };
+      notifyClients(buildResult.ok ? 'update' : 'error', {
+        file: filePath,
+        build: buildResult,
+      });
     });
 
     watcher.on('unlink', (filePath: string) => {
       console.log(`➖ File removed: ${path.relative(cwd, filePath)}`);
-      notifyClients('reload', { file: filePath });
+      const buildResult = buildOnChange ? buildPluginBundle(cwd) : { ok: true };
+      notifyClients(buildResult.ok ? 'update' : 'error', {
+        file: filePath,
+        build: buildResult,
+      });
     });
 
     console.log('👀 Watching for file changes...');
@@ -169,6 +185,34 @@ export async function devCommand(options: DevOptions): Promise<void> {
     server.close();
     process.exit(0);
   });
+}
+
+function buildPluginBundle(cwd: string): { ok: boolean; error?: string } {
+  try {
+    const hasTsupConfig = fs.existsSync(path.join(cwd, 'tsup.config.ts'));
+    if (hasTsupConfig) {
+      execSync('npx tsup', { cwd, stdio: 'pipe' });
+      return { ok: true };
+    }
+
+    const hasPackageJson = fs.existsSync(path.join(cwd, 'package.json'));
+    if (hasPackageJson) {
+      const pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8')) as {
+        scripts?: Record<string, string>;
+      };
+      if (pkg.scripts?.build) {
+        execSync('npm run build --silent', { cwd, stdio: 'pipe' });
+        return { ok: true };
+      }
+    }
+
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 function notifyClients(type: string, data: unknown): void {

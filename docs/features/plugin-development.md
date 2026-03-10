@@ -93,6 +93,22 @@ export default definePlugin({
 | `permissions` | array | Required permissions |
 | `dependencies` | object | NPM dependencies |
 | `pythonDependencies` | array | Python dependencies |
+| `engines` | object | Runtime compatibility (`cognia`, `python`, `node`) |
+
+### Compatibility Baseline
+
+For production-ready plugins, include explicit runtime compatibility:
+
+```json
+{
+  "engines": {
+    "cognia": ">=0.1.0",
+    "python": ">=3.10.0"
+  }
+}
+```
+
+Plugins that fail host compatibility checks can be blocked during load based on host compatibility mode.
 
 ## Capabilities
 
@@ -281,6 +297,21 @@ During development, plugins support hot reload:
 2. Make changes to your plugin
 3. The plugin automatically reloads
 
+Validated dev workflow commands:
+
+```bash
+# TypeScript SDK
+cognia-plugin dev
+cognia-plugin build
+cognia-plugin pack
+cognia-plugin validate
+
+# Python SDK
+cognia dev
+cognia manifest --validate
+cognia pack
+```
+
 ## Publishing
 
 To publish your plugin to the marketplace:
@@ -334,3 +365,4 @@ For detailed API documentation, see:
 - [Plugin SDK TypeScript API](../api/plugin-sdk-typescript.md)
 - [Plugin SDK Python API](../api/plugin-sdk-python.md)
 - [Plugin Context API](../api/plugin-context.md)
+- [Plugin SDK Compatibility Migration](plugin-sdk-compatibility-migration.md)

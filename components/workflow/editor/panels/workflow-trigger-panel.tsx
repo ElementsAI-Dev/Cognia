@@ -104,7 +104,13 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
 
   const [expandedTrigger, setExpandedTrigger] = useState<string | null>(null);
   const failedSyncTriggers = useMemo(
-    () => triggers.filter((trigger) => trigger.config.syncStatus === 'error'),
+    () =>
+      triggers.filter(
+        (trigger) =>
+          trigger.config.syncStatus === 'error' ||
+          trigger.config.lastSyncOutcome === 'failed' ||
+          trigger.config.lastSyncOutcome === 'partial'
+      ),
     [triggers]
   );
 
@@ -215,6 +221,11 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
             ...trigger.config,
             syncStatus: 'syncing',
             lastSyncError: undefined,
+            lastSyncOutcome: undefined,
+            impactedTaskIds: [],
+            reconciliationAction: undefined,
+            lastSyncRetryable: undefined,
+            lastSyncErrorEnvelope: undefined,
           },
         };
         handleUpdateTrigger(trigger.id, syncing);
@@ -222,9 +233,17 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
         const synced = await workflowTriggerSyncService.syncTrigger(currentWorkflow, trigger);
         handleUpdateTrigger(trigger.id, synced);
 
-        if (synced.config.syncStatus === 'error') {
+        if (
+          synced.config.syncStatus === 'error' ||
+          synced.config.lastSyncOutcome === 'failed' ||
+          synced.config.lastSyncOutcome === 'partial'
+        ) {
+          const impacted =
+            synced.config.impactedTaskIds && synced.config.impactedTaskIds.length > 0
+              ? `Impacted tasks: ${synced.config.impactedTaskIds.join(', ')}`
+              : undefined;
           toast.error('Trigger sync failed', {
-            description: synced.config.lastSyncError || 'Unknown trigger sync error',
+            description: synced.config.lastSyncError || impacted || 'Unknown trigger sync error',
           });
         } else {
           toast.success('Trigger synced');
@@ -396,6 +415,12 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
                     {trigger.config.bindingTaskId
                       ? ` · impacted task: ${trigger.config.bindingTaskId}`
                       : ' · impacted task: unbound'}
+                    {trigger.config.lastSyncOutcome
+                      ? ` · outcome: ${trigger.config.lastSyncOutcome}`
+                      : ''}
+                    {trigger.config.reconciliationAction
+                      ? ` · action: ${trigger.config.reconciliationAction}`
+                      : ''}
                   </p>
                 ))}
               </div>
@@ -575,7 +600,11 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
                                   ) : (
                                     <RefreshCcw className="h-3.5 w-3.5 mr-1" />
                                   )}
-                                  Sync
+                                  {trigger.config.syncStatus === 'error' ||
+                                  trigger.config.lastSyncOutcome === 'failed' ||
+                                  trigger.config.lastSyncOutcome === 'partial'
+                                    ? 'Retry Sync'
+                                    : 'Sync'}
                                 </Button>
                                 <Button
                                   variant="outline"

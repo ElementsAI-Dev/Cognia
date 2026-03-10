@@ -19,6 +19,11 @@ import type {
   SkillSearchResult,
   SkillSyncOutcome,
   SkillSyncState,
+  SkillBootstrapPhase,
+  SkillBootstrapPhaseStatus,
+  SkillBootstrapPhaseTelemetry,
+  SkillBootstrapFailureSeverity,
+  SkillActivationJournal,
 } from '@/types/system/skill';
 import {
   buildCanonicalSkillId,
@@ -46,6 +51,15 @@ interface SkillState {
   bootstrapState: SkillSyncState;
   lastBootstrapAt: Date | null;
   lastBootstrapError: string | null;
+  bootstrapPhase: SkillBootstrapPhase;
+  bootstrapPhaseStatus: SkillBootstrapPhaseStatus;
+  bootstrapPhaseStartedAt: Date | null;
+  bootstrapPhaseEndedAt: Date | null;
+  bootstrapTelemetry: SkillBootstrapPhaseTelemetry[];
+  bootstrapFailureSeverity: SkillBootstrapFailureSeverity | null;
+  bootstrapFailureCode: string | null;
+  bootstrapFailureAffectedSkillIds: string[];
+  lastActivationJournal: SkillActivationJournal | null;
   syncState: SkillSyncState;
   lastSyncAt: Date | null;
   lastSyncDirection: SkillSyncDirection;
@@ -119,6 +133,20 @@ interface SkillState {
 
   // Bootstrap/sync metadata
   setBootstrapState: (state: SkillSyncState, error?: string | null) => void;
+  setBootstrapPhase: (
+    phase: SkillBootstrapPhase,
+    status: SkillBootstrapPhaseStatus,
+    updates?: Partial<{
+      startedAt: Date;
+      endedAt: Date | null;
+      errorCode: string | null;
+      errorMessage: string | null;
+      errorSeverity: SkillBootstrapFailureSeverity | null;
+      affectedSkillIds: string[];
+    }>
+  ) => void;
+  appendBootstrapTelemetry: (event: SkillBootstrapPhaseTelemetry) => void;
+  setLastActivationJournal: (journal: SkillActivationJournal | null) => void;
   setSyncMetadata: (
     updates: Partial<{
       syncState: SkillSyncState;
@@ -162,6 +190,15 @@ const initialState = {
   bootstrapState: 'idle' as SkillSyncState,
   lastBootstrapAt: null as Date | null,
   lastBootstrapError: null as string | null,
+  bootstrapPhase: 'idle' as SkillBootstrapPhase,
+  bootstrapPhaseStatus: 'idle' as SkillBootstrapPhaseStatus,
+  bootstrapPhaseStartedAt: null as Date | null,
+  bootstrapPhaseEndedAt: null as Date | null,
+  bootstrapTelemetry: [] as SkillBootstrapPhaseTelemetry[],
+  bootstrapFailureSeverity: null as SkillBootstrapFailureSeverity | null,
+  bootstrapFailureCode: null as string | null,
+  bootstrapFailureAffectedSkillIds: [] as string[],
+  lastActivationJournal: null as SkillActivationJournal | null,
   syncState: 'idle' as SkillSyncState,
   lastSyncAt: null as Date | null,
   lastSyncDirection: null as SkillSyncDirection,
@@ -931,6 +968,30 @@ export const useSkillStore = create<SkillState>()(
         }));
       },
 
+      setBootstrapPhase: (phase, status, updates) => {
+        set((currentState) => ({
+          bootstrapPhase: phase,
+          bootstrapPhaseStatus: status,
+          bootstrapPhaseStartedAt: updates?.startedAt ?? currentState.bootstrapPhaseStartedAt,
+          bootstrapPhaseEndedAt: updates?.endedAt ?? currentState.bootstrapPhaseEndedAt,
+          bootstrapFailureCode: updates?.errorCode ?? currentState.bootstrapFailureCode,
+          bootstrapFailureSeverity: updates?.errorSeverity ?? currentState.bootstrapFailureSeverity,
+          bootstrapFailureAffectedSkillIds:
+            updates?.affectedSkillIds ?? currentState.bootstrapFailureAffectedSkillIds,
+          lastBootstrapError: updates?.errorMessage ?? currentState.lastBootstrapError,
+        }));
+      },
+
+      appendBootstrapTelemetry: (event) => {
+        set((currentState) => ({
+          bootstrapTelemetry: [...currentState.bootstrapTelemetry, event],
+        }));
+      },
+
+      setLastActivationJournal: (journal) => {
+        set({ lastActivationJournal: journal });
+      },
+
       setSyncMetadata: (updates) => {
         set((currentState) => ({
           ...updates,
@@ -945,7 +1006,7 @@ export const useSkillStore = create<SkillState>()(
     }),
     {
       name: 'cognia-skills-storage',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState: unknown, version: number) => {
         const state = (persistedState ?? {}) as Record<string, unknown>;
@@ -1014,6 +1075,18 @@ export const useSkillStore = create<SkillState>()(
             conflicted: 0,
           };
         }
+
+        if (version <= 2) {
+          state.bootstrapPhase = 'idle';
+          state.bootstrapPhaseStatus = 'idle';
+          state.bootstrapPhaseStartedAt = null;
+          state.bootstrapPhaseEndedAt = null;
+          state.bootstrapTelemetry = [];
+          state.bootstrapFailureSeverity = null;
+          state.bootstrapFailureCode = null;
+          state.bootstrapFailureAffectedSkillIds = [];
+          state.lastActivationJournal = null;
+        }
         return state;
       },
       partialize: (state) => ({
@@ -1023,6 +1096,15 @@ export const useSkillStore = create<SkillState>()(
         bootstrapState: state.bootstrapState,
         lastBootstrapAt: state.lastBootstrapAt,
         lastBootstrapError: state.lastBootstrapError,
+        bootstrapPhase: state.bootstrapPhase,
+        bootstrapPhaseStatus: state.bootstrapPhaseStatus,
+        bootstrapPhaseStartedAt: state.bootstrapPhaseStartedAt,
+        bootstrapPhaseEndedAt: state.bootstrapPhaseEndedAt,
+        bootstrapTelemetry: state.bootstrapTelemetry,
+        bootstrapFailureSeverity: state.bootstrapFailureSeverity,
+        bootstrapFailureCode: state.bootstrapFailureCode,
+        bootstrapFailureAffectedSkillIds: state.bootstrapFailureAffectedSkillIds,
+        lastActivationJournal: state.lastActivationJournal,
         syncState: state.syncState,
         lastSyncAt: state.lastSyncAt,
         lastSyncDirection: state.lastSyncDirection,
@@ -1047,6 +1129,12 @@ export const selectIsLoading = (state: SkillState) => state.isLoading;
 export const selectError = (state: SkillState) => state.error;
 export const selectBootstrapState = (state: SkillState) => state.bootstrapState;
 export const selectLastBootstrapError = (state: SkillState) => state.lastBootstrapError;
+export const selectBootstrapPhase = (state: SkillState) => state.bootstrapPhase;
+export const selectBootstrapPhaseStatus = (state: SkillState) => state.bootstrapPhaseStatus;
+export const selectBootstrapTelemetry = (state: SkillState) => state.bootstrapTelemetry;
+export const selectBootstrapFailureSeverity = (state: SkillState) => state.bootstrapFailureSeverity;
+export const selectBootstrapFailureCode = (state: SkillState) => state.bootstrapFailureCode;
+export const selectLastActivationJournal = (state: SkillState) => state.lastActivationJournal;
 export const selectSyncState = (state: SkillState) => state.syncState;
 export const selectLastSyncOutcome = (state: SkillState) => state.lastSyncOutcome;
 export const selectLastSyncError = (state: SkillState) => state.lastSyncError;

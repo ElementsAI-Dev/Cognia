@@ -1,9 +1,14 @@
 import type { ApiTestResult } from '@/lib/ai/infrastructure/api-test';
-import { PROVIDER_CATEGORIES } from '@/lib/ai/providers/provider-helpers';
-import { PROVIDERS } from '@/types/provider';
+import {
+  evaluateBuiltInProviderCompleteness,
+  evaluateCustomProviderCompleteness,
+  getActiveCredential as getActiveCredentialFromContract,
+  hasAnyCredential as hasAnyCredentialFromContract,
+  type ProviderReadinessState,
+} from '@/lib/ai/providers/completeness';
 import type { UserProviderSettings } from '@/types/provider';
 
-export type ProviderReadinessState = 'unconfigured' | 'configured' | 'verified';
+export type { ProviderReadinessState } from '@/lib/ai/providers/completeness';
 
 export interface ProviderActionEligibility {
   allowed: boolean;
@@ -39,55 +44,12 @@ export interface CustomProviderReadiness {
   };
 }
 
-const ALLOWED: ProviderActionEligibility = { allowed: true };
-
-const BLOCKED_MESSAGES = {
-  addApiKey: 'Add an API key before continuing.',
-  addApiKeyToTest: 'Add an API key before testing this provider.',
-  configureBaseUrl: 'Configure a base URL before continuing.',
-  configureBaseUrlToTest: 'Configure a valid base URL before testing this provider.',
-  enableProviderFirst: 'Enable this provider before changing the default model.',
-} as const;
-
-function hasText(value?: string): boolean {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
-function getCredentialAtIndex(
-  apiKeys: string[] | undefined,
-  index: number | undefined
-): string | undefined {
-  if (!Array.isArray(apiKeys) || apiKeys.length === 0) return undefined;
-  if (typeof index === 'number' && index >= 0 && index < apiKeys.length && hasText(apiKeys[index])) {
-    return apiKeys[index];
-  }
-  return apiKeys.find((key) => hasText(key));
-}
-
 export function getActiveCredential(settings?: Partial<UserProviderSettings>): string {
-  if (!settings) return '';
-  if (hasText(settings.apiKey)) return settings.apiKey!.trim();
-  const keyFromPool = getCredentialAtIndex(settings.apiKeys, settings.currentKeyIndex);
-  return keyFromPool?.trim() || '';
+  return getActiveCredentialFromContract(settings);
 }
 
 export function hasAnyCredential(settings?: Partial<UserProviderSettings>): boolean {
-  if (!settings) return false;
-  if (hasText(settings.apiKey)) return true;
-  if (!Array.isArray(settings.apiKeys)) return false;
-  return settings.apiKeys.some((key) => hasText(key));
-}
-
-function getCredentialsRequired(providerId: string): boolean {
-  const provider = PROVIDERS[providerId];
-  if (provider && typeof provider.apiKeyRequired === 'boolean') return provider.apiKeyRequired;
-  return PROVIDER_CATEGORIES[providerId] !== 'local';
-}
-
-function getBaseUrlRequired(providerId: string): boolean {
-  const provider = PROVIDERS[providerId];
-  if (provider && typeof provider.baseURLRequired === 'boolean') return provider.baseURLRequired;
-  return false;
+  return hasAnyCredentialFromContract(settings);
 }
 
 export function getProviderEnableEligibility(
@@ -95,20 +57,8 @@ export function getProviderEnableEligibility(
   settings: Partial<UserProviderSettings> | undefined,
   nextEnabled: boolean
 ): ProviderActionEligibility {
-  if (!nextEnabled) return ALLOWED;
-
-  const credentialsRequired = getCredentialsRequired(providerId);
-  const baseUrlRequired = getBaseUrlRequired(providerId);
-  const hasCredential = hasAnyCredential(settings);
-  const hasBaseUrl = hasText(settings?.baseURL);
-
-  if (credentialsRequired && !hasCredential) {
-    return { allowed: false, reason: BLOCKED_MESSAGES.addApiKey };
-  }
-  if (baseUrlRequired && !hasBaseUrl) {
-    return { allowed: false, reason: BLOCKED_MESSAGES.configureBaseUrl };
-  }
-  return ALLOWED;
+  if (!nextEnabled) return { allowed: true };
+  return evaluateBuiltInProviderCompleteness(providerId, settings, null).eligibility.enable;
 }
 
 export function getBuiltInProviderReadiness(
@@ -116,42 +66,17 @@ export function getBuiltInProviderReadiness(
   settings: Partial<UserProviderSettings> | undefined,
   latestTestResult?: ApiTestResult | null
 ): BuiltInProviderReadiness {
-  const credentialsRequired = getCredentialsRequired(providerId);
-  const baseUrlRequired = getBaseUrlRequired(providerId);
-  const hasCredential = hasAnyCredential(settings);
-  const hasBaseUrl = hasText(settings?.baseURL);
-  const activeCredential = getActiveCredential(settings);
-  const enableEligibility = getProviderEnableEligibility(providerId, settings, true);
-
-  let testConnection: ProviderActionEligibility = ALLOWED;
-  if (baseUrlRequired && !hasBaseUrl) {
-    testConnection = { allowed: false, reason: BLOCKED_MESSAGES.configureBaseUrlToTest };
-  } else if (credentialsRequired && !hasText(activeCredential)) {
-    testConnection = { allowed: false, reason: BLOCKED_MESSAGES.addApiKeyToTest };
-  }
-
-  const defaultModel: ProviderActionEligibility =
-    settings?.enabled === false
-      ? { allowed: false, reason: BLOCKED_MESSAGES.enableProviderFirst }
-      : ALLOWED;
-
-  const hasRequiredConfiguration =
-    (!credentialsRequired || hasCredential) && (!baseUrlRequired || hasBaseUrl);
-  const readiness: ProviderReadinessState = !hasRequiredConfiguration
-    ? 'unconfigured'
-    : latestTestResult?.success
-      ? 'verified'
-      : 'configured';
+  const evaluated = evaluateBuiltInProviderCompleteness(providerId, settings, latestTestResult);
 
   return {
-    readiness,
-    hasCredential,
-    hasBaseUrl,
+    readiness: evaluated.readiness,
+    hasCredential: evaluated.hasCredential,
+    hasBaseUrl: evaluated.hasBaseUrl,
     eligibility: {
-      configure: ALLOWED,
-      testConnection,
-      enable: enableEligibility,
-      defaultModel,
+      configure: evaluated.eligibility.configure,
+      testConnection: evaluated.eligibility.testConnection,
+      enable: evaluated.eligibility.enable,
+      defaultModel: evaluated.eligibility.defaultModel,
     },
   };
 }
@@ -160,37 +85,16 @@ export function getCustomProviderReadiness(
   provider: CustomProviderLike | undefined,
   latestTestResult?: { success?: boolean } | null
 ): CustomProviderReadiness {
-  const hasCredential = hasText(provider?.apiKey);
-  const hasBaseUrl = hasText(provider?.baseURL);
-
-  const enableEligibility =
-    hasCredential && hasBaseUrl
-      ? ALLOWED
-      : !hasCredential
-        ? { allowed: false, reason: BLOCKED_MESSAGES.addApiKey }
-        : { allowed: false, reason: BLOCKED_MESSAGES.configureBaseUrl };
-
-  const testConnection =
-    hasCredential && hasBaseUrl
-      ? ALLOWED
-      : !hasCredential
-        ? { allowed: false, reason: BLOCKED_MESSAGES.addApiKeyToTest }
-        : { allowed: false, reason: BLOCKED_MESSAGES.configureBaseUrlToTest };
-
-  const readiness: ProviderReadinessState = !hasCredential || !hasBaseUrl
-    ? 'unconfigured'
-    : latestTestResult?.success
-      ? 'verified'
-      : 'configured';
+  const evaluated = evaluateCustomProviderCompleteness(provider, latestTestResult);
 
   return {
-    readiness,
-    hasCredential,
-    hasBaseUrl,
+    readiness: evaluated.readiness,
+    hasCredential: evaluated.hasCredential,
+    hasBaseUrl: evaluated.hasBaseUrl,
     eligibility: {
-      configure: ALLOWED,
-      testConnection,
-      enable: enableEligibility,
+      configure: evaluated.eligibility.configure,
+      testConnection: evaluated.eligibility.testConnection,
+      enable: evaluated.eligibility.enable,
     },
   };
 }

@@ -28,6 +28,12 @@ import {
   validatePPTCreationInput,
   type PPTCreationValidationIssue,
 } from '@/lib/ppt/ppt-state';
+import {
+  ingestPPTMaterials,
+  validatePPTMaterialQuality,
+  type PPTMaterialIngestionError,
+  type PPTMaterialQualityIssue,
+} from '@/lib/ppt/material-ingestion';
 
 export type CreationMode = 'generate' | 'import' | 'paste';
 
@@ -70,6 +76,8 @@ export function PPTCreationForm({
 
   // Paste mode state
   const [pastedText, setPastedText] = useState('');
+  const [ingestionErrors, setIngestionErrors] = useState<PPTMaterialIngestionError[]>([]);
+  const [qualityIssues, setQualityIssues] = useState<PPTMaterialQualityIssue[]>([]);
 
   const defaultConfig = useMemo<Omit<PPTGenerationConfig, 'topic'>>(() => ({
     slideCount: 10,
@@ -107,6 +115,26 @@ export function PPTCreationForm({
     }
   }, [t]);
 
+  const clearMaterialIssues = useCallback(() => {
+    setIngestionErrors([]);
+    setQualityIssues([]);
+  }, []);
+
+  const ingestionErrorToMessage = useCallback((issue: PPTMaterialIngestionError): string => {
+    switch (issue.code) {
+      case 'unsupported_format':
+        return t('supportedFormats');
+      case 'invalid_url':
+        return t('invalidUrl');
+      case 'empty_content':
+        return t('materialRequired');
+      case 'extraction_failed':
+        return t('materialRequired');
+      default:
+        return issue.message;
+    }
+  }, [t]);
+
   // --- Generate Mode ---
   const handleGenerate = useCallback(async () => {
     const validation = validatePPTCreationInput({
@@ -124,8 +152,9 @@ export function PPTCreationForm({
       description: description.trim() || undefined,
     };
 
+    clearMaterialIssues();
     await onGenerate(config);
-  }, [topic, description, defaultConfig, onGenerate, issueToMessage]);
+  }, [topic, description, defaultConfig, onGenerate, issueToMessage, clearMaterialIssues]);
 
   // --- Import Mode: File ---
   const handleFileSelect = useCallback((file: File) => {
@@ -145,11 +174,12 @@ export function PPTCreationForm({
       toast.error(t('supportedFormats'));
       return;
     }
+    clearMaterialIssues();
     setImportedFile(file);
     if (!topic.trim()) {
       setTopic(file.name.replace(/\.(pdf|txt|md|docx)$/i, ''));
     }
-  }, [t, topic]);
+  }, [clearMaterialIssues, t, topic]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -199,33 +229,34 @@ export function PPTCreationForm({
       return;
     }
 
-    const materials: PPTMaterial[] = [];
+    const ingestion = await ingestPPTMaterials({
+      mode: 'import',
+      file: importedFile,
+      importUrl,
+    });
 
-    if (importedFile) {
-      const content = await importedFile.text();
-      materials.push({
-        id: `material-file-${Date.now()}`,
-        type: 'file',
-        name: importedFile.name,
-        content,
-        mimeType: importedFile.type,
-      });
+    if (ingestion.errors.length > 0) {
+      setIngestionErrors(ingestion.errors);
+      setQualityIssues([]);
+      toast.error(ingestionErrorToMessage(ingestion.errors[0]));
+      return;
     }
 
-    if (importUrl.trim()) {
-      materials.push({
-        id: `material-url-${Date.now()}`,
-        type: 'url',
-        name: importUrl.trim(),
-        content: importUrl.trim(),
-      });
+    const quality = validatePPTMaterialQuality(ingestion.materials);
+    if (!quality.isValid) {
+      setQualityIssues(quality.issues);
+      setIngestionErrors([]);
+      toast.error(quality.issues[0]?.message || t('materialRequired'));
+      return;
     }
+
+    clearMaterialIssues();
 
     const config: PPTMaterialGenerationConfig = {
       ...defaultConfig,
-      topic: validation.normalizedTopic || materials[0].name,
+      topic: validation.normalizedTopic || ingestion.materials[0].name,
       description: description.trim() || undefined,
-      materials,
+      materials: ingestion.materials as PPTMaterial[],
     };
 
     try {
@@ -233,7 +264,18 @@ export function PPTCreationForm({
     } catch (err) {
       loggers.ui.error('Import generation failed:', err instanceof Error ? err : undefined);
     }
-  }, [importedFile, importUrl, topic, description, defaultConfig, onGenerateFromMaterials, issueToMessage]);
+  }, [
+    importedFile,
+    importUrl,
+    topic,
+    description,
+    defaultConfig,
+    onGenerateFromMaterials,
+    issueToMessage,
+    ingestionErrorToMessage,
+    t,
+    clearMaterialIssues,
+  ]);
 
   // --- Paste Mode ---
   const handlePasteGenerate = useCallback(async () => {
@@ -247,20 +289,32 @@ export function PPTCreationForm({
       return;
     }
 
-    const materials: PPTMaterial[] = [
-      {
-        id: `material-text-${Date.now()}`,
-        type: 'text',
-        name: topic.trim() || 'Pasted Content',
-        content: pastedText.trim(),
-      },
-    ];
+    const ingestion = await ingestPPTMaterials({
+      mode: 'paste',
+      pastedText,
+    });
+    if (ingestion.errors.length > 0) {
+      setIngestionErrors(ingestion.errors);
+      setQualityIssues([]);
+      toast.error(ingestionErrorToMessage(ingestion.errors[0]));
+      return;
+    }
+
+    const quality = validatePPTMaterialQuality(ingestion.materials);
+    if (!quality.isValid) {
+      setQualityIssues(quality.issues);
+      setIngestionErrors([]);
+      toast.error(quality.issues[0]?.message || t('materialRequired'));
+      return;
+    }
+
+    clearMaterialIssues();
 
     const config: PPTMaterialGenerationConfig = {
       ...defaultConfig,
       topic: validation.normalizedTopic || 'Presentation',
       description: description.trim() || undefined,
-      materials,
+      materials: ingestion.materials as PPTMaterial[],
     };
 
     try {
@@ -268,7 +322,17 @@ export function PPTCreationForm({
     } catch (err) {
       loggers.ui.error('Paste generation failed:', err instanceof Error ? err : undefined);
     }
-  }, [pastedText, topic, description, defaultConfig, onGenerateFromMaterials, issueToMessage]);
+  }, [
+    pastedText,
+    topic,
+    description,
+    defaultConfig,
+    onGenerateFromMaterials,
+    issueToMessage,
+    ingestionErrorToMessage,
+    t,
+    clearMaterialIssues,
+  ]);
 
   const canSubmit = !isGenerating && currentValidation.isValid;
 
@@ -288,7 +352,13 @@ export function PPTCreationForm({
 
   return (
     <div className={cn('space-y-4', className)}>
-      <Tabs value={mode} onValueChange={(v) => setMode(v as CreationMode)}>
+      <Tabs
+        value={mode}
+        onValueChange={(v) => {
+          setMode(v as CreationMode);
+          clearMaterialIssues();
+        }}
+      >
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="generate" className="gap-1.5" data-testid="ppt-mode-generate">
             <Sparkles className="h-3.5 w-3.5" />
@@ -375,11 +445,12 @@ export function PPTCreationForm({
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setImportedFile(null);
-                  }}
-                >
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearMaterialIssues();
+                      setImportedFile(null);
+                    }}
+                  >
                   <X className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -408,7 +479,10 @@ export function PPTCreationForm({
                 data-testid="ppt-import-url"
                 placeholder={t('urlPlaceholder')}
                 value={importUrl}
-                onChange={(e) => setImportUrl(e.target.value)}
+                onChange={(e) => {
+                  setImportUrl(e.target.value);
+                  clearMaterialIssues();
+                }}
                 className="flex-1"
               />
             </div>
@@ -421,7 +495,10 @@ export function PPTCreationForm({
             data-testid="ppt-paste-text"
             placeholder={t('pasteTextPlaceholder')}
             value={pastedText}
-            onChange={(e) => setPastedText(e.target.value)}
+            onChange={(e) => {
+              setPastedText(e.target.value);
+              clearMaterialIssues();
+            }}
             rows={8}
             className="resize-none"
           />
@@ -433,6 +510,27 @@ export function PPTCreationForm({
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Material ingestion / quality issues */}
+      {(ingestionErrors.length > 0 || qualityIssues.length > 0) && (
+        <div data-testid="ppt-material-feedback" className="rounded-md border border-amber-300/70 bg-amber-50/70 px-3 py-2 text-sm text-amber-900">
+          <div className="font-medium">{t('materialRequired')}</div>
+          <ul className="mt-1 list-disc pl-4 space-y-1">
+            {ingestionErrors.map((issue, index) => (
+              <li key={`ingest-${index}`} data-testid="ppt-ingestion-error-item">
+                <span>{issue.message}</span>
+                {issue.suggestion ? <span className="block text-xs text-amber-800/90">{issue.suggestion}</span> : null}
+              </li>
+            ))}
+            {qualityIssues.map((issue, index) => (
+              <li key={`quality-${index}`} data-testid="ppt-quality-issue-item">
+                <span>{issue.message}</span>
+                {issue.suggestion ? <span className="block text-xs text-amber-800/90">{issue.suggestion}</span> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Error display */}
       {error && (

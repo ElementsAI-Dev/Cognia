@@ -28,6 +28,7 @@
     "i18n:backup": "npx ts-node scripts/i18n/backup.ts",
     "i18n:watch": "npx ts-node scripts/i18n/watch.ts",
     "i18n:all": "npx ts-node scripts/i18n/index.ts all",
+    "readiness:plugin-sdk": "node scripts/plugin-sdk-readiness-check.mjs",
     "kill-port": "powershell -ExecutionPolicy Bypass -File scripts/kill-port.ps1",
     "kill-port:unix": "bash scripts/kill-port.sh",
     "tauri:android:init": "pnpm tauri android init --ci",

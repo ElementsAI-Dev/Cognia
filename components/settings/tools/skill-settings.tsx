@@ -137,6 +137,11 @@ export function SkillSettings() {
     isLoading,
     error,
     bootstrapState,
+    bootstrapPhase,
+    bootstrapPhaseStatus,
+    bootstrapFailureCode,
+    bootstrapFailureSeverity,
+    lastActivationJournal,
     lastBootstrapError,
     syncState,
     lastSyncAt,
@@ -316,11 +321,14 @@ export function SkillSettings() {
                 </AlertDescription>
               </Alert>
             )}
-            {(bootstrapState === 'syncing' || syncState === 'syncing') && (
+            {(bootstrapState === 'syncing' || syncState === 'syncing' || bootstrapPhaseStatus === 'running') && (
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>{tSkills('processing')}</AlertTitle>
-                <AlertDescription>{tSkills('bootstrapInProgress')}</AlertDescription>
+                <AlertDescription>
+                  {tSkills('bootstrapInProgress')}
+                  {bootstrapPhase !== 'idle' ? ` (${bootstrapPhase})` : ''}
+                </AlertDescription>
               </Alert>
             )}
             {(lastBootstrapError || lastSyncError) && (
@@ -339,6 +347,22 @@ export function SkillSettings() {
                 <span>{tSkills('syncStateLabel')}:</span>
                 <Badge variant="secondary">{lastSyncOutcome}</Badge>
                 {lastSyncAt && <span>{new Date(lastSyncAt).toLocaleString()}</span>}
+              </div>
+            )}
+            {bootstrapPhase !== 'idle' && (
+              <div className="text-xs text-muted-foreground flex items-center gap-2">
+                <span>Bootstrap:</span>
+                <Badge variant="secondary">{bootstrapPhase}</Badge>
+                <Badge variant="outline">{bootstrapPhaseStatus}</Badge>
+                {bootstrapFailureSeverity && (
+                  <Badge variant="destructive">{bootstrapFailureSeverity}</Badge>
+                )}
+                {bootstrapFailureCode && <span>{bootstrapFailureCode}</span>}
+                {lastActivationJournal && (
+                  <span>
+                    rollback: {lastActivationJournal.rollbackActions.length}
+                  </span>
+                )}
               </div>
             )}
 

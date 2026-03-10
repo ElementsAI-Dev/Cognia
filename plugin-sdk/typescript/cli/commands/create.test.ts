@@ -85,6 +85,7 @@ describe('createCommand', () => {
       expect(packageJsonCall).toBeDefined();
       const packageJson = JSON.parse(packageJsonCall![1] as string);
       expect(packageJson.name).toBe('cognia-plugin-test-plugin');
+      expect(packageJson.scripts.pack).toBe('cognia-plugin pack');
 
       mockLog.mockRestore();
     });

@@ -15,6 +15,7 @@ from cognia.cli import (
     generate_manifest,
     run_tests,
     pack_plugin,
+    start_dev_server,
     to_class_name,
     to_plugin_id,
     main,
@@ -193,7 +194,9 @@ class TestPlugin(Plugin):
             "name": "Test Plugin",
             "version": "1.0.0",
             "description": "Test",
-            "type": "python"
+            "type": "python",
+            "pythonMain": "main.py",
+            "engines": {"cognia": ">=0.1.0", "python": ">=3.10.0"},
         }
         
         manifest_path = os.path.join(temp_plugin, "plugin.json")
@@ -353,6 +356,43 @@ def test_example():
             shutil.rmtree(temp, ignore_errors=True)
 
 
+class TestDevServer:
+    """Tests for start_dev_server watcher behavior."""
+
+    @pytest.fixture
+    def temp_plugin(self):
+        temp = tempfile.mkdtemp()
+        with open(os.path.join(temp, "main.py"), "w") as f:
+            f.write("print('hello')\n")
+        with open(os.path.join(temp, "plugin.json"), "w") as f:
+            json.dump({"id": "dev-plugin", "name": "Dev Plugin", "version": "1.0.0", "type": "python"}, f)
+        yield temp
+        shutil.rmtree(temp, ignore_errors=True)
+
+    def test_start_dev_server_detects_changes(self, temp_plugin):
+        """start_dev_server should detect file changes and emit callback."""
+        changes = []
+
+        def on_change(path: str) -> None:
+            changes.append(path)
+
+        # Initial baseline cycle
+        snapshot = start_dev_server(path=temp_plugin, poll_interval=0.01, max_cycles=1, on_change=on_change)
+
+        # Modify a file and run watcher again
+        with open(os.path.join(temp_plugin, "main.py"), "a") as f:
+            f.write("# changed\n")
+        start_dev_server(
+            path=temp_plugin,
+            poll_interval=0.01,
+            max_cycles=1,
+            on_change=on_change,
+            initial_snapshot=snapshot,
+        )
+
+        assert any(change.endswith("main.py") for change in changes)
+
+
 class TestCLIMain:
     """Tests for CLI main function"""
     
@@ -392,7 +432,8 @@ class TestCLIMain:
                 "name": "Test",
                 "version": "1.0.0",
                 "description": "Test",
-                "type": "python"
+                "type": "python",
+                "pythonMain": "main.py",
             }
             with open(os.path.join(temp, "plugin.json"), "w") as f:
                 json.dump(manifest, f)

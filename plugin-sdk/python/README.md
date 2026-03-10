@@ -142,12 +142,22 @@ Or manually create `plugin.json`:
   "version": "1.0.0",
   "description": "An awesome plugin",
   "type": "python",
+  "engines": {
+    "cognia": ">=0.1.0",
+    "python": ">=3.10.0"
+  },
   "capabilities": ["tools"],
   "pythonMain": "main.py",
   "pythonDependencies": ["requests>=2.28"],
   "permissions": ["network:fetch"]
 }
 ```
+
+### Development and Packaging Guarantees
+
+- `cognia dev` now performs real filesystem watch/poll change detection and triggers reload events.
+- Manifest validation enforces python/hybrid `pythonMain` and validates `engines` field structure.
+- Packaging checks manifest contract before generating zip artifacts.
 
 ## Project Structure
 

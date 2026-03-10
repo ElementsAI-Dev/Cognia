@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ProviderImportExport } from './provider-import-export';
 
 // Mock next-intl
@@ -13,6 +13,20 @@ jest.mock('next-intl', () => ({
 // Mock stores
 const mockSetProviderSettings = jest.fn();
 const mockAddCustomProvider = jest.fn();
+const mockUpdateCustomProvider = jest.fn();
+const mockFileReaderReadAsText = jest.fn();
+let mockFileReaderContent = '';
+
+const OriginalFileReader = global.FileReader;
+
+class MockFileReader {
+  onload: ((event: { target: { result: string } }) => void) | null = null;
+
+  readAsText() {
+    mockFileReaderReadAsText();
+    this.onload?.({ target: { result: mockFileReaderContent } });
+  }
+}
 
 jest.mock('@/stores', () => ({
   useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
@@ -23,6 +37,7 @@ jest.mock('@/stores', () => ({
       customProviders: {},
       setProviderSettings: mockSetProviderSettings,
       addCustomProvider: mockAddCustomProvider,
+      updateCustomProvider: mockUpdateCustomProvider,
     };
     return selector(state);
   },
@@ -91,8 +106,18 @@ jest.mock('@/components/ui/select', () => ({
 }));
 
 describe('ProviderImportExport', () => {
+  beforeAll(() => {
+    // jsdom FileReader is replaced so import tests can control payload content deterministically.
+    global.FileReader = MockFileReader as unknown as typeof FileReader;
+  });
+
+  afterAll(() => {
+    global.FileReader = OriginalFileReader;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFileReaderContent = '';
   });
 
   it('renders without crashing', () => {
@@ -178,5 +203,90 @@ describe('ProviderImportExport', () => {
     const mockOnClose = jest.fn();
     render(<ProviderImportExport onClose={mockOnClose} />);
     expect(screen.getByText('export')).toBeInTheDocument();
+  });
+
+  it('rejects malformed JSON imports without mutating provider settings', async () => {
+    mockFileReaderContent = '{ invalid json }';
+    const { container } = render(<ProviderImportExport />);
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(['ignored'], 'providers.json', { type: 'application/json' })],
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /invalid export file format|json|expected property name/i
+    );
+    expect(mockSetProviderSettings).not.toHaveBeenCalled();
+    expect(mockAddCustomProvider).not.toHaveBeenCalled();
+    expect(mockUpdateCustomProvider).not.toHaveBeenCalled();
+  });
+
+  it('rejects schema-incomplete payloads without mutating provider settings', async () => {
+    mockFileReaderContent = JSON.stringify({
+      version: 1,
+      exportedAt: '2026-03-08T00:00:00.000Z',
+    });
+    const { container } = render(<ProviderImportExport />);
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(['ignored'], 'providers.json', { type: 'application/json' })],
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText('Invalid import payload. At least one of providerSettings/customProviders is required.')
+    ).toBeInTheDocument();
+    expect(mockSetProviderSettings).not.toHaveBeenCalled();
+    expect(mockAddCustomProvider).not.toHaveBeenCalled();
+    expect(mockUpdateCustomProvider).not.toHaveBeenCalled();
+  });
+
+  it('imports valid payloads and applies provider settings', async () => {
+    mockFileReaderContent = JSON.stringify({
+      version: 1,
+      exportedAt: '2026-03-08T00:00:00.000Z',
+      providerSettings: {
+        openai: {
+          apiKey: 'sk-imported',
+          enabled: true,
+        },
+      },
+      customProviders: {},
+    });
+    const { container } = render(<ProviderImportExport />);
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(['ignored'], 'providers.json', { type: 'application/json' })],
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('importNow')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('importNow'));
+
+    await waitFor(() => {
+      expect(mockSetProviderSettings).toHaveBeenCalledWith(
+        'openai',
+        expect.objectContaining({
+          apiKey: 'sk-imported',
+          enabled: true,
+        })
+      );
+    });
   });
 });

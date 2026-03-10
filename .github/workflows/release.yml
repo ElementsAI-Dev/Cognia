@@ -42,6 +42,11 @@ jobs:
           node-version: 20.x
           cache: "pnpm"
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -53,6 +58,9 @@ jobs:
 
       - name: Unit tests
         run: pnpm test:coverage
+
+      - name: Plugin SDK readiness gate
+        run: pnpm readiness:plugin-sdk
 
       - name: Build check
         run: pnpm build

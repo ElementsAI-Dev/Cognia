@@ -615,6 +615,25 @@ export type TriggerBackend = 'none' | 'app' | 'system';
 
 export type TriggerSyncStatus = 'idle' | 'syncing' | 'synced' | 'out_of_sync' | 'error';
 
+export type TriggerSyncOutcome = 'success' | 'partial' | 'failed';
+
+export type WorkflowErrorStage =
+  | 'validation'
+  | 'save'
+  | 'execute'
+  | 'runtime'
+  | 'schedule'
+  | 'trigger-sync';
+
+export interface WorkflowErrorEnvelope {
+  stage: WorkflowErrorStage;
+  code: string;
+  message: string;
+  retryable: boolean;
+  affectedTargets?: string[];
+  occurredAt: Date;
+}
+
 export interface TriggerConfig {
   cronExpression?: string;
   timezone?: string;
@@ -630,6 +649,11 @@ export interface TriggerConfig {
   lastSyncedAt?: Date;
   lastSyncError?: string;
   runtimeSource?: 'app-scheduler' | 'system-scheduler';
+  lastSyncOutcome?: TriggerSyncOutcome;
+  impactedTaskIds?: string[];
+  reconciliationAction?: 'none' | 'retry_sync' | 'manual_cleanup';
+  lastSyncRetryable?: boolean;
+  lastSyncErrorEnvelope?: WorkflowErrorEnvelope;
 }
 
 export interface WorkflowTrigger {
@@ -776,6 +800,7 @@ export interface WorkflowExecutionState {
   input: Record<string, unknown>;
   output?: Record<string, unknown>;
   error?: string;
+  errorEnvelope?: WorkflowErrorEnvelope;
   triggerId?: string;
   isReplay?: boolean;
   logs: ExecutionLog[];

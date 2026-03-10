@@ -22,10 +22,16 @@ export interface ValidationError {
   message: string;
 }
 
+export interface ManifestDiagnostic extends ValidationError {
+  severity: 'error' | 'warning';
+  hint?: string;
+}
+
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
   warnings: string[];
+  diagnostics?: ManifestDiagnostic[];
 }
 
 export interface ConfigValidationResult {
@@ -87,52 +93,85 @@ const ACTIVATION_EVENT_PATTERN =
 // =============================================================================
 
 export function validatePluginManifest(manifest: unknown): ValidationResult {
-  const errors: string[] = [];
-  const warnings: string[] = [];
+  const diagnostics: ManifestDiagnostic[] = [];
 
   if (!manifest || typeof manifest !== 'object') {
-    return { valid: false, errors: ['Manifest must be an object'], warnings: [] };
+    return {
+      valid: false,
+      errors: ['Manifest must be an object'],
+      warnings: [],
+      diagnostics: [
+        {
+          severity: 'error',
+          field: '$',
+          code: 'manifest.invalid_type',
+          message: 'Manifest must be an object',
+        },
+      ],
+    };
   }
 
   const m = manifest as Record<string, unknown>;
+  const pushError = (field: string, code: string, message: string, hint?: string): void => {
+    diagnostics.push({ severity: 'error', field, code, message, hint });
+  };
+  const pushWarning = (field: string, code: string, message: string, hint?: string): void => {
+    diagnostics.push({ severity: 'warning', field, code, message, hint });
+  };
 
   // Required fields
   if (!m.id || typeof m.id !== 'string') {
-    errors.push('Missing or invalid "id" field');
+    pushError('id', 'manifest.id.missing', 'Missing or invalid "id" field');
   } else if (!ID_PATTERN.test(m.id)) {
-    errors.push(`Invalid plugin ID "${m.id}". Must be lowercase alphanumeric with hyphens/underscores/dots`);
+    pushError(
+      'id',
+      'manifest.id.invalid_format',
+      `Invalid plugin ID "${m.id}". Must be lowercase alphanumeric with hyphens/underscores/dots`
+    );
   }
 
   if (!m.name || typeof m.name !== 'string') {
-    errors.push('Missing or invalid "name" field');
+    pushError('name', 'manifest.name.missing', 'Missing or invalid "name" field');
   } else if (m.name.length > 50) {
-    warnings.push('Plugin name exceeds 50 characters');
+    pushWarning('name', 'manifest.name.long', 'Plugin name exceeds 50 characters');
   }
 
   if (!m.version || typeof m.version !== 'string') {
-    errors.push('Missing or invalid "version" field');
+    pushError('version', 'manifest.version.missing', 'Missing or invalid "version" field');
   } else if (!VERSION_PATTERN.test(m.version)) {
-    errors.push(`Invalid version "${m.version}". Must be semver format (e.g., 1.0.0)`);
+    pushError(
+      'version',
+      'manifest.version.invalid_format',
+      `Invalid version "${m.version}". Must be semver format (e.g., 1.0.0)`
+    );
   }
 
   if (!m.description || typeof m.description !== 'string') {
-    errors.push('Missing or invalid "description" field');
+    pushError('description', 'manifest.description.missing', 'Missing or invalid "description" field');
   } else if (m.description.length > 500) {
-    warnings.push('Plugin description exceeds 500 characters');
+    pushWarning('description', 'manifest.description.long', 'Plugin description exceeds 500 characters');
   }
 
   if (!m.type || typeof m.type !== 'string') {
-    errors.push('Missing or invalid "type" field');
+    pushError('type', 'manifest.type.missing', 'Missing or invalid "type" field');
   } else if (!VALID_PLUGIN_TYPES.includes(m.type as PluginType)) {
-    errors.push(`Invalid plugin type "${m.type}". Must be one of: ${VALID_PLUGIN_TYPES.join(', ')}`);
+    pushError(
+      'type',
+      'manifest.type.invalid',
+      `Invalid plugin type "${m.type}". Must be one of: ${VALID_PLUGIN_TYPES.join(', ')}`
+    );
   }
 
   if (!m.capabilities || !Array.isArray(m.capabilities)) {
-    errors.push('Missing or invalid "capabilities" field');
+    pushError('capabilities', 'manifest.capabilities.missing', 'Missing or invalid "capabilities" field');
   } else {
     for (const cap of m.capabilities) {
       if (!VALID_CAPABILITIES.includes(cap as PluginCapability)) {
-        errors.push(`Invalid capability "${cap}". Must be one of: ${VALID_CAPABILITIES.join(', ')}`);
+        pushError(
+          'capabilities',
+          'manifest.capabilities.invalid',
+          `Invalid capability "${cap}". Must be one of: ${VALID_CAPABILITIES.join(', ')}`
+        );
       }
     }
   }
@@ -141,7 +180,12 @@ export function validatePluginManifest(manifest: unknown): ValidationResult {
   if (m.type === 'frontend' || m.type === 'hybrid') {
     if (!m.main || typeof m.main !== 'string') {
       if (m.type === 'frontend') {
-        errors.push('Frontend plugin must have a "main" entry point');
+        pushError(
+          'main',
+          'manifest.main.required',
+          'Frontend plugin must have a "main" entry point',
+          'Add a valid relative JS entry file path in `main`.'
+        );
       }
     }
   }
@@ -149,7 +193,12 @@ export function validatePluginManifest(manifest: unknown): ValidationResult {
   if (m.type === 'python' || m.type === 'hybrid') {
     if (!m.pythonMain || typeof m.pythonMain !== 'string') {
       if (m.type === 'python') {
-        errors.push('Python plugin must have a "pythonMain" entry point');
+        pushError(
+          'pythonMain',
+          'manifest.pythonMain.required',
+          'Python plugin must have a "pythonMain" entry point',
+          'Add a valid relative Python entry file path in `pythonMain`.'
+        );
       }
     }
   }
@@ -158,7 +207,12 @@ export function validatePluginManifest(manifest: unknown): ValidationResult {
   if (m.permissions && Array.isArray(m.permissions)) {
     for (const perm of m.permissions) {
       if (!VALID_PERMISSIONS.includes(perm as PluginPermission)) {
-        warnings.push(`Unknown permission "${perm}"`);
+        pushWarning(
+          'permissions',
+          'manifest.permissions.unknown',
+          `Unknown permission "${perm}"`,
+          'Use only documented permissions or ensure runtime guard supports this permission.'
+        );
       }
     }
   }
@@ -166,27 +220,31 @@ export function validatePluginManifest(manifest: unknown): ValidationResult {
   if (m.engines && typeof m.engines === 'object') {
     const engines = m.engines as Record<string, unknown>;
     if (engines.cognia && typeof engines.cognia !== 'string') {
-      errors.push('Invalid "engines.cognia" field');
+      pushError('engines.cognia', 'manifest.engines.cognia.invalid', 'Invalid "engines.cognia" field');
     }
     if (engines.python && typeof engines.python !== 'string') {
-      errors.push('Invalid "engines.python" field');
+      pushError('engines.python', 'manifest.engines.python.invalid', 'Invalid "engines.python" field');
     }
   }
 
   if (m.configSchema) {
     const schemaResult = validateConfigSchema(m.configSchema);
-    errors.push(...schemaResult.errors);
-    warnings.push(...schemaResult.warnings);
+    for (const error of schemaResult.errors) {
+      pushError('configSchema', 'manifest.configSchema.invalid', error);
+    }
+    for (const warning of schemaResult.warnings) {
+      pushWarning('configSchema', 'manifest.configSchema.warning', warning);
+    }
   }
 
   if (m.a2uiComponents && Array.isArray(m.a2uiComponents)) {
     for (let i = 0; i < m.a2uiComponents.length; i++) {
       const comp = m.a2uiComponents[i] as Record<string, unknown>;
       if (!comp.type || typeof comp.type !== 'string') {
-        errors.push(`A2UI component at index ${i} missing "type" field`);
+        pushError(`a2uiComponents[${i}].type`, 'manifest.a2ui.type.missing', `A2UI component at index ${i} missing "type" field`);
       }
       if (!comp.name || typeof comp.name !== 'string') {
-        errors.push(`A2UI component at index ${i} missing "name" field`);
+        pushError(`a2uiComponents[${i}].name`, 'manifest.a2ui.name.missing', `A2UI component at index ${i} missing "name" field`);
       }
     }
   }
@@ -195,13 +253,17 @@ export function validatePluginManifest(manifest: unknown): ValidationResult {
     for (let i = 0; i < m.tools.length; i++) {
       const tool = m.tools[i] as Record<string, unknown>;
       if (!tool.name || typeof tool.name !== 'string') {
-        errors.push(`Tool at index ${i} missing "name" field`);
+        pushError(`tools[${i}].name`, 'manifest.tools.name.missing', `Tool at index ${i} missing "name" field`);
       }
       if (!tool.description || typeof tool.description !== 'string') {
-        errors.push(`Tool at index ${i} missing "description" field`);
+        pushError(`tools[${i}].description`, 'manifest.tools.description.missing', `Tool at index ${i} missing "description" field`);
       }
       if (tool.parametersSchema !== undefined && typeof tool.parametersSchema !== 'object') {
-        errors.push(`Tool at index ${i} has invalid "parametersSchema" field (must be an object)`);
+        pushError(
+          `tools[${i}].parametersSchema`,
+          'manifest.tools.parametersSchema.invalid',
+          `Tool at index ${i} has invalid "parametersSchema" field (must be an object)`
+        );
       }
     }
   }
@@ -210,13 +272,13 @@ export function validatePluginManifest(manifest: unknown): ValidationResult {
     for (let i = 0; i < m.modes.length; i++) {
       const mode = m.modes[i] as Record<string, unknown>;
       if (!mode.id || typeof mode.id !== 'string') {
-        errors.push(`Mode at index ${i} missing "id" field`);
+        pushError(`modes[${i}].id`, 'manifest.modes.id.missing', `Mode at index ${i} missing "id" field`);
       }
       if (!mode.name || typeof mode.name !== 'string') {
-        errors.push(`Mode at index ${i} missing "name" field`);
+        pushError(`modes[${i}].name`, 'manifest.modes.name.missing', `Mode at index ${i} missing "name" field`);
       }
       if (!mode.icon || typeof mode.icon !== 'string') {
-        errors.push(`Mode at index ${i} missing "icon" field`);
+        pushError(`modes[${i}].icon`, 'manifest.modes.icon.missing', `Mode at index ${i} missing "icon" field`);
       }
     }
   }
@@ -225,22 +287,22 @@ export function validatePluginManifest(manifest: unknown): ValidationResult {
     for (let i = 0; i < m.commands.length; i++) {
       const command = m.commands[i] as Record<string, unknown>;
       if (!command.id || typeof command.id !== 'string') {
-        errors.push(`Command at index ${i} missing "id" field`);
+        pushError(`commands[${i}].id`, 'manifest.commands.id.missing', `Command at index ${i} missing "id" field`);
       }
       if (!command.name || typeof command.name !== 'string') {
-        errors.push(`Command at index ${i} missing "name" field`);
+        pushError(`commands[${i}].name`, 'manifest.commands.name.missing', `Command at index ${i} missing "name" field`);
       }
       if (command.description !== undefined && typeof command.description !== 'string') {
-        errors.push(`Command at index ${i} has invalid "description" field`);
+        pushError(`commands[${i}].description`, 'manifest.commands.description.invalid', `Command at index ${i} has invalid "description" field`);
       }
       if (command.icon !== undefined && typeof command.icon !== 'string') {
-        errors.push(`Command at index ${i} has invalid "icon" field`);
+        pushError(`commands[${i}].icon`, 'manifest.commands.icon.invalid', `Command at index ${i} has invalid "icon" field`);
       }
       if (command.aliases !== undefined) {
         if (!Array.isArray(command.aliases)) {
-          errors.push(`Command at index ${i} has invalid "aliases" field (must be an array)`);
+          pushError(`commands[${i}].aliases`, 'manifest.commands.aliases.invalid', `Command at index ${i} has invalid "aliases" field (must be an array)`);
         } else if (!command.aliases.every((alias) => typeof alias === 'string')) {
-          errors.push(`Command at index ${i} has invalid "aliases" field (must contain strings)`);
+          pushError(`commands[${i}].aliases`, 'manifest.commands.aliases.invalid_type', `Command at index ${i} has invalid "aliases" field (must contain strings)`);
         }
       }
     }
@@ -248,29 +310,33 @@ export function validatePluginManifest(manifest: unknown): ValidationResult {
 
   if (m.activationEvents !== undefined) {
     if (!Array.isArray(m.activationEvents)) {
-      errors.push('"activationEvents" must be an array');
+      pushError('activationEvents', 'manifest.activationEvents.invalid_type', '"activationEvents" must be an array');
     } else {
       for (let i = 0; i < m.activationEvents.length; i++) {
         const event = m.activationEvents[i];
         if (typeof event !== 'string') {
-          errors.push(`Activation event at index ${i} must be a string`);
+          pushError(`activationEvents[${i}]`, 'manifest.activationEvents.invalid_item', `Activation event at index ${i} must be a string`);
           continue;
         }
         if (!ACTIVATION_EVENT_PATTERN.test(event)) {
-          warnings.push(`Unknown activation event "${event}"`);
+          pushWarning(`activationEvents[${i}]`, 'manifest.activationEvents.unknown', `Unknown activation event "${event}"`);
         }
       }
     }
   }
 
   if (m.activateOnStartup !== undefined && typeof m.activateOnStartup !== 'boolean') {
-    errors.push('"activateOnStartup" must be a boolean');
+    pushError('activateOnStartup', 'manifest.activateOnStartup.invalid_type', '"activateOnStartup" must be a boolean');
   }
+
+  const errors = diagnostics.filter((item) => item.severity === 'error').map((item) => item.message);
+  const warnings = diagnostics.filter((item) => item.severity === 'warning').map((item) => item.message);
 
   return {
     valid: errors.length === 0,
     errors,
     warnings,
+    diagnostics,
   };
 }
 

@@ -5,7 +5,7 @@
  * Shows recent workflows and allows quick execution
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -21,6 +21,7 @@ import { useWorkflowEditorStore } from '@/stores/workflow';
 import { useShallow } from 'zustand/react/shallow';
 import { Progress } from '@/components/ui/progress';
 import type { VisualWorkflow } from '@/types/workflow/workflow-editor';
+import { deriveCanonicalExecutionState, getWorkflowLifecycleCapability } from '@/lib/workflow-editor';
 
 interface SidebarWorkflowsProps {
   defaultOpen?: boolean;
@@ -52,6 +53,15 @@ export function SidebarWorkflows({
   );
 
   const executionProgress = executionState?.progress ?? 0;
+  const lifecycleCapability = useMemo(
+    () =>
+      getWorkflowLifecycleCapability({
+        hasWorkflow: true,
+        isExecuting,
+        status: executionState?.status,
+      }),
+    [isExecuting, executionState?.status]
+  );
 
   // Load recent workflows
   const loadRecentWorkflows = useCallback(async () => {
@@ -76,7 +86,7 @@ export function SidebarWorkflows({
       e.preventDefault();
       e.stopPropagation();
 
-      if (isExecuting) return;
+      if (!lifecycleCapability.actions.run.allowed) return;
 
       loadWorkflow(workflow);
 
@@ -86,7 +96,7 @@ export function SidebarWorkflows({
         router.push(`/workflows?id=${workflow.id}`);
       }, 100);
     },
-    [isExecuting, loadWorkflow, startExecution, router]
+    [lifecycleCapability.actions.run.allowed, loadWorkflow, startExecution, router]
   );
 
   // Handle open workflow
@@ -157,20 +167,37 @@ export function SidebarWorkflows({
         ) : (
           <>
             {workflows.map((workflow) => (
+              (() => {
+                const isActiveExecution = Boolean(
+                  isExecuting && executionState?.workflowId === workflow.id
+                );
+                const canonical = deriveCanonicalExecutionState({
+                  isExecuting: isActiveExecution,
+                  runtimeStatus: isActiveExecution
+                    ? executionState?.status || 'running'
+                    : undefined,
+                  runtimeProgress: isActiveExecution ? executionProgress : 0,
+                });
+                const showRunningState =
+                  canonical.status === 'executing' ||
+                  canonical.status === 'planning' ||
+                  canonical.status === 'paused';
+
+                return (
               <WorkflowItem
                 key={workflow.id}
                 workflow={workflow}
-                isRunning={Boolean(isExecuting && executionState?.workflowId === workflow.id)}
-                progress={
-                  isExecuting && executionState?.workflowId === workflow.id
-                    ? executionProgress
-                    : undefined
-                }
+                isRunning={showRunningState}
+                progress={showRunningState ? canonical.progress : undefined}
                 onOpen={() => handleOpenWorkflow(workflow)}
                 onQuickRun={(e) => handleQuickRun(workflow, e)}
                 runningLabel={tSidebar('running') || t('running') || 'Running...'}
                 quickRunLabel={tSidebar('quickRun') || t('quickRun') || 'Quick Run'}
+                quickRunDisabledReason={lifecycleCapability.actions.run.reason}
+                quickRunDisabled={!lifecycleCapability.actions.run.allowed}
               />
+                );
+              })()
             ))}
 
             <div className="pt-1">
@@ -196,21 +223,25 @@ export function SidebarWorkflows({
 interface WorkflowItemProps {
   workflow: VisualWorkflow;
   isRunning: boolean;
+  quickRunDisabled?: boolean;
   progress?: number;
   onOpen: () => void;
   onQuickRun: (e: React.MouseEvent) => void;
   runningLabel: string;
   quickRunLabel: string;
+  quickRunDisabledReason?: string;
 }
 
 function WorkflowItem({
   workflow,
   isRunning,
+  quickRunDisabled,
   progress,
   onOpen,
   onQuickRun,
   runningLabel,
   quickRunLabel,
+  quickRunDisabledReason,
 }: WorkflowItemProps) {
   return (
     <div
@@ -240,7 +271,8 @@ function WorkflowItem({
               size="icon"
               className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={onQuickRun}
-              disabled={isRunning}
+              disabled={isRunning || quickRunDisabled}
+              title={isRunning ? runningLabel : quickRunDisabledReason}
             >
               {isRunning ? (
                 <LoadingSpinner size="sm" className="h-3.5 w-3.5" />

@@ -25,53 +25,68 @@ const mockToggleSkillEnabledAction = jest.fn();
 const mockSetSkillActiveAction = jest.fn();
 const mockDeleteSkillAction = jest.fn();
 
+const baseSkills = {
+  'skill-1': {
+    id: 'skill-1',
+    metadata: { name: 'test-skill', description: 'A test skill for development' },
+    content: '# Test Skill\n\nThis is a test skill.',
+    rawContent: '---\nname: test-skill\n---\n# Test Skill',
+    resources: [],
+    status: 'enabled',
+    source: 'custom',
+    category: 'development',
+    tags: ['test', 'development'],
+    version: '1.0.0',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    usageCount: 5,
+    isActive: false,
+  },
+  'skill-2': {
+    id: 'skill-2',
+    metadata: { name: 'builtin-skill', description: 'A built-in skill' },
+    content: '# Built-in Skill',
+    rawContent: '---\nname: builtin-skill\n---\n# Built-in Skill',
+    resources: [],
+    status: 'enabled',
+    source: 'builtin',
+    category: 'productivity',
+    tags: ['builtin'],
+    version: '1.0.0',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    usageCount: 10,
+    isActive: true,
+  },
+};
+
+const mockSkillStoreState: Record<string, any> = {
+  skills: baseSkills,
+  isLoading: false,
+  error: null,
+  bootstrapState: 'idle',
+  bootstrapPhase: 'idle',
+  bootstrapPhaseStatus: 'idle',
+  bootstrapFailureCode: null,
+  bootstrapFailureSeverity: null,
+  lastActivationJournal: null,
+  lastBootstrapError: null,
+  syncState: 'idle',
+  lastSyncAt: null,
+  lastSyncOutcome: 'idle',
+  lastSyncError: null,
+  createSkill: mockCreateSkill,
+  deleteSkill: mockDeleteSkill,
+  enableSkill: mockEnableSkill,
+  disableSkill: mockDisableSkill,
+  activateSkill: mockActivateSkill,
+  deactivateSkill: mockDeactivateSkill,
+  clearError: mockClearError,
+  importSkill: mockImportSkill,
+};
+
 jest.mock('@/stores/skills', () => ({
-  useSkillStore: () => ({
-    skills: {
-      'skill-1': {
-        id: 'skill-1',
-        metadata: { name: 'test-skill', description: 'A test skill for development' },
-        content: '# Test Skill\n\nThis is a test skill.',
-        rawContent: '---\nname: test-skill\n---\n# Test Skill',
-        resources: [],
-        status: 'enabled',
-        source: 'custom',
-        category: 'development',
-        tags: ['test', 'development'],
-        version: '1.0.0',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        usageCount: 5,
-        isActive: false,
-      },
-      'skill-2': {
-        id: 'skill-2',
-        metadata: { name: 'builtin-skill', description: 'A built-in skill' },
-        content: '# Built-in Skill',
-        rawContent: '---\nname: builtin-skill\n---\n# Built-in Skill',
-        resources: [],
-        status: 'enabled',
-        source: 'builtin',
-        category: 'productivity',
-        tags: ['builtin'],
-        version: '1.0.0',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        usageCount: 10,
-        isActive: true,
-      },
-    },
-    isLoading: false,
-    error: null,
-    createSkill: mockCreateSkill,
-    deleteSkill: mockDeleteSkill,
-    enableSkill: mockEnableSkill,
-    disableSkill: mockDisableSkill,
-    activateSkill: mockActivateSkill,
-    deactivateSkill: mockDeactivateSkill,
-    clearError: mockClearError,
-    importSkill: mockImportSkill,
-  }),
+  useSkillStore: () => mockSkillStoreState,
 }));
 
 jest.mock('@/hooks/skills/use-skill-actions', () => ({
@@ -343,6 +358,22 @@ describe('SkillSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     window.confirm = jest.fn().mockReturnValue(true);
+    mockSkillStoreState.skills = {
+      ...baseSkills,
+      'skill-1': { ...baseSkills['skill-1'] },
+      'skill-2': { ...baseSkills['skill-2'] },
+    };
+    mockSkillStoreState.bootstrapState = 'idle';
+    mockSkillStoreState.bootstrapPhase = 'idle';
+    mockSkillStoreState.bootstrapPhaseStatus = 'idle';
+    mockSkillStoreState.bootstrapFailureCode = null;
+    mockSkillStoreState.bootstrapFailureSeverity = null;
+    mockSkillStoreState.lastActivationJournal = null;
+    mockSkillStoreState.lastBootstrapError = null;
+    mockSkillStoreState.syncState = 'idle';
+    mockSkillStoreState.lastSyncAt = null;
+    mockSkillStoreState.lastSyncOutcome = 'idle';
+    mockSkillStoreState.lastSyncError = null;
     mockCreateSkillAction.mockResolvedValue({ outcome: 'success' });
     mockToggleSkillEnabledAction.mockResolvedValue({ outcome: 'success' });
     mockSetSkillActiveAction.mockReturnValue({ outcome: 'success' });
@@ -362,6 +393,28 @@ describe('SkillSettings', () => {
   it('displays skill description', () => {
     render(<SkillSettings />);
     expect(screen.getByText(/Skills are modular packages/)).toBeInTheDocument();
+  });
+
+  it('renders bootstrap lifecycle telemetry when available', () => {
+    mockSkillStoreState.bootstrapState = 'syncing';
+    mockSkillStoreState.bootstrapPhase = 'resolve_order';
+    mockSkillStoreState.bootstrapPhaseStatus = 'running';
+    mockSkillStoreState.bootstrapFailureSeverity = 'hard';
+    mockSkillStoreState.bootstrapFailureCode = 'DEPENDENCY_RESOLUTION_FAILED';
+    mockSkillStoreState.lastActivationJournal = {
+      runId: 'run-1',
+      attempted: ['skill-1'],
+      activated: [],
+      failed: ['skill-1'],
+      rollbackActions: [{ skillId: 'skill-1', action: 'deactivate', kept: false, reason: 'test' }],
+      outcome: 'rolled_back',
+    };
+
+    render(<SkillSettings />);
+
+    expect(screen.getByText('Bootstrap:')).toBeInTheDocument();
+    expect(screen.getByText('resolve_order')).toBeInTheDocument();
+    expect(screen.getByText('rollback: 1')).toBeInTheDocument();
   });
 
   it('displays search input', () => {

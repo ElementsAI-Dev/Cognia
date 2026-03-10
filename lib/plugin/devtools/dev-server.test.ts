@@ -140,11 +140,11 @@ describe('PluginDevServer', () => {
 
     it('should have watchPlugin method', async () => {
       await server.watchPlugin('plugin-a', '/path/to/plugin');
-      // watchPlugin is a stub, isWatching returns false
-      expect(server.isWatching('plugin-a')).toBe(false);
+      expect(server.isWatching('plugin-a')).toBe(true);
     });
 
     it('should have unwatchPlugin method', async () => {
+      await server.watchPlugin('plugin-a', '/path/to/plugin');
       await server.unwatchPlugin('plugin-a');
       expect(server.isWatching('plugin-a')).toBe(false);
     });

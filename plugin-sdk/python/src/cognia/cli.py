@@ -15,7 +15,7 @@ import os
 import sys
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 import subprocess
 
 
@@ -288,6 +288,22 @@ def generate_manifest(path: Optional[str] = None, validate_only: bool = False) -
             if missing:
                 print(f"❌ Missing required fields: {', '.join(missing)}")
                 sys.exit(1)
+
+            if manifest.get("type") in {"python", "hybrid"} and not manifest.get("pythonMain"):
+                print("❌ Missing required field for python/hybrid plugin: pythonMain")
+                sys.exit(1)
+
+            engines = manifest.get("engines")
+            if engines is not None:
+                if not isinstance(engines, dict):
+                    print("❌ Invalid engines field: must be an object")
+                    sys.exit(1)
+                if "cognia" in engines and not isinstance(engines["cognia"], str):
+                    print("❌ Invalid engines.cognia field: must be a string")
+                    sys.exit(1)
+                if "python" in engines and not isinstance(engines["python"], str):
+                    print("❌ Invalid engines.python field: must be a string")
+                    sys.exit(1)
             
             print(f"✅ plugin.json is valid")
             print(f"   ID: {manifest['id']}")
@@ -369,6 +385,22 @@ def pack_plugin(path: Optional[str] = None, output: Optional[str] = None) -> Non
     # Load manifest
     with open(manifest_path) as f:
         manifest = json.load(f)
+
+    if manifest.get("type") in {"python", "hybrid"} and not manifest.get("pythonMain"):
+        print("Error: plugin.json must include pythonMain for python/hybrid plugin")
+        sys.exit(1)
+
+    engines = manifest.get("engines")
+    if engines is not None and not isinstance(engines, dict):
+        print("Error: plugin.json engines field must be an object")
+        sys.exit(1)
+    if isinstance(engines, dict):
+        if engines.get("cognia") is not None and not isinstance(engines.get("cognia"), str):
+            print("Error: plugin.json engines.cognia must be a string")
+            sys.exit(1)
+        if engines.get("python") is not None and not isinstance(engines.get("python"), str):
+            print("Error: plugin.json engines.python must be a string")
+            sys.exit(1)
     
     plugin_id = manifest.get("id", "plugin")
     version = manifest.get("version", "1.0.0")
@@ -417,22 +449,75 @@ def pack_plugin(path: Optional[str] = None, output: Optional[str] = None) -> Non
     print(f"✅ Created package: {output_path}")
 
 
-def start_dev_server(path: Optional[str] = None, port: int = 9876) -> None:
-    """Start development server with hot reload"""
+def _snapshot_dev_files(target_dir: Path) -> Dict[str, float]:
+    """Collect plugin development files and mtime snapshot."""
+    patterns = ("*.py", "*.json", "*.toml", "*.yaml", "*.yml")
+    snapshot: Dict[str, float] = {}
+    for file_path in target_dir.rglob("*"):
+        if not file_path.is_file():
+            continue
+        if any(part in {"__pycache__", ".git", ".venv", "venv", "dist"} for part in file_path.parts):
+            continue
+        if not any(file_path.match(pattern) for pattern in patterns):
+            continue
+        try:
+            snapshot[str(file_path)] = file_path.stat().st_mtime
+        except OSError:
+            continue
+    return snapshot
+
+
+def start_dev_server(
+    path: Optional[str] = None,
+    port: int = 9876,
+    *,
+    poll_interval: float = 1.0,
+    max_cycles: Optional[int] = None,
+    on_change: Optional[Callable[[str], None]] = None,
+    initial_snapshot: Optional[Dict[str, float]] = None,
+) -> Dict[str, float]:
+    """Start development watcher for plugin reload workflow."""
     target_dir = Path(path) if path else Path.cwd()
     
     print(f"Starting development server for plugin at {target_dir}")
-    print(f"Watching for changes...")
+    print(f"Watching for changes on port {port}...")
     print(f"Press Ctrl+C to stop")
     
-    # Note: This is a placeholder - actual implementation would require
-    # file watching and IPC with Tauri backend
+    previous_snapshot = initial_snapshot if initial_snapshot is not None else _snapshot_dev_files(target_dir)
+    cycles = 0
+
     try:
         import time
         while True:
-            time.sleep(1)
+            time.sleep(max(poll_interval, 0.1))
+            current_snapshot = _snapshot_dev_files(target_dir)
+
+            changed_files: List[str] = []
+            for file_path, mtime in current_snapshot.items():
+                prev_mtime = previous_snapshot.get(file_path)
+                if prev_mtime is None or mtime > prev_mtime:
+                    changed_files.append(file_path)
+
+            removed_files = [file_path for file_path in previous_snapshot if file_path not in current_snapshot]
+            changed_files.extend(removed_files)
+
+            if changed_files:
+                changed_files = sorted(set(changed_files))
+                for changed in changed_files:
+                    rel_path = str(Path(changed).relative_to(target_dir)) if changed.startswith(str(target_dir)) else changed
+                    print(f"[dev] change detected: {rel_path}")
+                    if on_change:
+                        on_change(rel_path)
+                print("[dev] trigger reload")
+
+            previous_snapshot = current_snapshot
+            cycles += 1
+            if max_cycles is not None and cycles >= max_cycles:
+                break
     except KeyboardInterrupt:
         print("\nStopped development server")
+
+    return previous_snapshot
 
 
 def main() -> None:

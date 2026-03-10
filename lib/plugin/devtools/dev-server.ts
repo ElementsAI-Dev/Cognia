@@ -86,6 +86,13 @@ export class PluginDevServer {
   private unlistenFn: UnlistenFn | null = null;
   private consoleLogs: DevConsoleMessage[] = [];
   private maxConsoleLogs = 500;
+  private watchedPlugins: Map<string, string> = new Map();
+  private commandHandlers: Map<string, Set<(args: unknown) => unknown | Promise<unknown>>> = new Map();
+  private startListeners: Set<() => void> = new Set();
+  private stopListeners: Set<() => void> = new Set();
+  private errorListeners: Set<(error: Error) => void> = new Set();
+  private buildListeners: Set<(result: PluginBuildResult) => void> = new Set();
+  private buildHistory: PluginBuildResult[] = [];
 
   constructor(config: Partial<DevServerConfig> = {}) {
     this.config = {
@@ -142,12 +149,19 @@ export class PluginDevServer {
       });
 
       loggers.devServer.info(`Started at ${this.status.url}`);
+      for (const listener of this.startListeners) {
+        listener();
+      }
 
       if (this.config.openBrowser) {
         await openUrl(this.status.url);
       }
     } catch (error) {
       loggers.devServer.error('Failed to start:', error);
+      const normalized = error instanceof Error ? error : new Error(String(error));
+      for (const listener of this.errorListeners) {
+        listener(normalized);
+      }
       throw error;
     }
   }
@@ -175,8 +189,15 @@ export class PluginDevServer {
       };
 
       loggers.devServer.info('Stopped');
+      for (const listener of this.stopListeners) {
+        listener();
+      }
     } catch (error) {
       loggers.devServer.error('Failed to stop:', error);
+      const normalized = error instanceof Error ? error : new Error(String(error));
+      for (const listener of this.errorListeners) {
+        listener(normalized);
+      }
       throw error;
     }
   }
@@ -326,7 +347,7 @@ export class PluginDevServer {
         },
       });
 
-      return {
+      const buildResult = {
         success: result.success,
         pluginId,
         outputPath: result.outputPath,
@@ -334,13 +355,23 @@ export class PluginDevServer {
         errors: result.errors,
         warnings: result.warnings,
       };
+      this.buildHistory.push(buildResult);
+      for (const listener of this.buildListeners) {
+        listener(buildResult);
+      }
+      return buildResult;
     } catch (error) {
-      return {
+      const buildResult = {
         success: false,
         pluginId,
         duration: Date.now() - startTime,
         errors: [error instanceof Error ? error.message : String(error)],
       };
+      this.buildHistory.push(buildResult);
+      for (const listener of this.buildListeners) {
+        listener(buildResult);
+      }
+      return buildResult;
     }
   }
 
@@ -467,15 +498,28 @@ export class PluginDevServer {
   }
 
   async watchPlugin(_pluginId: string, _path: string): Promise<void> {
-    loggers.devServer.warn('watchPlugin not implemented');
+    try {
+      await invoke('plugin_dev_server_watch', {
+        pluginId: _pluginId,
+        path: _path,
+      });
+    } catch {
+      // Keep local tracking even when backend watch command is unavailable.
+    }
+    this.watchedPlugins.set(_pluginId, _path);
   }
 
   async unwatchPlugin(_pluginId: string): Promise<void> {
-    loggers.devServer.warn('unwatchPlugin not implemented');
+    try {
+      await invoke('plugin_dev_server_unwatch', { pluginId: _pluginId });
+    } catch {
+      // Best effort in environments without backend watch support.
+    }
+    this.watchedPlugins.delete(_pluginId);
   }
 
   isWatching(_pluginId: string): boolean {
-    return false;
+    return this.watchedPlugins.has(_pluginId);
   }
 
   getConnectedClients(): number {
@@ -494,34 +538,63 @@ export class PluginDevServer {
   }
 
   onCommand(_command: string, _handler: (args: unknown) => void): () => void {
-    return () => {};
+    const handlers = this.commandHandlers.get(_command) || new Set();
+    handlers.add(_handler);
+    this.commandHandlers.set(_command, handlers);
+    return () => {
+      const registered = this.commandHandlers.get(_command);
+      if (!registered) return;
+      registered.delete(_handler);
+      if (registered.size === 0) {
+        this.commandHandlers.delete(_command);
+      }
+    };
   }
 
-  async executeCommand(_command: string, _args: unknown): Promise<{ success: boolean }> {
-    return { success: true };
+  async executeCommand(_command: string, _args: unknown): Promise<{ success: boolean; result?: unknown }> {
+    const handlers = Array.from(this.commandHandlers.get(_command) || []);
+    if (handlers.length === 0) {
+      return { success: false };
+    }
+
+    let latest: unknown;
+    for (const handler of handlers) {
+      latest = await handler(_args);
+    }
+
+    return { success: true, result: latest };
   }
 
   onStart(_listener: () => void): () => void {
-    return () => {};
+    this.startListeners.add(_listener);
+    return () => this.startListeners.delete(_listener);
   }
 
   onStop(_listener: () => void): () => void {
-    return () => {};
+    this.stopListeners.add(_listener);
+    return () => this.stopListeners.delete(_listener);
   }
 
   onError(_listener: (error: Error) => void): () => void {
-    return () => {};
+    this.errorListeners.add(_listener);
+    return () => this.errorListeners.delete(_listener);
   }
 
   onBuild(_listener: (result: PluginBuildResult) => void): () => void {
-    return () => {};
+    this.buildListeners.add(_listener);
+    return () => this.buildListeners.delete(_listener);
   }
 
   getBuildHistory(_pluginId?: string): PluginBuildResult[] {
-    return [];
+    if (_pluginId) {
+      return this.buildHistory.filter((entry) => entry.pluginId === _pluginId);
+    }
+    return [...this.buildHistory];
   }
 
-  clearBuildHistory(): void {}
+  clearBuildHistory(): void {
+    this.buildHistory = [];
+  }
 
   getWebSocketUrl(): string {
      return `${this.config.https ? 'wss' : 'ws'}://${this.status.host}:${this.status.port}/ws`;

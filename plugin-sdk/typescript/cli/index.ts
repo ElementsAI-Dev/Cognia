@@ -9,6 +9,7 @@ import { Command } from 'commander';
 import { createCommand } from './commands/create';
 import { devCommand } from './commands/dev';
 import { buildCommand } from './commands/build';
+import { packCommand } from './commands/pack';
 import { validateCommand } from './commands/validate';
 import { initCommand } from './commands/init';
 
@@ -59,6 +60,14 @@ program
   .option('--no-minify', 'Skip minification')
   .option('--sourcemap', 'Generate source maps')
   .action(buildCommand);
+
+// Pack plugin
+program
+  .command('pack')
+  .description('Create a distributable package directory')
+  .option('-o, --output <dir>', 'Output directory', 'release')
+  .option('--skip-build', 'Skip build step and package existing output', false)
+  .action(packCommand);
 
 // Validate plugin
 program

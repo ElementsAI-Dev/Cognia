@@ -8,6 +8,11 @@ jest.mock('@/hooks/skills', () => ({
   useSkillBootstrap: jest.fn(() => ({
     runBootstrap: jest.fn(),
     bootstrapState: 'idle',
+    bootstrapPhase: 'idle',
+    bootstrapPhaseStatus: 'idle',
+    bootstrapTelemetry: [],
+    bootstrapFailureSeverity: null,
+    lastActivationJournal: null,
     lastBootstrapAt: null,
     lastBootstrapError: null,
   })),
@@ -32,6 +37,11 @@ describe('SkillSyncInitializer', () => {
     mockUseSkillBootstrap.mockReturnValue({
       runBootstrap,
       bootstrapState: 'idle',
+      bootstrapPhase: 'idle',
+      bootstrapPhaseStatus: 'idle',
+      bootstrapTelemetry: [],
+      bootstrapFailureSeverity: null,
+      lastActivationJournal: null,
       lastBootstrapAt: null,
       lastBootstrapError: null,
     });
@@ -51,6 +61,11 @@ describe('SkillSyncInitializer', () => {
     mockUseSkillBootstrap.mockReturnValue({
       runBootstrap,
       bootstrapState: 'idle',
+      bootstrapPhase: 'idle',
+      bootstrapPhaseStatus: 'idle',
+      bootstrapTelemetry: [],
+      bootstrapFailureSeverity: null,
+      lastActivationJournal: null,
       lastBootstrapAt: null,
       lastBootstrapError: null,
     });

@@ -128,6 +128,56 @@ export function ProviderSettings() {
   const [testingCustomProviders, setTestingCustomProviders] = useState<Record<string, boolean>>({});
   const [customTestMessages, setCustomTestMessages] = useState<Record<string, string | null>>({});
   const [capabilityFilters, setCapabilityFilters] = useState<CapabilityFilter[]>([]);
+  const providerConfigFingerprintRef = useRef<Record<string, string>>({});
+
+  const getProviderActionMessage = useCallback((providerId: string, fallback: string, reason?: string) => {
+    const providerName = PROVIDERS[providerId]?.name || providerId;
+    return `${providerName}: ${reason || fallback}`;
+  }, []);
+
+  const invalidateBuiltInVerification = useCallback((providerId: string) => {
+    setTestResults((prev) => ({ ...prev, [providerId]: null }));
+  }, []);
+
+  const invalidateCustomVerification = useCallback((providerId: string) => {
+    setCustomTestResults((prev) => ({ ...prev, [providerId]: null }));
+    setCustomTestMessages((prev) => ({ ...prev, [providerId]: null }));
+  }, []);
+
+  useEffect(() => {
+    const changedIds: string[] = [];
+    const nextFingerprints: Record<string, string> = {};
+
+    for (const [providerId, settings] of Object.entries(providerSettings)) {
+      const fingerprint = JSON.stringify({
+        enabled: settings?.enabled,
+        apiKey: settings?.apiKey || '',
+        apiKeys: settings?.apiKeys || [],
+        currentKeyIndex: settings?.currentKeyIndex ?? 0,
+        baseURL: settings?.baseURL || '',
+        defaultModel: settings?.defaultModel || '',
+      });
+      nextFingerprints[providerId] = fingerprint;
+      if (
+        providerConfigFingerprintRef.current[providerId] &&
+        providerConfigFingerprintRef.current[providerId] !== fingerprint
+      ) {
+        changedIds.push(providerId);
+      }
+    }
+
+    providerConfigFingerprintRef.current = nextFingerprints;
+
+    if (changedIds.length > 0) {
+      setTestResults((prev) => {
+        const next = { ...prev };
+        for (const id of changedIds) {
+          if (next[id]?.success) next[id] = null;
+        }
+        return next;
+      });
+    }
+  }, [providerSettings]);
 
   const toggleExpanded = useCallback((providerId: string) => {
     setExpandedProviders((prev) => ({ ...prev, [providerId]: !prev[providerId] }));
@@ -140,23 +190,33 @@ export function ProviderSettings() {
       testResults[providerId]
     );
     if (!providerState.eligibility.defaultModel.allowed) {
-      toast.warning(providerState.eligibility.defaultModel.reason || t('configureApiKey'));
+      toast.warning(
+        getProviderActionMessage(
+          providerId,
+          t('configureApiKey'),
+          providerState.eligibility.defaultModel.reason
+        )
+      );
       return;
     }
     updateProviderSettings(providerId, { defaultModel: modelId });
+    invalidateBuiltInVerification(providerId);
   };
 
   const handleRemoveApiKey = (providerId: string, index: number) => {
     removeApiKey(providerId, index);
+    invalidateBuiltInVerification(providerId);
   };
 
   const handleToggleRotation = (providerId: string, enabled: boolean) => {
     const settings = providerSettings[providerId];
     setApiKeyRotation(providerId, enabled, settings?.apiKeyRotationStrategy || 'round-robin');
+    invalidateBuiltInVerification(providerId);
   };
 
   const handleRotationStrategyChange = (providerId: string, strategy: ApiKeyRotationStrategy) => {
     setApiKeyRotation(providerId, true, strategy);
+    invalidateBuiltInVerification(providerId);
   };
 
   // Get count of configured providers based on derived readiness.
@@ -177,12 +237,18 @@ export function ProviderSettings() {
 
   const handleKeyChange = (providerId: string, apiKey: string) => {
     updateProviderSettings(providerId, { apiKey });
+    invalidateBuiltInVerification(providerId);
+  };
+
+  const handleBaseURLChange = (providerId: string, baseURL?: string) => {
+    updateProviderSettings(providerId, { baseURL: baseURL || undefined });
+    invalidateBuiltInVerification(providerId);
   };
 
   const handleToggleProvider = (providerId: string, enabled: boolean) => {
     const eligibility = getProviderEnableEligibility(providerId, providerSettings[providerId], enabled);
     if (!eligibility.allowed) {
-      toast.warning(eligibility.reason || t('configureApiKey'));
+      toast.warning(getProviderActionMessage(providerId, t('configureApiKey'), eligibility.reason));
       return false;
     }
     updateProviderSettings(providerId, { enabled });
@@ -193,7 +259,13 @@ export function ProviderSettings() {
     const settings = providerSettings[providerId];
     const providerState = getBuiltInProviderReadiness(providerId, settings, testResults[providerId]);
     if (!providerState.eligibility.testConnection.allowed) {
-      toast.warning(providerState.eligibility.testConnection.reason || t('connectionFailed'));
+      toast.warning(
+        getProviderActionMessage(
+          providerId,
+          t('connectionFailed'),
+          providerState.eligibility.testConnection.reason
+        )
+      );
       return undefined;
     }
     const activeApiKey =
@@ -226,7 +298,7 @@ export function ProviderSettings() {
     } finally {
       setTestingProviders((prev) => ({ ...prev, [providerId]: false }));
     }
-  }, [providerSettings, testResults, t]);
+  }, [getProviderActionMessage, providerSettings, testResults, t]);
 
   const handleTestCustomProvider = useCallback(async (providerId: string) => {
     const provider = customProviders[providerId];
@@ -523,7 +595,9 @@ export function ProviderSettings() {
       return providerState.eligibility.testConnection.allowed;
     });
     if (selectedIds.length === 0) {
-      toast.warning(t('noProvidersFound'));
+      toast.warning(t('noProvidersFound'), {
+        description: 'Configure credentials or base URL for the selected providers, then retry.',
+      });
       return;
     }
 
@@ -629,7 +703,7 @@ export function ProviderSettings() {
         onToggleExpanded={() => toggleExpanded(providerId)}
         onToggleEnabled={(enabled) => handleToggleProvider(providerId, enabled)}
         onApiKeyChange={(key) => handleKeyChange(providerId, key)}
-        onBaseURLChange={(url) => updateProviderSettings(providerId, { baseURL: url || undefined })}
+        onBaseURLChange={(url) => handleBaseURLChange(providerId, url)}
         onDefaultModelChange={(model) => handleSetDefaultModel(providerId, model)}
         onTestConnection={async () => {
           const result = await handleTestConnection(providerId);
@@ -652,14 +726,20 @@ export function ProviderSettings() {
         apiKeys={settings.apiKeys || []}
         apiKeyUsageStats={settings.apiKeyUsageStats || {}}
         currentKeyIndex={settings.currentKeyIndex}
-        onAddApiKey={(key) => addApiKey(providerId, key)}
+        onAddApiKey={(key) => {
+          addApiKey(providerId, key);
+          invalidateBuiltInVerification(providerId);
+        }}
         onRemoveApiKey={(index) => handleRemoveApiKey(providerId, index)}
         onResetApiKeyStats={(key) => resetApiKeyStats(providerId, key)}
         rotationEnabled={!!settings.apiKeyRotationEnabled}
         onToggleRotation={(enabled) => handleToggleRotation(providerId, enabled)}
         rotationStrategy={settings.apiKeyRotationStrategy || 'round-robin'}
         onRotationStrategyChange={(strategy) => handleRotationStrategyChange(providerId, strategy)}
-        onReorderApiKeys={(fromIndex, toIndex) => reorderApiKeys(providerId, fromIndex, toIndex)}
+        onReorderApiKeys={(fromIndex, toIndex) => {
+          reorderApiKeys(providerId, fromIndex, toIndex);
+          invalidateBuiltInVerification(providerId);
+        }}
         readinessState={providerState.readiness}
         enableToggleDisabled={!enableGuard.allowed}
         enableToggleDisabledReason={enableGuard.reason}
@@ -1201,8 +1281,7 @@ export function ProviderSettings() {
         testingProviders={testingCustomProviders}
         onTestProvider={handleTestCustomProvider}
         onEditProvider={(providerId) => {
-          setCustomTestResults((prev) => ({ ...prev, [providerId]: null }));
-          setCustomTestMessages((prev) => ({ ...prev, [providerId]: null }));
+          invalidateCustomVerification(providerId);
           setEditingProviderId(providerId);
           setShowCustomDialog(true);
         }}
@@ -1213,6 +1292,7 @@ export function ProviderSettings() {
             return;
           }
           updateCustomProvider(providerId, { enabled });
+          invalidateCustomVerification(providerId);
         }}
         onAddProvider={() => {
           setEditingProviderId(null);

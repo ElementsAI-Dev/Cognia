@@ -1,5 +1,6 @@
 import {
   classifyPPTError,
+  isRetryablePPTErrorCode,
   isValidHttpUrl,
   normalizeCreationTopic,
   validatePPTCreationInput,
@@ -47,6 +48,17 @@ describe('ppt-state', () => {
   it('classifies parse errors', () => {
     const error = classifyPPTError(new Error('Failed to parse AI response as JSON'));
     expect(error.code).toBe('parse_failed');
+  });
+
+  it('maps ingestion error code from structured error objects', () => {
+    const error = classifyPPTError({ code: 'unsupported_format', message: 'Bad format' });
+    expect(error.code).toBe('ingestion_error');
+  });
+
+  it('marks validation and ingestion errors as non-retryable', () => {
+    expect(isRetryablePPTErrorCode('validation_error')).toBe(false);
+    expect(isRetryablePPTErrorCode('ingestion_error')).toBe(false);
+    expect(isRetryablePPTErrorCode('generation_error')).toBe(true);
   });
 });
 

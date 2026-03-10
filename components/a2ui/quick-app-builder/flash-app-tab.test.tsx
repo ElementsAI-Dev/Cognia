@@ -162,7 +162,7 @@ describe('FlashAppTab', () => {
   });
 
   it('shows loading icon and disables button while generating', async () => {
-    let resolveGenerate: (() => void) | null = null;
+    let resolveGenerate: () => void = () => {};
     const onGenerate = jest.fn(
       () =>
         new Promise<void>((resolve) => {
@@ -177,7 +177,7 @@ describe('FlashAppTab', () => {
     expect(getGenerateButton(container)).toBeDisabled();
     expect(screen.getByTestId('loader-icon')).toBeInTheDocument();
 
-    resolveGenerate?.();
+    resolveGenerate();
 
     await waitFor(() => {
       expect(screen.getByTestId('send-icon')).toBeInTheDocument();

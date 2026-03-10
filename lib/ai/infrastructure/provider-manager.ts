@@ -45,6 +45,7 @@ import {
   recordApiKeyError,
 } from './api-key-rotation';
 import type { ApiKeyRotationStrategy, ApiKeyUsageStats } from '@/types/provider';
+import { evaluateRuntimeEligibility } from '@/lib/ai/providers/completeness';
 
 const log = loggers.ai;
 
@@ -97,6 +98,23 @@ export interface ExecutionContext {
   startTime: number;
 }
 
+export type RuntimeFailureCategory =
+  | 'configuration'
+  | 'availability'
+  | 'rate_limit'
+  | 'quota'
+  | 'timeout'
+  | 'execution';
+
+export interface ProviderAttemptTrace {
+  providerId: string;
+  attempt: number;
+  success: boolean;
+  durationMs: number;
+  failureCategory?: RuntimeFailureCategory;
+  reason?: string;
+}
+
 export interface SandboxExecutionResult<T> {
   success: boolean;
   data?: T;
@@ -105,7 +123,12 @@ export interface SandboxExecutionResult<T> {
   latencyMs: number;
   providerId: string;
   modelId: string;
+  attempts: ProviderAttemptTrace[];
+  fallbackUsed: boolean;
+  terminalCategory?: RuntimeFailureCategory;
 }
+
+export type FallbackPolicy = 'load-balanced' | 'ordered' | 'none';
 
 export interface RequestOptions {
   /** Preferred provider (optional) */
@@ -126,6 +149,10 @@ export interface RequestOptions {
   skipQuotaCheck?: boolean;
   /** Skip rate limit check */
   skipRateLimitCheck?: boolean;
+  /** Fallback strategy after first provider attempt */
+  fallbackPolicy?: FallbackPolicy;
+  /** Ordered fallback candidates used when fallbackPolicy='ordered' */
+  fallbackProviderOrder?: string[];
 }
 
 const DEFAULT_CONFIG: ProviderManagerConfig = {
@@ -304,17 +331,38 @@ export class ProviderManager {
   async canUseProvider(
     providerId: string,
     options: RequestOptions
-  ): Promise<{ allowed: boolean; reason?: string }> {
+  ): Promise<{ allowed: boolean; reason?: string; category?: RuntimeFailureCategory; code?: string }> {
+    const credentials = this.providers.get(providerId);
+    if (!credentials) {
+      return { allowed: false, reason: 'Provider is not registered', category: 'configuration' };
+    }
+
+    const runtimeEligibility = evaluateRuntimeEligibility(providerId, {
+      apiKey: credentials.apiKey,
+      apiKeys: credentials.apiKeys,
+      currentKeyIndex: credentials.currentKeyIndex,
+      baseURL: credentials.baseURL,
+      enabled: this.enabledProviders.has(providerId),
+    });
+    if (!runtimeEligibility.allowed) {
+      return {
+        allowed: false,
+        reason: runtimeEligibility.reason,
+        category: 'configuration',
+        code: runtimeEligibility.code,
+      };
+    }
+
     // Check if enabled
     if (!this.enabledProviders.has(providerId)) {
-      return { allowed: false, reason: 'Provider is disabled' };
+      return { allowed: false, reason: 'Provider is disabled', category: 'configuration', code: 'provider_disabled' };
     }
 
     // Check circuit breaker
     if (this.config.enableCircuitBreaker) {
       const breaker = circuitBreakerRegistry.get(providerId);
       if (!breaker.canExecute()) {
-        return { allowed: false, reason: 'Circuit breaker is open' };
+        return { allowed: false, reason: 'Circuit breaker is open', category: 'availability' };
       }
     }
 
@@ -322,7 +370,7 @@ export class ProviderManager {
     if (this.config.enableHealthMonitoring) {
       const availability = this.availabilityMonitor.getAvailability(providerId);
       if (availability?.status === 'unavailable') {
-        return { allowed: false, reason: 'Provider is unavailable' };
+        return { allowed: false, reason: 'Provider is unavailable', category: 'availability' };
       }
     }
 
@@ -330,7 +378,7 @@ export class ProviderManager {
     if (this.config.enableQuotaEnforcement && !options.skipQuotaCheck) {
       const quotaCheck = this.quotaManager.canMakeRequest(providerId);
       if (!quotaCheck.allowed) {
-        return { allowed: false, reason: quotaCheck.reason };
+        return { allowed: false, reason: quotaCheck.reason, category: 'quota' };
       }
     }
 
@@ -343,6 +391,7 @@ export class ProviderManager {
           return {
             allowed: false,
             reason: `Rate limited. Retry after ${status.retryAfter}s`,
+            category: 'rate_limit',
           };
         }
       }
@@ -358,58 +407,82 @@ export class ProviderManager {
     fn: (context: ExecutionContext) => Promise<T>,
     options: RequestOptions
   ): Promise<SandboxExecutionResult<T>> {
-    const maxRetries = options.maxRetries || 3;
+    const fallbackPolicy = options.fallbackPolicy || 'load-balanced';
+    const maxAttempts = fallbackPolicy === 'none' ? 1 : (options.maxRetries || 3);
+    const orderedFallbackProviders = this.getOrderedFallbackProviders(options);
+    const attempts: ProviderAttemptTrace[] = [];
     let lastError: Error | null = null;
-    let attempt = 0;
+    let terminalCategory: RuntimeFailureCategory | undefined;
+    let attemptNumber = 0;
     const triedProviders = new Set<string>();
 
-    while (attempt < maxRetries) {
-      attempt++;
+    while (attemptNumber < maxAttempts) {
+      attemptNumber++;
+      const selectionStartedAt = Date.now();
 
-      // Select a provider
-      const selection = await this.selectProvider({
-        ...options,
-        preferredProvider:
-          attempt === 1 ? options.preferredProvider : undefined,
-      });
-
-      if (!selection) {
-        throw new Error('No available providers');
+      let selectedProviderId: string | null = null;
+      if (fallbackPolicy === 'ordered') {
+        selectedProviderId =
+          orderedFallbackProviders.find((providerId) => !triedProviders.has(providerId)) || null;
+      } else {
+        const selection = await this.selectProvider({
+          ...options,
+          preferredProvider: attemptNumber === 1 ? options.preferredProvider : undefined,
+        });
+        selectedProviderId = selection?.providerId || null;
       }
 
-      // Skip if already tried
-      if (triedProviders.has(selection.providerId)) {
-        this.loadBalancer.setProviderAvailability(selection.providerId, false);
+      if (!selectedProviderId) {
+        break;
+      }
+
+      if (triedProviders.has(selectedProviderId)) {
+        if (fallbackPolicy === 'load-balanced') {
+          this.loadBalancer.setProviderAvailability(selectedProviderId, false);
+        }
         continue;
       }
-      triedProviders.add(selection.providerId);
+      triedProviders.add(selectedProviderId);
 
-      const credentials = this.providers.get(selection.providerId);
+      const canUse = await this.canUseProvider(selectedProviderId, options);
+      if (!canUse.allowed) {
+        const failureMessage = canUse.reason || 'Provider is not eligible';
+        lastError = new Error(failureMessage);
+        terminalCategory = canUse.category || 'configuration';
+        attempts.push({
+          providerId: selectedProviderId,
+          attempt: attemptNumber,
+          success: false,
+          durationMs: Date.now() - selectionStartedAt,
+          failureCategory: terminalCategory,
+          reason: failureMessage,
+        });
+        continue;
+      }
+
+      const credentials = this.providers.get(selectedProviderId);
       if (!credentials) continue;
 
-      const apiKey = this.getActiveApiKey(selection.providerId);
-      if (!apiKey && selection.providerId !== 'ollama') {
-        continue;
-      }
+      const apiKey = this.getActiveApiKey(selectedProviderId) || '';
 
       const context: ExecutionContext = {
-        providerId: selection.providerId,
+        providerId: selectedProviderId,
         modelId: options.modelId,
-        apiKey: apiKey || '',
+        apiKey,
         baseURL: credentials.baseURL,
-        attempt,
+        attempt: attemptNumber,
         startTime: Date.now(),
       };
 
       // Track request start
-      this.loadBalancer.recordRequestStart(selection.providerId);
+      this.loadBalancer.recordRequestStart(selectedProviderId);
 
       // Apply rate limiting
       if (this.config.enableRateLimiting) {
-        const limiter = this.rateLimiters.get(selection.providerId);
+        const limiter = this.rateLimiters.get(selectedProviderId);
         if (limiter) {
-          const rateLimitResult = await limiter.limit(selection.providerId);
-          this.lastRateLimitStatus.set(selection.providerId, rateLimitResult);
+          const rateLimitResult = await limiter.limit(selectedProviderId);
+          this.lastRateLimitStatus.set(selectedProviderId, rateLimitResult);
         }
       }
 
@@ -420,7 +493,7 @@ export class ProviderManager {
 
         if (this.config.enableCircuitBreaker) {
           const breaker = circuitBreakerRegistry
-            .get(selection.providerId, {
+            .get(selectedProviderId, {
               ...this.config.circuitBreaker,
               ...(options.timeout ? { requestTimeout: options.timeout } : {}),
             });
@@ -444,20 +517,26 @@ export class ProviderManager {
         const latencyMs = Date.now() - startTime;
 
         // Record success
-        this.loadBalancer.recordRequestEnd(selection.providerId, latencyMs, true);
-        this.recordApiKeyUsage(selection.providerId, apiKey || '', true);
+        this.loadBalancer.recordRequestEnd(selectedProviderId, latencyMs, true);
+        this.recordApiKeyUsage(selectedProviderId, apiKey, true);
+        attempts.push({
+          providerId: selectedProviderId,
+          attempt: attemptNumber,
+          success: true,
+          durationMs: latencyMs,
+        });
 
         // Record quota usage
         if (this.config.enableQuotaEnforcement) {
           const cost = calculateRequestCost(
-            selection.providerId,
+            selectedProviderId,
             options.modelId,
             options.estimatedInputTokens || 0,
             options.estimatedOutputTokens || 0
           );
 
           this.quotaManager.recordUsage({
-            providerId: selection.providerId,
+            providerId: selectedProviderId,
             modelId: options.modelId,
             inputTokens: options.estimatedInputTokens || 0,
             outputTokens: options.estimatedOutputTokens || 0,
@@ -472,22 +551,33 @@ export class ProviderManager {
           data: result,
           context,
           latencyMs,
-          providerId: selection.providerId,
+          providerId: selectedProviderId,
           modelId: options.modelId,
+          attempts,
+          fallbackUsed: attempts.length > 1,
         };
       } catch (error) {
         const latencyMs = Date.now() - context.startTime;
         lastError = error instanceof Error ? error : new Error(String(error));
+        terminalCategory = this.categorizeFailure(lastError.message);
 
         // Record failure
-        this.loadBalancer.recordRequestEnd(selection.providerId, latencyMs, false);
-        this.loadBalancer.setProviderHealth(selection.providerId, false);
-        this.recordApiKeyUsage(selection.providerId, apiKey || '', false, lastError.message);
+        this.loadBalancer.recordRequestEnd(selectedProviderId, latencyMs, false);
+        this.loadBalancer.setProviderHealth(selectedProviderId, false);
+        this.recordApiKeyUsage(selectedProviderId, apiKey, false, lastError.message);
+        attempts.push({
+          providerId: selectedProviderId,
+          attempt: attemptNumber,
+          success: false,
+          durationMs: latencyMs,
+          failureCategory: terminalCategory,
+          reason: lastError.message,
+        });
 
         // Record quota usage (even for failures)
         if (this.config.enableQuotaEnforcement) {
           this.quotaManager.recordUsage({
-            providerId: selection.providerId,
+            providerId: selectedProviderId,
             modelId: options.modelId,
             inputTokens: 0,
             outputTokens: 0,
@@ -497,23 +587,31 @@ export class ProviderManager {
           });
         }
 
-        log.warn(`ProviderManager provider ${selection.providerId} failed`, { providerId: selection.providerId, attempt, error: lastError.message });
+        log.warn(`ProviderManager provider ${selectedProviderId} failed`, {
+          providerId: selectedProviderId,
+          attempt: attemptNumber,
+          error: lastError.message,
+          category: terminalCategory,
+        });
       }
     }
 
     return {
       success: false,
-      error: lastError || new Error('All providers failed'),
+      error: lastError || new Error('No eligible providers available for execution'),
       context: {
         providerId: '',
         modelId: options.modelId,
         apiKey: '',
-        attempt,
+        attempt: attemptNumber,
         startTime: Date.now(),
       },
       latencyMs: 0,
       providerId: '',
       modelId: options.modelId,
+      attempts,
+      fallbackUsed: attempts.length > 1,
+      terminalCategory: terminalCategory || 'configuration',
     };
   }
 
@@ -526,6 +624,7 @@ export class ProviderManager {
     success: boolean,
     errorMessage?: string
   ): void {
+    if (!apiKey) return;
     const credentials = this.providers.get(providerId);
     if (!credentials) return;
 
@@ -539,6 +638,40 @@ export class ProviderManager {
       [apiKey]: newStats,
     };
     this.providers.set(providerId, credentials);
+  }
+
+  private getOrderedFallbackProviders(options: RequestOptions): string[] {
+    const ordered: string[] = [];
+    const pushUnique = (providerId?: string) => {
+      if (!providerId) return;
+      if (!ordered.includes(providerId)) ordered.push(providerId);
+    };
+
+    pushUnique(options.preferredProvider);
+    options.fallbackProviderOrder?.forEach((providerId) => pushUnique(providerId));
+
+    if (ordered.length === 0) {
+      this.getEnabledProviders().forEach((providerId) => pushUnique(providerId));
+    }
+    return ordered;
+  }
+
+  private categorizeFailure(message?: string): RuntimeFailureCategory {
+    const text = (message || '').toLowerCase();
+    if (text.includes('timeout')) return 'timeout';
+    if (text.includes('rate limited') || text.includes('429')) return 'rate_limit';
+    if (text.includes('quota')) return 'quota';
+    if (
+      text.includes('api key') ||
+      text.includes('credential') ||
+      text.includes('base url') ||
+      text.includes('disabled') ||
+      text.includes('eligible')
+    ) {
+      return 'configuration';
+    }
+    if (text.includes('unavailable') || text.includes('circuit breaker')) return 'availability';
+    return 'execution';
   }
 
   /**

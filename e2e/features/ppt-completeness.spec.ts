@@ -119,6 +119,37 @@ test.describe('PPT completeness scenarios', () => {
     await expect(submitButton).toBeEnabled();
   });
 
+  test('import extraction failure shows actionable feedback and recovers without reload', async ({ page }) => {
+    await page.goto('/ppt', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await waitForAppReady(page);
+    await dismissStartupOverlays(page);
+    await expect(page.getByTestId(PPT_TEST_IDS.page.newPresentationButton)).toBeVisible({ timeout: 15000 });
+    await page.getByTestId(PPT_TEST_IDS.page.newPresentationButton).click({ force: true });
+
+    const submitButton = page.getByTestId(PPT_TEST_IDS.creation.submitButton);
+    await page.getByTestId('ppt-form-topic').fill('Imported deck');
+    await page.getByTestId('ppt-mode-import').click();
+    await page
+      .locator('input[type="file"][accept=".pdf,.txt,.md,.docx"]')
+      .setInputFiles({
+        name: 'blocked.pdf',
+        mimeType: 'application/pdf',
+        buffer: Buffer.from('%PDF-1.4 simulated'),
+      });
+
+    await submitButton.click();
+    await expect(page.getByTestId(PPT_TEST_IDS.creation.materialFeedback)).toBeVisible();
+    await expect(page.getByText(/convert the document to TXT\/MD or paste key sections directly/i)).toBeVisible();
+
+    await page.getByTestId('ppt-mode-paste').click();
+    await page
+      .getByTestId('ppt-paste-text')
+      .fill('This is sufficiently long pasted content to pass the creation validation checks.');
+
+    await expect(page.getByTestId(PPT_TEST_IDS.creation.materialFeedback)).toHaveCount(0);
+    await expect(submitButton).toBeEnabled();
+  });
+
   test('seeded presentation supports open, present, and export menu flow', async ({ page }, testInfo) => {
     const pageErrors: string[] = [];
     const consoleErrors: string[] = [];

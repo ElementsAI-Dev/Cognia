@@ -46,6 +46,12 @@ interface ExportData {
   customProviders?: Record<string, unknown>;
 }
 
+interface ImportValidationResult {
+  valid: boolean;
+  error?: string;
+  data?: ExportData;
+}
+
 type ExportFormat = 'json' | 'env';
 
 // Import conflict types
@@ -60,6 +66,91 @@ interface ImportConflict {
 
 type ImportResolution = 'skip' | 'overwrite' | 'merge';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function validateImportData(raw: unknown): ImportValidationResult {
+  if (!isRecord(raw)) {
+    return { valid: false, error: 'Invalid import payload. Expected a JSON object.' };
+  }
+
+  const version = raw.version;
+  if (typeof version !== 'number' || !Number.isFinite(version)) {
+    return { valid: false, error: 'Invalid import payload. Missing numeric version.' };
+  }
+
+  const exportedAt = raw.exportedAt;
+  if (typeof exportedAt !== 'string' || exportedAt.trim().length === 0) {
+    return { valid: false, error: 'Invalid import payload. Missing exportedAt timestamp.' };
+  }
+
+  const providerSettingsRaw = raw.providerSettings;
+  const customProvidersRaw = raw.customProviders;
+
+  if (!isRecord(providerSettingsRaw) && !isRecord(customProvidersRaw)) {
+    return {
+      valid: false,
+      error: 'Invalid import payload. At least one of providerSettings/customProviders is required.',
+    };
+  }
+
+  const providerSettings: Record<string, unknown> = {};
+  const customProviders: Record<string, unknown> = {};
+
+  if (isRecord(providerSettingsRaw)) {
+    for (const [providerId, value] of Object.entries(providerSettingsRaw)) {
+      if (!isRecord(value)) {
+        return { valid: false, error: `Invalid settings for provider "${providerId}".` };
+      }
+      if (typeof value.baseURL === 'string' && value.baseURL.trim().length > 0) {
+        try {
+          const parsed = new URL(value.baseURL);
+          if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+            return { valid: false, error: `Invalid baseURL protocol for provider "${providerId}".` };
+          }
+        } catch {
+          return { valid: false, error: `Invalid baseURL for provider "${providerId}".` };
+        }
+      }
+      providerSettings[providerId] = value;
+    }
+  }
+
+  if (isRecord(customProvidersRaw)) {
+    for (const [providerId, value] of Object.entries(customProvidersRaw)) {
+      if (!isRecord(value)) {
+        return { valid: false, error: `Invalid custom provider payload for "${providerId}".` };
+      }
+      if (typeof value.customName !== 'string' || value.customName.trim().length === 0) {
+        return { valid: false, error: `Custom provider "${providerId}" is missing customName.` };
+      }
+      if (typeof value.baseURL !== 'string' || value.baseURL.trim().length === 0) {
+        return { valid: false, error: `Custom provider "${providerId}" is missing baseURL.` };
+      }
+      try {
+        const parsed = new URL(value.baseURL);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          return { valid: false, error: `Invalid baseURL protocol for custom provider "${providerId}".` };
+        }
+      } catch {
+        return { valid: false, error: `Invalid baseURL for custom provider "${providerId}".` };
+      }
+      customProviders[providerId] = value;
+    }
+  }
+
+  return {
+    valid: true,
+    data: {
+      version,
+      exportedAt,
+      providerSettings,
+      customProviders,
+    },
+  };
+}
+
 export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
   const t = useTranslations('providers');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -72,6 +163,9 @@ export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
   );
   const addCustomProvider = useSettingsStore(
     (state) => state.addCustomProvider
+  );
+  const updateCustomProvider = useSettingsStore(
+    (state) => state.updateCustomProvider
   );
 
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -271,10 +365,12 @@ export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const data = JSON.parse(e.target?.result as string) as ExportData;
-        if (!data.version || !data.providerSettings) {
-          throw new Error('Invalid export file format');
+        const parsed = JSON.parse(e.target?.result as string) as unknown;
+        const validation = validateImportData(parsed);
+        if (!validation.valid || !validation.data) {
+          throw new Error(validation.error || 'Invalid export file format');
         }
+        const data = validation.data;
         
         // Detect conflicts
         const conflicts = detectImportConflicts(data);
@@ -285,9 +381,11 @@ export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
         
         setImportData(data);
         setImportDialogOpen(true);
-      } catch {
+      } catch (error) {
         setImportError(
-          'Invalid file format. Please select a valid export file.'
+          error instanceof Error
+            ? error.message
+            : 'Invalid file format. Please select a valid export file.'
         );
         setImportDialogOpen(true);
       }
@@ -346,14 +444,22 @@ export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
   
   const handleImport = () => {
     if (!importData) return;
-    
+
     // Build set of conflicting IDs to check resolution strategy
     const conflictIds = new Set(importConflicts.map(c => c.id));
     
     try {
+      const validation = validateImportData(importData);
+      if (!validation.valid || !validation.data) {
+        setImportError(validation.error || 'Failed to validate import payload.');
+        return;
+      }
+
+      const safeData = validation.data;
+
       // Import provider settings based on resolution strategy
-      if (importData.providerSettings) {
-        Object.entries(importData.providerSettings).forEach(([id, settings]) => {
+      if (safeData.providerSettings) {
+        Object.entries(safeData.providerSettings).forEach(([id, settings]) => {
           const hasConflict = conflictIds.has(id);
           
           // Skip if conflict and resolution is 'skip'
@@ -379,8 +485,8 @@ export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
       }
       
       // Import custom providers based on resolution strategy
-      if (importData.customProviders) {
-        Object.entries(importData.customProviders).forEach(([id, provider]) => {
+      if (safeData.customProviders) {
+        Object.entries(safeData.customProviders).forEach(([id, provider]) => {
           const hasConflict = conflictIds.has(id);
           
           // Skip if conflict and resolution is 'skip'
@@ -389,31 +495,51 @@ export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
           }
           
           const providerData = provider as Record<string, unknown>;
+          const normalized = {
+            customName: String(providerData.customName || id),
+            baseURL: String(providerData.baseURL || ''),
+            apiKey: String(providerData.apiKey || ''),
+            customModels: Array.isArray(providerData.customModels)
+              ? providerData.customModels.filter((m): m is string => typeof m === 'string')
+              : [],
+            defaultModel: String(providerData.defaultModel || ''),
+            apiProtocol: ((providerData.apiProtocol as 'openai' | 'anthropic' | 'gemini') || 'openai'),
+            enabled: providerData.enabled !== false,
+          };
           
-          // For custom providers, merge keeps existing API key
+          // For existing providers, use update to avoid accidental duplication.
           if (hasConflict && importResolution === 'merge') {
             const currentProvider = customProviders[id];
-            addCustomProvider({
-              providerId: providerData.providerId as string,
-              customName: providerData.customName as string,
-              baseURL: providerData.baseURL as string,
-              apiKey: currentProvider?.apiKey || providerData.apiKey as string || '',
-              customModels: providerData.customModels as string[] || [],
-              defaultModel: providerData.defaultModel as string,
-              apiProtocol: (providerData.apiProtocol as 'openai' | 'anthropic' | 'gemini') || 'openai',
-              enabled: providerData.enabled as boolean,
+            updateCustomProvider(id, {
+              customName: normalized.customName,
+              baseURL: normalized.baseURL,
+              apiKey: currentProvider?.apiKey || normalized.apiKey,
+              customModels: normalized.customModels,
+              defaultModel: normalized.defaultModel,
+              apiProtocol: normalized.apiProtocol,
+              enabled: normalized.enabled,
+            });
+          } else if (hasConflict) {
+            updateCustomProvider(id, {
+              customName: normalized.customName,
+              baseURL: normalized.baseURL,
+              apiKey: normalized.apiKey,
+              customModels: normalized.customModels,
+              defaultModel: normalized.defaultModel,
+              apiProtocol: normalized.apiProtocol,
+              enabled: normalized.enabled,
             });
           } else {
-            // Overwrite or no conflict
+            // New custom provider path
             addCustomProvider({
-              providerId: providerData.providerId as string,
-              customName: providerData.customName as string,
-              baseURL: providerData.baseURL as string,
-              apiKey: providerData.apiKey as string || '',
-              customModels: providerData.customModels as string[] || [],
-              defaultModel: providerData.defaultModel as string,
-              apiProtocol: (providerData.apiProtocol as 'openai' | 'anthropic' | 'gemini') || 'openai',
-              enabled: providerData.enabled as boolean,
+              providerId: id,
+              customName: normalized.customName,
+              baseURL: normalized.baseURL,
+              apiKey: normalized.apiKey,
+              customModels: normalized.customModels,
+              defaultModel: normalized.defaultModel,
+              apiProtocol: normalized.apiProtocol,
+              enabled: normalized.enabled,
             });
           }
         });

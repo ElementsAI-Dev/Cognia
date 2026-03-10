@@ -61,6 +61,7 @@ import { workflowRepository } from '@/lib/db/repositories';
 import { toast } from 'sonner';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 import type { WorkflowExecutionHistoryRecord } from '@/types/workflow/workflow-editor';
+import { mapAnyToWorkflowExecutionStatus } from '@/lib/workflow-editor';
 
 interface WorkflowExecutionHistoryPanelProps {
   className?: string;
@@ -183,14 +184,18 @@ export function WorkflowExecutionHistoryPanel({
 
   // Get status icon
   const getStatusIcon = (status: string) => {
-    switch (status) {
+    const normalized = mapAnyToWorkflowExecutionStatus(
+      status as Parameters<typeof mapAnyToWorkflowExecutionStatus>[0]
+    );
+
+    switch (normalized) {
       case 'completed':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       case 'failed':
         return <XCircle className="h-4 w-4 text-red-500" />;
-      case 'running':
+      case 'executing':
         return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
-      case 'pending':
+      case 'planning':
         return <Clock className="h-4 w-4 text-yellow-500" />;
       case 'paused':
         return <Clock className="h-4 w-4 text-orange-500" />;
@@ -205,14 +210,18 @@ export function WorkflowExecutionHistoryPanel({
 
   // Get status badge variant
   const getStatusVariant = (status: string) => {
-    switch (status) {
+    const normalized = mapAnyToWorkflowExecutionStatus(
+      status as Parameters<typeof mapAnyToWorkflowExecutionStatus>[0]
+    );
+
+    switch (normalized) {
       case 'completed':
         return 'default';
       case 'failed':
         return 'destructive';
-      case 'running':
+      case 'executing':
         return 'secondary';
-      case 'pending':
+      case 'planning':
       case 'paused':
         return 'secondary';
       case 'cancelled':
@@ -376,6 +385,10 @@ function ExecutionItem({
   getStatusVariant,
   t,
 }: ExecutionItemProps) {
+  const normalizedStatus = mapAnyToWorkflowExecutionStatus(
+    execution.status as Parameters<typeof mapAnyToWorkflowExecutionStatus>[0]
+  );
+
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
       <div
@@ -394,7 +407,7 @@ function ExecutionItem({
                   {new Date(execution.startedAt).toLocaleTimeString()}
                 </span>
                 <Badge variant={getStatusVariant(execution.status)} className="text-xs">
-                  {execution.status}
+                  {normalizedStatus}
                 </Badge>
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
