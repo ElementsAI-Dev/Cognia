@@ -2,6 +2,9 @@
 
 This guide covers building the Cognia application for development, production, desktop distribution, and Android packaging.
 
+- Verified against: `package.json`, `next.config.ts`, `src-tauri/tauri.conf.json`
+- Source-of-truth baseline: `docs/reference/documentation-source-of-truth.md`
+
 ## Table of Contents
 
 - [Development Build](#development-build)
@@ -34,9 +37,6 @@ pnpm dev -- -p 3000
 
 # Start with Turbopack (faster refresh)
 pnpm dev -- --turbo
-
-# Start with experimental features
-pnpm dev --experimental-app
 ```
 
 ### Development Build with Tauri
@@ -70,15 +70,14 @@ pnpm test
 ### Web Application Build
 
 ```bash
-# Build static export
+# Build Next.js production output (.next)
 pnpm build
 
-# Output directory: out/
-# Contains: HTML, CSS, JS, fonts, images
-# Optimized for: Static hosting, CDN deployment
+# Build static export output (out/)
+pnpm build:export
 ```
 
-### Build Output
+### Build Output (Static Export)
 
 ```
 out/
@@ -151,8 +150,8 @@ npx http-server out -p 8000
 ### Production Build Analysis
 
 ```bash
-# Build with bundle analyzer
-pnpm build --analyze
+# Build first
+pnpm build:export
 
 # Check output size
 du -sh out/
@@ -224,7 +223,7 @@ src-tauri/target/release/bundle/
   "build": {
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000",
-    "beforeDevCommand": "cross-env TAURI=true pnpm dev -p 3000",
+    "beforeDevCommand": "npx ts-node scripts/tauri-dev-wrapper.ts",
     "beforeBuildCommand": "pnpm build"
   },
 
@@ -552,7 +551,7 @@ const HeavyPage = dynamic(() => import('./heavy-page'));
 
 ```bash
 # Analyze bundle size
-pnpm build --analyze
+pnpm build:export
 
 # Check for large dependencies
 pnpm ls --depth=0 | grep -E '[0-9]+\.[0-9]+\sGB'
@@ -815,4 +814,4 @@ jobs:
 
 ---
 
-**Last Updated**: December 25, 2025
+**Last Updated**: March 10, 2026

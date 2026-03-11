@@ -2,6 +2,9 @@
 
 This document covers the testing strategy, tools, and best practices for the Cognia project.
 
+- Verified against: `package.json`, `jest.config.ts`, `playwright.config.ts`
+- Source-of-truth baseline: `docs/reference/documentation-source-of-truth.md`
+
 ## Table of Contents
 
 - [Testing Overview](#testing-overview)
@@ -807,4 +810,4 @@ export const getHighlighter = jest.fn(async () => ({
 
 ---
 
-**Last Updated**: December 25, 2025
+**Last Updated**: March 10, 2026

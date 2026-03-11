@@ -115,7 +115,7 @@ Cognia is a comprehensive AI-native chat and creation platform supporting **14 A
 | | Dexie | IndexedDB wrapper |
 | | localStorage | Persistence |
 | **AI Integration** | Vercel AI SDK v5 | LLM integration |
-| | 7 Providers | Multi-model support |
+| | 14 Providers | Multi-model support |
 | **Desktop** | Tauri 2.9 | Cross-platform apps |
 | | Rust | Native backend |
 | **Visualization** | Recharts | Data charts |
@@ -128,6 +128,10 @@ Cognia is a comprehensive AI-native chat and creation platform supporting **14 A
 ## Documentation
 
 Comprehensive documentation is available in the `docs/` directory:
+
+### Documentation Source of Truth
+
+- **[Documentation Source of Truth](docs/reference/documentation-source-of-truth.md)** - Canonical command, coverage, and subsystem-to-doc mapping verified against implementation files (`package.json`, `jest.config.ts`, `next.config.ts`, `src-tauri/tauri.conf.json`)
 
 ### API Documentation
 
@@ -178,12 +182,10 @@ Comprehensive documentation is available in the `docs/` directory:
 - **[Building](docs/development/building.md)** - Build and deployment procedures
 - **[Contributing](docs/development/contributing.md)** - Contribution guidelines
 
-### Legacy Documentation
+### Reference Documentation
 
-The `llmdoc/` directory contains additional feature documentation:
-
-- **[Documentation Index](llmdoc/index.md)** - Master documentation index
-- Feature docs for all major systems
+- **[Documentation Index](docs/index.md)** - Master documentation index
+- **[Documentation Source of Truth](docs/reference/documentation-source-of-truth.md)** - Implementation-verified command and workflow baseline
 
 ## Development Workflow
 
@@ -208,7 +210,7 @@ The `llmdoc/` directory contains additional feature documentation:
 
    ```bash
    pnpm lint
-   pnpm lint:fix
+   pnpm lint --fix
    ```
 
 5. Run tests
@@ -329,7 +331,8 @@ pnpm dev              # Start Next.js dev server (localhost:3000)
 pnpm tauri dev        # Start Tauri desktop dev mode
 
 # Build
-pnpm build            # Build production version (static export to out/)
+pnpm build            # Build Next.js production output (.next)
+pnpm build:export     # Build static export output (out/)
 pnpm start            # Start production server (after pnpm build)
 pnpm tauri build      # Build desktop application installer
 pnpm tauri:android:init  # Initialize Android project (one-time)
@@ -338,7 +341,7 @@ pnpm tauri:android:build # Build Android APK + AAB
 
 # Code Quality
 pnpm lint             # Run ESLint checks
-pnpm lint:fix         # Auto-fix ESLint issues
+pnpm lint --fix       # Auto-fix ESLint issues
 
 # Testing
 pnpm test             # Run Jest unit tests
@@ -887,11 +890,11 @@ Using Tailwind v4 with CSS variable theming:
 ### Web Application Build
 
 ```bash
-# Build static export
+# Build Next.js production output (.next)
 pnpm build
 
-# Output directory: out/
-# Optimized content: HTML, CSS, JS, fonts, images
+# Build static export (out/) for static hosting / Tauri frontendDist
+pnpm build:export
 
 # Preview production build
 pnpm start
@@ -936,7 +939,7 @@ Android output directories:
 
 ### Web Deployment
 
-The `out/` directory can be deployed to any static hosting service:
+Build static files first with `pnpm build:export`, then deploy the generated `out/` directory to any static hosting service:
 
 #### Vercel
 
@@ -998,9 +1001,10 @@ pnpm test:coverage
 
 Coverage requirements:
 
-- Statement coverage: 70%
-- Branch coverage: 60%
-- Function coverage: 60%
+- Statement coverage: 55%
+- Branch coverage: 50%
+- Function coverage: 40%
+- Line coverage: 55%
 
 ### End-to-End Testing (Playwright)
 
@@ -1029,7 +1033,7 @@ Test organization:
 pnpm lint
 
 # Auto-fix
-pnpm lint:fix
+pnpm lint --fix
 ```
 
 ## Troubleshooting
@@ -1118,8 +1122,9 @@ pnpm install
 
 ### Project Documentation
 
-- **[Documentation Index](docs/README.md)** - Main documentation portal
-- **[llmdoc/index.md](llmdoc/index.md)** - Legacy documentation index
+- **[Documentation Index](docs/index.md)** - Main documentation portal
+- **[Documentation Source of Truth](docs/reference/documentation-source-of-truth.md)** - Canonical implementation-aligned doc contract
+- **[Agent Orchestration Reference](docs/reference/agent-orchestration-dify.md)** - Current orchestration responsibilities and boundaries
 - **[CLAUDE.md](CLAUDE.md)** - Claude AI instructions
 - **[CHANGELOG.md](CHANGELOG.md)** - Changelog
 
@@ -1149,10 +1154,10 @@ chore: Build/tooling related
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
 
 ---
 
-**Last Updated**: January 12, 2026
+**Last Updated**: March 10, 2026
 
 **Maintainers**: Cognia Development Team

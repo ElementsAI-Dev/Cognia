@@ -15,7 +15,7 @@ Thank you for your interest in contributing to Cognia! This document provides gu
 
 ## Code of Conduct
 
-Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). We are committed to providing a welcoming and inclusive experience for everyone.
+Please follow respectful and inclusive collaboration practices in all repository interactions.
 
 ## Getting Started
 
@@ -86,6 +86,11 @@ pnpm tauri dev
    ```bash
    pnpm lint
    pnpm test
+   pnpm exec tsc --noEmit
+   ```
+
+   For UI-critical or workflow changes, also run:
+   ```bash
    pnpm test:e2e
    ```
 
@@ -149,9 +154,22 @@ refactor(stores): simplify state management logic
 
 - [ ] Code follows project style guidelines
 - [ ] Tests added/updated for changes
-- [ ] Documentation updated if needed
+- [ ] Documentation impact assessed (commands, testing contracts, architecture entry points, setup/build workflows)
+- [ ] Documentation updated when implementation-facing behavior changed
+- [ ] Evidence sources listed for high-impact doc updates (for example: `package.json`, `jest.config.ts`, `next.config.ts`, `src-tauri/tauri.conf.json`)
 - [ ] All CI checks pass
 - [ ] PR description is clear and complete
+
+### Documentation Impact Requirements
+
+If your change modifies implementation-facing behavior, you must do one of the following in the same PR:
+
+1. Update the affected docs and include evidence sources used for verification.
+2. State explicitly why no doc update is needed.
+
+Recommended reference baseline:
+
+- `docs/reference/documentation-source-of-truth.md`
 
 ## Style Guidelines
 

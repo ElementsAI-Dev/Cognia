@@ -178,7 +178,8 @@ pnpm dev              # 启动 Next.js 开发服务器
 pnpm tauri dev        # 启动 Tauri 桌面开发模式
 
 # 构建
-pnpm build            # 构建生产版本（静态导出到 out/）
+pnpm build            # 构建 Next.js 生产产物（.next）
+pnpm build:export     # 构建静态导出产物（out/）
 pnpm tauri build      # 构建桌面应用安装包
 pnpm tauri:android:init  # 初始化 Android 工程（一次性）
 pnpm tauri:android:dev   # Android 开发构建
@@ -452,7 +453,10 @@ React Flow 可视化工作流自动化：
 
 ```bash
 pnpm build
-# 输出目录：out/
+# 输出目录：.next/
+
+pnpm build:export
+# 静态导出目录：out/
 ```
 
 ### 桌面应用构建
@@ -488,7 +492,7 @@ Android 产物目录：
 
 ### Web 部署
 
-`out/` 目录可部署到任何静态托管服务：
+先执行 `pnpm build:export`，然后将生成的 `out/` 目录部署到任意静态托管服务：
 
 - Vercel
 - Netlify
@@ -511,7 +515,7 @@ pnpm test
 pnpm test:coverage
 ```
 
-覆盖率要求：语句 70%、分支 60%
+覆盖率要求（以 `jest.config.ts` 为准）：语句 55%、分支 50%、函数 40%、行 55%
 
 ### 端到端测试（Playwright）
 
@@ -568,7 +572,9 @@ Android 常见检查：
 
 ### 项目文档
 
-- **[文档索引](docs/README.md)** - 主要文档入口
+- **[文档索引](docs/index.md)** - 主要文档入口
+- **[文档实现真值源](docs/reference/documentation-source-of-truth.md)** - 与实现对齐的命令/覆盖率/文档映射基线
+- **[Agent 编排参考](docs/reference/agent-orchestration-dify.md)** - 当前编排职责与边界说明
 - **[CLAUDE.md](CLAUDE.md)** - Claude AI 指令
 - **[CHANGELOG.md](CHANGELOG.md)** - 变更日志
 
@@ -596,10 +602,10 @@ chore: 构建/工具相关
 
 ## 许可证
 
-本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
+本项目采用 MIT 许可证。
 
 ---
 
-**最后更新**：2026 年 1 月 12 日
+**最后更新**：2026 年 3 月 10 日
 
 **维护者**：Cognia 开发团队

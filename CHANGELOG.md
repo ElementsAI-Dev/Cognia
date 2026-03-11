@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- feat(workflow-editor): lifecycle state machine, validation focus, and safer mutation flows
+  - Added explicit editor lifecycle states (`clean`, `dirty`, `saving`, `saveFailed`, `publishBlocked`, `readyToPublish`)
+  - Centralized node/edge/parameter mutations through typed store mutation helpers with shared side effects
+  - Added layered client + server validation mapping with normalized blocking metadata
+  - Added toolbar issue-list focus navigation to node/edge targets and connected-edge highlighting
+  - Added unsaved-change navigation guard and feature-flag rollout control (`workflow.editor.v2`)
+  - Expanded unit/integration coverage and workflow editor E2E lifecycle scenarios
+
 - feat: Add AI Safety Mode with configurable security checks
   - Three safety modes: off, warn, block
   - Input safety checks for user messages and system prompts

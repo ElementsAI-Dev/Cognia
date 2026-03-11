@@ -1,258 +1,90 @@
 # Testing Guide
 
-This document provides information about the testing setup and how to run tests in this project.
+This guide defines the canonical test workflow for Cognia.
 
-## Testing Stack
+- Verified against: `package.json`, `jest.config.ts`, `playwright.config.ts`
+- Last verified: 2026-03-10
 
-- **Test Runner**: Jest 30.x
-- **Testing Library**: @testing-library/react 16.x
-- **Test Environment**: jsdom (simulates browser environment)
-- **Coverage Provider**: V8
-- **CI/CD**: GitHub Actions
+## 1. Test Stack
 
-## Running Tests
+- Unit/integration: Jest + React Testing Library
+- E2E: Playwright
+- Environment: jsdom (unit), real browser (E2E)
 
-### Run all tests
+## 2. Canonical Commands
 
 ```bash
+# Unit + integration
 pnpm test
-```
-
-### Run tests in watch mode
-
-```bash
 pnpm test:watch
-```
-
-### Run tests with coverage
-
-```bash
 pnpm test:coverage
+
+# End-to-end
+pnpm test:e2e
+pnpm test:e2e:ui
+pnpm test:e2e:headed
 ```
 
-### Run specific test file
+Optional direct invocations used in debugging workflows:
 
 ```bash
-pnpm test path/to/test-file.test.tsx
-```
-
-### Run tests matching a pattern
-
-```bash
+pnpm test path/to/file.test.tsx
 pnpm test --testNamePattern="Button"
+pnpm test:e2e e2e/features/chat.spec.ts
+pnpm test:e2e --grep "Chat Flow"
 ```
 
-## Test File Structure
+## 3. Coverage Contract
 
-Test files should be placed next to the files they test with the `.test.ts` or `.test.tsx` extension:
+Global thresholds are enforced in `jest.config.ts`:
 
-```
-components/
-  ui/
-    button.tsx
-    button.test.tsx  ← Test file
-app/
-  page.tsx
-  page.test.tsx      ← Test file
-lib/
-  utils.ts
-  utils.test.ts      ← Test file
-```
+- Statements: `55`
+- Branches: `50`
+- Functions: `40`
+- Lines: `55`
 
-## Writing Tests
+Coverage output (from `pnpm test:coverage`) is written to `coverage/`:
 
-### Component Test Example
+- HTML report: `coverage/lcov-report/index.html`
+- LCOV: `coverage/lcov.info`
+- JUnit XML: `coverage/junit.xml`
+- Clover XML: `coverage/clover.xml`
 
-```typescript
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { Button } from './button';
+## 4. Test File Placement
 
-describe('Button', () => {
-  it('renders a button with text', () => {
-    render(<Button>Click me</Button>);
-    expect(screen.getByRole('button', { name: /click me/i })).toBeInTheDocument();
-  });
+- Unit tests are co-located with source files as `*.test.ts` / `*.test.tsx`.
+- E2E specs live under `e2e/` grouped by feature.
 
-  it('handles click events', async () => {
-    const handleClick = jest.fn();
-    const user = userEvent.setup();
-    
-    render(<Button onClick={handleClick}>Click me</Button>);
-    await user.click(screen.getByRole('button'));
-    
-    expect(handleClick).toHaveBeenCalledTimes(1);
-  });
-});
-```
+## 5. Pre-PR Validation
 
-### Utility Function Test Example
-
-```typescript
-import { cn } from './utils';
-
-describe('cn utility function', () => {
-  it('merges class names correctly', () => {
-    const result = cn('class1', 'class2');
-    expect(result).toBe('class1 class2');
-  });
-});
-```
-
-## Coverage Reports
-
-After running `pnpm test:coverage`, coverage reports are generated in the `coverage/` directory:
-
-- **HTML Report**: `coverage/index.html` - Open in browser for interactive coverage report
-- **LCOV Report**: `coverage/lcov.info` - For CI/CD integration
-- **JUnit XML**: `coverage/junit.xml` - For CI/CD test result reporting
-- **Clover XML**: `coverage/clover.xml` - Alternative coverage format
-
-### Viewing Coverage Report
-
-Open the HTML coverage report in your browser:
+Run this baseline before requesting review:
 
 ```bash
-# Windows
-start coverage/index.html
-
-# macOS
-open coverage/index.html
-
-# Linux
-xdg-open coverage/index.html
+pnpm lint
+pnpm test
+pnpm exec tsc --noEmit
 ```
 
-## Jest Configuration
+For changes touching user-critical flows, also run:
 
-The Jest configuration is in `jest.config.ts` and includes:
-
-- **Test Environment**: jsdom for React component testing
-- **Setup File**: `jest.setup.ts` - Configures testing-library/jest-dom and mocks
-- **Module Name Mapper**: Handles path aliases (@/components, @/lib, etc.)
-- **Coverage Collection**: Configured to collect from app/, components/, and lib/ directories
-- **Reporters**: Default console reporter + JUnit XML reporter for CI
-
-## Mocked Modules
-
-The following Next.js modules are automatically mocked in `jest.setup.ts`:
-
-- `next/image` - Mocked to render as standard `<img>` tag
-- `next/navigation` - Mocked router hooks (useRouter, usePathname, useSearchParams)
-
-## CI/CD Integration
-
-Tests run automatically on:
-
-- Push to `main` or `develop` branches
-- Pull requests to `main` or `develop` branches
-
-The CI pipeline:
-
-1. Installs dependencies
-2. Runs linting (`pnpm lint`)
-3. Runs tests with coverage (`pnpm test:coverage`)
-4. Uploads coverage to Codecov (if configured)
-5. Uploads test results and coverage as artifacts
-6. Builds the Next.js application (`pnpm build`)
-
-### GitHub Actions Workflow
-
-The workflow is defined in `.github/workflows/ci.yml`.
-
-### Setting up Codecov (Optional)
-
-To enable Codecov integration:
-
-1. Sign up at [codecov.io](https://codecov.io)
-2. Add your repository
-3. Add `CODECOV_TOKEN` to your GitHub repository secrets
-4. Coverage will be automatically uploaded on each CI run
-
-## Best Practices
-
-### 1. Test Behavior, Not Implementation
-
-❌ Bad:
-
-```typescript
-expect(component.state.count).toBe(1);
+```bash
+pnpm test:e2e
 ```
 
-✅ Good:
+## 6. Practical Notes
 
-```typescript
-expect(screen.getByText('Count: 1')).toBeInTheDocument();
-```
+- Mock Tauri/external integrations via `__mocks__/` where possible.
+- Prefer behavior-focused assertions over implementation detail assertions.
+- Keep slow or flaky E2E scenarios isolated and retry-aware.
 
-### 2. Use Accessible Queries
+## 7. Troubleshooting
 
-Prefer queries that reflect how users interact with your app:
+### Coverage appears missing
 
-1. `getByRole` - Best for most elements
-2. `getByLabelText` - Good for form fields
-3. `getByPlaceholderText` - For inputs without labels
-4. `getByText` - For non-interactive elements
-5. `getByTestId` - Last resort
+- Confirm `collectCoverage` is enabled by `--coverage` (via `pnpm test:coverage`).
+- Confirm target files are not excluded by `coveragePathIgnorePatterns`.
 
-### 3. Use User Events
+### E2E fails to start the app
 
-Use `@testing-library/user-event` instead of `fireEvent`:
-
-❌ Bad:
-
-```typescript
-fireEvent.click(button);
-```
-
-✅ Good:
-
-```typescript
-const user = userEvent.setup();
-await user.click(button);
-```
-
-### 4. Clean Up After Tests
-
-Jest automatically cleans up after each test, but if you create side effects:
-
-```typescript
-afterEach(() => {
-  // Clean up
-  jest.clearAllMocks();
-});
-```
-
-### 5. Test Accessibility
-
-```typescript
-it('has accessible button', () => {
-  render(<Button>Click me</Button>);
-  const button = screen.getByRole('button', { name: /click me/i });
-  expect(button).toBeInTheDocument();
-});
-```
-
-## Troubleshooting
-
-### Tests are slow
-
-- Use `test.only()` to run a single test during development
-- Use `pnpm test:watch` to run only changed tests
-
-### Module not found errors
-
-- Check that path aliases in `jest.config.ts` match `tsconfig.json`
-- Ensure the module is properly mocked if it's a Next.js-specific module
-
-### Coverage not collected
-
-- Verify the file is in the `collectCoverageFrom` patterns in `jest.config.ts`
-- Check that the file isn't in `coveragePathIgnorePatterns`
-
-## Resources
-
-- [Jest Documentation](https://jestjs.io/)
-- [Testing Library Documentation](https://testing-library.com/docs/react-testing-library/intro/)
-- [Testing Library Cheatsheet](https://testing-library.com/docs/react-testing-library/cheatsheet)
-- [Common Testing Mistakes](https://kentcdodds.com/blog/common-mistakes-with-react-testing-library)
+- Ensure `pnpm dev` can start on `http://localhost:3000`.
+- Re-run with `pnpm test:e2e:ui` to inspect failures interactively.

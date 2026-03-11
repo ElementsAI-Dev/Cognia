@@ -2,6 +2,9 @@
 
 This guide will help you set up your development environment for the Cognia project, covering both web and desktop application development.
 
+- Verified against: `package.json`, `next.config.ts`, `src-tauri/tauri.conf.json`
+- Source-of-truth baseline: `docs/reference/documentation-source-of-truth.md`
+
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
@@ -303,7 +306,7 @@ pnpm tauri dev
 
 ```
 Finished dev [unoptimized + debuginfo] target(s) in X.XXs
-Running `BeforeDevCommand` (`pnpm dev -p 3000`)
+Running `BeforeDevCommand` (tauri dev wrapper script)
 Finished dev [unoptimized + debuginfo] target(s) in X.XXs
 ```
 
@@ -586,7 +589,7 @@ pnpm install
 
 ```bash
 # Auto-fix ESLint errors
-pnpm lint:fix
+pnpm lint --fix
 
 # If errors persist, check specific file
 pnpm lint path/to/file.tsx
@@ -646,7 +649,7 @@ After successful installation and verification:
 If you encounter issues not covered here:
 
 1. Check the [main README](../../README.md)
-2. Review [project documentation](../../llmdoc/index.md)
+2. Review [project documentation](../../docs/index.md)
 3. Search existing GitHub issues
 4. Create a new issue with:
    - Operating system and version
@@ -664,4 +667,4 @@ If you encounter issues not covered here:
 
 ---
 
-**Last Updated**: December 25, 2025
+**Last Updated**: March 10, 2026

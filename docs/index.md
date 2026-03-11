@@ -84,6 +84,8 @@ Welcome to the official documentation for Cognia — an AI-native chat and creat
 ### Reference
 
 - [AI API Comparison](reference/ai-api-comparison.md) — Provider API comparison guide
+- [Documentation Source of Truth](reference/documentation-source-of-truth.md) — Canonical command, coverage, and subsystem-to-doc mapping
+- [Agent Orchestration (Dify)](reference/agent-orchestration-dify.md) — Current orchestration responsibilities and boundaries
 
 ## Architecture at a Glance
 
@@ -94,7 +96,7 @@ Welcome to the official documentation for Cognia — an AI-native chat and creat
 | **State** | Zustand v5 with localStorage persistence |
 | **Database** | Dexie (IndexedDB) for messages and large data |
 | **AI** | Vercel AI SDK v5, 14+ providers |
-| **Build** | Static export (`output: "export"`) |
+| **Build** | Next.js build + optional static export (`pnpm build:export`) |
 
 ## Getting Started
 
