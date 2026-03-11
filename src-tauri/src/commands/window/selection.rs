@@ -6,7 +6,7 @@ use crate::selection::{
     Selection, SelectionConfig, SelectionHistoryEntry, SelectionHistoryStats, SelectionManager,
     SelectionPayload, SelectionStatus, SourceAppInfo,
 };
-use tauri::{Emitter, State};
+use tauri::State;
 
 /// Release all stuck modifier keys (Ctrl, Alt, Shift, Win)
 ///
@@ -222,44 +222,13 @@ pub async fn selection_get_detection_stats(
 #[tauri::command]
 pub async fn selection_trigger(
     manager: State<'_, SelectionManager>,
-    app_handle: tauri::AppHandle,
 ) -> Result<Option<SelectionPayload>, String> {
-    // Get selected text
-    let text = match manager.detector.get_selected_text()? {
-        Some(t) if !t.is_empty() => t,
-        _ => return Ok(None),
-    };
-
-    // Check text length limits
-    let config = manager.get_config();
-    if text.len() < config.min_text_length || text.len() > config.max_text_length {
-        return Ok(None);
-    }
-
-    // Get mouse position
-    let (x, y) = get_mouse_position();
-
-    // Create payload
-    let payload = SelectionPayload {
-        text: text.clone(),
-        x: x as i32,
-        y: y as i32,
-        timestamp: chrono::Utc::now().timestamp_millis(),
-    };
-
-    // Show toolbar
-    manager.toolbar_window.show(x as i32, y as i32, text)?;
-
-    // Emit event
-    app_handle
-        .emit("selection-detected", &payload)
-        .map_err(|e| format!("Failed to emit event: {}", e))?;
-
-    Ok(Some(payload))
+    manager.trigger()
 }
 
 /// Get current mouse position
 #[cfg(not(mobile))]
+#[allow(dead_code)]
 fn get_mouse_position() -> (f64, f64) {
     match mouse_position::mouse_position::Mouse::get_mouse_position() {
         mouse_position::mouse_position::Mouse::Position { x, y } => (x as f64, y as f64),
@@ -268,6 +237,7 @@ fn get_mouse_position() -> (f64, f64) {
 }
 
 #[cfg(mobile)]
+#[allow(dead_code)]
 fn get_mouse_position() -> (f64, f64) {
     (0.0, 0.0)
 }
@@ -528,10 +498,16 @@ mod tests {
     #[test]
     fn test_selection_payload_struct() {
         let payload = SelectionPayload {
+            event_id: None,
             text: "Hello World".to_string(),
             x: 100,
             y: 200,
             timestamp: 1704067200000,
+            source_app: None,
+            source_process: None,
+            source_window_title: None,
+            text_type: None,
+            detection_mode: None,
         };
 
         assert_eq!(payload.text, "Hello World");
@@ -542,10 +518,16 @@ mod tests {
     #[test]
     fn test_selection_payload_serialization() {
         let payload = SelectionPayload {
+            event_id: None,
             text: "Test".to_string(),
             x: 50,
             y: 75,
             timestamp: 1704067200000,
+            source_app: None,
+            source_process: None,
+            source_window_title: None,
+            text_type: None,
+            detection_mode: None,
         };
 
         let serialized = serde_json::to_string(&payload).unwrap();

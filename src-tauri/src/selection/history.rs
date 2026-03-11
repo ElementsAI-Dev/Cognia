@@ -13,6 +13,8 @@ const MAX_HISTORY_SIZE: usize = 100;
 /// A single selection history entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SelectionHistoryEntry {
+    /// Correlation ID shared with emitted selection events
+    pub event_id: Option<String>,
     /// The selected text
     pub text: String,
     /// Timestamp of selection
@@ -42,6 +44,7 @@ pub struct SelectionHistoryEntry {
 impl SelectionHistoryEntry {
     pub fn new(text: String, x: i32, y: i32) -> Self {
         Self {
+            event_id: None,
             text,
             timestamp: chrono::Utc::now().timestamp_millis(),
             app_name: None,
@@ -55,6 +58,20 @@ impl SelectionHistoryEntry {
             text_type: None,
             language: None,
         }
+    }
+
+    pub fn with_event_id(mut self, event_id: Option<String>) -> Self {
+        self.event_id = event_id;
+        self
+    }
+
+    pub fn with_source_app(mut self, source_app: Option<&crate::selection::SourceAppInfo>) -> Self {
+        if let Some(app) = source_app {
+            self.app_name = Some(app.name.clone());
+            self.process_name = Some(app.process.clone());
+            self.window_title = Some(app.window_title.clone());
+        }
+        self
     }
 
     #[cfg(test)]

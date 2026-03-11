@@ -162,6 +162,11 @@ const defaultMockExecutions = [
     created_at: '2024-01-01T11:00:00Z',
     tags: [],
     is_favorite: true,
+    diagnostics: {
+      category: 'security_policy',
+      code: 'network_not_allowed',
+      remediation_hint: 'Disable network or switch policy.',
+    },
   },
 ];
 
@@ -307,6 +312,12 @@ describe('ExecutionHistory', () => {
   it('renders tags', () => {
     render(<ExecutionHistory />);
     expect(screen.getByText('test')).toBeInTheDocument();
+  });
+
+  it('renders structured diagnostics details', () => {
+    render(<ExecutionHistory />);
+    expect(screen.getByText(/security policy · network_not_allowed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Disable network or switch policy./i)).toBeInTheDocument();
   });
 
   it('renders language badges', () => {

@@ -30,9 +30,13 @@ export const createImportExportSlice: SliceCreator<ImportExportSliceActions> = (
       set({
         currentWorkflow: workflow,
         isDirty: false,
+        editorLifecycleState: 'clean',
+        lastSaveError: null,
+        lastMutation: null,
         selectedNodes: [],
         selectedEdges: [],
       });
+      get().clearValidationErrors();
 
       if (data.templates && data.templates.length > 0) {
         const { nodeTemplates } = get();
@@ -122,11 +126,15 @@ export const createImportExportSlice: SliceCreator<ImportExportSliceActions> = (
         set({
           currentWorkflow: workflow,
           isDirty: false,
+          editorLifecycleState: 'clean',
+          lastSaveError: null,
+          lastMutation: null,
           selectedNodes: [],
           selectedEdges: [],
           history: [workflow],
           historyIndex: 0,
         });
+        get().clearValidationErrors();
 
         if (
           parsed &&

@@ -42,6 +42,8 @@ export interface CustomEdgeData {
   priority?: number;
   isValid?: boolean;
   validationMessage?: string;
+  selectionState?: 'default' | 'connected';
+  isSelectedEdge?: boolean;
 }
 
 const EDGE_STYLES = {
@@ -65,6 +67,10 @@ const EDGE_STYLES = {
   selected: {
     stroke: 'hsl(var(--primary))',
     strokeWidth: 3,
+  },
+  connected: {
+    stroke: 'hsl(var(--primary) / 0.7)',
+    strokeWidth: 2.5,
   },
   invalid: {
     stroke: '#ef4444',
@@ -142,7 +148,8 @@ function CustomEdgeComponent({
   // Determine edge style
   const getEdgeStyle = () => {
     if (edgeData.isValid === false) return EDGE_STYLES.invalid;
-    if (selected) return EDGE_STYLES.selected;
+    if (selected || edgeData.isSelectedEdge) return EDGE_STYLES.selected;
+    if (edgeData.selectionState === 'connected') return EDGE_STYLES.connected;
     if (edgeData.edgeType && EDGE_STYLES[edgeData.edgeType]) {
       return EDGE_STYLES[edgeData.edgeType];
     }

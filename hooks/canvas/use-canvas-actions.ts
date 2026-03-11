@@ -17,6 +17,42 @@ import {
 } from '@/lib/ai/generation/canvas-actions';
 import type { ProviderName } from '@/lib/ai/core/client';
 
+type CanvasActionScope = 'selection' | 'document' | null;
+
+interface CanvasActionMockRequest {
+  actionType: CanvasActionType;
+  content: string;
+  language: string;
+  selection?: string;
+  targetLanguage?: string;
+}
+
+interface CanvasActionMockResponse {
+  result: string;
+}
+
+function getCanvasActionMockResult(
+  request: CanvasActionMockRequest
+): CanvasActionMockResponse | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const mockBridge = (
+    window as Window & {
+      __COGNIA_CANVAS_ACTION_TEST__?: {
+        getResult?: (req: CanvasActionMockRequest) => CanvasActionMockResponse | null;
+      };
+    }
+  ).__COGNIA_CANVAS_ACTION_TEST__;
+
+  try {
+    return mockBridge?.getResult?.(request) || null;
+  } catch {
+    return null;
+  }
+}
+
 export interface CanvasActionConfig {
   type: CanvasActionType;
   labelKey?: string;
@@ -39,6 +75,7 @@ export interface UseCanvasActionsReturn {
   isProcessing: boolean;
   isStreaming: boolean;
   streamingContent: string;
+  actionScope: CanvasActionScope;
   actionError: string | null;
   actionResult: string | null;
   diffPreview: DiffLine[] | null;
@@ -65,6 +102,7 @@ export function useCanvasActions(options: UseCanvasActionsOptions): UseCanvasAct
   const [actionResult, setActionResult] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
+  const [actionScope, setActionScope] = useState<CanvasActionScope>(null);
   const [diffPreview, setDiffPreview] = useState<DiffLine[] | null>(null);
   const [pendingContent, setPendingContent] = useState<string | null>(null);
 
@@ -89,16 +127,43 @@ export function useCanvasActions(options: UseCanvasActionsOptions): UseCanvasAct
       const model = session?.model || providerSettings[provider]?.defaultModel || 'gpt-4o-mini';
       const settings = providerSettings[provider];
 
+      const contentActions = ['fix', 'improve', 'simplify', 'expand', 'translate', 'format'];
+      const isContentAction = contentActions.includes(action.type);
+      const scope: CanvasActionScope = selection && selection.trim() ? 'selection' : 'document';
+      setActionScope(isContentAction ? scope : null);
+
+      if (isContentAction) {
+        const mockResult = getCanvasActionMockResult({
+          actionType: action.type as CanvasActionType,
+          content: contentRef.current,
+          language,
+          selection: selection || undefined,
+          targetLanguage: translateTargetLang,
+        });
+
+        if (mockResult) {
+          const newContent = applyCanvasActionResult(
+            contentRef.current,
+            mockResult.result,
+            selection || undefined
+          );
+          const diff = generateDiffPreview(contentRef.current, newContent);
+          setDiffPreview(diff);
+          setPendingContent(newContent);
+          setIsProcessing(false);
+          return;
+        }
+      }
+
       if (!settings?.apiKey && provider !== 'ollama') {
         setActionError(
           `No API key configured for ${provider}. Please add your API key in Settings.`
         );
+        setActionScope(null);
         setIsProcessing(false);
         return;
       }
 
-      const contentActions = ['fix', 'improve', 'simplify', 'expand', 'translate', 'format'];
-      const isContentAction = contentActions.includes(action.type);
       const actionConfig = {
         provider,
         model,
@@ -140,6 +205,7 @@ export function useCanvasActions(options: UseCanvasActionsOptions): UseCanvasAct
                 setIsStreaming(false);
                 setStreamingContent('');
                 setActionError(error);
+                setActionScope(null);
               },
             },
             actionOptions
@@ -174,6 +240,7 @@ export function useCanvasActions(options: UseCanvasActionsOptions): UseCanvasAct
         setActionError(err instanceof Error ? err.message : 'An error occurred');
         setIsStreaming(false);
         setStreamingContent('');
+        setActionScope(null);
       } finally {
         setIsProcessing(false);
       }
@@ -194,12 +261,14 @@ export function useCanvasActions(options: UseCanvasActionsOptions): UseCanvasAct
       onContentChange(pendingContent);
       setDiffPreview(null);
       setPendingContent(null);
+      setActionScope(null);
     }
   }, [pendingContent, onContentChange]);
 
   const rejectDiffChanges = useCallback(() => {
     setDiffPreview(null);
     setPendingContent(null);
+    setActionScope(null);
   }, []);
 
   // Listen for canvas-action custom events
@@ -219,6 +288,7 @@ export function useCanvasActions(options: UseCanvasActionsOptions): UseCanvasAct
     isProcessing,
     isStreaming,
     streamingContent,
+    actionScope,
     actionError,
     actionResult,
     diffPreview,

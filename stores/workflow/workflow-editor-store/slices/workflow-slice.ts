@@ -9,10 +9,45 @@ import { createEmptyVisualWorkflow } from '@/types/workflow/workflow-editor';
 import { workflowRepository } from '@/lib/db/repositories';
 import { workflowTriggerSyncService } from '@/lib/workflow-editor/trigger-sync-service';
 import { migrateWorkflowSchema } from '@/lib/workflow-editor/migration';
+import {
+  normalizeServerValidationErrors,
+  summarizeServerValidationErrors,
+} from '@/lib/workflow-editor/server-validation';
 import type { WorkflowTrigger } from '@/types/workflow/workflow-editor';
+import { deriveEditorLifecycleState } from '../utils/lifecycle';
 
 let metaHistoryTimer: ReturnType<typeof setTimeout> | undefined;
 const saveLocks = new Map<string, Promise<void>>();
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  const root = asRecord(error);
+  const message = root && typeof root.message === 'string' ? root.message : null;
+  if (message && message.trim().length > 0) {
+    return message;
+  }
+
+  const response = root ? asRecord(root.response) : null;
+  const responseData = response ? asRecord(response.data) : null;
+  const responseMessage =
+    responseData && typeof responseData.message === 'string' ? responseData.message : null;
+
+  if (responseMessage && responseMessage.trim().length > 0) {
+    return responseMessage;
+  }
+
+  return 'Unknown error';
+}
 
 function normalizeTriggerForCompare(trigger: WorkflowTrigger): Record<string, unknown> {
   return {
@@ -39,6 +74,9 @@ export const workflowSliceInitialState: WorkflowSliceState = {
   currentWorkflow: null,
   savedWorkflows: [],
   isDirty: false,
+  editorLifecycleState: 'clean',
+  lastSaveError: null,
+  lastMutation: null,
 };
 
 export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get) => {
@@ -65,6 +103,12 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
         history: [workflow],
         historyIndex: 0,
         isDirty: false,
+        editorLifecycleState: 'clean',
+        lastSaveError: null,
+        lastMutation: {
+          kind: 'workflow:create',
+          occurredAt: new Date(),
+        },
         validationErrors: [],
       });
     },
@@ -77,6 +121,12 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
         history: [workflow],
         historyIndex: 0,
         isDirty: false,
+        editorLifecycleState: 'clean',
+        lastSaveError: null,
+        lastMutation: {
+          kind: 'workflow:load',
+          occurredAt: new Date(),
+        },
         validationErrors: [],
         executionState: null,
         isExecuting: false,
@@ -98,6 +148,13 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
         history: [templateWorkflow],
         historyIndex: 0,
         isDirty: true,
+        editorLifecycleState: 'dirty',
+        lastSaveError: null,
+        lastMutation: {
+          kind: 'workflow:load',
+          occurredAt: new Date(),
+          metadata: { fromTemplate: true },
+        },
         validationErrors: [],
         executionState: null,
         isExecuting: false,
@@ -116,6 +173,11 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
 
       const savePromise = (async () => {
         try {
+          set({
+            editorLifecycleState: 'saving',
+            lastSaveError: null,
+          });
+
           const migrated = migrateWorkflowSchema(currentWorkflow).workflow;
           let saved = await workflowRepository.save({
             ...migrated,
@@ -172,7 +234,15 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
             currentWorkflow: shouldUpdateCurrentWorkflow ? saved : latestState.currentWorkflow,
             savedWorkflows: newSavedWorkflows,
             isDirty: false,
+            editorLifecycleState: 'clean',
+            lastSaveError: null,
+            lastMutation: {
+              kind: 'workflow:update-meta',
+              occurredAt: new Date(),
+              metadata: { save: true },
+            },
           });
+          get().clearServerValidationErrors();
 
           if (syncFailedMessage) {
             toast.warning('Workflow saved, but trigger sync failed', {
@@ -195,9 +265,22 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
 
           toast.success('Workflow saved successfully');
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
+          const message = getErrorMessage(error);
+          const serverValidationErrors = normalizeServerValidationErrors(error);
+          if (serverValidationErrors.length > 0) {
+            get().setServerValidationErrors(serverValidationErrors);
+          }
+
+          set({
+            editorLifecycleState: 'saveFailed',
+            lastSaveError: message,
+          });
+
           toast.error('Failed to save workflow', {
-            description: message,
+            description:
+              serverValidationErrors.length > 0
+                ? summarizeServerValidationErrors(serverValidationErrors)
+                : message,
             action: {
               label: 'Retry',
               onClick: () => get().saveWorkflow(),
@@ -233,6 +316,9 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
                   selectedNodes: [],
                   selectedEdges: [],
                   isDirty: false,
+                  editorLifecycleState: 'clean',
+                  lastSaveError: null,
+                  lastMutation: null,
                   validationErrors: [],
                 }
               : {}),
@@ -240,7 +326,7 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
 
           toast.success('Workflow deleted');
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
+          const message = getErrorMessage(error);
           toast.error('Failed to delete workflow', {
             description: message,
           });
@@ -259,7 +345,7 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
 
           toast.success('Workflow duplicated');
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
+          const message = getErrorMessage(error);
           toast.error('Failed to duplicate workflow', {
             description: message,
           });
@@ -277,7 +363,17 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
         updatedAt: new Date(),
       };
 
-      set({ currentWorkflow: updated, isDirty: true });
+      set({
+        currentWorkflow: updated,
+        isDirty: true,
+        editorLifecycleState: 'dirty',
+        lastSaveError: null,
+        lastMutation: {
+          kind: 'workflow:update-meta',
+          occurredAt: new Date(),
+        },
+      });
+      get().clearServerValidationErrors();
       scheduleMetaHistoryPush(updated.id);
     },
 
@@ -291,7 +387,17 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
         updatedAt: new Date(),
       };
 
-      set({ currentWorkflow: updated, isDirty: true });
+      set({
+        currentWorkflow: updated,
+        isDirty: true,
+        editorLifecycleState: 'dirty',
+        lastSaveError: null,
+        lastMutation: {
+          kind: 'workflow:update-settings',
+          occurredAt: new Date(),
+        },
+      });
+      get().clearServerValidationErrors();
     },
 
     updateWorkflowVariables: (variables) => {
@@ -304,7 +410,17 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
         updatedAt: new Date(),
       };
 
-      set({ currentWorkflow: updated, isDirty: true });
+      set({
+        currentWorkflow: updated,
+        isDirty: true,
+        editorLifecycleState: 'dirty',
+        lastSaveError: null,
+        lastMutation: {
+          kind: 'workflow:update-variables',
+          occurredAt: new Date(),
+        },
+      });
+      get().clearServerValidationErrors();
       scheduleMetaHistoryPush(updated.id);
     },
 
@@ -321,7 +437,18 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
         updatedAt: new Date(),
       };
 
-      set({ currentWorkflow: updated, isDirty: true });
+      set({
+        currentWorkflow: updated,
+        isDirty: true,
+        editorLifecycleState: 'dirty',
+        lastSaveError: null,
+        lastMutation: {
+          kind: 'workflow:set-variable',
+          occurredAt: new Date(),
+          metadata: { name },
+        },
+      });
+      get().clearServerValidationErrors();
       scheduleMetaHistoryPush(updated.id);
     },
 
@@ -336,7 +463,18 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
         updatedAt: new Date(),
       };
 
-      set({ currentWorkflow: updated, isDirty: true });
+      set({
+        currentWorkflow: updated,
+        isDirty: true,
+        editorLifecycleState: 'dirty',
+        lastSaveError: null,
+        lastMutation: {
+          kind: 'workflow:delete-variable',
+          occurredAt: new Date(),
+          metadata: { name },
+        },
+      });
+      get().clearServerValidationErrors();
       scheduleMetaHistoryPush(updated.id);
     },
 
@@ -345,7 +483,14 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
       if (!currentWorkflow) return;
 
       const errors = get().validate();
-      if (errors.some((e) => e.severity === 'error')) {
+      if (
+        errors.some(
+          (error) => error.blocking ?? (error.severity !== 'warning' && error.severity !== 'info')
+        )
+      ) {
+        set({
+          editorLifecycleState: 'publishBlocked',
+        });
         toast.error('Cannot publish: workflow has validation errors');
         return;
       }
@@ -358,7 +503,16 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
         updatedAt: new Date(),
       };
 
-      set({ currentWorkflow: updated, isDirty: true });
+      set({
+        currentWorkflow: updated,
+        isDirty: true,
+        editorLifecycleState: 'readyToPublish',
+        lastSaveError: null,
+        lastMutation: {
+          kind: 'workflow:publish',
+          occurredAt: new Date(),
+        },
+      });
       toast.success(`Workflow published (v${updated.publishedVersion})`);
     },
 
@@ -372,8 +526,34 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
         updatedAt: new Date(),
       };
 
-      set({ currentWorkflow: updated, isDirty: true });
+      set({
+        currentWorkflow: updated,
+        isDirty: true,
+        editorLifecycleState: 'dirty',
+        lastSaveError: null,
+        lastMutation: {
+          kind: 'workflow:unpublish',
+          occurredAt: new Date(),
+        },
+      });
       toast.info('Workflow unpublished');
+    },
+
+    syncLifecycleState: () => {
+      const state = get();
+      const next = deriveEditorLifecycleState({
+        hasWorkflow: Boolean(state.currentWorkflow),
+        isDirty: state.isDirty,
+        isSaving: state.editorLifecycleState === 'saving',
+        hasSaveError: Boolean(state.lastSaveError),
+        validationErrors: state.validationErrors,
+      });
+
+      if (state.editorLifecycleState !== next) {
+        set({
+          editorLifecycleState: next,
+        });
+      }
     },
   };
 };

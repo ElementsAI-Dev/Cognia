@@ -20,6 +20,7 @@ export interface UseCanvasAutoSaveReturn {
   hasUnsavedChanges: boolean;
   handleEditorChange: (value: string | undefined) => void;
   handleManualSave: () => void;
+  discardChanges: () => void;
   lastSavedContentRef: React.MutableRefObject<string>;
 }
 
@@ -30,42 +31,49 @@ export function useCanvasAutoSave({
   onContentUpdate,
   autoSaveDelay = 30000,
 }: UseCanvasAutoSaveOptions): UseCanvasAutoSaveReturn {
-  const [localContent, setLocalContent] = useState('');
+  const [localContent, setLocalContentState] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedContentRef = useRef<string>('');
 
-  // Sync local content when document changes
-  useEffect(() => {
-    // Clear pending auto-save from previous document to prevent stale saves
+  const clearAutoSaveTimer = useCallback(() => {
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
       autoSaveTimerRef.current = null;
     }
+  }, []);
+
+  const setLocalContent = useCallback((nextContent: string) => {
+    setLocalContentState(nextContent);
+    setHasUnsavedChanges(nextContent !== lastSavedContentRef.current);
+  }, []);
+
+  // Sync local content when document changes
+  useEffect(() => {
+    // Clear pending auto-save from previous document to prevent stale saves
+    clearAutoSaveTimer();
 
     if (content !== undefined) {
       // Use microtask to avoid synchronous setState in effect
       queueMicrotask(() => {
-        setLocalContent(content);
+        setLocalContentState(content);
         lastSavedContentRef.current = content;
         setHasUnsavedChanges(false);
       });
     }
-  }, [documentId, content]);
+  }, [documentId, content, clearAutoSaveTimer]);
 
   // Cleanup auto-save timer on unmount
   useEffect(() => {
     return () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-      }
+      clearAutoSaveTimer();
     };
-  }, []);
+  }, [clearAutoSaveTimer]);
 
   const handleEditorChange = useCallback(
     (value: string | undefined) => {
       const newValue = value || '';
-      setLocalContent(newValue);
+      setLocalContentState(newValue);
       if (documentId) {
         onContentUpdate(documentId, newValue);
       }
@@ -73,28 +81,40 @@ export function useCanvasAutoSave({
       setHasUnsavedChanges(newValue !== lastSavedContentRef.current);
 
       // Auto-save after delay of inactivity if there are changes
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-      }
+      clearAutoSaveTimer();
 
       if (newValue !== lastSavedContentRef.current && documentId) {
         autoSaveTimerRef.current = setTimeout(() => {
           onSave(documentId, undefined, true);
           lastSavedContentRef.current = newValue;
           setHasUnsavedChanges(false);
+          autoSaveTimerRef.current = null;
         }, autoSaveDelay);
       }
     },
-    [documentId, onContentUpdate, onSave, autoSaveDelay]
+    [documentId, onContentUpdate, onSave, autoSaveDelay, clearAutoSaveTimer]
   );
 
   const handleManualSave = useCallback(() => {
     if (documentId && hasUnsavedChanges) {
+      clearAutoSaveTimer();
       onSave(documentId, undefined, false);
       lastSavedContentRef.current = localContent;
       setHasUnsavedChanges(false);
     }
-  }, [documentId, hasUnsavedChanges, localContent, onSave]);
+  }, [documentId, hasUnsavedChanges, localContent, onSave, clearAutoSaveTimer]);
+
+  const discardChanges = useCallback(() => {
+    clearAutoSaveTimer();
+
+    const lastSaved = lastSavedContentRef.current;
+    setLocalContentState(lastSaved);
+    setHasUnsavedChanges(false);
+
+    if (documentId) {
+      onContentUpdate(documentId, lastSaved);
+    }
+  }, [documentId, onContentUpdate, clearAutoSaveTimer]);
 
   return {
     localContent,
@@ -102,6 +122,7 @@ export function useCanvasAutoSave({
     hasUnsavedChanges,
     handleEditorChange,
     handleManualSave,
+    discardChanges,
     lastSavedContentRef,
   };
 }

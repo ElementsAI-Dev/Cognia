@@ -5,6 +5,7 @@
 
 import { nanoid } from 'nanoid';
 import type { SliceCreator, SelectionSliceActions, SelectionSliceState, WorkflowNode, WorkflowEdge } from '../types';
+import { applyWorkflowMutation } from '../utils/mutation';
 
 export const selectionSliceInitialState: SelectionSliceState = {
   selectedNodes: [],
@@ -80,27 +81,52 @@ export const createSelectionSlice: SliceCreator<SelectionSliceActions> = (set, g
         data: { ...edge.data },
       }));
 
-      const updated = {
-        ...currentWorkflow,
-        nodes: [...currentWorkflow.nodes, ...newNodes],
-        edges: [...currentWorkflow.edges, ...newEdges],
-        updatedAt: new Date(),
-      };
-
-      set({
-        currentWorkflow: updated,
-        isDirty: true,
-        selectedNodes: newNodes.map((n) => n.id),
-        selectedEdges: newEdges.map((e) => e.id),
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'node:duplicate-many',
+        nodeIds: newNodes.map((node) => node.id),
+        edgeIds: newEdges.map((edge) => edge.id),
+        metadata: { source: 'clipboard:paste' },
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          nodes: [...workflow.nodes, ...newNodes],
+          edges: [...workflow.edges, ...newEdges],
+          updatedAt: new Date(),
+        }),
+        selectionPatch: {
+          selectedNodes: newNodes.map((node) => node.id),
+          selectedEdges: newEdges.map((edge) => edge.id),
+        },
+        pushHistory: true,
+        validate: true,
       });
-      get().pushHistory();
     },
 
     cutSelection: () => {
-      const { selectedNodes, selectedEdges } = get();
+      const { currentWorkflow, selectedNodes, selectedEdges } = get();
       get().copySelection();
-      get().deleteNodes(selectedNodes);
-      get().deleteEdges(selectedEdges);
+      if (selectedNodes.length === 0 && selectedEdges.length === 0) {
+        return;
+      }
+
+      let edgeIdsToDelete = selectedEdges;
+      if (selectedNodes.length > 0 && currentWorkflow && selectedEdges.length > 0) {
+        const selectedNodeIds = new Set(selectedNodes);
+        const edgeById = new Map(currentWorkflow.edges.map((edge) => [edge.id, edge]));
+        edgeIdsToDelete = selectedEdges.filter((edgeId) => {
+          const edge = edgeById.get(edgeId);
+          if (!edge) return true;
+          return !selectedNodeIds.has(edge.source) && !selectedNodeIds.has(edge.target);
+        });
+      }
+
+      if (selectedNodes.length > 0) {
+        get().deleteNodes(selectedNodes);
+      }
+      if (edgeIdsToDelete.length > 0) {
+        get().deleteEdges(edgeIdsToDelete);
+      }
     },
   };
 };

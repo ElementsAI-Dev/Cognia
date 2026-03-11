@@ -24,10 +24,15 @@ import { cn } from '@/lib/utils';
 import { useDesignerStore } from '@/stores/designer';
 import { useSettingsStore } from '@/stores';
 import { getInsertionPoint, findElementByPattern } from '@/lib/designer/elements';
+import {
+  isUnifiedDesignerSandboxRuntimeEnabled,
+  type SandboxRuntimeEvent,
+} from '@/lib/designer';
 import type { ViewportSize } from '@/types/designer';
 import { PreviewToolbar } from './preview-toolbar';
 import { PreviewConsole } from './preview-console';
 import { PreviewLoading } from './preview-loading';
+import { ReactSandbox } from '../editor/react-sandbox';
 
 interface DesignerPreviewProps {
   className?: string;
@@ -442,13 +447,16 @@ export function DesignerPreview({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
   const scrollPositionRef = useRef<{ scrollX: number; scrollY: number }>({ scrollX: 0, scrollY: 0 });
   const isFirstLoadRef = useRef(true);
+  const unifiedRuntimeEnabled = isUnifiedDesignerSandboxRuntimeEnabled();
 
   const storeCode = useDesignerStore((state) => state.code);
   // Use deferred value to reduce preview refresh frequency during rapid typing
   const code = useDeferredValue(storeCode);
   const mode = useDesignerStore((state) => state.mode);
+  const framework = useDesignerStore((state) => state.framework);
   const viewport = useDesignerStore((state) => state.viewport);
   const customViewport = useDesignerStore((state) => state.customViewport);
   const zoom = useDesignerStore((state) => state.zoom);
@@ -627,6 +635,13 @@ export function DesignerPreview({
 
   // Update iframe content when code changes using srcdoc for better performance
   useEffect(() => {
+    if (unifiedRuntimeEnabled) {
+      setIsLoading(true);
+      setError(null);
+      clearPreviewErrors();
+      return;
+    }
+
     if (!iframeRef.current) return;
 
     // Save scroll position before update
@@ -645,10 +660,19 @@ export function DesignerPreview({
         setIsLoading(false);
       }, 0);
     }
-  }, [code, isDarkMode, saveScrollPosition, clearPreviewErrors]);
+  }, [code, isDarkMode, saveScrollPosition, clearPreviewErrors, unifiedRuntimeEnabled]);
 
   // Refresh preview (full reload)
   const handleRefresh = useCallback(() => {
+    if (unifiedRuntimeEnabled) {
+      isFirstLoadRef.current = true;
+      scrollPositionRef.current = { scrollX: 0, scrollY: 0 };
+      setIsLoading(true);
+      setError(null);
+      setPreviewRefreshKey((prev) => prev + 1);
+      return;
+    }
+
     if (iframeRef.current) {
       isFirstLoadRef.current = true;
       scrollPositionRef.current = { scrollX: 0, scrollY: 0 };
@@ -657,16 +681,68 @@ export function DesignerPreview({
       const wrappedCode = wrapCodeForPreview(code, isDarkMode);
       iframeRef.current.srcdoc = wrappedCode;
     }
-  }, [code, isDarkMode]);
+  }, [code, isDarkMode, unifiedRuntimeEnabled]);
 
   // Open preview in new tab
   const handleOpenNewTab = useCallback(() => {
+    if (unifiedRuntimeEnabled) {
+      const iframe = iframeRef.current;
+      if (!iframe) return;
+
+      if (iframe.src && iframe.src !== 'about:blank') {
+        window.open(iframe.src, '_blank');
+        return;
+      }
+
+      if (iframe.srcdoc) {
+        const blob = new Blob([iframe.srcdoc], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      }
+      return;
+    }
+
     const wrappedCode = wrapCodeForPreview(code, isDarkMode);
     const blob = new Blob([wrappedCode], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 5000);
-  }, [code, isDarkMode]);
+  }, [code, isDarkMode, unifiedRuntimeEnabled]);
+
+  const handleRuntimeEvent = useCallback(
+    (event: SandboxRuntimeEvent) => {
+      if (event.type === 'status') {
+        if (event.status === 'loading' || event.status === 'idle') {
+          setIsLoading(true);
+          return;
+        }
+
+        if (event.status === 'ready') {
+          setIsLoading(false);
+          setError(null);
+          return;
+        }
+
+        if (event.status === 'error') {
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      if (event.type === 'ready') {
+        setIsLoading(false);
+        setError(null);
+        return;
+      }
+
+      if (event.type === 'compile-error') {
+        setError(event.message);
+        setIsLoading(false);
+      }
+    },
+    []
+  );
 
   return (
     <div className={cn('relative flex flex-col h-full min-h-0 bg-muted/30', className)}>
@@ -711,18 +787,36 @@ export function DesignerPreview({
             </div>
           )}
 
-          {/* Preview iframe */}
-          <iframe
-            ref={iframeRef}
-            title="Designer Preview"
-            className={cn(
-              'w-full h-full border-0',
-              mode === 'design' && 'pointer-events-auto',
-              mode === 'preview' && 'pointer-events-auto'
-            )}
-            sandbox="allow-scripts allow-same-origin"
-            style={viewport === 'full' && !customViewport ? viewportStyle : { width: '100%', height: '100%' }}
-          />
+          {/* Preview runtime / legacy iframe fallback */}
+          {unifiedRuntimeEnabled ? (
+            <ReactSandbox
+              key={`runtime-${previewRefreshKey}`}
+              code={code}
+              framework={framework}
+              showEditor={false}
+              showPreview
+              showFileExplorer={false}
+              showConsole={false}
+              enableRuntimeBridge
+              onRuntimeEvent={handleRuntimeEvent}
+              onPreviewIframeReady={(iframe) => {
+                iframeRef.current = iframe;
+              }}
+              className="h-full"
+            />
+          ) : (
+            <iframe
+              ref={iframeRef}
+              title="Designer Preview"
+              className={cn(
+                'w-full h-full border-0',
+                mode === 'design' && 'pointer-events-auto',
+                mode === 'preview' && 'pointer-events-auto'
+              )}
+              sandbox="allow-scripts allow-same-origin"
+              style={viewport === 'full' && !customViewport ? viewportStyle : { width: '100%', height: '100%' }}
+            />
+          )}
         </div>
       </div>
 

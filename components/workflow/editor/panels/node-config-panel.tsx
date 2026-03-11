@@ -89,6 +89,7 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
     currentWorkflow,
     updateNode,
     deleteNode,
+    validationErrors,
     activeConfigTab,
     setActiveConfigTab,
   } = useWorkflowEditorStore(
@@ -96,6 +97,7 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
       currentWorkflow: state.currentWorkflow,
       updateNode: state.updateNode,
       deleteNode: state.deleteNode,
+      validationErrors: state.validationErrors,
       activeConfigTab: state.activeConfigTab,
       setActiveConfigTab: state.setActiveConfigTab,
     }))
@@ -115,6 +117,45 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
     return validateNode(node.data.nodeType, node.data);
   }, [node, currentWorkflow]);
 
+  const nodeValidationIssues = useMemo(
+    () => validationErrors.filter((issue) => issue.nodeId === nodeId),
+    [validationErrors, nodeId]
+  );
+
+  const mergedValidation = useMemo(() => {
+    const localErrors = validation.errors.map((error) => ({
+      field: error.field,
+      message: error.message,
+    }));
+    const localWarnings = validation.warnings.map((warning) => ({
+      field: warning.field,
+      message: warning.message,
+    }));
+
+    const serverAndGlobalErrors = nodeValidationIssues
+      .filter((issue) => issue.blocking ?? (issue.severity !== 'warning' && issue.severity !== 'info'))
+      .map((issue) => ({
+        field: issue.field,
+        message: issue.message,
+      }));
+    const serverAndGlobalWarnings = nodeValidationIssues
+      .filter((issue) => !(issue.blocking ?? (issue.severity !== 'warning' && issue.severity !== 'info')))
+      .map((issue) => ({
+        field: issue.field,
+        message: issue.message,
+      }));
+
+    const dedupe = (items: Array<{ field?: string; message: string }>) =>
+      Array.from(
+        new Map(items.map((item) => [`${item.field || 'global'}:${item.message}`, item])).values()
+      );
+
+    return {
+      errors: dedupe([...localErrors, ...serverAndGlobalErrors]),
+      warnings: dedupe([...localWarnings, ...serverAndGlobalWarnings]),
+    };
+  }, [validation, nodeValidationIssues]);
+
   const handleUpdateData = useCallback(
     (updates: Partial<WorkflowNodeData>) => {
       if (nodeId) {
@@ -126,6 +167,10 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
 
   const handleDelete = useCallback(() => {
     if (nodeId) {
+      const confirmed = window.confirm('Delete this node and all connected edges?');
+      if (!confirmed) {
+        return;
+      }
       deleteNode(nodeId);
     }
   }, [nodeId, deleteNode]);
@@ -167,9 +212,9 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
       </div>
 
       {/* Validation Messages */}
-      {(validation.errors.length > 0 || validation.warnings.length > 0) && (
+      {(mergedValidation.errors.length > 0 || mergedValidation.warnings.length > 0) && (
         <div className="p-2 space-y-1 border-b shrink-0">
-          {validation.errors.map((error, i) => (
+          {mergedValidation.errors.map((error, i) => (
             <div
               key={`error-${i}`}
               className="flex items-start gap-2 text-xs text-destructive"
@@ -178,7 +223,7 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
               <span>{error.message}</span>
             </div>
           ))}
-          {validation.warnings.map((warning, i) => (
+          {mergedValidation.warnings.map((warning, i) => (
             <div
               key={`warning-${i}`}
               className="flex items-start gap-2 text-xs text-warning"
@@ -233,9 +278,14 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
                   className="h-8 text-sm"
                   placeholder="Enter node name"
                 />
-                {!data.label.trim() && (
-                  <p className="text-xs text-destructive">Node name is required</p>
-                )}
+                {mergedValidation.errors
+                  .filter((error) => error.field === 'label')
+                  .slice(0, 1)
+                  .map((error) => (
+                    <p key={error.message} className="text-xs text-destructive">
+                      {error.message}
+                    </p>
+                  ))}
               </div>
 
               <div className="space-y-1.5">

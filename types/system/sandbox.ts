@@ -8,14 +8,128 @@ export type RuntimeType = 'docker' | 'podman' | 'native';
 /** Language category */
 export type LanguageCategory = 'interpreted' | 'compiled' | 'jit' | 'shell';
 
-/** Execution status */
-export type ExecutionStatus =
+/** Legacy execution status from existing backend/frontend payloads */
+export type LegacyExecutionStatus =
   | 'pending'
   | 'running'
   | 'completed'
   | 'failed'
   | 'timeout'
   | 'cancelled';
+
+/** Canonical lifecycle state for sandbox execution */
+export type SandboxLifecycleStatus =
+  | 'queued'
+  | 'running'
+  | 'success'
+  | 'error'
+  | 'timeout'
+  | 'cancelled';
+
+/** Execution status (legacy + canonical compatibility) */
+export type ExecutionStatus = LegacyExecutionStatus | SandboxLifecycleStatus;
+
+/** Diagnostic category for structured execution and preflight errors */
+export type SandboxDiagnosticsCategory =
+  | 'validation'
+  | 'security_policy'
+  | 'runtime_unavailable'
+  | 'resource_limit'
+  | 'internal_failure';
+
+/** Structured diagnostics payload attached to execution outcomes */
+export interface SandboxExecutionDiagnostics {
+  /** Diagnostics category */
+  category: SandboxDiagnosticsCategory;
+  /** Machine-readable reason code */
+  code: string;
+  /** Human-readable summary */
+  message?: string;
+  /** Suggested remediation */
+  remediation_hint?: string;
+}
+
+/** Canonical policy profile */
+export interface SandboxPolicyProfile {
+  /** Profile identifier */
+  id: string;
+  /** Display name */
+  name: string;
+  /** Maximum timeout allowed by this profile */
+  max_timeout_secs: number;
+  /** Maximum memory allowed by this profile */
+  max_memory_limit_mb: number;
+  /** Whether network can be enabled under this profile */
+  allow_network: boolean;
+  /** Runtime allowlist for this profile */
+  allowed_runtimes: RuntimeType[];
+}
+
+/** Policy snapshot attached to an execution record/result */
+export interface SandboxPolicySnapshot {
+  /** Applied profile identifier */
+  profile: string;
+  /** Effective timeout applied to the execution */
+  timeout_secs: number;
+  /** Effective memory limit applied to the execution */
+  memory_limit_mb: number;
+  /** Effective network setting applied to the execution */
+  network_enabled: boolean;
+  /** Runtime requested by the caller (if any) */
+  requested_runtime: RuntimeType | null;
+  /** Runtime selected for execution (if resolved) */
+  selected_runtime: RuntimeType | null;
+}
+
+/** Preflight reason code */
+export type SandboxPreflightReasonCode =
+  | 'ok'
+  | 'runtime_unavailable'
+  | 'runtime_not_allowed'
+  | 'language_disabled'
+  | 'language_unavailable'
+  | 'timeout_out_of_bounds'
+  | 'memory_out_of_bounds'
+  | 'network_not_allowed'
+  | 'invalid_timeout'
+  | 'invalid_memory'
+  | 'unsupported_language'
+  | 'unknown';
+
+/** Preflight status */
+export type SandboxPreflightStatus = 'ready' | 'blocked';
+
+/** Preflight request */
+export interface SandboxPreflightRequest {
+  /** Programming language */
+  language: string;
+  /** Preferred runtime */
+  runtime?: RuntimeType;
+  /** Requested timeout in seconds */
+  timeout_secs?: number;
+  /** Requested memory limit in MB */
+  memory_limit_mb?: number;
+  /** Requested network access */
+  network_enabled?: boolean;
+  /** Requested policy profile */
+  policy_profile?: string;
+}
+
+/** Preflight response */
+export interface SandboxPreflightResult {
+  /** Readiness state */
+  status: SandboxPreflightStatus;
+  /** Reason code */
+  reason_code: SandboxPreflightReasonCode;
+  /** Human-readable reason */
+  message: string;
+  /** Suggested remediation */
+  remediation_hint?: string;
+  /** Selected runtime if ready */
+  selected_runtime: RuntimeType | null;
+  /** Effective profile identifier */
+  policy_profile: string;
+}
 
 /** Supported programming language */
 export interface Language {
@@ -51,6 +165,10 @@ export interface BackendSandboxConfig {
   workspace_dir: string | null;
   /** Enabled languages */
   enabled_languages: string[];
+  /** Policy profile selected in UI (optional for backward compatibility) */
+  active_policy_profile?: string;
+  /** Optional profile map for UI/runtime policy preview */
+  policy_profiles?: Record<string, SandboxPolicyProfile>;
 }
 
 /** C++ standard versions */
@@ -115,6 +233,8 @@ export interface ExecutionRequest {
   files?: Record<string, string>;
   /** Network access */
   network_enabled?: boolean;
+  /** Policy profile identifier */
+  policy_profile?: string;
   /** Compiler/interpreter settings */
   compiler_settings?: {
     /** C++ standard: "c++11" | "c++14" | "c++17" | "c++20" | "c++23" */
@@ -174,6 +294,12 @@ export interface SandboxExecutionResult {
   runtime: RuntimeType;
   /** Language used */
   language: string;
+  /** Canonical lifecycle status (derived from status when absent) */
+  lifecycle_status?: SandboxLifecycleStatus;
+  /** Structured diagnostics (if available) */
+  diagnostics?: SandboxExecutionDiagnostics | null;
+  /** Applied policy snapshot (if available) */
+  policy_snapshot?: SandboxPolicySnapshot | null;
 }
 
 /** Runtime status */
@@ -230,6 +356,33 @@ export const DEFAULT_SANDBOX_CONFIG: BackendSandboxConfig = {
     'csharp',
     'zig',
   ],
+  active_policy_profile: 'balanced',
+  policy_profiles: {
+    strict: {
+      id: 'strict',
+      name: 'Strict',
+      max_timeout_secs: 30,
+      max_memory_limit_mb: 256,
+      allow_network: false,
+      allowed_runtimes: ['docker', 'podman'],
+    },
+    balanced: {
+      id: 'balanced',
+      name: 'Balanced',
+      max_timeout_secs: 60,
+      max_memory_limit_mb: 512,
+      allow_network: false,
+      allowed_runtimes: ['docker', 'podman', 'native'],
+    },
+    permissive: {
+      id: 'permissive',
+      name: 'Permissive',
+      max_timeout_secs: 120,
+      max_memory_limit_mb: 1024,
+      allow_network: true,
+      allowed_runtimes: ['docker', 'podman', 'native'],
+    },
+  },
 };
 
 /** Language display information */
@@ -380,6 +533,12 @@ export interface SandboxExecutionRecord {
   memory_used_bytes: number | null;
   /** Error message */
   error: string | null;
+  /** Canonical lifecycle status (derived from status when absent) */
+  lifecycle_status?: SandboxLifecycleStatus;
+  /** Structured diagnostics (if available) */
+  diagnostics?: SandboxExecutionDiagnostics | null;
+  /** Applied policy snapshot (if available) */
+  policy_snapshot?: SandboxPolicySnapshot | null;
   /** Created timestamp (ISO 8601) */
   created_at: string;
   /** Tags */

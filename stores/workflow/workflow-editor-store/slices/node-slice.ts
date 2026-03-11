@@ -7,6 +7,7 @@ import { applyNodeChanges, type NodeChange } from '@xyflow/react';
 import { nanoid } from 'nanoid';
 import type { SliceCreator, NodeSliceActions, WorkflowNode, WorkflowNodeData } from '../types';
 import { scheduleWorkflowValidation } from '../utils/validation-scheduler';
+import { applyWorkflowMutation, confirmDestructiveAction } from '../utils/mutation';
 import { createDefaultNodeData } from '@/types/workflow/workflow-editor';
 
 let nodeHistoryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -27,9 +28,6 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
 
   return {
     addNode: (type, position) => {
-      const { currentWorkflow } = get();
-      if (!currentWorkflow) return '';
-
       const nodeId = `${type}-${nanoid(8)}`;
       const newNode: WorkflowNode = {
         id: nodeId,
@@ -38,33 +36,44 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
         data: createDefaultNodeData(type),
       };
 
-      const updated = {
-        ...currentWorkflow,
-        nodes: [...currentWorkflow.nodes, newNode],
-        updatedAt: new Date(),
-      };
-
-      set({ currentWorkflow: updated, isDirty: true, selectedNodes: [nodeId] });
-      get().pushHistory();
-      scheduleWorkflowValidation(get);
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'node:add',
+        nodeIds: [nodeId],
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          nodes: [...workflow.nodes, newNode],
+          updatedAt: new Date(),
+        }),
+        selectionPatch: {
+          selectedNodes: [nodeId],
+          selectedEdges: [],
+        },
+        pushHistory: true,
+        validate: true,
+      });
       return nodeId;
     },
 
     updateNode: (nodeId, data) => {
-      const { currentWorkflow } = get();
-      if (!currentWorkflow) return;
-
-      const updated = {
-        ...currentWorkflow,
-        nodes: currentWorkflow.nodes.map((node) =>
-          node.id === nodeId
-            ? { ...node, data: { ...node.data, ...data } as WorkflowNodeData }
-            : node
-        ),
-        updatedAt: new Date(),
-      };
-
-      set({ currentWorkflow: updated, isDirty: true });
+      const updated = applyWorkflowMutation({
+        set,
+        get,
+        kind: 'node:update',
+        nodeIds: [nodeId],
+        metadata: { fields: Object.keys(data) },
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          nodes: workflow.nodes.map((node) =>
+            node.id === nodeId
+              ? { ...node, data: { ...node.data, ...data } as WorkflowNodeData }
+              : node
+          ),
+          updatedAt: new Date(),
+        }),
+      });
+      if (!updated) return;
 
       const keys = Object.keys(data);
       const isHighFrequencyTextUpdate =
@@ -88,46 +97,60 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
     },
 
     deleteNode: (nodeId) => {
-      const { currentWorkflow } = get();
-      if (!currentWorkflow) return;
+      if (!confirmDestructiveAction('Delete this node and all connected edges?')) {
+        return;
+      }
 
-      const updated = {
-        ...currentWorkflow,
-        nodes: currentWorkflow.nodes.filter((n) => n.id !== nodeId),
-        edges: currentWorkflow.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
-        updatedAt: new Date(),
-      };
-
-      set({
-        currentWorkflow: updated,
-        isDirty: true,
-        selectedNodes: get().selectedNodes.filter((id) => id !== nodeId),
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'node:delete',
+        nodeIds: [nodeId],
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          nodes: workflow.nodes.filter((node) => node.id !== nodeId),
+          edges: workflow.edges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
+          updatedAt: new Date(),
+        }),
+        selectionPatch: {
+          selectedNodes: get().selectedNodes.filter((id) => id !== nodeId),
+        },
+        pushHistory: true,
+        validate: true,
       });
-      get().pushHistory();
-      scheduleWorkflowValidation(get);
     },
 
     deleteNodes: (nodeIds) => {
-      const { currentWorkflow } = get();
-      if (!currentWorkflow) return;
+      if (nodeIds.length === 0) return;
+
+      if (
+        !confirmDestructiveAction(
+          `Delete ${nodeIds.length} selected node(s) and their connected edges?`
+        )
+      ) {
+        return;
+      }
 
       const nodeIdSet = new Set(nodeIds);
-      const updated = {
-        ...currentWorkflow,
-        nodes: currentWorkflow.nodes.filter((n) => !nodeIdSet.has(n.id)),
-        edges: currentWorkflow.edges.filter(
-          (e) => !nodeIdSet.has(e.source) && !nodeIdSet.has(e.target)
-        ),
-        updatedAt: new Date(),
-      };
-
-      set({
-        currentWorkflow: updated,
-        isDirty: true,
-        selectedNodes: get().selectedNodes.filter((id) => !nodeIdSet.has(id)),
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'node:delete-many',
+        nodeIds,
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          nodes: workflow.nodes.filter((node) => !nodeIdSet.has(node.id)),
+          edges: workflow.edges.filter(
+            (edge) => !nodeIdSet.has(edge.source) && !nodeIdSet.has(edge.target)
+          ),
+          updatedAt: new Date(),
+        }),
+        selectionPatch: {
+          selectedNodes: get().selectedNodes.filter((id) => !nodeIdSet.has(id)),
+        },
+        pushHistory: true,
+        validate: true,
       });
-      get().pushHistory();
-      scheduleWorkflowValidation(get);
     },
 
     duplicateNode: (nodeId) => {
@@ -148,15 +171,23 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
         data: { ...node.data },
       };
 
-      const updated = {
-        ...currentWorkflow,
-        nodes: [...currentWorkflow.nodes, newNode],
-        updatedAt: new Date(),
-      };
-
-      set({ currentWorkflow: updated, isDirty: true, selectedNodes: [newNodeId] });
-      get().pushHistory();
-      scheduleWorkflowValidation(get);
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'node:duplicate',
+        nodeIds: [nodeId, newNodeId],
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          nodes: [...workflow.nodes, newNode],
+          updatedAt: new Date(),
+        }),
+        selectionPatch: {
+          selectedNodes: [newNodeId],
+          selectedEdges: [],
+        },
+        pushHistory: true,
+        validate: true,
+      });
       return newNodeId;
     },
 
@@ -196,20 +227,24 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
           data: { ...edge.data },
         }));
 
-      const updated = {
-        ...currentWorkflow,
-        nodes: [...currentWorkflow.nodes, ...newNodes],
-        edges: [...currentWorkflow.edges, ...newEdges],
-        updatedAt: new Date(),
-      };
-
-      set({
-        currentWorkflow: updated,
-        isDirty: true,
-        selectedNodes: newNodes.map((n) => n.id),
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'node:duplicate-many',
+        nodeIds: [...nodeIds, ...newNodes.map((node) => node.id)],
+        edgeIds: newEdges.map((edge) => edge.id),
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          nodes: [...workflow.nodes, ...newNodes],
+          edges: [...workflow.edges, ...newEdges],
+          updatedAt: new Date(),
+        }),
+        selectionPatch: {
+          selectedNodes: newNodes.map((node) => node.id),
+        },
+        pushHistory: true,
+        validate: true,
       });
-      get().pushHistory();
-      scheduleWorkflowValidation(get);
       return newNodes.map((n) => n.id);
     },
 
@@ -218,19 +253,24 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
       if (!currentWorkflow || nodeIds.length === 0) return;
 
       const nodeIdSet = new Set(nodeIds);
-      const updated = {
-        ...currentWorkflow,
-        nodes: currentWorkflow.nodes.map((node) =>
-          nodeIdSet.has(node.id)
-            ? { ...node, data: { ...node.data, ...data } as WorkflowNodeData }
-            : node
-        ),
-        updatedAt: new Date(),
-      };
-
-      set({ currentWorkflow: updated, isDirty: true });
-      get().pushHistory();
-      scheduleWorkflowValidation(get);
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'node:batch-update',
+        nodeIds,
+        metadata: { fields: Object.keys(data) },
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          nodes: workflow.nodes.map((node) =>
+            nodeIdSet.has(node.id)
+              ? { ...node, data: { ...node.data, ...data } as WorkflowNodeData }
+              : node
+          ),
+          updatedAt: new Date(),
+        }),
+        pushHistory: true,
+        validate: true,
+      });
     },
 
     onNodesChange: (changes: NodeChange<WorkflowNode>[]) => {
@@ -243,17 +283,24 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
         return;
       }
 
-      const updated = {
-        ...currentWorkflow,
-        nodes: applyNodeChanges(changes, currentWorkflow.nodes),
-        updatedAt: new Date(),
-      };
-
-      set({ currentWorkflow: updated, isDirty: true });
-
       const shouldValidate = changes.some(
-        (c) => c.type !== 'select' && c.type !== 'position' && c.type !== 'dimensions'
+        (change) => change.type !== 'select' && change.type !== 'position' && change.type !== 'dimensions'
       );
+
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'node:update',
+        nodeIds: changes.flatMap((change) => ('id' in change ? [change.id] : [])),
+        metadata: { source: 'reactflow:onNodesChange' },
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          nodes: applyNodeChanges(changes, workflow.nodes),
+          updatedAt: new Date(),
+        }),
+        clearServerErrors: shouldValidate,
+      });
+
       if (shouldValidate) {
         scheduleWorkflowValidation(get);
       }

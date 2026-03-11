@@ -5,17 +5,67 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ReactSandbox } from './react-sandbox';
 
+jest.mock('@/lib/designer', () => ({
+  buildFrameworkSandboxConfig: jest.fn(({ framework, code, enableBridge }: { framework: string; code?: string; enableBridge?: boolean }) => {
+    if (framework === 'vue') {
+      return {
+        adapter: { framework: 'vue' },
+        template: 'vue',
+        mainFile: '/src/App.vue',
+        files: {
+          '/src/App.vue': { code: code || '<template><div>Test</div></template>', active: true },
+        },
+        externalResources: [],
+      };
+    }
+
+    if (framework === 'html') {
+      return {
+        adapter: { framework: 'html' },
+        template: 'vanilla',
+        mainFile: '/index.html',
+        files: {
+          '/index.html': { code: code || '<html><body>Test</body></html>', active: true },
+        },
+        externalResources: [],
+      };
+    }
+
+    return {
+      adapter: { framework: 'react' },
+      template: 'react-ts',
+      mainFile: '/App.tsx',
+      files: {
+        '/App.tsx': { code: code || 'export default function App(){return <div>Test</div>}', active: true },
+        ...(enableBridge
+          ? { '/designer-bridge.ts': { code: 'export {}', hidden: true } }
+          : {}),
+      },
+      customSetup: {
+        dependencies: {
+          tailwindcss: 'latest',
+        },
+      },
+      externalResources: ['https://cdn.tailwindcss.com'],
+    };
+  }),
+  normalizeBridgeMessage: jest.fn(() => null),
+  normalizeSandpackStatus: jest.fn(() => 'ready'),
+}));
+
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
 // Mock designer store
 const mockSetCode = jest.fn();
+const mockAddPreviewError = jest.fn();
 jest.mock('@/stores/designer', () => ({
   useDesignerStore: (selector: (state: unknown) => unknown) => {
     const state = {
       code: 'export default function App() { return <div>Test</div>; }',
       setCode: mockSetCode,
+      addPreviewError: mockAddPreviewError,
     };
     return selector(state);
   },
@@ -114,6 +164,16 @@ describe('ReactSandbox', () => {
     const onAIEdit = jest.fn();
     render(<ReactSandbox onAIEdit={onAIEdit} />);
     expect(screen.getByTestId('sandpack-provider')).toBeInTheDocument();
+  });
+
+  it('emits normalized runtime events when callback is provided', () => {
+    const onRuntimeEvent = jest.fn();
+    render(<ReactSandbox onRuntimeEvent={onRuntimeEvent} />);
+    expect(onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'status',
+      })
+    );
   });
 
   describe('with all props', () => {

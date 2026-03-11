@@ -32,6 +32,7 @@ describe('useCanvasAutoSave', () => {
       const { result } = renderHook(() => useCanvasAutoSave(defaultOptions));
       expect(typeof result.current.handleEditorChange).toBe('function');
       expect(typeof result.current.handleManualSave).toBe('function');
+      expect(typeof result.current.discardChanges).toBe('function');
       expect(typeof result.current.setLocalContent).toBe('function');
     });
   });
@@ -196,6 +197,34 @@ describe('useCanvasAutoSave', () => {
       });
 
       expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('discardChanges', () => {
+    it('should restore last saved content and clear dirty state', async () => {
+      const onContentUpdate = jest.fn();
+      const { result } = renderHook(() =>
+        useCanvasAutoSave({ ...defaultOptions, onContentUpdate })
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        result.current.handleEditorChange('dirty content');
+      });
+
+      expect(result.current.hasUnsavedChanges).toBe(true);
+      expect(result.current.localContent).toBe('dirty content');
+
+      act(() => {
+        result.current.discardChanges();
+      });
+
+      expect(result.current.localContent).toBe('initial content');
+      expect(result.current.hasUnsavedChanges).toBe(false);
+      expect(onContentUpdate).toHaveBeenLastCalledWith('doc-1', 'initial content');
     });
   });
 });

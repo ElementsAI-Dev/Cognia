@@ -300,7 +300,7 @@ describe('SelectionToolbar', () => {
       expect(mockExecuteAction).toHaveBeenCalledWith('summarize');
     });
 
-    it('copies text when Copy is clicked', async () => {
+    it('executes copy action and hides toolbar when Copy is clicked', async () => {
       render(<SelectionToolbar />);
 
       const copyButton = screen.getByRole('button', { name: 'Copy' });
@@ -308,7 +308,7 @@ describe('SelectionToolbar', () => {
         fireEvent.click(copyButton);
       });
 
-      expect(mockWriteText).toHaveBeenCalledWith('Test selected text');
+      expect(mockExecuteAction).toHaveBeenCalledWith('copy');
       expect(mockHideToolbar).toHaveBeenCalled();
     });
 

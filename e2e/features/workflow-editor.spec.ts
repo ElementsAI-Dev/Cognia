@@ -10,6 +10,19 @@ async function openWorkflowEditor(page: Page) {
   await expect(page.getByTestId('workflow-page-run-button')).toBeVisible();
 }
 
+async function addNodeFromPalette(page: Page, nodeName: string) {
+  const nodeItem = page
+    .locator('div[draggable="true"]')
+    .filter({
+      has: page.getByText(nodeName, { exact: true }),
+    })
+    .first();
+
+  await nodeItem.scrollIntoViewIfNeeded();
+  await expect(nodeItem).toBeVisible();
+  await nodeItem.dblclick();
+}
+
 test.describe('Workflow Editor (Real Flow)', () => {
   test('creates a blank workflow and enters editor mode', async ({ page }) => {
     await openWorkflowEditor(page);
@@ -53,6 +66,34 @@ test.describe('Workflow Editor (Real Flow)', () => {
     await expect(page.locator('[data-sonner-toast]').first()).toBeVisible({
       timeout: 20000,
     });
+  });
+
+  test('blocks invalid run and recovers after adding required start/end nodes', async ({
+    page,
+  }) => {
+    await openWorkflowEditor(page);
+
+    await page.getByTestId('workflow-page-run-button').click();
+
+    const validationToast = page
+      .locator('[data-sonner-toast]')
+      .filter({ hasText: /Fix validation errors before running|validation failed/i })
+      .first();
+    await expect(validationToast).toBeVisible({ timeout: 20000 });
+
+    await addNodeFromPalette(page, 'Start');
+    await addNodeFromPalette(page, 'End');
+
+    const toasts = page.locator('[data-sonner-toast]');
+    const beforeRunToastCount = await toasts.count();
+
+    await page.getByTestId('workflow-page-run-button').click();
+    await expect(toasts).toHaveCount(beforeRunToastCount + 1, { timeout: 20000 });
+
+    const latestToast = toasts.nth(beforeRunToastCount);
+    await expect(latestToast).not.toContainText(
+      /Fix validation errors before running|validation failed/i
+    );
   });
 
   test('opens schedule dialog from workflow editor header', async ({ page }) => {

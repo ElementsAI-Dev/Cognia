@@ -77,6 +77,7 @@ jest.mock('@/hooks/canvas', () => ({
     hasUnsavedChanges: false,
     handleEditorChange: jest.fn(),
     handleManualSave: jest.fn(),
+    discardChanges: jest.fn(),
     lastSavedContentRef: { current: '' },
   }),
   useCanvasKeyboardShortcuts: jest.fn(),

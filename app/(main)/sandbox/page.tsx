@@ -35,7 +35,17 @@ import { SandboxEditor } from './sandbox-editor';
 export default function SandboxPage() {
   const t = useTranslations('sandboxPage');
 
-  const { isAvailable, isLoading: statusLoading, languages, runtimes, error: statusError, refreshStatus } = useSandbox();
+  const {
+    isAvailable,
+    isLoading: statusLoading,
+    config,
+    languages,
+    runtimes,
+    preflight,
+    error: statusError,
+    refreshStatus,
+    runPreflight,
+  } = useSandbox();
   const { result, executing, error: execError, execute, reset, cancel } = useCodeExecution();
 
   // Zustand store for persistent state
@@ -59,6 +69,7 @@ export default function SandboxPage() {
   const [snippetTags, setSnippetTags] = useState('');
   const [snippetCategory, setSnippetCategory] = useState('');
   const [executionElapsed, setExecutionElapsed] = useState(0);
+  const [preflightError, setPreflightError] = useState<string | null>(null);
   const [compilerSettings, setCompilerSettingsState] = useState<CompilerSettings>({
     cppStandard: 'c++20', optimization: '-O2', cppCompiler: 'g++', cCompiler: 'gcc',
     enableWarnings: true, rustEdition: '2021', rustRelease: false, pythonUnbuffered: true, pythonOptimize: false,
@@ -93,11 +104,25 @@ export default function SandboxPage() {
 
   const handleExecute = useCallback(async () => {
     if (!code.trim() || !selectedLanguage) return;
+    setPreflightError(null);
+
+    const preflightResult = await runPreflight({
+      language: selectedLanguage,
+      policy_profile: config?.active_policy_profile || 'balanced',
+    });
+    if (preflightResult.status === 'blocked') {
+      setPreflightError(
+        `${preflightResult.message}${preflightResult.remediation_hint ? ` ${preflightResult.remediation_hint}` : ''}`
+      );
+      return;
+    }
+
     const customArgs = args.trim() ? args.trim().split(/\s+/) : undefined;
     await execute({
       language: selectedLanguage, code,
       stdin: stdin.trim() || undefined,
       args: customArgs,
+      policy_profile: preflightResult.policy_profile,
       compiler_settings: {
         cpp_standard: compilerSettings.cppStandard,
         optimization: compilerSettings.optimization,
@@ -110,33 +135,52 @@ export default function SandboxPage() {
         python_optimize: compilerSettings.pythonOptimize,
       },
     });
-  }, [code, selectedLanguage, stdin, args, compilerSettings, execute]);
+  }, [args, code, compilerSettings, config?.active_policy_profile, execute, runPreflight, selectedLanguage, stdin]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleExecute(); }
   }, [handleExecute]);
 
   const handleLanguageChange = (lang: string) => {
+    setPreflightError(null);
     setSelectedLanguage(lang);
     reset();
     if (!code.trim() && LANGUAGE_TEMPLATES[lang]) setCode(LANGUAGE_TEMPLATES[lang]);
   };
 
   const handleSelectFromHistory = useCallback((selectedCode: string, language: string) => {
+    setPreflightError(null);
     setCode(selectedCode); setSelectedLanguage(language); setActiveTab('editor');
   }, [setCode, setSelectedLanguage]);
 
   const handleSelectSnippet = useCallback((snippetCode: string, language: string) => {
+    setPreflightError(null);
     setCode(snippetCode); setSelectedLanguage(language); setActiveTab('editor');
   }, [setCode, setSelectedLanguage]);
 
   const handleExecuteSnippet = useCallback(async (snippetId: string) => {
     const snippet = snippets.find((s) => s.id === snippetId);
     if (snippet) {
+      setPreflightError(null);
+      const preflightResult = await runPreflight({
+        language: snippet.language,
+        policy_profile: config?.active_policy_profile || 'balanced',
+      });
+      if (preflightResult.status === 'blocked') {
+        setPreflightError(
+          `${preflightResult.message}${preflightResult.remediation_hint ? ` ${preflightResult.remediation_hint}` : ''}`
+        );
+        return;
+      }
+
       setCode(snippet.code); setSelectedLanguage(snippet.language); setActiveTab('editor');
-      setTimeout(() => execute({ language: snippet.language, code: snippet.code }), 100);
+      await execute({
+        language: snippet.language,
+        code: snippet.code,
+        policy_profile: preflightResult.policy_profile,
+      });
     }
-  }, [snippets, setCode, setSelectedLanguage, execute]);
+  }, [snippets, runPreflight, config?.active_policy_profile, setCode, setSelectedLanguage, execute]);
 
   const handleStartSession = useCallback(async () => {
     if (!newSessionName.trim()) return;
@@ -215,6 +259,19 @@ export default function SandboxPage() {
             </Button>
           )}
           {runtimes.length > 0 && <Badge variant="secondary" className="text-xs">{runtimes[0]}</Badge>}
+          {preflight && (
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-xs',
+                preflight.status === 'ready'
+                  ? 'text-green-600 border-green-600/40'
+                  : 'text-amber-600 border-amber-600/40'
+              )}
+            >
+              {preflight.status}
+            </Badge>
+          )}
           {executing && (
             <Badge variant="outline" className="text-xs gap-1 text-orange-500 border-orange-500/30">
               <Clock className="h-3 w-3 animate-spin" />{executionElapsed}s
@@ -270,7 +327,7 @@ export default function SandboxPage() {
               onExecute={handleExecute}
               executing={executing}
               result={result}
-              execError={execError}
+              execError={preflightError || execError}
               onReset={reset}
               onKeyDown={handleKeyDown}
               stdin={stdin}

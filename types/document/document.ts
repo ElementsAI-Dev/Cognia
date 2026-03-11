@@ -37,7 +37,15 @@ export interface ProcessedDocument {
   embeddableContent: string;
   metadata: DocumentMetadata;
   chunks?: DocumentChunk[];
-  parseResult?: PDFParseResult | WordParseResult | ExcelParseResult | CSVParseResult | HTMLParseResult;
+  parseResult?:
+    | PDFParseResult
+    | WordParseResult
+    | ExcelParseResult
+    | CSVParseResult
+    | HTMLParseResult
+    | PresentationParseResult
+    | RTFParseResult
+    | EPUBParseResult;
 }
 
 export interface DocumentChunk {
@@ -368,4 +376,60 @@ export interface HTMLTable {
   headers: string[];
   rows: string[][];
   caption?: string;
+}
+
+// Presentation Parser Types
+export interface PresentationParseResult {
+  text: string;
+  slideCount: number;
+  slides: PresentationSlide[];
+  metadata: PresentationMetadata;
+}
+
+export interface PresentationSlide {
+  slideNumber: number;
+  title?: string;
+  text: string;
+}
+
+export interface PresentationMetadata {
+  title?: string;
+  author?: string;
+  lastModifiedBy?: string;
+  created?: Date;
+  modified?: Date;
+}
+
+// RTF Parser Types
+export interface RTFParseResult {
+  text: string;
+  metadata: RTFMetadata;
+}
+
+export interface RTFMetadata {
+  charset?: string;
+  controlWordCount: number;
+}
+
+// EPUB Parser Types
+export interface EPUBParseResult {
+  text: string;
+  chapterCount: number;
+  chapters: EPUBChapter[];
+  metadata: EPUBMetadata;
+}
+
+export interface EPUBChapter {
+  id: string;
+  href: string;
+  title?: string;
+  text: string;
+}
+
+export interface EPUBMetadata {
+  title?: string;
+  author?: string;
+  language?: string;
+  publisher?: string;
+  identifier?: string;
 }

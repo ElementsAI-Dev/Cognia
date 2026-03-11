@@ -7,7 +7,7 @@
 
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { useSandboxStats } from '@/hooks/sandbox';
+import { useExecutionHistory, useSandboxStats } from '@/hooks/sandbox';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -36,6 +36,9 @@ export interface SandboxStatisticsProps {
 export function SandboxStatistics({ className }: SandboxStatisticsProps) {
   const t = useTranslations('sandbox');
   const { stats, languageStats, dailyCounts, loading, refresh } = useSandboxStats(30);
+  const { executions: recentExecutions } = useExecutionHistory({
+    filter: { limit: 500 },
+  });
 
   const successRate = useMemo(() => {
     if (!stats || stats.total_executions === 0) return 0;
@@ -52,6 +55,23 @@ export function SandboxStatistics({ className }: SandboxStatisticsProps) {
     if (!dailyCounts.length) return 1;
     return Math.max(...dailyCounts.map((d) => d.count), 1);
   }, [dailyCounts]);
+
+  const diagnosticsBreakdown = useMemo(() => {
+    const counts = new Map<string, { label: string; count: number }>();
+    recentExecutions.forEach((execution) => {
+      if (!execution.diagnostics) return;
+      const label = `${execution.diagnostics.category.replace(/_/g, ' ')} · ${execution.diagnostics.code}`;
+      const key = `${execution.diagnostics.category}:${execution.diagnostics.code}`;
+      const existing = counts.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        counts.set(key, { label, count: 1 });
+      }
+    });
+
+    return Array.from(counts.values()).sort((a, b) => b.count - a.count);
+  }, [recentExecutions]);
 
   if (loading) {
     return (
@@ -269,6 +289,23 @@ export function SandboxStatistics({ className }: SandboxStatisticsProps) {
                         </div>
                       );
                     })}
+                </div>
+              </div>
+            )}
+
+            {diagnosticsBreakdown.length > 0 && (
+              <div className="p-3 rounded-lg border bg-card">
+                <div className="text-sm font-medium mb-3">Failure Diagnostics</div>
+                <div className="space-y-2">
+                  {diagnosticsBreakdown.slice(0, 8).map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center justify-between text-xs"
+                    >
+                      <span className="text-muted-foreground">{item.label}</span>
+                      <Badge variant="outline">{item.count}</Badge>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

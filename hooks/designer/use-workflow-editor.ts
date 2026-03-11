@@ -21,6 +21,7 @@ interface UseWorkflowEditorReturn {
   currentWorkflow: VisualWorkflow | null;
   isExecuting: boolean;
   isDirty: boolean;
+  editorLifecycleState: ReturnType<typeof useWorkflowEditorStore.getState>['editorLifecycleState'];
   executionState: ReturnType<typeof useWorkflowEditorStore.getState>['executionState'];
   validationErrors: import('@/types/workflow/workflow-editor').ValidationError[];
   createWorkflow: (name?: string) => void;
@@ -103,6 +104,7 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}): UseWo
   const {
     currentWorkflow,
     isDirty,
+    editorLifecycleState,
     isExecuting,
     executionState,
     validationErrors,
@@ -157,7 +159,11 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}): UseWo
       }
 
       const errors = validate();
-      if (errors.some((error) => error.severity === 'error')) {
+      if (
+        errors.some(
+          (error) => error.blocking ?? (error.severity !== 'warning' && error.severity !== 'info')
+        )
+      ) {
         onExecutionError?.('Workflow has validation errors');
         return null;
       }
@@ -176,7 +182,9 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}): UseWo
 
   const validateWorkflow = useCallback((): boolean => {
     const errors = validate();
-    return !errors.some((error) => error.severity === 'error');
+    return !errors.some(
+      (error) => error.blocking ?? (error.severity !== 'warning' && error.severity !== 'info')
+    );
   }, [validate]);
 
   const exportWorkflow = useCallback((): string | null => {
@@ -204,6 +212,7 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}): UseWo
     currentWorkflow,
     isExecuting,
     isDirty,
+    editorLifecycleState,
     executionState,
     validationErrors,
     createWorkflow,

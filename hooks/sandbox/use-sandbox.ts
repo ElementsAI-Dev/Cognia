@@ -2,9 +2,11 @@
  * useSandbox Hook - React hook for sandbox code execution
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   ExecutionRequest,
+  SandboxPreflightRequest,
+  SandboxPreflightResult,
   SandboxExecutionResult,
   Language,
   RuntimeType,
@@ -14,6 +16,7 @@ import type {
 import { sandboxService } from '@/lib/native/sandbox';
 import { syncSandboxExecution } from '@/lib/context';
 import { getPluginEventHooks } from '@/lib/plugin';
+import { normalizeExecutionResult, normalizePreflightRequest } from '@/lib/sandbox/compat';
 
 interface UseSandboxState {
   isAvailable: boolean;
@@ -24,10 +27,16 @@ interface UseSandboxState {
   allLanguages: Language[];
   availableLanguages: string[];
   runtimes: RuntimeType[];
+  preflight: SandboxPreflightResult | null;
+  preflightCheckedAt: number | null;
   error: string | null;
 }
 
 interface UseSandboxActions {
+  runPreflight: (
+    request: SandboxPreflightRequest,
+    options?: { force?: boolean }
+  ) => Promise<SandboxPreflightResult>;
   execute: (request: ExecutionRequest) => Promise<SandboxExecutionResult>;
   quickExecute: (language: string, code: string) => Promise<SandboxExecutionResult>;
   refreshStatus: () => Promise<void>;
@@ -40,6 +49,12 @@ interface UseSandboxActions {
 }
 
 export function useSandbox(): UseSandboxState & UseSandboxActions {
+  const preflightCacheRef = useRef<{
+    key: string;
+    expiresAt: number;
+    result: SandboxPreflightResult;
+  } | null>(null);
+
   const [state, setState] = useState<UseSandboxState>({
     isAvailable: false,
     isLoading: true,
@@ -49,6 +64,8 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
     allLanguages: [],
     availableLanguages: [],
     runtimes: [],
+    preflight: null,
+    preflightCheckedAt: null,
     error: null,
   });
 
@@ -68,6 +85,8 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
           allLanguages: [],
           availableLanguages: [],
           runtimes: [],
+          preflight: null,
+          preflightCheckedAt: null,
           error: null,
         });
         return;
@@ -90,6 +109,8 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
         allLanguages,
         availableLanguages,
         runtimes,
+        preflight: null,
+        preflightCheckedAt: null,
         error: null,
       });
     } catch (err) {
@@ -105,17 +126,55 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
     refreshStatus();
   }, [refreshStatus]);
 
+  const runPreflight = useCallback(
+    async (
+      request: SandboxPreflightRequest,
+      options: { force?: boolean } = {}
+    ): Promise<SandboxPreflightResult> => {
+      if (!state.isAvailable) {
+        throw new Error('Sandbox is not available');
+      }
+
+      const normalizedRequest = normalizePreflightRequest(request);
+      const cacheKey = JSON.stringify(normalizedRequest);
+      const now = Date.now();
+      const cache = preflightCacheRef.current;
+      if (!options.force && cache && cache.key === cacheKey && cache.expiresAt > now) {
+        return cache.result;
+      }
+
+      const result = await sandboxService.preflight(normalizedRequest);
+      preflightCacheRef.current = {
+        key: cacheKey,
+        expiresAt: now + 5000,
+        result,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        preflight: result,
+        preflightCheckedAt: now,
+      }));
+
+      return result;
+    },
+    [state.isAvailable]
+  );
+
   const execute = useCallback(
     async (request: ExecutionRequest): Promise<SandboxExecutionResult> => {
       if (!state.isAvailable) {
         throw new Error('Sandbox is not available');
       }
       getPluginEventHooks().dispatchCodeExecutionStart(request.language, request.code);
-      const result = await sandboxService.execute(request);
-      if (result.status === 'completed') {
+      const result = normalizeExecutionResult(await sandboxService.execute(request));
+      if (result.lifecycle_status === 'success') {
         getPluginEventHooks().dispatchCodeExecutionComplete(request.language, result);
-      } else if (result.status === 'failed') {
-        getPluginEventHooks().dispatchCodeExecutionError(request.language, new Error(result.stderr || 'Execution failed'));
+      } else if (result.lifecycle_status === 'error') {
+        getPluginEventHooks().dispatchCodeExecutionError(
+          request.language,
+          new Error(result.diagnostics?.message || result.stderr || 'Execution failed')
+        );
       }
       // Sync execution output to context files for agent discovery
       syncSandboxExecution(
@@ -137,11 +196,14 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
         throw new Error('Sandbox is not available');
       }
       getPluginEventHooks().dispatchCodeExecutionStart(language, code);
-      const result = await sandboxService.quickExecute(language, code);
-      if (result.status === 'completed') {
+      const result = normalizeExecutionResult(await sandboxService.quickExecute(language, code));
+      if (result.lifecycle_status === 'success') {
         getPluginEventHooks().dispatchCodeExecutionComplete(language, result);
-      } else if (result.status === 'failed') {
-        getPluginEventHooks().dispatchCodeExecutionError(language, new Error(result.stderr || 'Execution failed'));
+      } else if (result.lifecycle_status === 'error') {
+        getPluginEventHooks().dispatchCodeExecutionError(
+          language,
+          new Error(result.diagnostics?.message || result.stderr || 'Execution failed')
+        );
       }
       // Sync execution output to context files for agent discovery
       syncSandboxExecution(
@@ -160,6 +222,7 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
   const updateConfig = useCallback(
     async (config: BackendSandboxConfig): Promise<void> => {
       await sandboxService.updateConfig(config);
+      preflightCacheRef.current = null;
       await refreshStatus();
     },
     [refreshStatus]
@@ -168,6 +231,7 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
   const setRuntime = useCallback(
     async (runtime: RuntimeType): Promise<void> => {
       await sandboxService.setRuntime(runtime);
+      preflightCacheRef.current = null;
       await refreshStatus();
     },
     [refreshStatus]
@@ -176,6 +240,7 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
   const toggleLanguage = useCallback(
     async (language: string, enabled: boolean): Promise<void> => {
       await sandboxService.toggleLanguage(language, enabled);
+      preflightCacheRef.current = null;
       await refreshStatus();
     },
     [refreshStatus]
@@ -203,6 +268,7 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
 
   return {
     ...state,
+    runPreflight,
     execute,
     quickExecute,
     refreshStatus,

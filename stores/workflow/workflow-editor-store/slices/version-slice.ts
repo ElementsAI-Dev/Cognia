@@ -8,6 +8,7 @@ import type {
   VersionSliceActions,
   VersionSliceState,
 } from '../types';
+import { applyWorkflowMutation } from '../utils/mutation';
 
 // Re-export for external use
 export type { VersionComparisonResult } from '../types';
@@ -83,14 +84,18 @@ export const createVersionSlice: SliceCreator<VersionSliceActions> = (set, get) 
       const version = versions.find((v) => v.id === versionId);
       if (!version) return;
 
-      get().pushHistory();
-      set({
-        currentWorkflow: {
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'workflow:load',
+        metadata: { source: 'version-restore', versionId },
+        updateWorkflow: () => ({
           ...version.snapshot,
           id: currentWorkflow.id,
           updatedAt: new Date(),
-        },
-        isDirty: true,
+        }),
+        pushHistory: true,
+        validate: true,
       });
     },
 

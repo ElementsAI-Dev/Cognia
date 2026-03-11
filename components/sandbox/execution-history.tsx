@@ -56,6 +56,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Empty, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { LANGUAGE_INFO, type ExecutionStatus } from '@/types/system/sandbox';
+import { normalizeLifecycleStatus } from '@/lib/sandbox/compat';
 
 export interface ExecutionHistoryProps {
   className?: string;
@@ -125,10 +126,13 @@ export function ExecutionHistory({
       language: exec.language,
       code: exec.code,
       status: exec.status,
+      lifecycle_status: exec.lifecycle_status,
       stdout: exec.stdout,
       stderr: exec.stderr,
       exit_code: exec.exit_code,
       execution_time_ms: exec.execution_time_ms,
+      diagnostics: exec.diagnostics ?? null,
+      policy_snapshot: exec.policy_snapshot ?? null,
       created_at: exec.created_at,
       tags: exec.tags,
       is_favorite: exec.is_favorite,
@@ -254,7 +258,7 @@ export function ExecutionHistory({
                 <CheckCircle className="h-4 w-4 mr-2 inline text-green-500" />
                 {t('history.completed')}
               </SelectItem>
-              <SelectItem value="error">
+              <SelectItem value="failed">
                 <XCircle className="h-4 w-4 mr-2 inline text-red-500" />
                 {t('history.error')}
               </SelectItem>
@@ -262,6 +266,7 @@ export function ExecutionHistory({
                 <Clock className="h-4 w-4 mr-2 inline text-yellow-500" />
                 {t('history.timeout')}
               </SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -294,7 +299,14 @@ export function ExecutionHistory({
             ) : (
               executions.map((execution) => {
                 const langInfo = getLanguageInfo(execution.language);
-                const isSuccess = execution.status === 'completed' && execution.exit_code === 0;
+                const lifecycleStatus = normalizeLifecycleStatus(
+                  execution.lifecycle_status ?? execution.status,
+                  'error'
+                );
+                const isSuccess = lifecycleStatus === 'success';
+                const diagnosticSummary = execution.diagnostics
+                  ? `${execution.diagnostics.category.replace(/_/g, ' ')} · ${execution.diagnostics.code}`
+                  : null;
                 
                 return (
                   <div
@@ -311,9 +323,25 @@ export function ExecutionHistory({
                           </Badge>
                           {isSuccess ? (
                             <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : lifecycleStatus === 'timeout' ? (
+                            <Clock className="h-4 w-4 text-yellow-500" />
+                          ) : lifecycleStatus === 'cancelled' ? (
+                            <Clock className="h-4 w-4 text-muted-foreground" />
                           ) : (
                             <XCircle className="h-4 w-4 text-red-500" />
                           )}
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              'text-[10px]',
+                              lifecycleStatus === 'success' && 'text-green-700',
+                              lifecycleStatus === 'error' && 'text-red-700',
+                              lifecycleStatus === 'timeout' && 'text-amber-700',
+                              lifecycleStatus === 'cancelled' && 'text-muted-foreground'
+                            )}
+                          >
+                            {lifecycleStatus}
+                          </Badge>
                           <span className="text-xs text-muted-foreground flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             {formatTime(execution.execution_time_ms)}
@@ -323,6 +351,16 @@ export function ExecutionHistory({
                           {execution.code.slice(0, 100)}
                           {execution.code.length > 100 && '...'}
                         </pre>
+                        {diagnosticSummary && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {diagnosticSummary}
+                          </p>
+                        )}
+                        {execution.diagnostics?.remediation_hint && (
+                          <p className="text-xs text-amber-700/90 mt-1">
+                            {execution.diagnostics.remediation_hint}
+                          </p>
+                        )}
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs text-muted-foreground">
                             {formatDate(execution.created_at)}

@@ -12,6 +12,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type {
+  SandboxExecutionDiagnostics,
+  SandboxLifecycleStatus,
   SandboxExecutionResult,
   SandboxExecutionRecord,
   CodeSnippet,
@@ -21,12 +23,15 @@ import type {
   BackendSandboxConfig,
   RuntimeType,
 } from '@/types/system/sandbox';
+import { normalizeLifecycleStatus } from '@/lib/sandbox/compat';
 
 export interface SandboxExecutionState {
   isExecuting: boolean;
   currentExecutionId: string | null;
+  lifecycleStatus: SandboxLifecycleStatus;
   lastResult: SandboxExecutionResult | null;
   error: string | null;
+  diagnostics: SandboxExecutionDiagnostics | null;
 }
 
 export interface SandboxState {
@@ -79,7 +84,7 @@ export interface SandboxActions {
   // Execution state
   startExecution: (executionId: string) => void;
   completeExecution: (result: SandboxExecutionResult) => void;
-  failExecution: (error: string) => void;
+  failExecution: (error: string, diagnostics?: SandboxExecutionDiagnostics | null) => void;
   resetExecution: () => void;
 
   // History
@@ -120,8 +125,10 @@ export interface SandboxActions {
 const initialExecutionState: SandboxExecutionState = {
   isExecuting: false,
   currentExecutionId: null,
+  lifecycleStatus: 'queued',
   lastResult: null,
   error: null,
+  diagnostics: null,
 };
 
 const initialState: SandboxState = {
@@ -166,8 +173,10 @@ export const useSandboxStore = create<SandboxState & SandboxActions>()(
           execution: {
             isExecuting: true,
             currentExecutionId: executionId,
+            lifecycleStatus: 'running',
             lastResult: null,
             error: null,
+            diagnostics: null,
           },
         }),
 
@@ -176,17 +185,24 @@ export const useSandboxStore = create<SandboxState & SandboxActions>()(
           execution: {
             ...state.execution,
             isExecuting: false,
+            lifecycleStatus: normalizeLifecycleStatus(
+              result.lifecycle_status ?? result.status,
+              'running'
+            ),
             lastResult: result,
             error: null,
+            diagnostics: result.diagnostics ?? null,
           },
         })),
 
-      failExecution: (error) =>
+      failExecution: (error, diagnostics = null) =>
         set((state) => ({
           execution: {
             ...state.execution,
             isExecuting: false,
+            lifecycleStatus: 'error',
             error,
+            diagnostics,
           },
         })),
 

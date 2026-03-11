@@ -21,7 +21,11 @@ export interface SelectionHistoryItem {
   result: string;
   timestamp: number;
   sourceApp?: string;
+  sourceAppProcess?: string;
+  sourceWindowTitle?: string;
   textType?: TextType;
+  selectionEventId?: string;
+  selectionTimestamp?: number;
   isFavorite?: boolean;
 }
 

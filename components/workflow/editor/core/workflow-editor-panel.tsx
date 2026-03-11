@@ -34,6 +34,7 @@ import { Plus, Settings, Play, LayoutGrid } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 
 import { cn } from '@/lib/utils';
+import { isWorkflowEditorFeatureEnabled } from '@/lib/workflow-editor/feature-flags';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 import { useWorkflowKeyboardShortcuts, useMediaQuery } from '@/hooks';
@@ -61,8 +62,9 @@ interface WorkflowEditorPanelProps {
 
 function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport: setReactFlowViewport } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport: setReactFlowViewport, setCenter } = useReactFlow();
   const isDragHistoryPendingRef = useRef(false);
+  const workflowEditorV2Enabled = isWorkflowEditorFeatureEnabled('workflow.editor.v2');
   
   // Mobile responsive state
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -84,6 +86,7 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     showExecutionPanel,
     showMinimap,
     selectedNodes,
+    selectedEdges,
     executionState,
     isExecuting,
     onNodesChange,
@@ -97,6 +100,7 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     createWorkflow,
     setViewport,
     pushHistory,
+    validationFocusTarget,
   } = useWorkflowEditorStore(
     useShallow((state) => ({
       currentWorkflow: state.currentWorkflow,
@@ -105,6 +109,7 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
       showExecutionPanel: state.showExecutionPanel,
       showMinimap: state.showMinimap,
       selectedNodes: state.selectedNodes,
+      selectedEdges: state.selectedEdges,
       executionState: state.executionState,
       isExecuting: state.isExecuting,
       onNodesChange: state.onNodesChange,
@@ -118,6 +123,7 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
       createWorkflow: state.createWorkflow,
       setViewport: state.setViewport,
       pushHistory: state.pushHistory,
+      validationFocusTarget: state.validationFocusTarget,
     }))
   );
 
@@ -207,9 +213,16 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
   const handleDelete = useCallback(
     ({ nodes: deletedNodes, edges: deletedEdges }: { nodes: Node[]; edges: Edge[] }) => {
       const nodeIds = deletedNodes.map((n) => n.id);
-      const edgeIds = deletedEdges.map((e) => e.id);
-      if (nodeIds.length > 0) deleteNodes(nodeIds);
-      if (edgeIds.length > 0) deleteEdges(edgeIds);
+      const selectedNodeIds = new Set(nodeIds);
+      const edgeIds = deletedEdges
+        .filter((edge) => !selectedNodeIds.has(edge.source) && !selectedNodeIds.has(edge.target))
+        .map((e) => e.id);
+      if (nodeIds.length > 0) {
+        deleteNodes(nodeIds);
+      }
+      if (edgeIds.length > 0) {
+        deleteEdges(edgeIds);
+      }
     },
     [deleteNodes, deleteEdges]
   );
@@ -336,6 +349,79 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     });
   }, [currentWorkflow, nodeStates]);
 
+  const edgesWithSelectionState = useMemo(() => {
+    if (!currentWorkflow) return [];
+
+    const selectedNodeIds = new Set(selectedNodes);
+    const selectedEdgeIds = new Set(selectedEdges);
+
+    return currentWorkflow.edges.map((edge) => {
+      const isConnectedToSelectedNode =
+        selectedNodeIds.size > 0 &&
+        (selectedNodeIds.has(edge.source) || selectedNodeIds.has(edge.target));
+      const isSelectedEdge = selectedEdgeIds.has(edge.id);
+      const hasSelectionDecoration = isConnectedToSelectedNode || isSelectedEdge;
+
+      if (!hasSelectionDecoration) {
+        return edge as Edge;
+      }
+
+      return {
+        ...edge,
+        data: {
+          ...(edge.data || {}),
+          selectionState: isConnectedToSelectedNode ? 'connected' : 'default',
+          isSelectedEdge,
+        },
+      } as Edge;
+    });
+  }, [currentWorkflow, selectedNodes, selectedEdges]);
+
+  // Focus canvas on validation targets selected from issue list.
+  useEffect(() => {
+    if (!workflowEditorV2Enabled) return;
+    if (!validationFocusTarget || !currentWorkflow) return;
+
+    if (validationFocusTarget.nodeId) {
+      const targetNode = currentWorkflow.nodes.find((node) => node.id === validationFocusTarget.nodeId);
+      if (!targetNode) return;
+
+      const nodeWidth = (targetNode.measured?.width ?? targetNode.width ?? 180) as number;
+      const nodeHeight = (targetNode.measured?.height ?? targetNode.height ?? 60) as number;
+      void setCenter(
+        targetNode.position.x + nodeWidth / 2,
+        targetNode.position.y + nodeHeight / 2,
+        { duration: 350, zoom: 1.05 }
+      );
+      return;
+    }
+
+    if (validationFocusTarget.edgeId) {
+      const targetEdge = currentWorkflow.edges.find((edge) => edge.id === validationFocusTarget.edgeId);
+      if (!targetEdge) return;
+      const sourceNode = currentWorkflow.nodes.find((node) => node.id === targetEdge.source);
+      const targetNode = currentWorkflow.nodes.find((node) => node.id === targetEdge.target);
+      if (!sourceNode || !targetNode) return;
+
+      const sourceWidth = (sourceNode.measured?.width ?? sourceNode.width ?? 180) as number;
+      const sourceHeight = (sourceNode.measured?.height ?? sourceNode.height ?? 60) as number;
+      const targetWidth = (targetNode.measured?.width ?? targetNode.width ?? 180) as number;
+      const targetHeight = (targetNode.measured?.height ?? targetNode.height ?? 60) as number;
+
+      void setCenter(
+        (sourceNode.position.x + sourceWidth / 2 + targetNode.position.x + targetWidth / 2) / 2,
+        (sourceNode.position.y + sourceHeight / 2 + targetNode.position.y + targetHeight / 2) / 2,
+        { duration: 350, zoom: 1 }
+      );
+    }
+  }, [
+    workflowEditorV2Enabled,
+    validationFocusTarget?.issuedAt,
+    validationFocusTarget,
+    currentWorkflow,
+    setCenter,
+  ]);
+
   // Stable handler refs — these don't change between renders
   const handleNodeDragStartRef = useCallback(() => {
     isDragHistoryPendingRef.current = true;
@@ -355,7 +441,7 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
   // Shared ReactFlow props — avoids duplicating config between mobile & desktop
   const sharedReactFlowProps = useMemo(() => ({
     nodes: nodesWithExecState,
-    edges: currentWorkflow?.edges ?? [],
+    edges: workflowEditorV2Enabled ? edgesWithSelectionState : currentWorkflow?.edges ?? [],
     onNodesChange: handleNodesChange,
     onEdgesChange: handleEdgesChange,
     onConnect: handleConnect,
@@ -388,6 +474,8 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     proOptions: { hideAttribution: true },
   }), [
     nodesWithExecState,
+    workflowEditorV2Enabled,
+    edgesWithSelectionState,
     currentWorkflow?.edges,
     currentWorkflow?.viewport,
     snapToGrid,

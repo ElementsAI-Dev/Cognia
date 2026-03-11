@@ -232,6 +232,39 @@ describe('useWorkflowEditorStore', () => {
 
       expect(result.current.currentWorkflow?.nodes.length).toBeLessThan(initialCount);
     });
+
+    it('records typed node mutation metadata across update entry points', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.createWorkflow();
+      });
+
+      let nodeId = '';
+      act(() => {
+        nodeId = result.current.addNode('prompt' as never, { x: 100, y: 100 });
+      });
+
+      expect(result.current.lastMutation?.kind).toBe('node:add');
+
+      act(() => {
+        result.current.updateNode(nodeId, { label: 'Updated from panel' } as never);
+      });
+
+      expect(result.current.lastMutation?.kind).toBe('node:update');
+      expect(result.current.lastMutation?.metadata).toMatchObject({
+        fields: ['label'],
+      });
+
+      act(() => {
+        result.current.batchUpdateNodes([nodeId], { description: 'Updated from bulk action' } as never);
+      });
+
+      expect(result.current.lastMutation?.kind).toBe('node:batch-update');
+      expect(result.current.lastMutation?.metadata).toMatchObject({
+        fields: ['description'],
+      });
+    });
   });
 
   describe('selection', () => {

@@ -13,14 +13,11 @@ import {
 } from '@xyflow/react';
 import { nanoid } from 'nanoid';
 import type { SliceCreator, EdgeSliceActions, WorkflowEdge } from '../types';
-import { scheduleWorkflowValidation } from '../utils/validation-scheduler';
+import { applyWorkflowMutation, confirmDestructiveAction } from '../utils/mutation';
 
 export const createEdgeSlice: SliceCreator<EdgeSliceActions> = (set, get) => {
   return {
     addEdge: (connection: Connection) => {
-      const { currentWorkflow } = get();
-      if (!currentWorkflow) return;
-
       const newEdge: WorkflowEdge = {
         id: `edge-${nanoid(8)}`,
         source: connection.source!,
@@ -31,89 +28,114 @@ export const createEdgeSlice: SliceCreator<EdgeSliceActions> = (set, get) => {
         data: {},
       };
 
-      const updated = {
-        ...currentWorkflow,
-        edges: [...currentWorkflow.edges, newEdge],
-        updatedAt: new Date(),
-      };
-
-      set({ currentWorkflow: updated, isDirty: true });
-      get().pushHistory();
-      scheduleWorkflowValidation(get);
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'edge:add',
+        edgeIds: [newEdge.id],
+        metadata: {
+          source: newEdge.source,
+          target: newEdge.target,
+        },
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          edges: [...workflow.edges, newEdge],
+          updatedAt: new Date(),
+        }),
+        pushHistory: true,
+        validate: true,
+      });
     },
 
     updateEdge: (edgeId, data) => {
-      const { currentWorkflow } = get();
-      if (!currentWorkflow) return;
-
-      const updated = {
-        ...currentWorkflow,
-        edges: currentWorkflow.edges.map((edge) =>
-          edge.id === edgeId ? { ...edge, data: { ...edge.data, ...data } } : edge
-        ),
-        updatedAt: new Date(),
-      };
-
-      set({ currentWorkflow: updated, isDirty: true });
-      get().pushHistory();
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'edge:update',
+        edgeIds: [edgeId],
+        metadata: { fields: Object.keys(data) },
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          edges: workflow.edges.map((edge) =>
+            edge.id === edgeId ? { ...edge, data: { ...edge.data, ...data } } : edge
+          ),
+          updatedAt: new Date(),
+        }),
+        pushHistory: true,
+      });
     },
 
     deleteEdge: (edgeId) => {
-      const { currentWorkflow } = get();
-      if (!currentWorkflow) return;
+      if (!confirmDestructiveAction('Delete this edge connection?')) {
+        return;
+      }
 
-      const updated = {
-        ...currentWorkflow,
-        edges: currentWorkflow.edges.filter((e) => e.id !== edgeId),
-        updatedAt: new Date(),
-      };
-
-      set({
-        currentWorkflow: updated,
-        isDirty: true,
-        selectedEdges: get().selectedEdges.filter((id) => id !== edgeId),
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'edge:delete',
+        edgeIds: [edgeId],
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          edges: workflow.edges.filter((edge) => edge.id !== edgeId),
+          updatedAt: new Date(),
+        }),
+        selectionPatch: {
+          selectedEdges: get().selectedEdges.filter((id) => id !== edgeId),
+        },
+        pushHistory: true,
+        validate: true,
       });
-      get().pushHistory();
-      scheduleWorkflowValidation(get);
     },
 
     deleteEdges: (edgeIds) => {
-      const { currentWorkflow } = get();
-      if (!currentWorkflow) return;
+      if (edgeIds.length === 0) return;
+
+      if (!confirmDestructiveAction(`Delete ${edgeIds.length} selected edge connection(s)?`)) {
+        return;
+      }
 
       const edgeIdSet = new Set(edgeIds);
-      const updated = {
-        ...currentWorkflow,
-        edges: currentWorkflow.edges.filter((e) => !edgeIdSet.has(e.id)),
-        updatedAt: new Date(),
-      };
-
-      set({
-        currentWorkflow: updated,
-        isDirty: true,
-        selectedEdges: get().selectedEdges.filter((id) => !edgeIdSet.has(id)),
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'edge:delete-many',
+        edgeIds,
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          edges: workflow.edges.filter((edge) => !edgeIdSet.has(edge.id)),
+          updatedAt: new Date(),
+        }),
+        selectionPatch: {
+          selectedEdges: get().selectedEdges.filter((id) => !edgeIdSet.has(id)),
+        },
+        pushHistory: true,
+        validate: true,
       });
-      get().pushHistory();
-      scheduleWorkflowValidation(get);
     },
 
     reconnectEdge: (oldEdge, newConnection) => {
-      const { currentWorkflow } = get();
-      if (!currentWorkflow) return;
-
-      const updated = {
-        ...currentWorkflow,
-        edges: rfReconnectEdge(
-          oldEdge as Edge,
-          newConnection,
-          currentWorkflow.edges as Edge[]
-        ) as WorkflowEdge[],
-        updatedAt: new Date(),
-      };
-
-      set({ currentWorkflow: updated, isDirty: true });
-      get().pushHistory();
-      scheduleWorkflowValidation(get);
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'edge:reconnect',
+        edgeIds: [oldEdge.id],
+        metadata: {
+          source: newConnection.source,
+          target: newConnection.target,
+        },
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          edges: rfReconnectEdge(
+            oldEdge as Edge,
+            newConnection,
+            workflow.edges as Edge[]
+          ) as WorkflowEdge[],
+          updatedAt: new Date(),
+        }),
+        pushHistory: true,
+        validate: true,
+      });
     },
 
     onEdgesChange: (changes: EdgeChange<WorkflowEdge>[]) => {
@@ -126,46 +148,55 @@ export const createEdgeSlice: SliceCreator<EdgeSliceActions> = (set, get) => {
         return;
       }
 
-      const updated = {
-        ...currentWorkflow,
-        edges: applyEdgeChanges(changes, currentWorkflow.edges),
-        updatedAt: new Date(),
-      };
-
-      set({ currentWorkflow: updated, isDirty: true });
+      const shouldValidate = changes.some((change) => change.type !== 'select');
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'edge:update',
+        edgeIds: changes.flatMap((change) => ('id' in change ? [change.id] : [])),
+        metadata: { source: 'reactflow:onEdgesChange' },
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          edges: applyEdgeChanges(changes, workflow.edges),
+          updatedAt: new Date(),
+        }),
+        validate: shouldValidate,
+        clearServerErrors: shouldValidate,
+      });
 
       const shouldRecordHistory = changes.some((c) => c.type !== 'select');
       if (shouldRecordHistory) {
         get().pushHistory();
       }
-
-      const shouldValidate = changes.some((c) => c.type !== 'select');
-      if (shouldValidate) {
-        scheduleWorkflowValidation(get);
-      }
     },
 
     onConnect: (connection: Connection) => {
-      const { currentWorkflow } = get();
-      if (!currentWorkflow) return;
-
-      const updated = {
-        ...currentWorkflow,
-        edges: rfAddEdge(
-          {
-            ...connection,
-            id: `edge-${nanoid(8)}`,
-            type: 'default',
-            data: {},
-          },
-          currentWorkflow.edges as never[]
-        ) as WorkflowEdge[],
-        updatedAt: new Date(),
-      };
-
-      set({ currentWorkflow: updated, isDirty: true });
-      get().pushHistory();
-      scheduleWorkflowValidation(get);
+      const newEdgeId = `edge-${nanoid(8)}`;
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'edge:connect',
+        edgeIds: [newEdgeId],
+        metadata: {
+          source: connection.source,
+          target: connection.target,
+        },
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          edges: rfAddEdge(
+            {
+              ...connection,
+              id: newEdgeId,
+              type: 'default',
+              data: {},
+            },
+            workflow.edges as never[]
+          ) as WorkflowEdge[],
+          updatedAt: new Date(),
+        }),
+        pushHistory: true,
+        validate: true,
+      });
     },
   };
 };

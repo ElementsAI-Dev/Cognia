@@ -212,6 +212,7 @@ function CanvasPanelContent() {
     hasUnsavedChanges,
     handleEditorChange,
     handleManualSave,
+    discardChanges,
   } = useCanvasAutoSave(autoSaveOptions);
 
   useEffect(() => {
@@ -247,6 +248,7 @@ function CanvasPanelContent() {
     isProcessing,
     isStreaming,
     streamingContent,
+    actionScope,
     actionError,
     actionResult,
     diffPreview,
@@ -335,6 +337,11 @@ function CanvasPanelContent() {
     }
   }, [hasUnsavedChanges, closePanel]);
 
+  const handleDiscardAndClose = useCallback(() => {
+    discardChanges();
+    closePanel();
+  }, [discardChanges, closePanel]);
+
   // Copy action result to clipboard
   const handleCopyResult = useCallback(async () => {
     if (actionResult) {
@@ -389,10 +396,15 @@ function CanvasPanelContent() {
   return (
     <Sheet
       open={panelOpen && panelView === 'canvas'}
-      onOpenChange={(open) => !open && closePanel()}
+      onOpenChange={(open) => {
+        if (!open) {
+          handleClose();
+        }
+      }}
     >
       <SheetContent
         side="right"
+        data-testid="canvas-panel"
         className="w-full sm:w-[600px] lg:w-[700px] p-0 flex flex-col"
         showCloseButton={false}
       >
@@ -443,6 +455,7 @@ function CanvasPanelContent() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      data-testid="canvas-save-version-button"
                       onClick={handleManualSave}
                       disabled={!hasUnsavedChanges}
                     >
@@ -456,7 +469,7 @@ function CanvasPanelContent() {
                 <VersionHistoryPanel
                   documentId={activeDocument.id}
                   trigger={
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" data-testid="canvas-version-history-trigger">
                       <History className="h-4 w-4" />
                     </Button>
                   }
@@ -507,14 +520,19 @@ function CanvasPanelContent() {
                 {/* Export Button */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={handleExport}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      data-testid="canvas-export-button"
+                      onClick={handleExport}
+                    >
                       <Download className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>{t('export')}</TooltipContent>
                 </Tooltip>
 
-                <Button variant="ghost" size="icon" onClick={handleClose}>
+                <Button variant="ghost" size="icon" data-testid="canvas-close-button" onClick={handleClose}>
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -530,6 +548,7 @@ function CanvasPanelContent() {
                         variant="ghost"
                         size="sm"
                         className="gap-2"
+                        data-testid={`canvas-action-${action.type}`}
                         onClick={() => handleAction(action)}
                         disabled={isProcessing}
                       >
@@ -595,6 +614,20 @@ function CanvasPanelContent() {
                 )}
               </TooltipProvider>
             </div>
+
+            {actionScope && (
+              <div
+                className="flex items-center gap-2 px-4 py-1.5 bg-muted/30 border-b"
+                data-testid="canvas-action-scope"
+              >
+                <Badge variant="outline" className="text-[10px]">
+                  {t('aiScope')}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {actionScope === 'selection' ? t('scopeSelection') : t('scopeDocument')}
+                </span>
+              </div>
+            )}
 
             {/* Document Format Toolbar - shown for non-code documents */}
             {activeDocument && activeDocument.type !== 'code' && (
@@ -715,6 +748,7 @@ function CanvasPanelContent() {
                       variant="ghost"
                       size="sm"
                       className="h-6 px-2 text-xs text-green-600 hover:text-green-700"
+                      data-testid="canvas-diff-accept"
                       onClick={acceptDiffChanges}
                     >
                       <Check className="h-3 w-3 mr-1" />
@@ -724,6 +758,7 @@ function CanvasPanelContent() {
                       variant="ghost"
                       size="sm"
                       className="h-6 px-2 text-xs text-red-600 hover:text-red-700"
+                      data-testid="canvas-diff-reject"
                       onClick={rejectDiffChanges}
                     >
                       <X className="h-3 w-3 mr-1" />
@@ -1036,21 +1071,23 @@ function CanvasPanelContent() {
                   <AlertDialogDescription>{t('unsavedChangesDescription')}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                  <AlertDialogCancel data-testid="canvas-close-confirm-cancel">
+                    {t('cancel')}
+                  </AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => {
-                      if (activeCanvasId) {
-                        saveCanvasVersion(activeCanvasId, undefined, false);
-                      }
+                      handleManualSave();
                       closePanel();
                     }}
                     className="bg-primary"
+                    data-testid="canvas-close-confirm-save"
                   >
                     {t('saveAndClose')}
                   </AlertDialogAction>
                   <AlertDialogAction
-                    onClick={() => closePanel()}
+                    onClick={handleDiscardAndClose}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    data-testid="canvas-close-confirm-discard"
                   >
                     {t('discardAndClose')}
                   </AlertDialogAction>

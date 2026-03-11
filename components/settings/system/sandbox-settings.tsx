@@ -4,9 +4,9 @@
  * SandboxSettings - Configuration UI for sandbox code execution
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Settings, Server, Cpu, Clock, HardDrive, Wifi, RefreshCw, Check, X } from 'lucide-react';
+import { Settings, Server, Cpu, Clock, HardDrive, Wifi, RefreshCw, Check, X, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -17,7 +17,39 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSandbox } from '@/hooks/sandbox';
 import { LANGUAGE_INFO } from '@/types/system/sandbox';
-import type { RuntimeType, BackendSandboxConfig } from '@/types/system/sandbox';
+import type { RuntimeType, BackendSandboxConfig, SandboxPolicyProfile } from '@/types/system/sandbox';
+
+const DEFAULT_POLICY_PROFILES: Record<string, SandboxPolicyProfile> = {
+  strict: {
+    id: 'strict',
+    name: 'Strict',
+    max_timeout_secs: 30,
+    max_memory_limit_mb: 256,
+    allow_network: false,
+    allowed_runtimes: ['docker', 'podman'],
+  },
+  balanced: {
+    id: 'balanced',
+    name: 'Balanced',
+    max_timeout_secs: 60,
+    max_memory_limit_mb: 512,
+    allow_network: false,
+    allowed_runtimes: ['docker', 'podman', 'native'],
+  },
+  permissive: {
+    id: 'permissive',
+    name: 'Permissive',
+    max_timeout_secs: 120,
+    max_memory_limit_mb: 1024,
+    allow_network: true,
+    allowed_runtimes: ['docker', 'podman', 'native'],
+  },
+};
+
+interface PolicyValidationIssue {
+  field: 'default_timeout_secs' | 'default_memory_limit_mb' | 'network_enabled' | 'preferred_runtime';
+  message: string;
+}
 
 export function SandboxSettings() {
   const t = useTranslations('sandboxSettings');
@@ -35,6 +67,68 @@ export function SandboxSettings() {
 
   const [localConfig, setLocalConfig] = useState<BackendSandboxConfig | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const policyProfiles = useMemo(() => {
+    return {
+      ...DEFAULT_POLICY_PROFILES,
+      ...(localConfig?.policy_profiles || {}),
+    };
+  }, [localConfig?.policy_profiles]);
+
+  const activePolicyProfile = useMemo<SandboxPolicyProfile>(() => {
+    const profileId = localConfig?.active_policy_profile || 'balanced';
+    return (
+      policyProfiles[profileId] ||
+      policyProfiles.balanced ||
+      Object.values(policyProfiles)[0] ||
+      DEFAULT_POLICY_PROFILES.balanced
+    );
+  }, [localConfig?.active_policy_profile, policyProfiles]);
+
+  const policyValidationIssues = useMemo<PolicyValidationIssue[]>(() => {
+    if (!localConfig || !activePolicyProfile) return [];
+    const issues: PolicyValidationIssue[] = [];
+
+    if (localConfig.default_timeout_secs <= 0) {
+      issues.push({
+        field: 'default_timeout_secs',
+        message: 'Timeout must be greater than 0 seconds.',
+      });
+    } else if (localConfig.default_timeout_secs > activePolicyProfile.max_timeout_secs) {
+      issues.push({
+        field: 'default_timeout_secs',
+        message: `Timeout exceeds ${activePolicyProfile.name} profile limit (${activePolicyProfile.max_timeout_secs}s).`,
+      });
+    }
+
+    if (localConfig.default_memory_limit_mb <= 0) {
+      issues.push({
+        field: 'default_memory_limit_mb',
+        message: 'Memory limit must be greater than 0 MB.',
+      });
+    } else if (localConfig.default_memory_limit_mb > activePolicyProfile.max_memory_limit_mb) {
+      issues.push({
+        field: 'default_memory_limit_mb',
+        message: `Memory limit exceeds ${activePolicyProfile.name} profile limit (${activePolicyProfile.max_memory_limit_mb} MB).`,
+      });
+    }
+
+    if (localConfig.network_enabled && !activePolicyProfile.allow_network) {
+      issues.push({
+        field: 'network_enabled',
+        message: `${activePolicyProfile.name} profile does not allow network access.`,
+      });
+    }
+
+    if (!activePolicyProfile.allowed_runtimes.includes(localConfig.preferred_runtime)) {
+      issues.push({
+        field: 'preferred_runtime',
+        message: `Preferred runtime '${localConfig.preferred_runtime}' is not allowed by ${activePolicyProfile.name} profile.`,
+      });
+    }
+
+    return issues;
+  }, [activePolicyProfile, localConfig]);
 
   useEffect(() => {
     if (config) {
@@ -55,6 +149,27 @@ export function SandboxSettings() {
 
   const handleRuntimeChange = (runtime: RuntimeType) => {
     setLocalConfig((prev) => prev ? { ...prev, preferred_runtime: runtime } : prev);
+  };
+
+  const handlePolicyProfileChange = (profileId: string) => {
+    setLocalConfig((prev) => {
+      if (!prev) return prev;
+      const profile = policyProfiles[profileId];
+      if (!profile) return prev;
+
+      const preferredRuntime = profile.allowed_runtimes.includes(prev.preferred_runtime)
+        ? prev.preferred_runtime
+        : (profile.allowed_runtimes[0] || prev.preferred_runtime);
+
+      return {
+        ...prev,
+        active_policy_profile: profile.id,
+        default_timeout_secs: Math.min(prev.default_timeout_secs, profile.max_timeout_secs),
+        default_memory_limit_mb: Math.min(prev.default_memory_limit_mb, profile.max_memory_limit_mb),
+        network_enabled: profile.allow_network ? prev.network_enabled : false,
+        preferred_runtime: preferredRuntime,
+      };
+    });
   };
 
   const handleLanguageToggle = (langId: string, enabled: boolean) => {
@@ -152,6 +267,56 @@ export function SandboxSettings() {
 
   return (
     <div className="space-y-6">
+      {/* Policy Profile */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ShieldIcon />
+            Policy Profile
+          </CardTitle>
+          <CardDescription>
+            Choose a safety profile and keep defaults within allowed bounds.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <Label className="min-w-[120px]">Active Profile</Label>
+            <Select
+              value={activePolicyProfile?.id || 'balanced'}
+              onValueChange={handlePolicyProfileChange}
+            >
+              <SelectTrigger className="w-[220px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.values(policyProfiles).map((profile) => (
+                  <SelectItem key={profile.id} value={profile.id}>
+                    {profile.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {activePolicyProfile && (
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline">
+                timeout {'<='} {activePolicyProfile.max_timeout_secs}s
+              </Badge>
+              <Badge variant="outline">
+                memory {'<='} {activePolicyProfile.max_memory_limit_mb} MB
+              </Badge>
+              <Badge
+                variant="outline"
+                className={activePolicyProfile.allow_network ? 'text-green-600 border-green-600/50' : 'text-muted-foreground'}
+              >
+                network {activePolicyProfile.allow_network ? 'allowed' : 'blocked'}
+              </Badge>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Runtime Selection */}
       <Card>
         <CardHeader>
@@ -174,14 +339,36 @@ export function SandboxSettings() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="docker" disabled={!runtimes.includes('docker')}>
-                  Docker {runtimes.includes('docker') ? '✓' : `(${t('notAvailable')})`}
+                <SelectItem
+                  value="docker"
+                  disabled={!runtimes.includes('docker') || !activePolicyProfile.allowed_runtimes.includes('docker')}
+                >
+                  Docker{' '}
+                  {!activePolicyProfile.allowed_runtimes.includes('docker')
+                    ? '(blocked by profile)'
+                    : runtimes.includes('docker')
+                      ? '✓'
+                      : `(${t('notAvailable')})`}
                 </SelectItem>
-                <SelectItem value="podman" disabled={!runtimes.includes('podman')}>
-                  Podman {runtimes.includes('podman') ? '✓' : `(${t('notAvailable')})`}
+                <SelectItem
+                  value="podman"
+                  disabled={!runtimes.includes('podman') || !activePolicyProfile.allowed_runtimes.includes('podman')}
+                >
+                  Podman{' '}
+                  {!activePolicyProfile.allowed_runtimes.includes('podman')
+                    ? '(blocked by profile)'
+                    : runtimes.includes('podman')
+                      ? '✓'
+                      : `(${t('notAvailable')})`}
                 </SelectItem>
-                <SelectItem value="native">
-                  {t('nativeRuntime')}
+                <SelectItem
+                  value="native"
+                  disabled={!activePolicyProfile.allowed_runtimes.includes('native')}
+                >
+                  {t('nativeRuntime')}{' '}
+                  {!activePolicyProfile.allowed_runtimes.includes('native')
+                    ? '(blocked by profile)'
+                    : ''}
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -224,7 +411,7 @@ export function SandboxSettings() {
             <Slider
               value={[localConfig?.default_timeout_secs || 30]}
               min={5}
-              max={120}
+              max={Math.max(5, activePolicyProfile.max_timeout_secs)}
               step={5}
               onValueChange={([v]) =>
                 setLocalConfig((prev) => prev ? { ...prev, default_timeout_secs: v } : null)
@@ -246,7 +433,7 @@ export function SandboxSettings() {
             <Slider
               value={[localConfig?.default_memory_limit_mb || 256]}
               min={64}
-              max={1024}
+              max={Math.max(64, activePolicyProfile.max_memory_limit_mb)}
               step={64}
               onValueChange={([v]) =>
                 setLocalConfig((prev) => prev ? { ...prev, default_memory_limit_mb: v } : null)
@@ -284,13 +471,38 @@ export function SandboxSettings() {
             </Label>
             <Switch
               checked={localConfig?.network_enabled || false}
+              disabled={!activePolicyProfile.allow_network}
               onCheckedChange={(checked) =>
                 setLocalConfig((prev) => prev ? { ...prev, network_enabled: checked } : null)
               }
             />
           </div>
+          {!activePolicyProfile.allow_network && (
+            <p className="text-xs text-muted-foreground">
+              Network access is disabled by the active policy profile.
+            </p>
+          )}
         </CardContent>
       </Card>
+
+      {policyValidationIssues.length > 0 && (
+        <Card className="border-amber-500/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-4 w-4" />
+              Validation Required
+            </CardTitle>
+            <CardDescription>
+              Fix these policy-bound issues before saving.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            {policyValidationIssues.map((issue, index) => (
+              <p key={`${issue.field}-${index}`}>- {issue.message}</p>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Enabled Languages */}
       <Card>
@@ -334,7 +546,7 @@ export function SandboxSettings() {
           <RefreshCw className="h-4 w-4 mr-2" />
           {t('refresh')}
         </Button>
-        <Button onClick={handleSave} disabled={isSaving}>
+        <Button onClick={handleSave} disabled={isSaving || policyValidationIssues.length > 0}>
           {isSaving ? (
             <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
           ) : (
@@ -344,6 +556,24 @@ export function SandboxSettings() {
         </Button>
       </div>
     </div>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 3l7 3v6c0 5-3.5 8.5-7 9-3.5-.5-7-4-7-9V6l7-3z" />
+      <path d="M9.5 12.5l1.8 1.8 3.2-3.4" />
+    </svg>
   );
 }
 

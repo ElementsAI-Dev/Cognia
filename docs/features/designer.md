@@ -49,3 +49,20 @@ When running in desktop (Tauri) mode, Designer editor settings include an LSP ma
 - Applying provider fallback order (`OpenVSX -> Marketplace` or `Marketplace -> OpenVSX`)
 
 If a preferred provider fails during server preparation, Cognia falls back to the next configured provider before entering editor fallback mode.
+
+## Unified Sandbox Runtime
+
+Designer preview now uses a shared sandbox runtime layer (`lib/designer/sandbox/*`) with framework adapters for `react`, `vue`, and `html`.
+
+- `components/designer/editor/react-sandbox.tsx` consumes adapter-driven setup instead of hardcoded framework branches.
+- `components/designer/preview/designer-preview.tsx` can run on the same runtime-backed preview path and keeps the legacy `srcdoc` pipeline as a guarded fallback.
+- Runtime bridge events (`preview-ready`, `element-select`, `element-hover`, `component-dropped`, console/error events) are normalized before store/UI handling.
+
+### Rollout Flag
+
+Use `NEXT_PUBLIC_DESIGNER_UNIFIED_SANDBOX_RUNTIME` to control runtime rollout:
+
+- `true` (default): use unified runtime-backed preview.
+- `false`: use legacy preview path (`srcdoc`) for rollback.
+
+For local testing, the same flag can be toggled in browser storage with key `designer.unifiedSandboxRuntime`.

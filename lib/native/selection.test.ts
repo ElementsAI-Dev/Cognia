@@ -26,6 +26,7 @@ import {
   onSelectionDetected,
   onToolbarShow,
   onToolbarHide,
+  onSelectionError,
   getHistory,
   searchHistory,
   clearHistory,
@@ -242,6 +243,14 @@ describe('Selection - Event Listeners', () => {
       mockListen.mockResolvedValue(jest.fn());
       await onToolbarHide(jest.fn());
       expect(mockListen).toHaveBeenCalledWith('selection-toolbar-hide', expect.any(Function));
+    });
+  });
+
+  describe('onSelectionError', () => {
+    it('should set up listener', async () => {
+      mockListen.mockResolvedValue(jest.fn());
+      await onSelectionError(jest.fn());
+      expect(mockListen).toHaveBeenCalledWith('selection-error', expect.any(Function));
     });
   });
 

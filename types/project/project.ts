@@ -5,7 +5,19 @@
 export interface KnowledgeFile {
   id: string;
   name: string;
-  type: 'text' | 'pdf' | 'code' | 'markdown' | 'json' | 'word' | 'excel' | 'csv' | 'html';
+  type:
+    | 'text'
+    | 'pdf'
+    | 'code'
+    | 'markdown'
+    | 'json'
+    | 'word'
+    | 'excel'
+    | 'csv'
+    | 'html'
+    | 'presentation'
+    | 'rtf'
+    | 'epub';
   content: string;
   size: number;
   mimeType?: string;

@@ -189,6 +189,37 @@ export {
   generateStyleInjectionScript,
 } from './config';
 
+// Sandbox runtime utilities
+export {
+  type DesignerSandpackTemplate,
+  type DesignerSandboxFile,
+  type DesignerSandboxCustomSetup,
+  type DesignerSandboxConfig,
+  type SandboxRuntimeStatus,
+  type SandboxConsoleLevel,
+  type SandboxRuntimeEvent,
+  type SandboxAdapterBuildContext,
+  type DesignerSandboxAdapter,
+  normalizeSandpackStatus,
+  normalizeBridgeMessage,
+  createDesignerBridgeModuleSource,
+  createInlineDesignerBridgeScript,
+  registerSandboxAdapter,
+  getSandboxAdapter,
+  listSandboxAdapters,
+  clearSandboxAdapters,
+  buildFrameworkSandboxConfig,
+  getFrameworkDefaultCode,
+  sandpackTemplateToFramework,
+  isUnifiedDesignerSandboxRuntimeEnabled,
+  setUnifiedDesignerSandboxRuntimeEnabled,
+  UNIFIED_SANDBOX_ENV,
+  UNIFIED_SANDBOX_STORAGE_KEY,
+  reactSandboxAdapter,
+  vueSandboxAdapter,
+  htmlSandboxAdapter,
+} from './sandbox';
+
 // Collaboration
 export * from './collaboration';
 

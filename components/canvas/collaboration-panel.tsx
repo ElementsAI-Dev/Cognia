@@ -35,6 +35,7 @@ export function CollaborationPanel({
   const t = useTranslations('canvas');
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [joinSessionId, setJoinSessionId] = useState('');
 
   const {
@@ -58,16 +59,27 @@ export function CollaborationPanel({
 
   const handleCopyShareLink = useCallback(async () => {
     const state = shareSession();
-    if (state) {
-      const shareUrl = `${window.location.origin}/canvas/join?session=${encodeURIComponent(state)}`;
+    if (!state) {
+      setCopyError(t('shareLinkUnavailable'));
+      return;
+    }
+
+    try {
+      const shareUrl = `${window.location.origin}/canvas/join?session=${encodeURIComponent(
+        state
+      )}`;
       await navigator.clipboard.writeText(shareUrl);
+      setCopyError(null);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopyError(t('copyLinkFailed'));
     }
-  }, [shareSession]);
+  }, [shareSession, t]);
 
   const handleJoinSession = useCallback(async () => {
     if (joinSessionId.trim()) {
+      setCopyError(null);
       await joinSession(joinSessionId.trim());
       setJoinSessionId('');
     }
@@ -90,7 +102,7 @@ export function CollaborationPanel({
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         {trigger || (
-          <Button variant="ghost" size="sm" className="gap-2">
+          <Button variant="ghost" size="sm" className="gap-2" data-testid="canvas-collab-trigger">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">{t('collaborate')}</span>
             {isConnected && (
@@ -133,7 +145,7 @@ export function CollaborationPanel({
           {/* Session Controls */}
           {!session ? (
             <div className="space-y-3">
-              <Button className="w-full" onClick={handleStartSession}>
+              <Button className="w-full" onClick={handleStartSession} data-testid="canvas-collab-start-session">
                 <Share2 className="h-4 w-4 mr-2" />
                 {t('startSession')}
               </Button>
@@ -148,11 +160,13 @@ export function CollaborationPanel({
                     onChange={(e) => setJoinSessionId(e.target.value)}
                     placeholder={t('sessionIdPlaceholder')}
                     className="flex-1"
+                    data-testid="canvas-collab-session-input"
                   />
                   <Button
                     variant="outline"
                     onClick={handleJoinSession}
                     disabled={!joinSessionId.trim()}
+                    data-testid="canvas-collab-join-button"
                   >
                     <UserPlus className="h-4 w-4" />
                   </Button>
@@ -180,6 +194,18 @@ export function CollaborationPanel({
                 </Button>
               </div>
             </div>
+          )}
+
+          {copyError && (
+            <p className="text-xs text-destructive" data-testid="canvas-collab-copy-error">
+              {copyError}
+            </p>
+          )}
+
+          {(connectionState === 'error' || connectionState === 'disconnected') && (
+            <p className="text-xs text-muted-foreground" data-testid="canvas-collab-fallback-message">
+              {t('collabFallbackMessage')}
+            </p>
           )}
 
           <Separator />

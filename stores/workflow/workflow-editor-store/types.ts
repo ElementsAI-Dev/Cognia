@@ -50,10 +50,60 @@ export type {
 // State Types
 // ============================================================================
 
+export type WorkflowEditorLifecycleState =
+  | 'clean'
+  | 'dirty'
+  | 'saving'
+  | 'saveFailed'
+  | 'publishBlocked'
+  | 'readyToPublish';
+
+export type WorkflowMutationKind =
+  | 'workflow:create'
+  | 'workflow:load'
+  | 'workflow:update-meta'
+  | 'workflow:update-settings'
+  | 'workflow:update-variables'
+  | 'workflow:set-variable'
+  | 'workflow:delete-variable'
+  | 'workflow:publish'
+  | 'workflow:unpublish'
+  | 'node:add'
+  | 'node:update'
+  | 'node:delete'
+  | 'node:delete-many'
+  | 'node:duplicate'
+  | 'node:duplicate-many'
+  | 'node:batch-update'
+  | 'edge:add'
+  | 'edge:update'
+  | 'edge:delete'
+  | 'edge:delete-many'
+  | 'edge:reconnect'
+  | 'edge:connect';
+
+export interface WorkflowMutationRecord {
+  kind: WorkflowMutationKind;
+  nodeIds?: string[];
+  edgeIds?: string[];
+  metadata?: Record<string, unknown>;
+  occurredAt: Date;
+}
+
+export interface ValidationFocusTarget {
+  issueId: string;
+  nodeId?: string;
+  edgeId?: string;
+  issuedAt: number;
+}
+
 export interface WorkflowSliceState {
   currentWorkflow: VisualWorkflow | null;
   savedWorkflows: VisualWorkflow[];
   isDirty: boolean;
+  editorLifecycleState: WorkflowEditorLifecycleState;
+  lastSaveError: string | null;
+  lastMutation: WorkflowMutationRecord | null;
 }
 
 // NodeSliceState - Node state is stored in currentWorkflow.nodes
@@ -76,6 +126,9 @@ export interface HistorySliceState {
 
 export interface ValidationSliceState {
   validationErrors: ValidationError[];
+  clientValidationErrors: ValidationError[];
+  serverValidationErrors: ValidationError[];
+  validationFocusTarget: ValidationFocusTarget | null;
 }
 
 export interface ExecutionSliceState {
@@ -147,6 +200,7 @@ export interface WorkflowSliceActions {
   deleteWorkflowVariable: (name: string) => void;
   publishWorkflow: () => void;
   unpublishWorkflow: () => void;
+  syncLifecycleState: () => void;
 }
 
 export interface NodeSliceActions {
@@ -198,6 +252,11 @@ export interface ViewportSliceActions {
 export interface ValidationSliceActions {
   validate: () => ValidationError[];
   clearValidationErrors: () => void;
+  setServerValidationErrors: (errors: ValidationError[]) => void;
+  clearServerValidationErrors: () => void;
+  focusValidationIssue: (issueId: string) => void;
+  clearValidationFocus: () => void;
+  getBlockingValidationErrors: () => ValidationError[];
 }
 
 export interface ExecutionSliceActions {

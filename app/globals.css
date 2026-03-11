@@ -2,6 +2,10 @@
 @import 'tw-animate-css';
 @import 'katex/dist/katex.min.css';
 
+/* Exclude reference mirrors and tool caches from Tailwind source scanning. */
+@source not "../.dify-ref/**";
+@source not "../.pw-browsers/**";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

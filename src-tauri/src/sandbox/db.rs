@@ -9,7 +9,9 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use super::runtime::{ExecutionResult, ExecutionStatus, RuntimeType};
+use super::runtime::{
+    ExecutionDiagnostics, ExecutionPolicySnapshot, ExecutionResult, ExecutionStatus, RuntimeType,
+};
 
 /// Database error types
 #[derive(Debug, thiserror::Error)]
@@ -43,6 +45,8 @@ pub struct ExecutionRecord {
     pub execution_time_ms: u64,
     pub memory_used_bytes: Option<u64>,
     pub error: Option<String>,
+    pub diagnostics: Option<ExecutionDiagnostics>,
+    pub policy_snapshot: Option<ExecutionPolicySnapshot>,
     pub created_at: DateTime<Utc>,
     pub tags: Vec<String>,
     pub is_favorite: bool,
@@ -209,6 +213,8 @@ impl SandboxDb {
                 execution_time_ms INTEGER NOT NULL DEFAULT 0,
                 memory_used_bytes INTEGER,
                 error TEXT,
+                diagnostics_json TEXT,
+                policy_snapshot_json TEXT,
                 created_at TEXT NOT NULL,
                 is_favorite INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE SET NULL
@@ -280,6 +286,33 @@ impl SandboxDb {
             "#,
         )?;
 
+        Self::ensure_column(&conn, "executions", "diagnostics_json", "TEXT")?;
+        Self::ensure_column(&conn, "executions", "policy_snapshot_json", "TEXT")?;
+
+        Ok(())
+    }
+
+    fn ensure_column(
+        conn: &Connection,
+        table: &str,
+        column: &str,
+        definition: &str,
+    ) -> Result<(), DbError> {
+        let pragma = format!("PRAGMA table_info({})", table);
+        let mut stmt = conn.prepare(&pragma)?;
+        let columns: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(1))?
+            .filter_map(Result::ok)
+            .collect();
+
+        if !columns.iter().any(|name| name == column) {
+            let alter_sql = format!(
+                "ALTER TABLE {} ADD COLUMN {} {}",
+                table, column, definition
+            );
+            conn.execute(&alter_sql, [])?;
+        }
+
         Ok(())
     }
 
@@ -311,6 +344,18 @@ impl SandboxDb {
             .trim_matches('"')
             .to_string();
         let runtime_str = result.runtime.to_string();
+        let diagnostics_json = result
+            .diagnostics
+            .as_ref()
+            .map(|diagnostics| serde_json::to_string(diagnostics))
+            .transpose()
+            .map_err(|e| DbError::Serialization(e.to_string()))?;
+        let policy_snapshot_json = result
+            .policy_snapshot
+            .as_ref()
+            .map(|snapshot| serde_json::to_string(snapshot))
+            .transpose()
+            .map_err(|e| DbError::Serialization(e.to_string()))?;
 
         log::trace!(
             "Execution details: exit_code={:?}, time={}ms, code_len={}, session={:?}, tags={:?}",
@@ -324,8 +369,8 @@ impl SandboxDb {
         conn.execute(
             r#"INSERT INTO executions 
                (id, session_id, language, code, stdin, stdout, stderr, exit_code, 
-                status, runtime, execution_time_ms, memory_used_bytes, error, created_at, is_favorite)
-               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 0)"#,
+                status, runtime, execution_time_ms, memory_used_bytes, error, diagnostics_json, policy_snapshot_json, created_at, is_favorite)
+               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, 0)"#,
             params![
                 result.id,
                 session_id,
@@ -340,6 +385,8 @@ impl SandboxDb {
                 result.execution_time_ms as i64,
                 result.memory_used_bytes.map(|v| v as i64),
                 result.error,
+                diagnostics_json,
+                policy_snapshot_json,
                 now.to_rfc3339(),
             ],
         )?;
@@ -378,6 +425,8 @@ impl SandboxDb {
             execution_time_ms: result.execution_time_ms,
             memory_used_bytes: result.memory_used_bytes,
             error: result.error.clone(),
+            diagnostics: result.diagnostics.clone(),
+            policy_snapshot: result.policy_snapshot.clone(),
             created_at: now,
             tags: tags.to_vec(),
             is_favorite: false,
@@ -433,8 +482,8 @@ impl SandboxDb {
 
         let mut stmt = conn.prepare(
             r#"SELECT id, session_id, language, code, stdin, stdout, stderr, exit_code,
-                      status, runtime, execution_time_ms, memory_used_bytes, error, 
-                      created_at, is_favorite
+                      status, runtime, execution_time_ms, memory_used_bytes, error,
+                      diagnostics_json, policy_snapshot_json, created_at, is_favorite
                FROM executions WHERE id = ?1"#,
         )?;
 
@@ -458,7 +507,9 @@ impl SandboxDb {
         let id: String = row.get(0)?;
         let status_str: String = row.get(8)?;
         let runtime_str: String = row.get(9)?;
-        let created_at_str: String = row.get(13)?;
+        let diagnostics_json: Option<String> = row.get(13)?;
+        let policy_snapshot_json: Option<String> = row.get(14)?;
+        let created_at_str: String = row.get(15)?;
 
         // Get tags
         let mut tag_stmt =
@@ -485,6 +536,13 @@ impl SandboxDb {
             _ => RuntimeType::Native,
         };
 
+        let diagnostics = diagnostics_json
+            .as_deref()
+            .and_then(|value| serde_json::from_str::<ExecutionDiagnostics>(value).ok());
+        let policy_snapshot = policy_snapshot_json
+            .as_deref()
+            .and_then(|value| serde_json::from_str::<ExecutionPolicySnapshot>(value).ok());
+
         Ok(ExecutionRecord {
             id,
             session_id: row.get(1)?,
@@ -499,11 +557,13 @@ impl SandboxDb {
             execution_time_ms: row.get::<_, i64>(10)? as u64,
             memory_used_bytes: row.get::<_, Option<i64>>(11)?.map(|v| v as u64),
             error: row.get(12)?,
+            diagnostics,
+            policy_snapshot,
             created_at: DateTime::parse_from_rfc3339(&created_at_str)
                 .map(|dt| dt.with_timezone(&Utc))
                 .unwrap_or_else(|_| Utc::now()),
             tags,
-            is_favorite: row.get::<_, i32>(14)? != 0,
+            is_favorite: row.get::<_, i32>(16)? != 0,
         })
     }
 
@@ -523,7 +583,7 @@ impl SandboxDb {
         let mut sql = String::from(
             r#"SELECT DISTINCT e.id, e.session_id, e.language, e.code, e.stdin, e.stdout, 
                       e.stderr, e.exit_code, e.status, e.runtime, e.execution_time_ms, 
-                      e.memory_used_bytes, e.error, e.created_at, e.is_favorite
+                      e.memory_used_bytes, e.error, e.diagnostics_json, e.policy_snapshot_json, e.created_at, e.is_favorite
                FROM executions e"#,
         );
 
@@ -1536,6 +1596,8 @@ mod tests {
             error: None,
             runtime: RuntimeType::Docker,
             language: language.to_string(),
+            diagnostics: None,
+            policy_snapshot: None,
         }
     }
 
@@ -2315,6 +2377,8 @@ mod tests {
             execution_time_ms: 100,
             memory_used_bytes: Some(1024),
             error: None,
+            diagnostics: None,
+            policy_snapshot: None,
             created_at: Utc::now(),
             tags: vec![],
             is_favorite: false,

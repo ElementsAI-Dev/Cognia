@@ -5,6 +5,8 @@ import type {
   ExecutionSession,
   Language,
   RuntimeType,
+  SandboxPreflightRequest,
+  SandboxPreflightResult,
   SandboxExecutionRecord,
   SandboxExecutionResult,
   SandboxStatus,
@@ -44,6 +46,12 @@ export async function executeCode(
   request: ExecutionRequest
 ): Promise<SandboxExecutionResult> {
   return invokeSandboxCommand<SandboxExecutionResult>('sandbox_execute', { request });
+}
+
+export async function sandboxPreflight(
+  request: SandboxPreflightRequest
+): Promise<SandboxPreflightResult> {
+  return invokeSandboxCommand<SandboxPreflightResult>('sandbox_preflight', { request });
 }
 
 export async function cancelExecution(executionId: string): Promise<boolean> {

@@ -62,7 +62,7 @@ export interface ProcessBatchOptions extends ProcessFileOptions {
   concurrency?: number;
 }
 
-const BINARY_EXTENSIONS = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt'];
+const BINARY_EXTENSIONS = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'epub'];
 
 export function useDocumentProcessor() {
   const [state, setState] = useState<DocumentProcessingState>({

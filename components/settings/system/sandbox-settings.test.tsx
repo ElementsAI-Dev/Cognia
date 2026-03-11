@@ -119,6 +119,11 @@ describe('SandboxSettings', () => {
     expect(runtimeElements.length).toBeGreaterThan(0);
   });
 
+  it('displays policy profile controls', () => {
+    render(<SandboxSettings />);
+    expect(screen.getAllByText(/Policy Profile/i).length).toBeGreaterThan(0);
+  });
+
   it('displays resource limits section with i18n', () => {
     render(<SandboxSettings />);
     const resourceElements = screen.getAllByText(/Resource Limits|resourceLimits/i);

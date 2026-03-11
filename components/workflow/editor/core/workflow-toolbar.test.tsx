@@ -31,6 +31,7 @@ jest.mock('@/stores/workflow', () => ({
     () => ({
       currentWorkflow: { id: 'workflow-1', name: 'Test Workflow', nodes: [] },
       isDirty: true,
+      editorLifecycleState: 'clean',
       isExecuting: false,
       selectedNodes: [],
       history: [{}],
@@ -52,6 +53,7 @@ jest.mock('@/stores/workflow', () => ({
       toggleNodePalette: mockToggleNodePalette,
       toggleConfigPanel: mockToggleConfigPanel,
       toggleMinimap: mockToggleMinimap,
+      focusValidationIssue: jest.fn(),
     }),
     {
       getState: () => ({
@@ -330,6 +332,7 @@ describe('WorkflowToolbar with Errors', () => {
         () => ({
           currentWorkflow: { id: 'workflow-1', name: 'Test Workflow', nodes: [] },
           isDirty: false,
+          editorLifecycleState: 'clean',
           isExecuting: false,
           selectedNodes: [],
           history: [{}],
@@ -351,6 +354,7 @@ describe('WorkflowToolbar with Errors', () => {
           toggleNodePalette: mockToggleNodePalette,
           toggleConfigPanel: mockToggleConfigPanel,
           toggleMinimap: mockToggleMinimap,
+          focusValidationIssue: jest.fn(),
         }),
         {
           getState: () => ({

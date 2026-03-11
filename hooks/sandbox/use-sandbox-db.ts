@@ -20,6 +20,7 @@ import type {
   SandboxStats,
   SnippetFilter,
 } from '@/types/system/sandbox';
+import { normalizeExecutionRecord, normalizeExecutionResult } from '@/lib/sandbox/compat';
 
 // Check if we're in Tauri environment
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -76,7 +77,7 @@ export function useExecutionHistory(
       const api = await getSandboxApi();
       const stableFilter = JSON.parse(filterKey) as ExecutionFilter;
       const result = await api.queryExecutions(stableFilter);
-      setExecutions(result);
+      setExecutions(result.map(normalizeExecutionRecord));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -242,7 +243,7 @@ export function useSnippets(options: UseSnippetsOptions = {}): UseSnippetsReturn
     if (!isTauri) return null;
     try {
       const api = await getSandboxApi();
-      return await api.executeSnippet(id);
+      return normalizeExecutionResult(await api.executeSnippet(id));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       return null;
@@ -409,7 +410,7 @@ export function useSessions(options: UseSessionsOptions = {}): UseSessionsReturn
       if (!isTauri) return [];
       try {
         const api = await getSandboxApi();
-        return await api.getSessionExecutions(sessionId);
+        return (await api.getSessionExecutions(sessionId)).map(normalizeExecutionRecord);
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
         return [];
@@ -524,7 +525,7 @@ export function useCodeExecution(): UseCodeExecutionReturn {
       setExecuting(true);
       setError(null);
       const api = await getSandboxApi();
-      const execResult = await api.executeCode(request);
+      const execResult = normalizeExecutionResult(await api.executeCode(request));
       setExecutionId(execResult?.id ?? null);
       setResult(execResult);
       return execResult;
@@ -544,7 +545,7 @@ export function useCodeExecution(): UseCodeExecutionReturn {
       setExecuting(true);
       setError(null);
       const api = await getSandboxApi();
-      const execResult = await api.quickExecute(language, code);
+      const execResult = normalizeExecutionResult(await api.quickExecute(language, code));
       setExecutionId(execResult?.id ?? null);
       setResult(execResult);
       return execResult;
@@ -638,7 +639,7 @@ export function useStreamingExecution(): UseStreamingExecutionReturn {
       setError(null);
       setOutputLines([]);
       const api = await getSandboxApi();
-      const execResult = await api.executeCodeStreaming(request);
+      const execResult = normalizeExecutionResult(await api.executeCodeStreaming(request));
       setExecutionId(execResult?.id ?? null);
       setResult(execResult);
       return execResult;

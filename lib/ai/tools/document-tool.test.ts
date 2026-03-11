@@ -55,12 +55,14 @@ jest.mock('@/lib/document/document-processor', () => ({
     const ext = filename.split('.').pop()?.toLowerCase();
     const typeMap: Record<string, string> = {
       txt: 'text', md: 'markdown', json: 'json', ts: 'code', js: 'code',
-      pdf: 'pdf', docx: 'word', xlsx: 'excel', csv: 'csv', html: 'html', exe: 'unknown',
+      pdf: 'pdf', docx: 'word', xlsx: 'excel', csv: 'csv', html: 'html',
+      pptx: 'presentation', ppt: 'presentation', rtf: 'rtf', epub: 'epub',
+      exe: 'unknown',
     };
     return typeMap[ext || ''] || 'unknown';
   }),
   isBinaryType: jest.fn((type) => {
-    return ['pdf', 'word', 'excel'].includes(type);
+    return ['pdf', 'word', 'excel', 'presentation', 'epub'].includes(type);
   }),
 }));
 

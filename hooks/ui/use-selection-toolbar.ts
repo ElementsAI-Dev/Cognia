@@ -87,12 +87,45 @@ const toNativeConfig = (config: ToolbarConfig): NativeSelectionConfig => ({
 // Cooldown period after hiding to prevent immediate re-show (prevents flashing)
 const HIDE_COOLDOWN_MS = 300;
 
+type ActionPhase = 'idle' | 'loading' | 'success' | 'error';
+
+interface SelectionEventMeta {
+  eventId?: string;
+  timestamp?: number;
+  sourceApp?: string;
+  sourceProcess?: string;
+  sourceWindowTitle?: string;
+  textType?: TextType;
+}
+
+interface SelectionErrorPayload {
+  kind?: string;
+  stage?: string;
+  message?: string;
+  error?: string;
+}
+
+const LOCAL_ACTIONS = new Set<SelectionAction>(['copy', 'search', 'send-to-chat']);
+
+const normalizeSelectionMeta = (payload: SelectionPayload): SelectionEventMeta => ({
+  eventId: payload.eventId || payload.event_id,
+  timestamp: payload.timestamp,
+  sourceApp: payload.sourceApp || payload.source_app,
+  sourceProcess: payload.sourceProcess || payload.source_process,
+  sourceWindowTitle: payload.sourceWindowTitle || payload.source_window_title,
+  textType:
+    payload.textType ||
+    (typeof payload.text_type === 'string' ? (payload.text_type.toLowerCase() as TextType) : undefined),
+});
+
 export function useSelectionToolbar() {
   const [state, setState] = useState<ToolbarState>(initialState);
   const store = useSelectionStore();
 
   // Track when toolbar was last hidden to prevent immediate re-show (flashing)
   const lastHideTimeRef = useRef<number>(0);
+  const selectionEventMetaRef = useRef<SelectionEventMeta>({});
+  const actionPhaseRef = useRef<ActionPhase>('idle');
 
   // Get config from store
   const config = store.config;
@@ -133,6 +166,95 @@ export function useSelectionToolbar() {
     return defaults[provider] || 'gpt-4o-mini';
   }, [providerSettings, provider]);
 
+  const emitSelectionDiagnostic = useCallback(
+    async (payload: SelectionErrorPayload) => {
+      if (!isTauri()) {
+        return;
+      }
+      try {
+        const { emit } = await import('@tauri-apps/api/event');
+        await emit('selection-error', {
+          ...payload,
+          timestamp: Date.now(),
+        });
+      } catch (error) {
+        log.debug('Failed to emit selection diagnostic event', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    },
+    []
+  );
+
+  const setActionPhase = useCallback((phase: ActionPhase) => {
+    actionPhaseRef.current = phase;
+  }, []);
+
+  const beginAction = useCallback(
+    (action: SelectionAction | null) => {
+      setActionPhase('loading');
+      setState((prev) => ({
+        ...prev,
+        isLoading: true,
+        isStreaming: config.enableStreaming,
+        activeAction: action,
+        result: null,
+        streamingResult: config.enableStreaming ? '' : null,
+        error: null,
+      }));
+    },
+    [config.enableStreaming, setActionPhase]
+  );
+
+  const completeActionSuccess = useCallback(
+    (resultText: string | null) => {
+      setActionPhase('success');
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        isStreaming: false,
+        result: resultText,
+        error: null,
+      }));
+    },
+    [setActionPhase]
+  );
+
+  const completeActionError = useCallback(
+    async (message: string, stage = 'action_execution') => {
+      setActionPhase('error');
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        isStreaming: false,
+        error: message,
+      }));
+      await emitSelectionDiagnostic({
+        kind: 'ai_action_failed',
+        stage,
+        message,
+      });
+    },
+    [emitSelectionDiagnostic, setActionPhase]
+  );
+
+  const addActionToHistory = useCallback(
+    (action: SelectionAction, sourceText: string, resultText: string) => {
+      store.addToHistory({
+        text: sourceText,
+        action,
+        result: resultText,
+        sourceApp: selectionEventMetaRef.current.sourceApp || store.sourceApp || undefined,
+        sourceAppProcess: selectionEventMetaRef.current.sourceProcess,
+        sourceWindowTitle: selectionEventMetaRef.current.sourceWindowTitle,
+        textType: state.textType || selectionEventMetaRef.current.textType || undefined,
+        selectionEventId: selectionEventMetaRef.current.eventId,
+        selectionTimestamp: selectionEventMetaRef.current.timestamp,
+      });
+    },
+    [state.textType, store]
+  );
+
   // Use the existing AI chat hook
   const { sendMessage, stop } = useAIChat({
     provider,
@@ -143,21 +265,11 @@ export function useSelectionToolbar() {
     onStreamEnd: () => {
       setState((prev) => ({ ...prev, isStreaming: false }));
     },
-    onError: (error) => {
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        isStreaming: false,
-        error: error.message,
-      }));
+    onError: async (error) => {
+      await completeActionError(error.message, 'ai_stream');
     },
     onFinish: (result) => {
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        isStreaming: false,
-        result: result.text,
-      }));
+      completeActionSuccess(result.text);
     },
   });
 
@@ -182,6 +294,15 @@ export function useSelectionToolbar() {
         }
       } catch (error) {
         log.error('Failed to sync selection config', error as Error);
+        setState((prev) => ({
+          ...prev,
+          error: error instanceof Error ? error.message : 'Failed to sync selection config',
+        }));
+        void emitSelectionDiagnostic({
+          kind: 'config_sync_failed',
+          stage: 'sync_config',
+          message: error instanceof Error ? error.message : 'Failed to sync selection config',
+        });
       }
     };
 
@@ -197,6 +318,7 @@ export function useSelectionToolbar() {
     config.targetLanguage,
     config.excludedApps,
     config.autoHideDelay,
+    emitSelectionDiagnostic,
   ]);
 
   // Listen for selection events from Tauri
@@ -207,9 +329,18 @@ export function useSelectionToolbar() {
 
     let unlistenShow: (() => void) | undefined;
     let unlistenHide: (() => void) | undefined;
+    let unlistenDetected: (() => void) | undefined;
+    let unlistenError: (() => void) | undefined;
 
     const setupListeners = async () => {
       const { listen } = await import('@tauri-apps/api/event');
+
+      unlistenDetected = await listen<SelectionPayload>('selection-detected', (event) => {
+        selectionEventMetaRef.current = {
+          ...selectionEventMetaRef.current,
+          ...normalizeSelectionMeta(event.payload),
+        };
+      });
 
       unlistenShow = await listen<SelectionPayload>('selection-toolbar-show', (event) => {
         // Check if we're in cooldown period after a recent hide
@@ -221,6 +352,11 @@ export function useSelectionToolbar() {
           );
           return;
         }
+
+        selectionEventMetaRef.current = {
+          ...selectionEventMetaRef.current,
+          ...normalizeSelectionMeta(event.payload),
+        };
 
         setState((prev) => ({
           ...prev,
@@ -238,7 +374,23 @@ export function useSelectionToolbar() {
       });
 
       unlistenHide = await listen('selection-toolbar-hide', () => {
+        selectionEventMetaRef.current = {};
+        setActionPhase('idle');
         setState(initialState);
+      });
+
+      unlistenError = await listen<SelectionErrorPayload>('selection-error', (event) => {
+        const message = event.payload.message || event.payload.error;
+        if (!message) {
+          return;
+        }
+        setActionPhase('error');
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          isStreaming: false,
+          error: message,
+        }));
       });
     };
 
@@ -247,8 +399,10 @@ export function useSelectionToolbar() {
     return () => {
       unlistenShow?.();
       unlistenHide?.();
+      unlistenDetected?.();
+      unlistenError?.();
     };
-  }, []);
+  }, [setActionPhase]);
 
   // Execute an action on the selected text using the shared AI infrastructure
   const executeAction = useCallback(
@@ -258,33 +412,67 @@ export function useSelectionToolbar() {
       // Cancel any ongoing request
       stop();
 
+      if (LOCAL_ACTIONS.has(action)) {
+        beginAction(action);
+        try {
+          if (action === 'copy') {
+            await navigator.clipboard.writeText(state.selectedText);
+            const copyResult = `Copied ${state.selectedText.length} characters to clipboard.`;
+            addActionToHistory(action, state.selectedText, copyResult);
+            completeActionSuccess(copyResult);
+            return;
+          }
+
+          if (action === 'search') {
+            const engineConfig = SEARCH_ENGINES.find((e) => e.engine === config.searchEngine);
+            const urlTemplate =
+              engineConfig?.urlTemplate || 'https://www.google.com/search?q={{query}}';
+            const searchUrl = urlTemplate.replace('{{query}}', encodeURIComponent(state.selectedText));
+            window.open(searchUrl, '_blank');
+            const searchResult = `Opened search for ${state.selectedText.length} selected characters.`;
+            addActionToHistory(action, state.selectedText, searchResult);
+            completeActionSuccess(searchResult);
+            return;
+          }
+
+          if (action === 'send-to-chat') {
+            if (isTauri()) {
+              const { emit } = await import('@tauri-apps/api/event');
+              await emit('selection-send-to-chat', {
+                text: state.selectedText,
+                action,
+              });
+            }
+            const sendResult = 'Sent selected text to chat.';
+            addActionToHistory(action, state.selectedText, sendResult);
+            completeActionSuccess(sendResult);
+            return;
+          }
+
+          await completeActionError(`Unsupported local action: ${action}`, 'local_action');
+          return;
+        } catch (error) {
+          await completeActionError(
+            error instanceof Error ? error.message : 'Failed to execute local selection action',
+            'local_action'
+          );
+          return;
+        }
+      }
+
       const promptFn = ACTION_PROMPTS[action];
       if (!promptFn) {
-        setState((prev) => ({
-          ...prev,
-          error: `Unknown action: ${action}`,
-        }));
+        await completeActionError(`Unknown action: ${action}`, 'prompt_resolution');
         return;
       }
 
       const prompt = promptFn(state.selectedText, config.targetLanguage);
       if (!prompt) {
-        setState((prev) => ({
-          ...prev,
-          error: `No prompt for action: ${action}`,
-        }));
+        await completeActionError(`No prompt for action: ${action}`, 'prompt_resolution');
         return;
       }
 
-      setState((prev) => ({
-        ...prev,
-        isLoading: true,
-        isStreaming: config.enableStreaming,
-        activeAction: action,
-        result: null,
-        streamingResult: config.enableStreaming ? '' : null,
-        error: null,
-      }));
+      beginAction(action);
 
       try {
         // Use the shared AI chat infrastructure
@@ -307,35 +495,33 @@ export function useSelectionToolbar() {
 
         // Add to history
         if (result) {
-          store.addToHistory({
-            text: state.selectedText,
-            action,
-            result,
-            sourceApp: store.sourceApp || undefined,
-            textType: state.textType || undefined,
-          });
+          addActionToHistory(action, state.selectedText, result);
+        }
+
+        if (actionPhaseRef.current === 'loading') {
+          completeActionSuccess(result || null);
         }
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
           return;
         }
-
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          isStreaming: false,
-          error: error instanceof Error ? error.message : 'An error occurred',
-        }));
+        await completeActionError(
+          error instanceof Error ? error.message : 'An error occurred',
+          'ai_action'
+        );
       }
     },
     [
       state.selectedText,
-      state.textType,
-      config.targetLanguage,
       config.enableStreaming,
-      store,
+      config.targetLanguage,
+      config.searchEngine,
       sendMessage,
       stop,
+      beginAction,
+      completeActionError,
+      completeActionSuccess,
+      addActionToHistory,
     ]
   );
 
@@ -351,15 +537,7 @@ export function useSelectionToolbar() {
       store.incrementCustomActionUsage(customAction.id);
       store.trackActionUsage(`custom:${customAction.id}`);
 
-      setState((prev) => ({
-        ...prev,
-        isLoading: true,
-        isStreaming: config.enableStreaming,
-        activeAction: null,
-        result: null,
-        streamingResult: config.enableStreaming ? '' : null,
-        error: null,
-      }));
+      beginAction(null);
 
       try {
         const result = await sendMessage(
@@ -380,25 +558,31 @@ export function useSelectionToolbar() {
         );
 
         if (result) {
-          store.addToHistory({
-            text: state.selectedText,
-            action: 'explain' as SelectionAction,
-            result,
-            sourceApp: store.sourceApp || undefined,
-            textType: state.textType || undefined,
-          });
+          addActionToHistory('explain', state.selectedText, result);
+        }
+
+        if (actionPhaseRef.current === 'loading') {
+          completeActionSuccess(result || null);
         }
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') return;
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          isStreaming: false,
-          error: error instanceof Error ? error.message : 'An error occurred',
-        }));
+        await completeActionError(
+          error instanceof Error ? error.message : 'An error occurred',
+          'custom_action'
+        );
       }
     },
-    [state.selectedText, state.textType, config.enableStreaming, store, sendMessage, stop]
+    [
+      state.selectedText,
+      config.enableStreaming,
+      store,
+      sendMessage,
+      stop,
+      beginAction,
+      addActionToHistory,
+      completeActionSuccess,
+      completeActionError,
+    ]
   );
 
   // Execute a template on the selected text
@@ -413,15 +597,7 @@ export function useSelectionToolbar() {
       store.incrementTemplateUsage(template.id);
       store.trackActionUsage(`template:${template.id}`);
 
-      setState((prev) => ({
-        ...prev,
-        isLoading: true,
-        isStreaming: config.enableStreaming,
-        activeAction: null,
-        result: null,
-        streamingResult: config.enableStreaming ? '' : null,
-        error: null,
-      }));
+      beginAction(null);
 
       try {
         const result = await sendMessage(
@@ -442,25 +618,31 @@ export function useSelectionToolbar() {
         );
 
         if (result) {
-          store.addToHistory({
-            text: state.selectedText,
-            action: 'explain' as SelectionAction,
-            result,
-            sourceApp: store.sourceApp || undefined,
-            textType: state.textType || undefined,
-          });
+          addActionToHistory('explain', state.selectedText, result);
+        }
+
+        if (actionPhaseRef.current === 'loading') {
+          completeActionSuccess(result || null);
         }
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') return;
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          isStreaming: false,
-          error: error instanceof Error ? error.message : 'An error occurred',
-        }));
+        await completeActionError(
+          error instanceof Error ? error.message : 'An error occurred',
+          'template_action'
+        );
       }
     },
-    [state.selectedText, state.textType, config.enableStreaming, store, sendMessage, stop]
+    [
+      state.selectedText,
+      config.enableStreaming,
+      store,
+      sendMessage,
+      stop,
+      beginAction,
+      addActionToHistory,
+      completeActionSuccess,
+      completeActionError,
+    ]
   );
 
   // Replace selected text in source application (desktop only)
@@ -506,6 +688,7 @@ export function useSelectionToolbar() {
   const clearResult = useCallback(() => {
     // Cancel any ongoing request
     stop();
+    setActionPhase('idle');
 
     setState((prev) => ({
       ...prev,
@@ -516,12 +699,14 @@ export function useSelectionToolbar() {
       isLoading: false,
       isStreaming: false,
     }));
-  }, [stop]);
+  }, [stop, setActionPhase]);
 
   // Hide toolbar
   const hideToolbar = useCallback(async () => {
     // Cancel any ongoing request
     stop();
+    setActionPhase('idle');
+    selectionEventMetaRef.current = {};
 
     // Record hide time to enable cooldown (prevents flash on immediate re-show)
     lastHideTimeRef.current = Date.now();
@@ -536,11 +721,12 @@ export function useSelectionToolbar() {
         log.error('Failed to hide toolbar', e as Error);
       }
     }
-  }, [stop]);
+  }, [stop, setActionPhase]);
 
   // Show toolbar manually
   const showToolbar = useCallback(
     async (text: string, x: number, y: number, options?: { textType?: TextType }) => {
+      setActionPhase('idle');
       setState((prev) => ({
         ...prev,
         isVisible: true,
@@ -564,7 +750,7 @@ export function useSelectionToolbar() {
         }
       }
     },
-    []
+    [setActionPhase]
   );
 
   // Set selection mode

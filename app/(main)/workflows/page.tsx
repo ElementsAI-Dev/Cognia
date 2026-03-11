@@ -46,6 +46,7 @@ import { workflowEditorTemplates, getTemplateCategories } from '@/lib/workflow-e
 import { definitionToVisual } from '@/lib/workflow-editor/converter';
 import {
   getWorkflowLifecycleCapability,
+  isWorkflowEditorFeatureEnabled,
 } from '@/lib/workflow-editor';
 import {
   createWorkflowErrorEnvelope,
@@ -95,11 +96,13 @@ export default function WorkflowsPage() {
   const [workflowToDelete, setWorkflowToDelete] = useState<string | null>(null);
   const [templateBrowserOpen, setTemplateBrowserOpen] = useState(false);
   const [actionError, setActionError] = useState<WorkflowErrorEnvelope | null>(null);
+  const workflowEditorV2Enabled = isWorkflowEditorFeatureEnabled('workflow.editor.v2');
 
   const {
     currentWorkflow,
     isExecuting,
     isDirty,
+    editorLifecycleState,
     executionState,
     validationErrors,
     createWorkflow,
@@ -130,9 +133,20 @@ export default function WorkflowsPage() {
   });
 
   const hasErrors = useMemo(
-    () => validationErrors.some((e) => e.severity === 'error'),
+    () =>
+      validationErrors.some(
+        (error) => error.blocking ?? (error.severity !== 'warning' && error.severity !== 'info')
+      ),
     [validationErrors]
   );
+  const lifecycleStatusLabel = useMemo(() => {
+    if (editorLifecycleState === 'saving') return 'Saving...';
+    if (editorLifecycleState === 'saveFailed') return 'Save failed';
+    if (editorLifecycleState === 'publishBlocked') return 'Publish blocked';
+    if (editorLifecycleState === 'readyToPublish') return 'Ready to publish';
+    if (editorLifecycleState === 'dirty') return 'Unsaved changes';
+    return 'Saved';
+  }, [editorLifecycleState]);
   const executionControls = useMemo(
     () => {
       const capability = getWorkflowLifecycleCapability({
@@ -352,6 +366,15 @@ export default function WorkflowsPage() {
 
   // Handle back to list
   const handleBackToList = () => {
+    if (workflowEditorV2Enabled && isDirty) {
+      const shouldLeave = window.confirm(
+        'You have unsaved changes. Leave the editor without saving?'
+      );
+      if (!shouldLeave) {
+        return;
+      }
+    }
+
     setViewMode('list');
     router.push('/workflows');
     loadWorkflows();
@@ -408,6 +431,20 @@ export default function WorkflowsPage() {
     }
   };
 
+  useEffect(() => {
+    if (!workflowEditorV2Enabled || viewMode !== 'editor' || !isDirty) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [workflowEditorV2Enabled, viewMode, isDirty]);
+
   if (viewMode === 'editor') {
     return (
       <div className="h-full w-full flex flex-col">
@@ -424,10 +461,20 @@ export default function WorkflowsPage() {
                 {t('unsaved') || 'Unsaved'}
               </Badge>
             )}
+            {workflowEditorV2Enabled && (
+              <Badge variant="secondary" className="text-xs">
+                {lifecycleStatusLabel}
+              </Badge>
+            )}
             {hasErrors && (
               <Badge variant="destructive" className="text-xs">
                 <AlertTriangle className="h-3 w-3 mr-1" />
-                {validationErrors.filter((e) => e.severity === 'error').length}
+                {
+                  validationErrors.filter(
+                    (error) =>
+                      error.blocking ?? (error.severity !== 'warning' && error.severity !== 'info')
+                  ).length
+                }
               </Badge>
             )}
           </div>
@@ -509,7 +556,7 @@ export default function WorkflowsPage() {
           <Button
             size="sm"
             onClick={handleSaveWorkflow}
-            disabled={!isDirty}
+            disabled={!isDirty || editorLifecycleState === 'saving'}
             data-testid="workflow-page-save-button"
           >
             {tCommon('save')}

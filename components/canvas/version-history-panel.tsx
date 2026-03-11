@@ -151,7 +151,7 @@ export function VersionHistoryPanel({ documentId, trigger }: VersionHistoryPanel
             </Button>
           )}
         </SheetTrigger>
-        <SheetContent side="right" className="w-full sm:w-[400px]">
+        <SheetContent side="right" className="w-full sm:w-[400px]" data-testid="canvas-version-history-panel">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <History className="h-5 w-5" />
@@ -162,7 +162,12 @@ export function VersionHistoryPanel({ documentId, trigger }: VersionHistoryPanel
           <div className="mt-4 space-y-4">
             {/* Action buttons */}
             <div className="flex gap-2">
-              <Button onClick={() => setSaveDialogOpen(true)} className="flex-1" variant="outline">
+              <Button
+                onClick={() => setSaveDialogOpen(true)}
+                className="flex-1"
+                variant="outline"
+                data-testid="canvas-version-save-button"
+              >
                 <Save className="mr-2 h-4 w-4" />
                 {t('saveVersion')}
               </Button>
@@ -246,13 +251,16 @@ export function VersionHistoryPanel({ documentId, trigger }: VersionHistoryPanel
                 value={saveDescription}
                 onChange={(e) => setSaveDescription(e.target.value)}
                 placeholder={t('descriptionPlaceholder')}
+                data-testid="canvas-version-save-description-input"
               />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
                 {tCommon('cancel')}
               </Button>
-              <Button onClick={handleSaveVersion}>{t('saveVersion')}</Button>
+              <Button onClick={handleSaveVersion} data-testid="canvas-version-save-confirm">
+                {t('saveVersion')}
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -379,6 +387,7 @@ function VersionItem({
 }: VersionItemProps) {
   return (
     <div
+      data-testid={`canvas-version-item-${version.id}`}
       className={cn(
         'rounded-lg border p-3 transition-colors',
         isCurrent && 'border-primary bg-primary/5',
@@ -450,7 +459,7 @@ function VersionItem({
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-9" onClick={onRestore}>
                   <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                  {t('restore')}
+                  <span data-testid={`canvas-version-restore-${version.id}`}>{t('restore')}</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t('restoreVersion')}</TooltipContent>

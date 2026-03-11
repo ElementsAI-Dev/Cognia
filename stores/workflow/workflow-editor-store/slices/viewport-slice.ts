@@ -6,6 +6,7 @@
 import type { Viewport } from '@xyflow/react';
 import type { SliceCreator, ViewportSliceActions } from '../types';
 import { applyDagreLayout } from '@/lib/workflow-editor/layout';
+import { applyWorkflowMutation } from '../utils/mutation';
 
 export const createViewportSlice: SliceCreator<ViewportSliceActions> = (set, get) => {
   return {
@@ -44,8 +45,16 @@ export const createViewportSlice: SliceCreator<ViewportSliceActions> = (set, get
         updatedAt: new Date(),
       };
 
-      set({ currentWorkflow: updated, isDirty: true });
-      get().pushHistory();
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'node:batch-update',
+        nodeIds: updatedNodes.map((node) => node.id),
+        metadata: { source: 'viewport:autoLayout', direction: direction || 'TB' },
+        updateWorkflow: () => updated,
+        pushHistory: true,
+        validate: true,
+      });
     },
 
     alignNodes: (alignment) => {
@@ -97,8 +106,15 @@ export const createViewportSlice: SliceCreator<ViewportSliceActions> = (set, get
         updatedAt: new Date(),
       };
 
-      set({ currentWorkflow: updated, isDirty: true });
-      get().pushHistory();
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'node:batch-update',
+        nodeIds: selectedNodes,
+        metadata: { source: 'viewport:alignNodes', alignment },
+        updateWorkflow: () => updated,
+        pushHistory: true,
+      });
     },
 
     distributeNodes: (direction) => {
@@ -141,8 +157,15 @@ export const createViewportSlice: SliceCreator<ViewportSliceActions> = (set, get
         updatedAt: new Date(),
       };
 
-      set({ currentWorkflow: updated, isDirty: true });
-      get().pushHistory();
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'node:batch-update',
+        nodeIds: selectedNodes,
+        metadata: { source: 'viewport:distributeNodes', direction },
+        updateWorkflow: () => updated,
+        pushHistory: true,
+      });
     },
   };
 };

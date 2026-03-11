@@ -49,6 +49,7 @@ export function DesignerMainWorkspace({
             showFileExplorer
             showConsole={false}
             framework={framework}
+            enableRuntimeBridge
             onAIEdit={onRequestAIEdit}
           />
         </ResizablePanel>
@@ -69,6 +70,7 @@ export function DesignerMainWorkspace({
           showFileExplorer={false}
           showConsole={false}
           framework={framework}
+          enableRuntimeBridge
           onAIEdit={onRequestAIEdit}
           className="flex-1 min-h-0"
         />

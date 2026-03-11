@@ -23,6 +23,9 @@ jest.mock('next-intl', () => ({
       sessionIdPlaceholder: 'Enter session ID',
       copyLink: 'Copy Link',
       copyShareLink: 'Copy share link',
+      shareLinkUnavailable: 'No active session to share yet.',
+      copyLinkFailed: 'Failed to copy share link.',
+      collabFallbackMessage: 'Collaboration transport unavailable. You can continue editing locally.',
       copied: 'Copied!',
       participants: 'Participants',
       noParticipants: 'No participants yet',
@@ -135,6 +138,43 @@ describe('CollaborationPanel with active session', () => {
     expect(mockDisconnect).toBeDefined();
     expect(mockShareSession).toBeDefined();
     expect(mockJoinSession).toBeDefined();
+  });
+});
+
+describe('CollaborationPanel fallback messaging', () => {
+  it('shows fallback message when disconnected', async () => {
+    render(<CollaborationPanel documentId="doc-1" documentContent="test" />);
+
+    const button = screen.getByText('Collaborate');
+    await userEvent.click(button);
+
+    expect(
+      screen.getByText('Collaboration transport unavailable. You can continue editing locally.')
+    ).toBeInTheDocument();
+  });
+
+  it('shows copy error when no share state is available', async () => {
+    const hookModule = jest.requireMock('@/hooks/canvas');
+    const originalHook = hookModule.useCollaborativeSession;
+    hookModule.useCollaborativeSession = () => ({
+      session: { id: 'session-1' },
+      participants: [],
+      connectionState: 'connected',
+      isConnected: true,
+      connect: mockConnect,
+      disconnect: mockDisconnect,
+      shareSession: () => null,
+      joinSession: mockJoinSession,
+    });
+
+    render(<CollaborationPanel documentId="doc-1" documentContent="test" />);
+    const button = screen.getByText('Collaborate');
+    await userEvent.click(button);
+
+    await userEvent.click(screen.getByText('Copy Link'));
+    expect(screen.getByText('No active session to share yet.')).toBeInTheDocument();
+
+    hookModule.useCollaborativeSession = originalHook;
   });
 });
 

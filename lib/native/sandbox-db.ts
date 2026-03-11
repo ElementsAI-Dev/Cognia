@@ -578,14 +578,17 @@ export function calculateSuccessRate(stats: LanguageStats | SandboxStats): numbe
  */
 export function getStatusColor(status: string): string {
   switch (status) {
+    case 'success':
     case 'completed':
       return 'text-green-500';
+    case 'error':
     case 'failed':
       return 'text-red-500';
     case 'timeout':
       return 'text-orange-500';
     case 'running':
       return 'text-blue-500';
+    case 'queued':
     case 'pending':
       return 'text-gray-500';
     case 'cancelled':
@@ -600,14 +603,17 @@ export function getStatusColor(status: string): string {
  */
 export function getStatusIcon(status: string): string {
   switch (status) {
+    case 'success':
     case 'completed':
       return '✓';
+    case 'error':
     case 'failed':
       return '✗';
     case 'timeout':
       return '⏱';
     case 'running':
       return '⟳';
+    case 'queued':
     case 'pending':
       return '○';
     case 'cancelled':

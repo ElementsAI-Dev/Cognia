@@ -11,6 +11,7 @@ import type {
   WorkflowNode,
   WorkflowNodeType,
 } from '../types';
+import { applyWorkflowMutation } from '../utils/mutation';
 import { createNodeTemplate } from '@/types/workflow/workflow-editor';
 
 export const templateSliceInitialState: TemplateSliceState = {
@@ -54,16 +55,24 @@ export const createTemplateSlice: SliceCreator<TemplateSliceActions> = (set, get
         },
       };
 
-      set({
-        currentWorkflow: {
-          ...currentWorkflow,
-          nodes: [...currentWorkflow.nodes, newNode],
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'node:add',
+        nodeIds: [newNode.id],
+        metadata: { source: 'template', templateId },
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          nodes: [...workflow.nodes, newNode],
           updatedAt: new Date(),
+        }),
+        selectionPatch: {
+          selectedNodes: [newNode.id],
+          selectedEdges: [],
         },
-        isDirty: true,
+        pushHistory: true,
+        validate: true,
       });
-
-      get().pushHistory();
 
       return nodeId;
     },

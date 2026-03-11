@@ -13,6 +13,7 @@ jest.mock('@/lib/native/sandbox', () => ({
     getRuntimes: jest.fn(),
     getAllLanguages: jest.fn().mockResolvedValue([]),
     getAvailableLanguages: jest.fn().mockResolvedValue([]),
+    preflight: jest.fn(),
     execute: jest.fn(),
     quickExecute: jest.fn(),
     executeWithStdin: jest.fn(),
@@ -52,12 +53,16 @@ describe('useSandbox Hook', () => {
   });
 
   describe('initialization', () => {
-    it('should start in loading state', () => {
+    it('should start in loading state', async () => {
       mockSandboxService.isAvailable.mockResolvedValue(false);
 
       const { result } = renderHook(() => useSandbox());
 
       expect(result.current.isLoading).toBe(true);
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
     });
 
     it('should set isAvailable to false when sandbox is not available', async () => {
@@ -124,6 +129,65 @@ describe('useSandbox Hook', () => {
     });
   });
 
+  describe('preflight', () => {
+    const setupAvailableSandbox = () => {
+      mockSandboxService.isAvailable.mockResolvedValue(true);
+      mockSandboxService.getStatus.mockResolvedValue({
+        available_runtimes: [],
+        supported_languages: [],
+        config: {} as SandboxStatus['config'],
+      });
+      mockSandboxService.getLanguages.mockResolvedValue([]);
+      mockSandboxService.getRuntimes.mockResolvedValue(['docker']);
+    };
+
+    it('should cache preflight result for identical request', async () => {
+      setupAvailableSandbox();
+      mockSandboxService.preflight.mockResolvedValue({
+        status: 'ready',
+        reason_code: 'ok',
+        message: 'ready',
+        remediation_hint: undefined,
+        selected_runtime: 'docker',
+        policy_profile: 'balanced',
+      });
+
+      const { result } = renderHook(() => useSandbox());
+      await waitFor(() => {
+        expect(result.current.isAvailable).toBe(true);
+      });
+
+      await result.current.runPreflight({ language: 'python' });
+      await result.current.runPreflight({ language: 'python' });
+
+      expect(mockSandboxService.preflight).toHaveBeenCalledTimes(1);
+    });
+
+    it('should invalidate preflight cache after config update', async () => {
+      setupAvailableSandbox();
+      mockSandboxService.preflight.mockResolvedValue({
+        status: 'ready',
+        reason_code: 'ok',
+        message: 'ready',
+        remediation_hint: undefined,
+        selected_runtime: 'docker',
+        policy_profile: 'balanced',
+      });
+      mockSandboxService.updateConfig.mockResolvedValue();
+
+      const { result } = renderHook(() => useSandbox());
+      await waitFor(() => {
+        expect(result.current.isAvailable).toBe(true);
+      });
+
+      await result.current.runPreflight({ language: 'python' });
+      await result.current.updateConfig({} as SandboxStatus['config']);
+      await result.current.runPreflight({ language: 'python' });
+
+      expect(mockSandboxService.preflight).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('execute', () => {
     it('should throw when sandbox is not available', async () => {
       mockSandboxService.isAvailable.mockResolvedValue(false);
@@ -174,7 +238,11 @@ describe('useSandbox Hook', () => {
         code: 'print("hello")',
       });
 
-      expect(execResult).toEqual(mockResult);
+      expect(execResult).toEqual({
+        ...mockResult,
+        lifecycle_status: 'success',
+        diagnostics: null,
+      });
       expect(mockSandboxService.execute).toHaveBeenCalledWith({
         language: 'python',
         code: 'print("hello")',
@@ -417,7 +485,14 @@ describe('Plugin hook dispatches', () => {
 
     await result.current.execute({ language: 'python', code: 'print(1)' });
 
-    expect(mockDispatchCodeExecutionComplete).toHaveBeenCalledWith('python', mockResult);
+    expect(mockDispatchCodeExecutionComplete).toHaveBeenCalledWith(
+      'python',
+      expect.objectContaining({
+        ...mockResult,
+        lifecycle_status: 'success',
+        diagnostics: null,
+      })
+    );
   });
 
   it('should dispatch onCodeExecutionError after failed execute', async () => {
@@ -455,6 +530,13 @@ describe('Plugin hook dispatches', () => {
     await result.current.quickExecute('javascript', 'console.log("hello")');
 
     expect(mockDispatchCodeExecutionStart).toHaveBeenCalledWith('javascript', 'console.log("hello")');
-    expect(mockDispatchCodeExecutionComplete).toHaveBeenCalledWith('javascript', mockResult);
+    expect(mockDispatchCodeExecutionComplete).toHaveBeenCalledWith(
+      'javascript',
+      expect.objectContaining({
+        ...mockResult,
+        lifecycle_status: 'success',
+        diagnostics: null,
+      })
+    );
   });
 });

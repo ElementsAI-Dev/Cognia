@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 const mockStore: {
   currentWorkflow: { id: string; name: string } | null;
   isDirty: boolean;
+  editorLifecycleState: string;
   isExecuting: boolean;
   executionState: { status: string } | null;
   selectedNodes: string[];
@@ -35,9 +36,11 @@ const mockStore: {
   toggleConfigPanel: jest.Mock;
   toggleMinimap: jest.Mock;
   validate: jest.Mock;
+  focusValidationIssue: jest.Mock;
 } = {
   currentWorkflow: { id: 'workflow-1', name: 'Test Workflow' },
   isDirty: false,
+  editorLifecycleState: 'clean',
   isExecuting: false,
   executionState: null,
   selectedNodes: [],
@@ -63,6 +66,7 @@ const mockStore: {
   toggleConfigPanel: jest.fn(),
   toggleMinimap: jest.fn(),
   validate: jest.fn().mockReturnValue([]),
+  focusValidationIssue: jest.fn(),
 };
 
 jest.mock('@/stores/workflow', () => ({
@@ -86,6 +90,7 @@ describe('useToolbarActions', () => {
     // Reset mock store state
     mockStore.currentWorkflow = { id: 'workflow-1', name: 'Test Workflow' };
     mockStore.isDirty = false;
+    mockStore.editorLifecycleState = 'clean';
     mockStore.isExecuting = false;
     mockStore.executionState = null;
     mockStore.selectedNodes = [];
@@ -239,7 +244,7 @@ describe('useToolbarActions', () => {
       expect(mockStore.validate).toHaveBeenCalled();
       expect(mockStore.startExecution).not.toHaveBeenCalled();
       expect(toast.error).toHaveBeenCalledWith('Workflow validation failed', {
-        description: 'Fix validation warnings before running',
+        description: 'Error',
       });
     });
 
@@ -461,6 +466,16 @@ describe('useToolbarActions', () => {
       });
 
       expect(mockStore.validate).toHaveBeenCalled();
+    });
+
+    it('should expose focusValidationIssue', () => {
+      const { result } = renderHook(() => useToolbarActions());
+
+      act(() => {
+        result.current.focusValidationIssue('issue-1');
+      });
+
+      expect(mockStore.focusValidationIssue).toHaveBeenCalledWith('issue-1');
     });
   });
 

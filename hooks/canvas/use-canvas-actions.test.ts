@@ -58,6 +58,7 @@ describe('useCanvasActions', () => {
       expect(result.current.isProcessing).toBe(false);
       expect(result.current.isStreaming).toBe(false);
       expect(result.current.streamingContent).toBe('');
+      expect(result.current.actionScope).toBeNull();
       expect(result.current.actionError).toBeNull();
       expect(result.current.actionResult).toBeNull();
       expect(result.current.diffPreview).toBeNull();
@@ -169,6 +170,37 @@ describe('useCanvasActions', () => {
       expect(result.current.isProcessing).toBe(false);
     });
 
+    it('should mark action scope as selection and pass selection to apply result', async () => {
+      applyCanvasActionResult.mockReturnValue('const y = 2;');
+      generateDiffPreview.mockReturnValue([{ type: 'added', content: 'const y = 2;' }]);
+
+      executeCanvasActionStreaming.mockImplementation(
+        async (
+          _type: string,
+          _content: string,
+          _config: unknown,
+          callbacks: { onComplete: (text: string) => void }
+        ) => {
+          callbacks.onComplete('const y = 2;');
+        }
+      );
+
+      const { result } = renderHook(() =>
+        useCanvasActions({ ...defaultOptions, selection: 'const x = 1;' })
+      );
+
+      await act(async () => {
+        await result.current.handleAction({ type: 'fix' });
+      });
+
+      expect(result.current.actionScope).toBe('selection');
+      expect(applyCanvasActionResult).toHaveBeenCalledWith(
+        defaultOptions.content,
+        'const y = 2;',
+        'const x = 1;'
+      );
+    });
+
     it('should handle streaming error', async () => {
       executeCanvasActionStreaming.mockImplementation(
         async (_type: string, _content: string, _config: unknown, callbacks: { onError: (error: string) => void }) => {
@@ -254,6 +286,8 @@ describe('useCanvasActions', () => {
         await result.current.handleAction({ type: 'fix' });
       });
 
+      expect(onContentChange).not.toHaveBeenCalled();
+
       // Accept
       act(() => {
         result.current.acceptDiffChanges();
@@ -262,6 +296,7 @@ describe('useCanvasActions', () => {
       expect(onContentChange).toHaveBeenCalledWith('new content');
       expect(result.current.diffPreview).toBeNull();
       expect(result.current.pendingContent).toBeNull();
+      expect(result.current.actionScope).toBeNull();
     });
   });
 
@@ -288,8 +323,10 @@ describe('useCanvasActions', () => {
         result.current.rejectDiffChanges();
       });
 
+      expect(defaultOptions.onContentChange).not.toHaveBeenCalled();
       expect(result.current.diffPreview).toBeNull();
       expect(result.current.pendingContent).toBeNull();
+      expect(result.current.actionScope).toBeNull();
     });
   });
 

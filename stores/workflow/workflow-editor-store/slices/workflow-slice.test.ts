@@ -40,8 +40,31 @@ type SliceState = {
   currentWorkflow: VisualWorkflow | null;
   savedWorkflows: VisualWorkflow[];
   isDirty: boolean;
+  editorLifecycleState:
+    | 'clean'
+    | 'dirty'
+    | 'saving'
+    | 'saveFailed'
+    | 'publishBlocked'
+    | 'readyToPublish';
+  lastSaveError: string | null;
+  lastMutation: {
+    kind: string;
+    occurredAt: Date;
+    metadata?: Record<string, unknown>;
+  } | null;
+  validationErrors: Array<{
+    message: string;
+    severity?: 'error' | 'warning' | 'info';
+    blocking?: boolean;
+  }>;
   pushHistory: jest.Mock;
   saveWorkflow: () => Promise<void>;
+  clearServerValidationErrors: jest.Mock;
+  setServerValidationErrors: jest.Mock;
+  syncLifecycleState: () => void;
+  validate: jest.Mock;
+  publishWorkflow: () => void;
 };
 
 function createTrigger(overrides?: Partial<WorkflowTrigger>): WorkflowTrigger {
@@ -101,8 +124,17 @@ function createStore(initial?: Partial<SliceState>): { getState: () => SliceStat
     currentWorkflow: null,
     savedWorkflows: [],
     isDirty: true,
+    editorLifecycleState: 'dirty',
+    lastSaveError: null,
+    lastMutation: null,
+    validationErrors: [],
     pushHistory: jest.fn(),
     saveWorkflow: async () => undefined,
+    clearServerValidationErrors: jest.fn(),
+    setServerValidationErrors: jest.fn(),
+    syncLifecycleState: jest.fn(),
+    validate: jest.fn(() => []),
+    publishWorkflow: () => undefined,
     ...initial,
   };
 
@@ -281,5 +313,52 @@ describe('workflow-slice saveWorkflow', () => {
     expect(toast.warning).toHaveBeenCalledWith('Workflow saved with trigger sync errors', {
       description: 'Daily Trigger (task unbound): permission denied',
     });
+  });
+
+  it('maps server validation errors and sets saveFailed lifecycle on save error', async () => {
+    const workflow = createWorkflow();
+    const store = createStore({ currentWorkflow: workflow });
+
+    (workflowRepository.save as jest.Mock).mockRejectedValue({
+      message: 'Validation failed',
+      validationErrors: [
+        {
+          nodeId: 'node-1',
+          field: 'label',
+          message: 'Label is required',
+          code: 'REQUIRED_FIELD',
+        },
+      ],
+    });
+
+    await store.getState().saveWorkflow();
+
+    expect(store.getState().setServerValidationErrors).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          nodeId: 'node-1',
+          field: 'label',
+          message: 'Label is required',
+          source: 'server',
+        }),
+      ])
+    );
+    expect(store.getState().editorLifecycleState).toBe('saveFailed');
+    expect(store.getState().lastSaveError).toBe('Validation failed');
+  });
+
+  it('blocks publish when validate reports blocking errors', () => {
+    const workflow = createWorkflow();
+    const store = createStore({
+      currentWorkflow: workflow,
+      validate: jest.fn(() => [
+        { message: 'Missing required field', severity: 'error', blocking: true },
+      ]),
+    });
+
+    store.getState().publishWorkflow();
+
+    expect(store.getState().editorLifecycleState).toBe('publishBlocked');
+    expect(toast.error).toHaveBeenCalledWith('Cannot publish: workflow has validation errors');
   });
 });

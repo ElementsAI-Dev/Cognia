@@ -1107,6 +1107,7 @@ pub fn run() {
             // Chat runtime sqlite commands
             chat_runtime::commands::chat_db_upsert_session,
             chat_runtime::commands::chat_db_upsert_sessions_batch,
+            chat_runtime::commands::chat_db_get_schema_info,
             chat_runtime::commands::chat_db_list_sessions,
             chat_runtime::commands::chat_db_delete_session,
             chat_runtime::commands::chat_db_clear_sessions,
@@ -1339,6 +1340,7 @@ pub fn run() {
             commands::devtools::sandbox::sandbox_cancel_execution,
             commands::devtools::sandbox::sandbox_execute_streaming,
             commands::devtools::sandbox::sandbox_get_status,
+            commands::devtools::sandbox::sandbox_preflight,
             commands::devtools::sandbox::sandbox_get_config,
             commands::devtools::sandbox::sandbox_update_config,
             commands::devtools::sandbox::sandbox_get_runtimes,

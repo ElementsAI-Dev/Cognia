@@ -74,6 +74,98 @@ pub enum ExecutionStatus {
     Cancelled,
 }
 
+/// Execution diagnostics category
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiagnosticsCategory {
+    Validation,
+    SecurityPolicy,
+    RuntimeUnavailable,
+    ResourceLimit,
+    InternalFailure,
+}
+
+/// Structured execution diagnostics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExecutionDiagnostics {
+    pub category: DiagnosticsCategory,
+    pub code: String,
+    pub message: Option<String>,
+    pub remediation_hint: Option<String>,
+}
+
+/// Snapshot of effective execution policy applied at runtime
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExecutionPolicySnapshot {
+    pub profile: String,
+    pub timeout_secs: u64,
+    pub memory_limit_mb: u64,
+    pub network_enabled: bool,
+    pub requested_runtime: Option<RuntimeType>,
+    pub selected_runtime: Option<RuntimeType>,
+}
+
+/// Policy profile used for request validation and runtime selection
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SandboxPolicyProfile {
+    pub id: String,
+    pub max_timeout_secs: u64,
+    pub max_memory_limit_mb: u64,
+    pub allow_network: bool,
+    pub allowed_runtimes: Vec<RuntimeType>,
+}
+
+impl SandboxPolicyProfile {
+    fn strict() -> Self {
+        Self {
+            id: "strict".to_string(),
+            max_timeout_secs: 30,
+            max_memory_limit_mb: 256,
+            allow_network: false,
+            allowed_runtimes: vec![RuntimeType::Docker, RuntimeType::Podman],
+        }
+    }
+
+    fn balanced() -> Self {
+        Self {
+            id: "balanced".to_string(),
+            max_timeout_secs: 60,
+            max_memory_limit_mb: 512,
+            allow_network: false,
+            allowed_runtimes: vec![RuntimeType::Docker, RuntimeType::Podman, RuntimeType::Native],
+        }
+    }
+
+    fn permissive() -> Self {
+        Self {
+            id: "permissive".to_string(),
+            max_timeout_secs: 120,
+            max_memory_limit_mb: 1024,
+            allow_network: true,
+            allowed_runtimes: vec![RuntimeType::Docker, RuntimeType::Podman, RuntimeType::Native],
+        }
+    }
+}
+
+/// Preflight status
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PreflightStatus {
+    Ready,
+    Blocked,
+}
+
+/// Preflight evaluation result returned before execution
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SandboxPreflightResult {
+    pub status: PreflightStatus,
+    pub reason_code: String,
+    pub message: String,
+    pub remediation_hint: Option<String>,
+    pub selected_runtime: Option<RuntimeType>,
+    pub policy_profile: String,
+}
+
 /// A single line of output streamed during execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OutputLine {
@@ -125,6 +217,9 @@ pub struct ExecutionRequest {
 
     /// Whether to allow network access
     pub network_enabled: Option<bool>,
+
+    /// Policy profile identifier used to validate bounds
+    pub policy_profile: Option<String>,
 
     /// Compiler/interpreter settings (optional)
     #[serde(default)]
@@ -271,6 +366,7 @@ impl ExecutionRequest {
             runtime: None,
             files: HashMap::new(),
             network_enabled: None,
+            policy_profile: None,
             compiler_settings: None,
         }
     }
@@ -323,6 +419,14 @@ pub struct ExecutionResult {
 
     /// Language used
     pub language: String,
+
+    /// Structured diagnostics for validation/security/runtime failures
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diagnostics: Option<ExecutionDiagnostics>,
+
+    /// Effective policy snapshot applied to this execution
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy_snapshot: Option<ExecutionPolicySnapshot>,
 }
 
 impl ExecutionResult {
@@ -350,6 +454,8 @@ impl ExecutionResult {
             error: None,
             runtime,
             language,
+            diagnostics: None,
+            policy_snapshot: None,
         }
     }
 
@@ -365,6 +471,8 @@ impl ExecutionResult {
             error: Some(error),
             runtime,
             language,
+            diagnostics: None,
+            policy_snapshot: None,
         }
     }
 
@@ -387,6 +495,15 @@ impl ExecutionResult {
             error: Some(format!("Execution timeout after {} seconds", timeout_secs)),
             runtime,
             language,
+            diagnostics: Some(ExecutionDiagnostics {
+                category: DiagnosticsCategory::ResourceLimit,
+                code: "execution_timeout".to_string(),
+                message: Some(format!("Execution timeout after {} seconds", timeout_secs)),
+                remediation_hint: Some(
+                    "Increase timeout within policy limits or optimize the code path.".to_string(),
+                ),
+            }),
+            policy_snapshot: None,
         }
     }
 }
@@ -604,6 +721,302 @@ impl SandboxManager {
             .or_else(|| self.get_any_runtime())
     }
 
+    fn resolve_policy_profile(&self, profile_name: Option<&str>) -> SandboxPolicyProfile {
+        match profile_name.unwrap_or("balanced") {
+            "strict" => SandboxPolicyProfile::strict(),
+            "permissive" => SandboxPolicyProfile::permissive(),
+            _ => SandboxPolicyProfile::balanced(),
+        }
+    }
+
+    fn resolve_runtime_for_profile(
+        &self,
+        requested: Option<RuntimeType>,
+        profile: &SandboxPolicyProfile,
+    ) -> Option<RuntimeType> {
+        if let Some(runtime) = requested {
+            if profile.allowed_runtimes.contains(&runtime) && self.is_runtime_available(runtime) {
+                return Some(runtime);
+            }
+            return None;
+        }
+
+        if profile
+            .allowed_runtimes
+            .contains(&self.config.preferred_runtime)
+            && self.is_runtime_available(self.config.preferred_runtime)
+        {
+            return Some(self.config.preferred_runtime);
+        }
+
+        [RuntimeType::Docker, RuntimeType::Podman, RuntimeType::Native]
+            .into_iter()
+            .find(|runtime| {
+                profile.allowed_runtimes.contains(runtime) && self.is_runtime_available(*runtime)
+            })
+    }
+
+    fn map_error_to_diagnostics(error: &SandboxError) -> ExecutionDiagnostics {
+        match error {
+            SandboxError::RuntimeNotAvailable(message) => ExecutionDiagnostics {
+                category: DiagnosticsCategory::RuntimeUnavailable,
+                code: "runtime_unavailable".to_string(),
+                message: Some(message.clone()),
+                remediation_hint: Some(
+                    "Enable a supported runtime or install Docker/Podman on this machine."
+                        .to_string(),
+                ),
+            },
+            SandboxError::LanguageNotSupported(message) => ExecutionDiagnostics {
+                category: DiagnosticsCategory::Validation,
+                code: "language_not_supported".to_string(),
+                message: Some(message.clone()),
+                remediation_hint: Some(
+                    "Choose an enabled language or update sandbox language settings.".to_string(),
+                ),
+            },
+            SandboxError::Timeout(secs) => ExecutionDiagnostics {
+                category: DiagnosticsCategory::ResourceLimit,
+                code: "timeout".to_string(),
+                message: Some(format!("Invalid or exceeded timeout setting: {}s", secs)),
+                remediation_hint: Some(
+                    "Use a timeout greater than 0 and within the selected policy bounds."
+                        .to_string(),
+                ),
+            },
+            SandboxError::ResourceLimit(message) => ExecutionDiagnostics {
+                category: DiagnosticsCategory::ResourceLimit,
+                code: "resource_limit".to_string(),
+                message: Some(message.clone()),
+                remediation_hint: Some(
+                    "Reduce resource requests or switch to a policy profile with higher limits."
+                        .to_string(),
+                ),
+            },
+            SandboxError::SecurityViolation(message) => ExecutionDiagnostics {
+                category: DiagnosticsCategory::SecurityPolicy,
+                code: "security_policy_violation".to_string(),
+                message: Some(message.clone()),
+                remediation_hint: Some(
+                    "Disable restricted options (for example network) or use an allowed profile."
+                        .to_string(),
+                ),
+            },
+            SandboxError::ContainerError(message) => ExecutionDiagnostics {
+                category: DiagnosticsCategory::RuntimeUnavailable,
+                code: "container_runtime_error".to_string(),
+                message: Some(message.clone()),
+                remediation_hint: Some(
+                    "Check container runtime health and image availability.".to_string(),
+                ),
+            },
+            SandboxError::ExecutionFailed(_)
+            | SandboxError::Config(_)
+            | SandboxError::Io(_) => ExecutionDiagnostics {
+                category: DiagnosticsCategory::InternalFailure,
+                code: "execution_internal_failure".to_string(),
+                message: Some(error.to_string()),
+                remediation_hint: Some(
+                    "Retry the execution and inspect sandbox logs for additional details."
+                        .to_string(),
+                ),
+            },
+        }
+    }
+
+    pub fn preflight(&self, request: &ExecutionRequest) -> SandboxPreflightResult {
+        let profile = self.resolve_policy_profile(request.policy_profile.as_deref());
+
+        let timeout_secs = request.timeout_secs.unwrap_or(self.config.default_timeout_secs);
+        if timeout_secs == 0 {
+            return SandboxPreflightResult {
+                status: PreflightStatus::Blocked,
+                reason_code: "invalid_timeout".to_string(),
+                message: "Timeout must be greater than 0 seconds.".to_string(),
+                remediation_hint: Some(
+                    "Provide a timeout greater than 0 seconds before running.".to_string(),
+                ),
+                selected_runtime: None,
+                policy_profile: profile.id,
+            };
+        }
+        if timeout_secs > profile.max_timeout_secs {
+            return SandboxPreflightResult {
+                status: PreflightStatus::Blocked,
+                reason_code: "timeout_out_of_bounds".to_string(),
+                message: format!(
+                    "Requested timeout {}s exceeds '{}' policy limit of {}s.",
+                    timeout_secs, profile.id, profile.max_timeout_secs
+                ),
+                remediation_hint: Some(
+                    "Reduce timeout or select a profile with higher limits.".to_string(),
+                ),
+                selected_runtime: None,
+                policy_profile: profile.id,
+            };
+        }
+
+        let memory_mb = request
+            .memory_limit_mb
+            .unwrap_or(self.config.default_memory_limit_mb);
+        if memory_mb == 0 {
+            return SandboxPreflightResult {
+                status: PreflightStatus::Blocked,
+                reason_code: "invalid_memory".to_string(),
+                message: "Memory limit must be greater than 0 MB.".to_string(),
+                remediation_hint: Some(
+                    "Provide a memory limit greater than 0 MB before running.".to_string(),
+                ),
+                selected_runtime: None,
+                policy_profile: profile.id,
+            };
+        }
+        if memory_mb > profile.max_memory_limit_mb {
+            return SandboxPreflightResult {
+                status: PreflightStatus::Blocked,
+                reason_code: "memory_out_of_bounds".to_string(),
+                message: format!(
+                    "Requested memory {} MB exceeds '{}' policy limit of {} MB.",
+                    memory_mb, profile.id, profile.max_memory_limit_mb
+                ),
+                remediation_hint: Some(
+                    "Reduce memory limit or select a profile with higher bounds.".to_string(),
+                ),
+                selected_runtime: None,
+                policy_profile: profile.id,
+            };
+        }
+
+        let network_enabled = request.network_enabled.unwrap_or(self.config.network_enabled);
+        if network_enabled && !self.config.network_enabled {
+            return SandboxPreflightResult {
+                status: PreflightStatus::Blocked,
+                reason_code: "network_not_allowed".to_string(),
+                message: "Network access is disabled in sandbox configuration.".to_string(),
+                remediation_hint: Some(
+                    "Disable network access or update sandbox configuration.".to_string(),
+                ),
+                selected_runtime: None,
+                policy_profile: profile.id,
+            };
+        }
+        if network_enabled && !profile.allow_network {
+            return SandboxPreflightResult {
+                status: PreflightStatus::Blocked,
+                reason_code: "network_not_allowed".to_string(),
+                message: format!(
+                    "Network access is blocked by '{}' policy profile.",
+                    profile.id
+                ),
+                remediation_hint: Some(
+                    "Select a profile that allows network access or disable network for this run."
+                        .to_string(),
+                ),
+                selected_runtime: None,
+                policy_profile: profile.id,
+            };
+        }
+
+        let language_config = match LANGUAGE_CONFIGS
+            .iter()
+            .find(|l| l.id == request.language || l.aliases.contains(&request.language.as_str()))
+        {
+            Some(language) => language,
+            None => {
+                return SandboxPreflightResult {
+                    status: PreflightStatus::Blocked,
+                    reason_code: "unsupported_language".to_string(),
+                    message: format!("Language '{}' is not supported.", request.language),
+                    remediation_hint: Some(
+                        "Select a supported language from the sandbox language selector."
+                            .to_string(),
+                    ),
+                    selected_runtime: None,
+                    policy_profile: profile.id,
+                }
+            }
+        };
+
+        if !self
+            .config
+            .enabled_languages
+            .contains(&language_config.id.to_string())
+        {
+            return SandboxPreflightResult {
+                status: PreflightStatus::Blocked,
+                reason_code: "language_disabled".to_string(),
+                message: format!("Language '{}' is disabled.", language_config.name),
+                remediation_hint: Some(
+                    "Enable this language in sandbox settings before executing.".to_string(),
+                ),
+                selected_runtime: None,
+                policy_profile: profile.id,
+            };
+        }
+
+        if let Some(runtime) = request.runtime {
+            if !profile.allowed_runtimes.contains(&runtime) {
+                return SandboxPreflightResult {
+                    status: PreflightStatus::Blocked,
+                    reason_code: "runtime_not_allowed".to_string(),
+                    message: format!(
+                        "Runtime '{}' is not allowed by '{}' policy profile.",
+                        runtime, profile.id
+                    ),
+                    remediation_hint: Some(
+                        "Pick a runtime allowed by the selected policy profile.".to_string(),
+                    ),
+                    selected_runtime: None,
+                    policy_profile: profile.id,
+                };
+            }
+        }
+
+        let selected_runtime = match self.resolve_runtime_for_profile(request.runtime, &profile) {
+            Some(runtime) => runtime,
+            None => {
+                return SandboxPreflightResult {
+                    status: PreflightStatus::Blocked,
+                    reason_code: "runtime_unavailable".to_string(),
+                    message: "No allowed runtime is available for this request.".to_string(),
+                    remediation_hint: Some(
+                        "Start an available runtime (Docker/Podman) or switch runtime/profile."
+                            .to_string(),
+                    ),
+                    selected_runtime: None,
+                    policy_profile: profile.id,
+                }
+            }
+        };
+
+        if selected_runtime == RuntimeType::Native
+            && !self.available_languages.contains(&language_config.id.to_string())
+        {
+            return SandboxPreflightResult {
+                status: PreflightStatus::Blocked,
+                reason_code: "language_unavailable".to_string(),
+                message: format!(
+                    "Language '{}' is not available in native runtime.",
+                    language_config.name
+                ),
+                remediation_hint: Some(
+                    "Install the language toolchain or switch to a container runtime.".to_string(),
+                ),
+                selected_runtime: Some(selected_runtime),
+                policy_profile: profile.id,
+            };
+        }
+
+        SandboxPreflightResult {
+            status: PreflightStatus::Ready,
+            reason_code: "ok".to_string(),
+            message: "Sandbox preflight checks passed.".to_string(),
+            remediation_hint: None,
+            selected_runtime: Some(selected_runtime),
+            policy_profile: profile.id,
+        }
+    }
+
     /// Execute code
     pub async fn execute(
         &self,
@@ -615,85 +1028,108 @@ impl SandboxManager {
             request.id,
             request.runtime
         );
+        let preflight = self.preflight(&request);
+        let profile = self.resolve_policy_profile(request.policy_profile.as_deref());
 
-        // Validate timeout limits
-        let timeout_secs = request
-            .timeout_secs
-            .unwrap_or(self.config.default_timeout_secs);
-        if timeout_secs == 0 {
-            log::warn!("Invalid timeout value: 0 seconds");
-            return Err(SandboxError::Timeout(0));
-        }
-
-        // Validate memory limits
+        let timeout_secs = request.timeout_secs.unwrap_or(self.config.default_timeout_secs);
         let memory_mb = request
             .memory_limit_mb
             .unwrap_or(self.config.default_memory_limit_mb);
-        if memory_mb == 0 {
-            log::warn!("Invalid memory limit: 0 MB");
-            return Err(SandboxError::ResourceLimit(
-                "Memory limit cannot be 0".to_string(),
-            ));
+        let network_enabled = request.network_enabled.unwrap_or(self.config.network_enabled);
+
+        if matches!(preflight.status, PreflightStatus::Blocked) {
+            let diagnostics = match preflight.reason_code.as_str() {
+                "network_not_allowed" => ExecutionDiagnostics {
+                    category: DiagnosticsCategory::SecurityPolicy,
+                    code: preflight.reason_code.clone(),
+                    message: Some(preflight.message.clone()),
+                    remediation_hint: preflight.remediation_hint.clone(),
+                },
+                "runtime_unavailable" | "language_unavailable" => ExecutionDiagnostics {
+                    category: DiagnosticsCategory::RuntimeUnavailable,
+                    code: preflight.reason_code.clone(),
+                    message: Some(preflight.message.clone()),
+                    remediation_hint: preflight.remediation_hint.clone(),
+                },
+                "timeout_out_of_bounds" | "memory_out_of_bounds" => ExecutionDiagnostics {
+                    category: DiagnosticsCategory::ResourceLimit,
+                    code: preflight.reason_code.clone(),
+                    message: Some(preflight.message.clone()),
+                    remediation_hint: preflight.remediation_hint.clone(),
+                },
+                _ => ExecutionDiagnostics {
+                    category: DiagnosticsCategory::Validation,
+                    code: preflight.reason_code.clone(),
+                    message: Some(preflight.message.clone()),
+                    remediation_hint: preflight.remediation_hint.clone(),
+                },
+            };
+
+            return Ok(ExecutionResult {
+                id: request.id.clone(),
+                status: ExecutionStatus::Failed,
+                stdout: String::new(),
+                stderr: String::new(),
+                exit_code: None,
+                execution_time_ms: 0,
+                memory_used_bytes: None,
+                error: Some(preflight.message.clone()),
+                runtime: preflight.selected_runtime.unwrap_or(RuntimeType::Native),
+                language: request.language.clone(),
+                diagnostics: Some(diagnostics),
+                policy_snapshot: Some(ExecutionPolicySnapshot {
+                    profile: profile.id.clone(),
+                    timeout_secs,
+                    memory_limit_mb: memory_mb,
+                    network_enabled,
+                    requested_runtime: request.runtime,
+                    selected_runtime: preflight.selected_runtime,
+                }),
+            });
         }
 
-        // Security check: validate network access
-        let network_enabled = request
-            .network_enabled
-            .unwrap_or(self.config.network_enabled);
-        if network_enabled && !self.config.network_enabled {
-            log::warn!(
-                "Security violation: network access requested but disabled in configuration"
-            );
-            return Err(SandboxError::SecurityViolation(
-                "Network access is disabled in sandbox configuration".to_string(),
-            ));
-        }
-
-        // Get language configuration
-        let language_config = LANGUAGE_CONFIGS
+        // Get language configuration (safe because preflight already validated support)
+        let language_config = match LANGUAGE_CONFIGS
             .iter()
             .find(|l| l.id == request.language || l.aliases.contains(&request.language.as_str()))
-            .ok_or_else(|| {
-                log::warn!("Language not supported: {}", request.language);
-                SandboxError::LanguageNotSupported(request.language.clone())
-            })?;
-
-        log::debug!(
-            "Language config found: id={}, name={}, image={}, category={:?}",
-            language_config.id,
-            language_config.name,
-            language_config.docker_image,
-            language_config.category
-        );
-
-        // Check if language is enabled
-        if !self
-            .config
-            .enabled_languages
-            .contains(&language_config.id.to_string())
         {
-            log::warn!(
-                "Language '{}' is disabled in configuration",
-                language_config.name
-            );
-            return Err(SandboxError::LanguageNotSupported(format!(
-                "{} is disabled in configuration",
-                language_config.name
-            )));
-        }
+            Some(language) => language,
+            None => {
+                return Ok(ExecutionResult {
+                    id: request.id.clone(),
+                    status: ExecutionStatus::Failed,
+                    stdout: String::new(),
+                    stderr: String::new(),
+                    exit_code: None,
+                    execution_time_ms: 0,
+                    memory_used_bytes: None,
+                    error: Some(format!("Language '{}' is not supported.", request.language)),
+                    runtime: RuntimeType::Native,
+                    language: request.language.clone(),
+                    diagnostics: Some(ExecutionDiagnostics {
+                        category: DiagnosticsCategory::Validation,
+                        code: "unsupported_language".to_string(),
+                        message: Some(format!(
+                            "Language '{}' is not supported.",
+                            request.language
+                        )),
+                        remediation_hint: Some(
+                            "Select a supported language from the sandbox selector.".to_string(),
+                        ),
+                    }),
+                    policy_snapshot: None,
+                })
+            }
+        };
 
-        // Get runtime
-        let runtime = self.get_runtime(request.runtime).ok_or_else(|| {
-            log::error!(
-                "No runtime available for execution (requested: {:?})",
-                request.runtime
-            );
-            SandboxError::RuntimeNotAvailable("No runtime available".to_string())
+        let selected_runtime = preflight.selected_runtime.unwrap_or(RuntimeType::Native);
+        let runtime = self.get_runtime_by_type(selected_runtime).ok_or_else(|| {
+            SandboxError::RuntimeNotAvailable(format!(
+                "Runtime '{}' is no longer available",
+                selected_runtime
+            ))
         })?;
 
-        log::debug!("Selected runtime: {:?}", runtime.runtime_type());
-
-        // Build execution config (timeout_secs, memory_mb, network_enabled already validated above)
         let cpu_percent = request
             .cpu_limit_percent
             .unwrap_or(self.config.default_cpu_limit_percent);
@@ -707,16 +1143,15 @@ impl SandboxManager {
             workspace_dir: self.config.workspace_dir.clone(),
         };
 
-        log::debug!(
-            "Execution config: timeout={}s, memory={}MB, cpu={}%, network={}, max_output={}",
+        let policy_snapshot = ExecutionPolicySnapshot {
+            profile: profile.id,
             timeout_secs,
-            memory_mb,
-            cpu_percent,
+            memory_limit_mb: memory_mb,
             network_enabled,
-            self.config.max_output_size
-        );
+            requested_runtime: request.runtime,
+            selected_runtime: Some(selected_runtime),
+        };
 
-        // Execute and handle errors
         log::info!(
             "Starting execution: id={}, language={}, runtime={:?}",
             request.id,
@@ -724,30 +1159,34 @@ impl SandboxManager {
             runtime.runtime_type()
         );
 
-        match runtime
-            .execute(&request, language_config, &exec_config)
-            .await
-        {
-            Ok(result) => {
-                log::debug!(
-                    "Execution succeeded: id={}, status={:?}, exit_code={:?}, time={}ms",
-                    result.id,
-                    result.status,
-                    result.exit_code,
-                    result.execution_time_ms
-                );
-                Ok(result)
-            }
-            Err(e) => {
-                log::error!("Execution failed: id={}, error={}", request.id, e);
-                Ok(ExecutionResult::error(
+        let mut result = match runtime.execute(&request, language_config, &exec_config).await {
+            Ok(result) => result,
+            Err(error) => {
+                log::error!("Execution failed: id={}, error={}", request.id, error);
+                let mut result = ExecutionResult::error(
                     request.id.clone(),
-                    e.to_string(),
+                    error.to_string(),
                     runtime.runtime_type(),
                     request.language.clone(),
-                ))
+                );
+                result.diagnostics = Some(Self::map_error_to_diagnostics(&error));
+                result
             }
+        };
+
+        if result.diagnostics.is_none() && matches!(result.status, ExecutionStatus::Timeout) {
+            result.diagnostics = Some(ExecutionDiagnostics {
+                category: DiagnosticsCategory::ResourceLimit,
+                code: "execution_timeout".to_string(),
+                message: result.error.clone(),
+                remediation_hint: Some(
+                    "Increase timeout within policy limits or optimize execution.".to_string(),
+                ),
+            });
         }
+
+        result.policy_snapshot = Some(policy_snapshot);
+        Ok(result)
     }
 
     /// Execute code with streaming output via mpsc sender
@@ -760,38 +1199,88 @@ impl SandboxManager {
             "SandboxManager.execute_streaming: language={}, id={}",
             request.language, request.id
         );
+        let preflight = self.preflight(&request);
+        let profile = self.resolve_policy_profile(request.policy_profile.as_deref());
 
         let timeout_secs = request.timeout_secs.unwrap_or(self.config.default_timeout_secs);
-        if timeout_secs == 0 {
-            return Err(SandboxError::Timeout(0));
-        }
-        let memory_mb = request.memory_limit_mb.unwrap_or(self.config.default_memory_limit_mb);
-        if memory_mb == 0 {
-            return Err(SandboxError::ResourceLimit("Memory limit cannot be 0".to_string()));
-        }
+        let memory_mb = request
+            .memory_limit_mb
+            .unwrap_or(self.config.default_memory_limit_mb);
         let network_enabled = request.network_enabled.unwrap_or(self.config.network_enabled);
-        if network_enabled && !self.config.network_enabled {
-            return Err(SandboxError::SecurityViolation(
-                "Network access is disabled in sandbox configuration".to_string(),
-            ));
+
+        if matches!(preflight.status, PreflightStatus::Blocked) {
+            return Ok(ExecutionResult {
+                id: request.id.clone(),
+                status: ExecutionStatus::Failed,
+                stdout: String::new(),
+                stderr: String::new(),
+                exit_code: None,
+                execution_time_ms: 0,
+                memory_used_bytes: None,
+                error: Some(preflight.message.clone()),
+                runtime: preflight.selected_runtime.unwrap_or(RuntimeType::Native),
+                language: request.language.clone(),
+                diagnostics: Some(ExecutionDiagnostics {
+                    category: DiagnosticsCategory::Validation,
+                    code: preflight.reason_code.clone(),
+                    message: Some(preflight.message.clone()),
+                    remediation_hint: preflight.remediation_hint.clone(),
+                }),
+                policy_snapshot: Some(ExecutionPolicySnapshot {
+                    profile: profile.id.clone(),
+                    timeout_secs,
+                    memory_limit_mb: memory_mb,
+                    network_enabled,
+                    requested_runtime: request.runtime,
+                    selected_runtime: preflight.selected_runtime,
+                }),
+            });
         }
 
-        let language_config = LANGUAGE_CONFIGS
+        let language_config = match LANGUAGE_CONFIGS
             .iter()
             .find(|l| l.id == request.language || l.aliases.contains(&request.language.as_str()))
-            .ok_or_else(|| SandboxError::LanguageNotSupported(request.language.clone()))?;
+        {
+            Some(language) => language,
+            None => {
+                return Ok(ExecutionResult {
+                    id: request.id.clone(),
+                    status: ExecutionStatus::Failed,
+                    stdout: String::new(),
+                    stderr: String::new(),
+                    exit_code: None,
+                    execution_time_ms: 0,
+                    memory_used_bytes: None,
+                    error: Some(format!("Language '{}' is not supported.", request.language)),
+                    runtime: RuntimeType::Native,
+                    language: request.language.clone(),
+                    diagnostics: Some(ExecutionDiagnostics {
+                        category: DiagnosticsCategory::Validation,
+                        code: "unsupported_language".to_string(),
+                        message: Some(format!(
+                            "Language '{}' is not supported.",
+                            request.language
+                        )),
+                        remediation_hint: Some(
+                            "Select a supported language from the sandbox selector.".to_string(),
+                        ),
+                    }),
+                    policy_snapshot: None,
+                })
+            }
+        };
 
-        if !self.config.enabled_languages.contains(&language_config.id.to_string()) {
-            return Err(SandboxError::LanguageNotSupported(format!(
-                "{} is disabled in configuration", language_config.name
-            )));
-        }
-
-        let runtime = self.get_runtime(request.runtime).ok_or_else(|| {
-            SandboxError::RuntimeNotAvailable("No runtime available".to_string())
+        let selected_runtime = preflight.selected_runtime.unwrap_or(RuntimeType::Native);
+        let runtime = self.get_runtime_by_type(selected_runtime).ok_or_else(|| {
+            SandboxError::RuntimeNotAvailable(format!(
+                "Runtime '{}' is no longer available",
+                selected_runtime
+            ))
         })?;
 
-        let cpu_percent = request.cpu_limit_percent.unwrap_or(self.config.default_cpu_limit_percent);
+        let cpu_percent = request
+            .cpu_limit_percent
+            .unwrap_or(self.config.default_cpu_limit_percent);
         let exec_config = ExecutionConfig {
             timeout: Duration::from_secs(timeout_secs),
             memory_limit_mb: memory_mb,
@@ -801,19 +1290,46 @@ impl SandboxManager {
             workspace_dir: self.config.workspace_dir.clone(),
         };
 
-        match runtime
+        let policy_snapshot = ExecutionPolicySnapshot {
+            profile: profile.id,
+            timeout_secs,
+            memory_limit_mb: memory_mb,
+            network_enabled,
+            requested_runtime: request.runtime,
+            selected_runtime: Some(selected_runtime),
+        };
+
+        let mut result = match runtime
             .execute_with_sender(&request, language_config, &exec_config, Some(output_tx))
             .await
         {
-            Ok(result) => Ok(result),
-            Err(e) => {
-                log::error!("Streaming execution failed: id={}, error={}", request.id, e);
-                Ok(ExecutionResult::error(
-                    request.id.clone(), e.to_string(),
-                    runtime.runtime_type(), request.language.clone(),
-                ))
+            Ok(result) => result,
+            Err(error) => {
+                log::error!("Streaming execution failed: id={}, error={}", request.id, error);
+                let mut result = ExecutionResult::error(
+                    request.id.clone(),
+                    error.to_string(),
+                    runtime.runtime_type(),
+                    request.language.clone(),
+                );
+                result.diagnostics = Some(Self::map_error_to_diagnostics(&error));
+                result
             }
+        };
+
+        if result.diagnostics.is_none() && matches!(result.status, ExecutionStatus::Timeout) {
+            result.diagnostics = Some(ExecutionDiagnostics {
+                category: DiagnosticsCategory::ResourceLimit,
+                code: "execution_timeout".to_string(),
+                message: result.error.clone(),
+                remediation_hint: Some(
+                    "Increase timeout within policy limits or optimize execution.".to_string(),
+                ),
+            });
         }
+
+        result.policy_snapshot = Some(policy_snapshot);
+        Ok(result)
     }
 
     /// Get runtime information (type and version)
@@ -929,6 +1445,24 @@ impl SandboxManager {
 mod tests {
     use super::*;
     use std::collections::HashMap;
+
+    fn build_preflight_test_manager(
+        config: SandboxConfig,
+        available_runtimes: Vec<RuntimeType>,
+        available_languages: Vec<&str>,
+    ) -> SandboxManager {
+        SandboxManager {
+            docker: None,
+            podman: None,
+            native: None,
+            config,
+            available_runtimes,
+            available_languages: available_languages
+                .into_iter()
+                .map(std::string::ToString::to_string)
+                .collect(),
+        }
+    }
 
     // ==================== RuntimeType Tests ====================
 
@@ -1696,6 +2230,138 @@ mod tests {
             }
             _ => panic!("Expected SecurityViolation error"),
         }
+    }
+
+    #[test]
+    fn test_preflight_ready_returns_runtime_and_profile() {
+        let config = SandboxConfig {
+            preferred_runtime: RuntimeType::Native,
+            enable_docker: false,
+            enable_podman: false,
+            enable_native: true,
+            default_timeout_secs: 30,
+            default_memory_limit_mb: 256,
+            default_cpu_limit_percent: 50,
+            max_output_size: 1024 * 1024,
+            custom_images: HashMap::new(),
+            network_enabled: false,
+            workspace_dir: None,
+            enabled_languages: vec!["python".to_string()],
+        };
+        let manager =
+            build_preflight_test_manager(config, vec![RuntimeType::Native], vec!["python"]);
+        let request = ExecutionRequest::new("python", "print('ok')");
+
+        let preflight = manager.preflight(&request);
+
+        assert!(matches!(preflight.status, PreflightStatus::Ready));
+        assert_eq!(preflight.reason_code, "ok");
+        assert_eq!(preflight.policy_profile, "balanced");
+        assert_eq!(preflight.selected_runtime, Some(RuntimeType::Native));
+    }
+
+    #[test]
+    fn test_preflight_blocked_runtime_not_allowed_has_remediation_hint() {
+        let config = SandboxConfig {
+            preferred_runtime: RuntimeType::Native,
+            enable_docker: false,
+            enable_podman: false,
+            enable_native: true,
+            default_timeout_secs: 30,
+            default_memory_limit_mb: 256,
+            default_cpu_limit_percent: 50,
+            max_output_size: 1024 * 1024,
+            custom_images: HashMap::new(),
+            network_enabled: false,
+            workspace_dir: None,
+            enabled_languages: vec!["python".to_string()],
+        };
+        let manager =
+            build_preflight_test_manager(config, vec![RuntimeType::Native], vec!["python"]);
+        let mut request = ExecutionRequest::new("python", "print('ok')");
+        request.runtime = Some(RuntimeType::Native);
+        request.policy_profile = Some("strict".to_string());
+
+        let preflight = manager.preflight(&request);
+
+        assert!(matches!(preflight.status, PreflightStatus::Blocked));
+        assert_eq!(preflight.reason_code, "runtime_not_allowed");
+        assert!(preflight
+            .remediation_hint
+            .as_deref()
+            .unwrap_or_default()
+            .contains("allowed"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_blocked_profile_violation_returns_structured_diagnostics() {
+        let config = SandboxConfig {
+            preferred_runtime: RuntimeType::Native,
+            enable_docker: false,
+            enable_podman: false,
+            enable_native: true,
+            default_timeout_secs: 30,
+            default_memory_limit_mb: 256,
+            default_cpu_limit_percent: 50,
+            max_output_size: 1024 * 1024,
+            custom_images: HashMap::new(),
+            network_enabled: true,
+            workspace_dir: None,
+            enabled_languages: vec!["python".to_string()],
+        };
+        let manager =
+            build_preflight_test_manager(config, vec![RuntimeType::Native], vec!["python"]);
+        let mut request = ExecutionRequest::new("python", "print('ok')");
+        request.policy_profile = Some("strict".to_string());
+        request.network_enabled = Some(true);
+
+        let result = manager.execute(request).await.unwrap();
+        let diagnostics = result.diagnostics.expect("diagnostics should be attached");
+        let snapshot = result
+            .policy_snapshot
+            .expect("policy snapshot should be attached");
+
+        assert!(matches!(result.status, ExecutionStatus::Failed));
+        assert!(matches!(
+            diagnostics.category,
+            DiagnosticsCategory::SecurityPolicy
+        ));
+        assert_eq!(diagnostics.code, "network_not_allowed");
+        assert_eq!(snapshot.profile, "strict");
+        assert!(snapshot.network_enabled);
+    }
+
+    #[tokio::test]
+    async fn test_execute_timeout_out_of_bounds_returns_resource_limit_diagnostics() {
+        let config = SandboxConfig {
+            preferred_runtime: RuntimeType::Native,
+            enable_docker: false,
+            enable_podman: false,
+            enable_native: true,
+            default_timeout_secs: 30,
+            default_memory_limit_mb: 256,
+            default_cpu_limit_percent: 50,
+            max_output_size: 1024 * 1024,
+            custom_images: HashMap::new(),
+            network_enabled: false,
+            workspace_dir: None,
+            enabled_languages: vec!["python".to_string()],
+        };
+        let manager =
+            build_preflight_test_manager(config, vec![RuntimeType::Native], vec!["python"]);
+        let mut request = ExecutionRequest::new("python", "print('ok')");
+        request.policy_profile = Some("strict".to_string());
+        request.timeout_secs = Some(999);
+
+        let result = manager.execute(request).await.unwrap();
+        let diagnostics = result.diagnostics.expect("diagnostics should be attached");
+
+        assert!(matches!(result.status, ExecutionStatus::Failed));
+        assert!(matches!(
+            diagnostics.category,
+            DiagnosticsCategory::ResourceLimit
+        ));
+        assert_eq!(diagnostics.code, "timeout_out_of_bounds");
     }
 
     #[tokio::test]

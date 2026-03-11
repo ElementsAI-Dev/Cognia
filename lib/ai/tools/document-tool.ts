@@ -147,7 +147,7 @@ export async function executeDocumentAnalyze(
 ): Promise<DocumentToolResult> {
   try {
     const docType = detectDocumentType(input.filename);
-    const isBinary = ['pdf', 'word', 'excel'].includes(docType);
+    const isBinary = isBinaryType(docType);
 
     if (isBinary) {
       // For binary files, use async processor with the content as-is

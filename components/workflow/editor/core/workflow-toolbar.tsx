@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { isWorkflowEditorFeatureEnabled } from '@/lib/workflow-editor/feature-flags';
 import {
   Save,
   Undo2,
@@ -94,6 +95,7 @@ export function WorkflowToolbar({
 }: WorkflowToolbarProps) {
   const t = useTranslations('workflowEditor');
   const [importExportOpen, setImportExportOpen] = useState(false);
+  const workflowEditorV2Enabled = isWorkflowEditorFeatureEnabled('workflow.editor.v2');
 
   // Use shared toolbar actions hook
   const {
@@ -104,6 +106,8 @@ export function WorkflowToolbar({
     showMinimap,
     selectedNodes,
     validationErrors,
+    blockingValidationErrors,
+    editorLifecycleState,
     isExecuting,
     executionState,
     handleSave,
@@ -121,12 +125,28 @@ export function WorkflowToolbar({
     toggleNodePalette,
     toggleConfigPanel,
     toggleMinimap,
+    focusValidationIssue,
   } = useToolbarActions();
 
   const isPaused = executionState?.status === 'paused';
-  const hasErrors = validationErrors.some((e) => e.severity === 'error');
-  const hasWarnings = validationErrors.some((e) => e.severity === 'warning');
+  const hasErrors = blockingValidationErrors.length > 0;
+  const warningCount = validationErrors.filter(
+    (error) => !(error.blocking ?? error.severity === 'error') && error.severity === 'warning'
+  ).length;
+  const hasWarnings = warningCount > 0;
   const { canUndo, canRedo, hasSelection, canSave } = state;
+  const lifecycleLabel =
+    editorLifecycleState === 'saving'
+      ? 'Saving...'
+      : editorLifecycleState === 'saveFailed'
+        ? 'Save failed'
+        : editorLifecycleState === 'publishBlocked'
+          ? 'Publish blocked'
+          : editorLifecycleState === 'readyToPublish'
+            ? 'Ready to publish'
+            : editorLifecycleState === 'dirty'
+              ? 'Unsaved changes'
+              : 'Saved';
 
   // Mobile toolbar - simplified version
   if (isMobile) {
@@ -145,6 +165,7 @@ export function WorkflowToolbar({
             className="h-9 w-9"
             onClick={handleSave}
             disabled={!canSave}
+            title={workflowEditorV2Enabled ? lifecycleLabel : undefined}
           >
             <Save className="h-4 w-4" />
           </Button>
@@ -313,6 +334,7 @@ export function WorkflowToolbar({
                 className="h-8 w-8"
                 onClick={handleSave}
                 disabled={!canSave}
+                title={workflowEditorV2Enabled ? lifecycleLabel : undefined}
               >
                 <Save className="h-4 w-4" />
               </Button>
@@ -539,24 +561,93 @@ export function WorkflowToolbar({
 
         {/* Validation status */}
         {currentWorkflow && (
-          <div className="flex items-center gap-2 mr-2">
-            {hasErrors ? (
-              <div className="flex items-center gap-1 text-destructive text-sm">
-                <AlertTriangle className="h-4 w-4" />
-                <span>{validationErrors.filter((e) => e.severity === 'error').length} error(s)</span>
-              </div>
-            ) : hasWarnings ? (
-              <div className="flex items-center gap-1 text-yellow-600 dark:text-yellow-500 text-sm">
-                <AlertTriangle className="h-4 w-4" />
-                <span>{validationErrors.filter((e) => e.severity === 'warning').length} warning(s)</span>
-              </div>
+          <>
+            {workflowEditorV2Enabled ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-8 px-2 mr-2">
+                    {hasErrors ? (
+                      <div className="flex items-center gap-1 text-destructive text-sm">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>{blockingValidationErrors.length} error(s)</span>
+                      </div>
+                    ) : hasWarnings ? (
+                      <div className="flex items-center gap-1 text-yellow-600 dark:text-yellow-500 text-sm">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>{warningCount} warning(s)</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-green-600 dark:text-green-500 text-sm">
+                        <CheckCircle className="h-4 w-4" />
+                        <span>{t('valid')}</span>
+                      </div>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[360px]">
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                    Lifecycle: {lifecycleLabel}
+                  </div>
+                  <DropdownMenuSeparator />
+                  {validationErrors.length === 0 && (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No validation issues.
+                    </div>
+                  )}
+                  {validationErrors.slice(0, 8).map((issue, index) => {
+                    const issueId = issue.id || `issue-${index}`;
+                    const canFocus = Boolean(issue.nodeId || issue.edgeId);
+                    const targetText = issue.nodeId
+                      ? `Node: ${issue.nodeId}`
+                      : issue.edgeId
+                        ? `Edge: ${issue.edgeId}`
+                        : 'Global';
+                    return (
+                      <DropdownMenuItem
+                        key={issueId}
+                        onClick={() => {
+                          if (canFocus && issue.id) {
+                            focusValidationIssue(issue.id);
+                          }
+                        }}
+                        disabled={!canFocus}
+                        className="flex flex-col items-start gap-1"
+                      >
+                        <span className="text-sm">{issue.message}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {targetText}
+                        </span>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  {validationErrors.length > 8 && (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                      +{validationErrors.length - 8} more issue(s)
+                    </div>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
-              <div className="flex items-center gap-1 text-green-600 dark:text-green-500 text-sm">
-                <CheckCircle className="h-4 w-4" />
-                <span>{t('valid')}</span>
+              <div className="flex items-center gap-2 mr-2">
+                {hasErrors ? (
+                  <div className="flex items-center gap-1 text-destructive text-sm">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span>{blockingValidationErrors.length} error(s)</span>
+                  </div>
+                ) : hasWarnings ? (
+                  <div className="flex items-center gap-1 text-yellow-600 dark:text-yellow-500 text-sm">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span>{warningCount} warning(s)</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 text-green-600 dark:text-green-500 text-sm">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>{t('valid')}</span>
+                  </div>
+                )}
               </div>
             )}
-          </div>
+          </>
         )}
 
         <Separator orientation="vertical" className="h-6 mx-1" />

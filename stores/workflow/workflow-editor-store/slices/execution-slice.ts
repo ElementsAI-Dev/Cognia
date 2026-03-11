@@ -71,9 +71,13 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
     }
 
     const errors = get().validate();
-    if (errors.some((error) => error.severity === 'error')) {
+    if (
+      errors.some(
+        (error) => error.blocking ?? (error.severity !== 'warning' && error.severity !== 'info')
+      )
+    ) {
       const errorMessage = errors
-        .filter((error) => error.severity === 'error')
+        .filter((error) => error.blocking ?? (error.severity !== 'warning' && error.severity !== 'info'))
         .map((error) => error.message)
         .join(', ');
 

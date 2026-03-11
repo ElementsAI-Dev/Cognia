@@ -47,6 +47,24 @@ const mockDailyCounts = [
   { date: '2024-05-17', count: 3 },
 ];
 
+const mockExecutions = [
+  {
+    id: 'exec-1',
+    language: 'python',
+    diagnostics: { category: 'runtime_unavailable', code: 'runtime_unavailable' },
+  },
+  {
+    id: 'exec-2',
+    language: 'python',
+    diagnostics: { category: 'runtime_unavailable', code: 'runtime_unavailable' },
+  },
+  {
+    id: 'exec-3',
+    language: 'javascript',
+    diagnostics: { category: 'validation', code: 'invalid_timeout' },
+  },
+];
+
 jest.mock('@/hooks/sandbox', () => ({
   useSandboxStats: () => ({
     stats: mockStats,
@@ -55,6 +73,12 @@ jest.mock('@/hooks/sandbox', () => ({
     loading: false,
     error: null,
     refresh: mockRefresh,
+  }),
+  useExecutionHistory: () => ({
+    executions: mockExecutions,
+    loading: false,
+    error: null,
+    refresh: jest.fn(),
   }),
 }));
 
@@ -103,6 +127,12 @@ describe('SandboxStatistics', () => {
   it('displays session count', () => {
     render(<SandboxStatistics />);
     expect(screen.getByText('3 sessions')).toBeInTheDocument();
+  });
+
+  it('displays diagnostics breakdown', () => {
+    render(<SandboxStatistics />);
+    expect(screen.getByText('Failure Diagnostics')).toBeInTheDocument();
+    expect(screen.getByText(/runtime unavailable · runtime_unavailable/i)).toBeInTheDocument();
   });
 
   it('applies custom className', () => {

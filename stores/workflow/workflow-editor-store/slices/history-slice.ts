@@ -23,7 +23,11 @@ export const createHistorySlice: SliceCreator<HistorySliceActions> = (set, get) 
         currentWorkflow: history[newIndex],
         historyIndex: newIndex,
         isDirty: true,
+        editorLifecycleState: 'dirty',
+        lastSaveError: null,
       });
+      get().clearServerValidationErrors();
+      get().syncLifecycleState();
     },
 
     redo: () => {
@@ -35,7 +39,11 @@ export const createHistorySlice: SliceCreator<HistorySliceActions> = (set, get) 
         currentWorkflow: history[newIndex],
         historyIndex: newIndex,
         isDirty: true,
+        editorLifecycleState: 'dirty',
+        lastSaveError: null,
       });
+      get().clearServerValidationErrors();
+      get().syncLifecycleState();
     },
 
     pushHistory: () => {

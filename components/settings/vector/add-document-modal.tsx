@@ -50,7 +50,7 @@ export interface AddDocumentModalProps {
 
 const ACCEPTED_EXTENSIONS = [
   '.txt', '.md', '.json', '.csv', '.xml', '.html', '.htm',
-  '.pdf', '.docx', '.doc', '.xlsx', '.xls',
+  '.pdf', '.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt', '.rtf', '.epub',
 ];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB (binary files can be larger)
 

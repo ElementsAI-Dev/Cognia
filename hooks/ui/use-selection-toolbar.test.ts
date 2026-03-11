@@ -206,8 +206,10 @@ describe('useSelectionToolbar', () => {
     expect(result.current.state.error).toBeNull();
   });
 
-  it('should handle copy action - sets error since copy has no prompt', async () => {
+  it('should handle copy action as local success state', async () => {
     const { result } = renderHook(() => useSelectionToolbar());
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
 
     act(() => {
       result.current.showToolbar('Copy this text', 0, 0);
@@ -217,8 +219,9 @@ describe('useSelectionToolbar', () => {
       await result.current.executeAction('copy');
     });
 
-    // Copy action returns empty prompt, so executeAction sets an error
-    expect(result.current.state.error).toBe('No prompt for action: copy');
+    expect(writeText).toHaveBeenCalledWith('Copy this text');
+    expect(result.current.state.error).toBeNull();
+    expect(result.current.state.result).toContain('Copied');
   });
 
   it('should set active action during execution', async () => {
@@ -360,6 +363,21 @@ describe('useSelectionToolbar', () => {
 
     await waitFor(() => expect(result.current.state.isVisible).toBe(false));
     expect(result.current.state.selectedText).toBe('');
+  });
+
+  it('applies native selection-error diagnostics to toolbar state', async () => {
+    globalThis.__TAURI_INTERNALS__ = {};
+    const { result } = renderHook(() => useSelectionToolbar());
+
+    await waitFor(() => expect(Object.keys(listeners)).toContain('selection-error'));
+
+    await act(async () => {
+      listeners['selection-error']?.({
+        payload: { kind: 'extract_failed', message: 'Native extraction failed' },
+      });
+    });
+
+    await waitFor(() => expect(result.current.state.error).toBe('Native extraction failed'));
   });
 
   it('should provide setSelectionMode function', () => {

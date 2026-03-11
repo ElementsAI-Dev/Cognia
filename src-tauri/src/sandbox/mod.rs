@@ -23,8 +23,9 @@ pub use languages::{Language, LANGUAGE_CONFIGS};
 pub use native::NativeRuntime;
 pub use podman::PodmanRuntime;
 pub use runtime::{
-    CompilerSettings, ExecutionRequest, ExecutionResult, ExecutionStatus, OutputLine, RuntimeType,
-    SandboxError, SandboxManager, SandboxRuntime,
+    CompilerSettings, DiagnosticsCategory, ExecutionDiagnostics, ExecutionPolicySnapshot,
+    ExecutionRequest, ExecutionResult, ExecutionStatus, OutputLine, PreflightStatus, RuntimeType,
+    SandboxError, SandboxManager, SandboxPreflightResult, SandboxRuntime,
 };
 
 use serde::{Deserialize, Serialize};
@@ -397,6 +398,13 @@ impl SandboxState {
                     error: Some("Execution cancelled by user".to_string()),
                     runtime: RuntimeType::Native,
                     language: language.clone(),
+                    diagnostics: Some(ExecutionDiagnostics {
+                        category: DiagnosticsCategory::Validation,
+                        code: "execution_cancelled".to_string(),
+                        message: Some("Execution cancelled by user".to_string()),
+                        remediation_hint: None,
+                    }),
+                    policy_snapshot: None,
                 })
             }
         };
@@ -528,6 +536,13 @@ impl SandboxState {
                     error: Some("Execution cancelled by user".to_string()),
                     runtime: RuntimeType::Native,
                     language: language.clone(),
+                    diagnostics: Some(ExecutionDiagnostics {
+                        category: DiagnosticsCategory::Validation,
+                        code: "execution_cancelled".to_string(),
+                        message: Some("Execution cancelled by user".to_string()),
+                        remediation_hint: None,
+                    }),
+                    policy_snapshot: None,
                 })
             }
         };
@@ -586,6 +601,15 @@ impl SandboxState {
     pub async fn is_runtime_available(&self, runtime: RuntimeType) -> bool {
         let manager = self.manager.read().await;
         manager.is_runtime_available(runtime)
+    }
+
+    /// Run execution preflight validation without executing code
+    pub async fn preflight(
+        &self,
+        request: ExecutionRequest,
+    ) -> Result<SandboxPreflightResult, SandboxError> {
+        let manager = self.manager.read().await;
+        Ok(manager.preflight(&request))
     }
 
     /// Get runtime information (type and version)
@@ -1573,5 +1597,39 @@ hello()
         assert_eq!(json, "\"cancelled\"");
         let parsed: ExecutionStatus = serde_json::from_str(&json).unwrap();
         assert!(matches!(parsed, ExecutionStatus::Cancelled));
+    }
+
+    #[tokio::test]
+    async fn test_cancel_execution_cancels_registered_token() {
+        let base = std::env::temp_dir().join(format!(
+            "cognia-sandbox-cancel-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let config_path = base.join("sandbox-config-v2.json");
+        let sandbox = SandboxState::new(config_path).await.unwrap();
+        let token = tokio_util::sync::CancellationToken::new();
+        {
+            let mut active = sandbox.active_executions.write().await;
+            active.insert("exec-cancel".to_string(), token.clone());
+        }
+
+        let cancelled = sandbox.cancel_execution("exec-cancel").await.unwrap();
+
+        assert!(cancelled);
+        assert!(token.is_cancelled());
+        let active = sandbox.active_executions.read().await;
+        assert!(!active.contains_key("exec-cancel"));
+    }
+
+    #[tokio::test]
+    async fn test_cancel_execution_returns_false_when_not_found() {
+        let base = std::env::temp_dir().join(format!(
+            "cognia-sandbox-cancel-missing-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let config_path = base.join("sandbox-config-v2.json");
+        let sandbox = SandboxState::new(config_path).await.unwrap();
+        let cancelled = sandbox.cancel_execution("missing-id").await.unwrap();
+        assert!(!cancelled);
     }
 }

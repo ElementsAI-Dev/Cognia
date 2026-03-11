@@ -14,6 +14,20 @@ export interface SelectionPayload {
   x: number;
   y: number;
   timestamp?: number;
+  event_id?: string;
+  source_app?: string;
+  source_process?: string;
+  source_window_title?: string;
+  text_type?: string;
+  detection_mode?: 'auto' | 'manual';
+}
+
+export interface SelectionErrorPayload {
+  kind?: string;
+  stage?: string;
+  message?: string;
+  timestamp?: number;
+  details?: Record<string, unknown>;
 }
 
 export interface SelectionConfig {
@@ -128,6 +142,17 @@ export async function onToolbarShow(
 export async function onToolbarHide(callback: () => void): Promise<UnlistenFn> {
   return listen("selection-toolbar-hide", () => {
     callback();
+  });
+}
+
+/**
+ * Listen for native selection diagnostics/errors
+ */
+export async function onSelectionError(
+  callback: (payload: SelectionErrorPayload) => void
+): Promise<UnlistenFn> {
+  return listen<SelectionErrorPayload>('selection-error', (event) => {
+    callback(event.payload);
   });
 }
 

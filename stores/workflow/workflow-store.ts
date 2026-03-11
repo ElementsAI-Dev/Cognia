@@ -11,6 +11,7 @@ import type {
   PPTPresentation,
   WorkflowLog,
 } from '@/types/workflow';
+import { normalizePPTGenerationBlueprint } from '@/types/workflow';
 import { useWorkflowEditorStore } from './workflow-editor-store';
 import type {
   WorkflowExecutionState as EditorWorkflowExecutionState,
@@ -104,6 +105,53 @@ const initialState: WorkflowState = {
   isWorkflowPanelOpen: false,
   selectedWorkflowType: null,
 };
+
+function normalizeStoredPresentation(presentation: PPTPresentation): PPTPresentation {
+  const metadata = presentation.metadata || {};
+  const normalizedBlueprint = normalizePPTGenerationBlueprint(
+    (metadata as { generationBlueprint?: unknown }).generationBlueprint as
+      | Partial<NonNullable<PPTPresentation['metadata']>['generationBlueprint']>
+      | undefined
+  );
+  const snapshots = Array.isArray(metadata.generationSnapshots) ? metadata.generationSnapshots : [];
+  const approvedOutline = metadata.approvedOutline
+    ? {
+        ...metadata.approvedOutline,
+        confirmedAt:
+          metadata.approvedOutline.confirmedAt instanceof Date
+            ? metadata.approvedOutline.confirmedAt
+            : new Date(metadata.approvedOutline.confirmedAt),
+      }
+    : undefined;
+  const generationReview = metadata.generationReview
+    ? {
+        ...metadata.generationReview,
+        confirmedAt:
+          metadata.generationReview.confirmedAt instanceof Date
+            ? metadata.generationReview.confirmedAt
+            : new Date(metadata.generationReview.confirmedAt),
+        blueprintSnapshot: metadata.generationReview.blueprintSnapshot
+          ? normalizePPTGenerationBlueprint(metadata.generationReview.blueprintSnapshot)
+          : undefined,
+      }
+    : undefined;
+
+  return {
+    ...presentation,
+    createdAt: presentation.createdAt instanceof Date ? presentation.createdAt : new Date(presentation.createdAt),
+    updatedAt: presentation.updatedAt instanceof Date ? presentation.updatedAt : new Date(presentation.updatedAt),
+    metadata: {
+      ...metadata,
+      generationBlueprint: normalizedBlueprint,
+      generationSnapshots: snapshots.map((snapshot) => ({
+        ...snapshot,
+        createdAt: snapshot.createdAt instanceof Date ? snapshot.createdAt : new Date(snapshot.createdAt),
+      })),
+      ...(approvedOutline ? { approvedOutline } : {}),
+      ...(generationReview ? { generationReview } : {}),
+    },
+  };
+}
 
 export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
   persist(
@@ -368,9 +416,10 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
 
       // PPT management
       addPresentation: (presentation) => {
+        const normalized = normalizeStoredPresentation(presentation);
         set((state) => ({
-          presentations: { ...state.presentations, [presentation.id]: presentation },
-          activePresentationId: presentation.id,
+          presentations: { ...state.presentations, [normalized.id]: normalized },
+          activePresentationId: normalized.id,
         }));
       },
 
@@ -378,15 +427,16 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
         set((state) => {
           const presentation = state.presentations[presentationId];
           if (!presentation) return state;
+          const normalized = normalizeStoredPresentation({
+            ...presentation,
+            ...updates,
+            updatedAt: new Date(),
+          } as PPTPresentation);
 
           return {
             presentations: {
               ...state.presentations,
-              [presentationId]: {
-                ...presentation,
-                ...updates,
-                updatedAt: new Date(),
-              },
+              [presentationId]: normalized,
             },
           };
         });
@@ -413,14 +463,16 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
       },
 
       getPresentation: (presentationId) => {
-        return get().presentations[presentationId];
+        const presentation = get().presentations[presentationId];
+        return presentation ? normalizeStoredPresentation(presentation) : undefined;
       },
 
       getActivePresentation: () => {
         const state = get();
-        return state.activePresentationId
+        const presentation = state.activePresentationId
           ? state.presentations[state.activePresentationId]
           : undefined;
+        return presentation ? normalizeStoredPresentation(presentation) : undefined;
       },
 
       getPresentationsBySession: (sessionId) => {
@@ -488,6 +540,12 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
           if (!state.maxHistorySize) {
             state.maxHistorySize = 50;
           }
+        }
+        if (state.presentations && typeof state.presentations === 'object') {
+          const normalizedEntries = Object.entries(
+            state.presentations as Record<string, PPTPresentation>
+          ).map(([id, presentation]) => [id, normalizeStoredPresentation(presentation)] as const);
+          state.presentations = Object.fromEntries(normalizedEntries);
         }
         return state;
       },

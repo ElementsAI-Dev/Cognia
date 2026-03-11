@@ -79,6 +79,9 @@ jest.mock('@/lib/document/document-processor', () => ({
     if (filename.endsWith('.pdf')) return 'pdf';
     if (filename.endsWith('.docx')) return 'word';
     if (filename.endsWith('.xlsx')) return 'excel';
+    if (filename.endsWith('.pptx') || filename.endsWith('.ppt')) return 'presentation';
+    if (filename.endsWith('.epub')) return 'epub';
+    if (filename.endsWith('.rtf')) return 'rtf';
     if (filename.endsWith('.ts')) return 'code';
     return 'text';
   }),
@@ -87,7 +90,7 @@ jest.mock('@/lib/document/document-processor', () => ({
   ),
   isTextFile: jest.fn((filename: string) => {
     const ext = filename.split('.').pop()?.toLowerCase() || '';
-    return !['pdf', 'docx', 'xlsx'].includes(ext);
+    return !['pdf', 'docx', 'xlsx', 'pptx', 'ppt', 'epub'].includes(ext);
   }),
   estimateTokenCount: jest.fn((content: string) => Math.ceil(content.length / 4)),
   validateFile: jest.fn((_filename: string, size: number, options?: { maxSize?: number }) => {
@@ -97,7 +100,7 @@ jest.mock('@/lib/document/document-processor', () => ({
     }
     return { valid: true, errors: [] };
   }),
-  isBinaryType: jest.fn((type: string) => ['pdf', 'word', 'excel'].includes(type)),
+  isBinaryType: jest.fn((type: string) => ['pdf', 'word', 'excel', 'presentation', 'epub'].includes(type)),
   compareDocuments: jest.fn(
     (docA: { content: string; metadata: { size: number } }, docB: { content: string; metadata: { size: number } }) => ({
       added: docB.content.length > docA.content.length ? docB.content.length - docA.content.length : 0,
@@ -330,6 +333,9 @@ describe('useDocumentProcessor', () => {
       expect(result.current.detectType('test.pdf')).toBe('pdf');
       expect(result.current.detectType('doc.docx')).toBe('word');
       expect(result.current.detectType('data.xlsx')).toBe('excel');
+      expect(result.current.detectType('deck.pptx')).toBe('presentation');
+      expect(result.current.detectType('book.epub')).toBe('epub');
+      expect(result.current.detectType('draft.rtf')).toBe('rtf');
       expect(result.current.detectType('file.txt')).toBe('text');
     });
 
@@ -341,6 +347,10 @@ describe('useDocumentProcessor', () => {
       expect(result.current.isProcessable('report.pdf')).toBe(true);
       expect(result.current.isProcessable('doc.docx')).toBe(true);
       expect(result.current.isProcessable('data.xlsx')).toBe(true);
+      expect(result.current.isProcessable('slides.pptx')).toBe(true);
+      expect(result.current.isProcessable('legacy.ppt')).toBe(true);
+      expect(result.current.isProcessable('book.epub')).toBe(true);
+      expect(result.current.isProcessable('draft.rtf')).toBe(true);
     });
 
     it('should summarize content', () => {

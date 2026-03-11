@@ -18,12 +18,16 @@ export interface ToolbarState {
   canStop: boolean;
   isValid: boolean;
   hasSelection: boolean;
+  isSaving: boolean;
+  isPublishBlocked: boolean;
+  blockingErrorCount: number;
 }
 
 export function useToolbarActions() {
   const {
     currentWorkflow,
     isDirty,
+    editorLifecycleState,
     isExecuting,
     executionState,
     selectedNodes,
@@ -49,10 +53,12 @@ export function useToolbarActions() {
     toggleConfigPanel,
     toggleMinimap,
     validate,
+    focusValidationIssue,
   } = useWorkflowEditorStore(
     useShallow((state) => ({
       currentWorkflow: state.currentWorkflow,
       isDirty: state.isDirty,
+      editorLifecycleState: state.editorLifecycleState,
       isExecuting: state.isExecuting,
       executionState: state.executionState,
       selectedNodes: state.selectedNodes,
@@ -78,21 +84,44 @@ export function useToolbarActions() {
       toggleConfigPanel: state.toggleConfigPanel,
       toggleMinimap: state.toggleMinimap,
       validate: state.validate,
+      focusValidationIssue: state.focusValidationIssue,
     }))
+  );
+
+  const blockingValidationErrors = useMemo(
+    () =>
+      validationErrors.filter(
+        (error) => error.blocking ?? (error.severity !== 'warning' && error.severity !== 'info')
+      ),
+    [validationErrors]
   );
 
   // Computed state
   const state: ToolbarState = useMemo(() => ({
     canUndo: historyIndex > 0,
     canRedo: historyIndex < historyLength - 1,
-    canSave: isDirty && currentWorkflow !== null,
-    canRun: !isExecuting && currentWorkflow !== null,
+    canSave: isDirty && currentWorkflow !== null && editorLifecycleState !== 'saving',
+    canRun: !isExecuting && currentWorkflow !== null && blockingValidationErrors.length === 0,
     canPause: isExecuting && executionState?.status === 'running',
     canResume: isExecuting && executionState?.status === 'paused',
     canStop: isExecuting,
-    isValid: validationErrors.length === 0,
+    isValid: blockingValidationErrors.length === 0,
     hasSelection: selectedNodes.length > 0,
-  }), [historyIndex, historyLength, isDirty, currentWorkflow, isExecuting, executionState, validationErrors, selectedNodes]);
+    isSaving: editorLifecycleState === 'saving',
+    isPublishBlocked:
+      editorLifecycleState === 'publishBlocked' || blockingValidationErrors.length > 0,
+    blockingErrorCount: blockingValidationErrors.length,
+  }), [
+    historyIndex,
+    historyLength,
+    isDirty,
+    currentWorkflow,
+    editorLifecycleState,
+    isExecuting,
+    executionState,
+    selectedNodes,
+    blockingValidationErrors,
+  ]);
 
   // Action handlers
   const handleSave = useCallback(() => {
@@ -104,11 +133,14 @@ export function useToolbarActions() {
   const handleRun = useCallback(() => {
     if (state.canRun) {
       const errors = validate();
-      if (errors.length === 0) {
+      const blockingErrors = errors.filter(
+        (error) => error.blocking ?? (error.severity !== 'warning' && error.severity !== 'info')
+      );
+      if (blockingErrors.length === 0) {
         startExecution({});
       } else {
-        const errorCount = errors.filter((error) => error.severity === 'error').length;
-        const firstError = errors.find((error) => error.severity === 'error')?.message;
+        const errorCount = blockingErrors.length;
+        const firstError = blockingErrors[0]?.message;
         toast.error('Workflow validation failed', {
           description:
             firstError ||
@@ -167,6 +199,8 @@ export function useToolbarActions() {
     showMinimap,
     selectedNodes,
     validationErrors,
+    blockingValidationErrors,
+    editorLifecycleState,
     isExecuting,
     executionState,
     
@@ -187,6 +221,7 @@ export function useToolbarActions() {
     toggleConfigPanel,
     toggleMinimap,
     validate,
+    focusValidationIssue,
   };
 }
 

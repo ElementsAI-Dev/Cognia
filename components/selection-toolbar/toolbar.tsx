@@ -297,12 +297,22 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
         : state.selectedText;
       
       if (action === "copy") {
+        if (!isMultiSelectMode && selections.length === 0) {
+          await executeAction("copy");
+          hideToolbar();
+          return;
+        }
         await navigator.clipboard.writeText(textToProcess);
         hideToolbar();
         return;
       }
 
       if (action === "send-to-chat") {
+        if (!isMultiSelectMode && references.length === 0) {
+          await executeAction("send-to-chat");
+          hideToolbar();
+          return;
+        }
         if (isTauri()) {
           const { emit } = await import("@tauri-apps/api/event");
           // Include references in the payload
@@ -316,6 +326,11 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
       }
 
       if (action === "search") {
+        if (!isMultiSelectMode && selections.length === 0) {
+          await executeAction("search");
+          hideToolbar();
+          return;
+        }
         const searchUrl = getSearchUrl(textToProcess);
         window.open(searchUrl, "_blank");
         hideToolbar();

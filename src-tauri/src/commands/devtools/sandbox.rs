@@ -9,7 +9,7 @@ use tauri::{AppHandle, Emitter, State};
 use crate::sandbox::{
     CodeSnippet, CompilerSettings, ExecutionFilter, ExecutionRecord, ExecutionRequest,
     ExecutionResult, ExecutionSession, ImportResult, Language, LanguageStats, OutputLine,
-    RuntimeType, SandboxConfig, SandboxState, SandboxStats, SnippetFilter,
+    RuntimeType, SandboxConfig, SandboxPreflightResult, SandboxState, SandboxStats, SnippetFilter,
 };
 use chrono::{DateTime, Utc};
 
@@ -39,8 +39,27 @@ pub struct ExecuteCodeRequest {
     pub files: HashMap<String, String>,
     /// Network access
     pub network_enabled: Option<bool>,
+    /// Policy profile identifier
+    pub policy_profile: Option<String>,
     /// Compiler/interpreter settings
     pub compiler_settings: Option<CompilerSettings>,
+}
+
+/// Preflight request from frontend
+#[derive(Debug, Deserialize)]
+pub struct PreflightRequest {
+    /// Programming language
+    pub language: String,
+    /// Timeout in seconds
+    pub timeout_secs: Option<u64>,
+    /// Memory limit in MB
+    pub memory_limit_mb: Option<u64>,
+    /// Preferred runtime
+    pub runtime: Option<RuntimeType>,
+    /// Network access
+    pub network_enabled: Option<bool>,
+    /// Policy profile identifier
+    pub policy_profile: Option<String>,
 }
 
 /// Runtime status
@@ -78,6 +97,7 @@ pub async fn sandbox_execute(
         runtime: request.runtime,
         files: request.files,
         network_enabled: request.network_enabled,
+        policy_profile: request.policy_profile,
         compiler_settings: request.compiler_settings,
     };
 
@@ -118,6 +138,7 @@ pub async fn sandbox_execute_streaming(
         runtime: request.runtime,
         files: request.files,
         network_enabled: request.network_enabled,
+        policy_profile: request.policy_profile,
         compiler_settings: request.compiler_settings,
     };
 
@@ -163,6 +184,32 @@ pub async fn sandbox_get_status(state: State<'_, SandboxState>) -> Result<Sandbo
         supported_languages: languages,
         config,
     })
+}
+
+/// Run sandbox preflight validation
+#[tauri::command]
+pub async fn sandbox_preflight(
+    request: PreflightRequest,
+    state: State<'_, SandboxState>,
+) -> Result<SandboxPreflightResult, String> {
+    let preflight_request = ExecutionRequest {
+        id: uuid::Uuid::new_v4().to_string(),
+        language: request.language,
+        code: String::new(),
+        stdin: None,
+        args: Vec::new(),
+        env: HashMap::new(),
+        timeout_secs: request.timeout_secs,
+        memory_limit_mb: request.memory_limit_mb,
+        cpu_limit_percent: None,
+        runtime: request.runtime,
+        files: HashMap::new(),
+        network_enabled: request.network_enabled,
+        policy_profile: request.policy_profile,
+        compiler_settings: None,
+    };
+
+    state.preflight(preflight_request).await.map_err(|e| e.to_string())
 }
 
 /// Get all supported languages
@@ -785,6 +832,7 @@ pub async fn sandbox_execute_with_options(
         runtime: request.runtime,
         files: request.files,
         network_enabled: request.network_enabled,
+        policy_profile: request.policy_profile,
         compiler_settings: request.compiler_settings,
     };
 
@@ -838,6 +886,7 @@ mod tests {
             runtime: Some(RuntimeType::Native),
             files,
             network_enabled: Some(false),
+            policy_profile: None,
             compiler_settings: None,
         };
 
@@ -977,6 +1026,7 @@ mod tests {
             runtime: Some(RuntimeType::Docker),
             files: HashMap::new(),
             network_enabled: None,
+            policy_profile: None,
             compiler_settings: None,
         };
 
@@ -998,6 +1048,7 @@ mod tests {
             runtime: None,
             files: HashMap::new(),
             network_enabled: None,
+            policy_profile: None,
             compiler_settings: Some(CompilerSettings {
                 cpp_standard: Some("c++20".to_string()),
                 optimization: Some("-O2".to_string()),
@@ -1127,6 +1178,7 @@ mod tests {
                 m
             },
             network_enabled: Some(false),
+            policy_profile: None,
             compiler_settings: Some(settings),
         };
 
@@ -1144,6 +1196,7 @@ mod tests {
             runtime: request.runtime,
             files: request.files.clone(),
             network_enabled: request.network_enabled,
+            policy_profile: None,
             compiler_settings: request.compiler_settings.clone(),
         };
 
@@ -1170,3 +1223,4 @@ mod tests {
         );
     }
 }
+

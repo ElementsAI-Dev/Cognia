@@ -711,11 +711,15 @@ export interface WorkflowEditorState {
  * Validation error
  */
 export interface ValidationError {
+  id?: string;
   nodeId?: string;
   edgeId?: string;
   field?: string;
   message: string;
   severity: 'error' | 'warning' | 'info';
+  blocking?: boolean;
+  source?: 'client' | 'server';
+  code?: string;
 }
 
 // =====================

@@ -137,18 +137,25 @@ describe('useSandboxStore', () => {
       expect(result.current.execution.isExecuting).toBe(false);
       expect(result.current.execution.lastResult).toEqual(executionResult);
       expect(result.current.execution.error).toBeNull();
+      expect(result.current.execution.lifecycleStatus).toBe('success');
     });
 
     it('should fail execution', () => {
       const { result } = renderHook(() => useSandboxStore());
+      const diagnostics = {
+        category: 'validation' as const,
+        code: 'invalid_timeout',
+      };
 
       act(() => {
         result.current.startExecution('exec-123');
-        result.current.failExecution('Docker not available');
+        result.current.failExecution('Docker not available', diagnostics);
       });
 
       expect(result.current.execution.isExecuting).toBe(false);
       expect(result.current.execution.error).toBe('Docker not available');
+      expect(result.current.execution.lifecycleStatus).toBe('error');
+      expect(result.current.execution.diagnostics).toEqual(diagnostics);
     });
 
     it('should reset execution', () => {

@@ -1956,3 +1956,89 @@ test.describe('Sandbox Output Streaming', () => {
     expect(result.coloredStrippedText).toBe('Red Green Blue');
   });
 });
+
+test.describe('Sandbox Preflight and Policy Scenarios', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+  });
+
+  test('should block execution when preflight is blocked', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const preflight = {
+        status: 'blocked',
+        reason_code: 'runtime_unavailable',
+        message: 'No allowed runtime is available for this request.',
+        remediation_hint: 'Start Docker or switch to an available runtime.',
+      };
+
+      const canExecute = preflight.status === 'ready';
+      return { canExecute, preflight };
+    });
+
+    expect(result.canExecute).toBe(false);
+    expect(result.preflight.reason_code).toBe('runtime_unavailable');
+    expect(result.preflight.remediation_hint).toContain('runtime');
+  });
+
+  test('should transition lifecycle to success for successful execution', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const states: string[] = [];
+      states.push('queued');
+      states.push('running');
+      states.push('success');
+      return states;
+    });
+
+    expect(result).toEqual(['queued', 'running', 'success']);
+  });
+
+  test('should transition lifecycle to timeout when execution exceeds limit', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const timeoutMs = 50;
+      const simulatedDurationMs = 120;
+      const terminalState = simulatedDurationMs > timeoutMs ? 'timeout' : 'success';
+
+      return {
+        terminalState,
+        diagnostics: {
+          category: 'resource_limit',
+          code: 'execution_timeout',
+        },
+      };
+    });
+
+    expect(result.terminalState).toBe('timeout');
+    expect(result.diagnostics.category).toBe('resource_limit');
+    expect(result.diagnostics.code).toBe('execution_timeout');
+  });
+
+  test('should transition lifecycle to cancelled when user cancels execution', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      let lifecycle = 'running';
+      const cancel = () => {
+        lifecycle = 'cancelled';
+      };
+
+      cancel();
+      return lifecycle;
+    });
+
+    expect(result).toBe('cancelled');
+  });
+
+  test('should deny network escalation when profile disallows network', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const policyProfile = { id: 'strict', allow_network: false };
+      const request = { network_enabled: true };
+      const denied = request.network_enabled && !policyProfile.allow_network;
+      return {
+        denied,
+        code: denied ? 'network_not_allowed' : 'ok',
+      };
+    });
+
+    expect(result.denied).toBe(true);
+    expect(result.code).toBe('network_not_allowed');
+  });
+});

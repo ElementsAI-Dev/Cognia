@@ -86,7 +86,7 @@ function countWords(text: string): number {
 
 /**
  * Process a text-based document (sync version)
- * For binary documents (PDF, Word, Excel), use processDocumentAsync
+ * For binary documents (PDF, Word, Excel, Presentation, EPUB), use processDocumentAsync
  */
 export function processDocument(
   id: string,
@@ -184,7 +184,7 @@ export function processDocument(
 }
 
 /**
- * Process a document asynchronously (supports binary formats)
+ * Process a document asynchronously (supports binary and rich formats)
  */
 export async function processDocumentAsync(
   id: string,
@@ -195,8 +195,9 @@ export async function processDocumentAsync(
   const opts = { ...DEFAULT_PROCESSING_OPTIONS, ...options };
   const type = detectDocumentType(filename);
 
-  // For text-based formats, use sync processing
-  if (typeof data === 'string' && !['pdf', 'word', 'excel'].includes(type)) {
+  // For plain text-based formats, use sync processing.
+  // Rich formats with dedicated parsers stay in async path.
+  if (typeof data === 'string' && !['pdf', 'word', 'excel', 'presentation', 'epub', 'rtf'].includes(type)) {
     return processDocument(id, filename, data, options);
   }
 
@@ -265,6 +266,66 @@ export async function processDocumentAsync(
       break;
     }
 
+    case 'presentation': {
+      const ext = getFileExtension(filename);
+      if (ext === 'ppt') {
+        throw new Error('Legacy PowerPoint (.ppt) is not supported. Please convert to .pptx and retry.');
+      }
+
+      const { parsePresentation, extractPresentationEmbeddableContent } = await import('./parsers/presentation-parser');
+      const buffer = typeof data === 'string' ? stringToArrayBuffer(data) : data;
+      const parsed = await parsePresentation(buffer);
+      content = parsed.text;
+      embeddableContent = opts.extractEmbeddable ? extractPresentationEmbeddableContent(parsed) : content;
+      metadata = {
+        ...metadata,
+        title: parsed.metadata.title,
+        author: parsed.metadata.author,
+        lineCount: content.split('\n').length,
+        wordCount: countWords(content),
+        language: 'presentation',
+        slideCount: parsed.slideCount,
+      };
+      parseResult = parsed;
+      break;
+    }
+
+    case 'rtf': {
+      const { parseRTF, extractRTFEmbeddableContent } = await import('./parsers/rtf-parser');
+      const text = typeof data === 'string' ? data : arrayBufferToString(data);
+      const parsed = parseRTF(text);
+      content = parsed.text;
+      embeddableContent = opts.extractEmbeddable ? extractRTFEmbeddableContent(parsed) : content;
+      metadata = {
+        ...metadata,
+        lineCount: content.split('\n').length,
+        wordCount: countWords(content),
+        language: 'rtf',
+        charset: parsed.metadata.charset,
+      };
+      parseResult = parsed;
+      break;
+    }
+
+    case 'epub': {
+      const { parseEPUB, extractEPUBEmbeddableContent } = await import('./parsers/epub-parser');
+      const buffer = typeof data === 'string' ? stringToArrayBuffer(data) : data;
+      const parsed = await parseEPUB(buffer);
+      content = parsed.text;
+      embeddableContent = opts.extractEmbeddable ? extractEPUBEmbeddableContent(parsed) : content;
+      metadata = {
+        ...metadata,
+        title: parsed.metadata.title,
+        author: parsed.metadata.author,
+        lineCount: content.split('\n').length,
+        wordCount: countWords(content),
+        language: 'epub',
+        chapterCount: parsed.chapterCount,
+      };
+      parseResult = parsed;
+      break;
+    }
+
     case 'csv': {
       // Dynamic import to reduce bundle size and memory usage
       const { parseCSV, extractCSVEmbeddableContent } = await import('./parsers/csv-parser');
@@ -306,7 +367,11 @@ export async function processDocumentAsync(
     }
 
     default: {
-      // Fall back to text processing
+      // Only unknown formats should fall back to generic text processing.
+      if (type !== 'unknown') {
+        throw new Error(`No parser is configured for recognized document type '${type}'.`);
+      }
+
       const text = typeof data === 'string' ? data : arrayBufferToString(data);
       return processDocument(id, filename, text, options);
     }
@@ -416,6 +481,7 @@ export function isTextFile(filename: string): boolean {
     'json', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'conf',
     'xml', 'html', 'htm', 'css', 'scss', 'less', 'sass',
     'vue', 'svelte',
+    'rtf',
     'env', 'gitignore', 'dockerignore', 'editorconfig',
     'log', 'csv', 'tsv',
   ];

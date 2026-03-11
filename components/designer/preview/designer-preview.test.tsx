@@ -5,6 +5,35 @@ import React from 'react';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import { DesignerPreview } from './designer-preview';
 
+const mockUnifiedRuntimeEnabled = jest.fn(() => false);
+let mockRuntimeEvent: Record<string, unknown> | null = null;
+
+jest.mock('@/lib/designer', () => ({
+  isUnifiedDesignerSandboxRuntimeEnabled: () => mockUnifiedRuntimeEnabled(),
+}));
+
+jest.mock('../editor/react-sandbox', () => ({
+  ReactSandbox: ({
+    onPreviewIframeReady,
+    onRuntimeEvent,
+  }: {
+    onPreviewIframeReady?: (iframe: HTMLIFrameElement | null) => void;
+    onRuntimeEvent?: (event: Record<string, unknown>) => void;
+  }) => {
+    React.useEffect(() => {
+      if (onPreviewIframeReady) {
+        const iframe = document.createElement('iframe');
+        onPreviewIframeReady(iframe);
+      }
+      if (onRuntimeEvent && mockRuntimeEvent) {
+        onRuntimeEvent(mockRuntimeEvent);
+      }
+    }, [onPreviewIframeReady, onRuntimeEvent]);
+
+    return <div data-testid="runtime-sandbox" />;
+  },
+}));
+
 // Mock stores
 const mockSelectElement = jest.fn();
 const mockHoverElement = jest.fn();
@@ -101,6 +130,8 @@ function setMockState(overrides: Partial<typeof defaultDesignerState>) {
 describe('DesignerPreview', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUnifiedRuntimeEnabled.mockReturnValue(false);
+    mockRuntimeEvent = null;
     // Reset to defaults
     Object.assign(defaultDesignerState, {
       mode: 'preview',
@@ -147,6 +178,14 @@ describe('DesignerPreview', () => {
       render(<DesignerPreview />);
       const iframe = screen.getByTitle('Designer Preview') as HTMLIFrameElement;
       expect(iframe.getAttribute('sandbox')).toBe('allow-scripts allow-same-origin');
+    });
+  });
+
+  describe('runtime sandbox path', () => {
+    it('renders runtime sandbox when unified runtime flag is enabled', () => {
+      mockUnifiedRuntimeEnabled.mockReturnValue(true);
+      render(<DesignerPreview />);
+      expect(screen.getByTestId('runtime-sandbox')).toBeInTheDocument();
     });
   });
 

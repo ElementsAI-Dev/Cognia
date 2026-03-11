@@ -5,6 +5,7 @@
 import {
   detectDocumentType,
   processDocument,
+  processDocumentAsync,
   processDocuments,
   extractSummary,
   getFileExtension,
@@ -41,6 +42,40 @@ jest.mock('@/lib/ai/embedding/chunking', () => ({
       )
     )
   ),
+}));
+
+jest.mock('./parsers/presentation-parser', () => ({
+  parsePresentation: jest.fn(async () => ({
+    text: 'Slide 1 content\nSlide 2 content',
+    slideCount: 2,
+    slides: [
+      { slideNumber: 1, title: 'Slide 1', text: 'Slide 1 content' },
+      { slideNumber: 2, title: 'Slide 2', text: 'Slide 2 content' },
+    ],
+    metadata: { title: 'Demo Deck', author: 'Tester' },
+  })),
+  extractPresentationEmbeddableContent: jest.fn((result: { text: string }) => result.text),
+}));
+
+jest.mock('./parsers/rtf-parser', () => ({
+  parseRTF: jest.fn((content: string) => ({
+    text: content.includes('rtf') ? 'Parsed RTF content' : 'Parsed content',
+    metadata: { charset: 'windows-1252', controlWordCount: 4 },
+  })),
+  extractRTFEmbeddableContent: jest.fn((result: { text: string }) => result.text),
+}));
+
+jest.mock('./parsers/epub-parser', () => ({
+  parseEPUB: jest.fn(async () => ({
+    text: 'Chapter 1 text\nChapter 2 text',
+    chapterCount: 2,
+    chapters: [
+      { id: 'c1', href: 'c1.xhtml', title: 'C1', text: 'Chapter 1 text' },
+      { id: 'c2', href: 'c2.xhtml', title: 'C2', text: 'Chapter 2 text' },
+    ],
+    metadata: { title: 'Book Title', author: 'Book Author' },
+  })),
+  extractEPUBEmbeddableContent: jest.fn((result: { text: string }) => result.text),
 }));
 
 describe('detectDocumentType', () => {
@@ -288,6 +323,50 @@ describe('processDocument', () => {
   });
 });
 
+describe('processDocumentAsync', () => {
+  it('processes presentation files via presentation parser', async () => {
+    const result = await processDocumentAsync('doc-async-1', 'slides.pptx', new ArrayBuffer(8));
+
+    expect(result.type).toBe('presentation');
+    expect(result.content).toContain('Slide 1 content');
+    expect(result.metadata.slideCount).toBe(2);
+    expect(result.metadata.language).toBe('presentation');
+  });
+
+  it('processes rtf files via rtf parser', async () => {
+    const result = await processDocumentAsync(
+      'doc-async-2',
+      'notes.rtf',
+      '{\\rtf1\\ansi\\pard hello\\par}'
+    );
+
+    expect(result.type).toBe('rtf');
+    expect(result.content).toBe('Parsed RTF content');
+    expect(result.metadata.language).toBe('rtf');
+  });
+
+  it('processes epub files via epub parser', async () => {
+    const result = await processDocumentAsync('doc-async-3', 'book.epub', new ArrayBuffer(8));
+
+    expect(result.type).toBe('epub');
+    expect(result.content).toContain('Chapter 1 text');
+    expect(result.metadata.chapterCount).toBe(2);
+    expect(result.metadata.language).toBe('epub');
+  });
+
+  it('throws actionable error for legacy ppt files', async () => {
+    await expect(
+      processDocumentAsync('doc-async-4', 'legacy.ppt', new ArrayBuffer(8))
+    ).rejects.toThrow('convert to .pptx');
+  });
+
+  it('falls back to sync processing for unknown types', async () => {
+    const result = await processDocumentAsync('doc-async-5', 'raw.bin', 'plain text body');
+    expect(result.type).toBe('unknown');
+    expect(result.content).toBe('plain text body');
+  });
+});
+
 describe('processDocuments', () => {
   it('processes multiple documents', () => {
     const docs = [
@@ -321,10 +400,6 @@ describe('processDocuments', () => {
     expect(results).toHaveLength(0);
   });
 });
-
-// Note: processDocumentAsync tests are in a separate file (document-processor-async.test.ts)
-// to avoid memory issues from loading heavy parser libraries in the same test run.
-// The async processor is tested there with CSV processing tests.
 
 describe('extractSummary', () => {
   it('returns full content when shorter than maxLength', () => {
@@ -409,6 +484,10 @@ describe('isTextFile', () => {
     it('returns true for markdown', () => {
       expect(isTextFile('file.md')).toBe(true);
       expect(isTextFile('file.markdown')).toBe(true);
+    });
+
+    it('returns true for rtf', () => {
+      expect(isTextFile('file.rtf')).toBe(true);
     });
   });
 
@@ -657,6 +736,7 @@ describe('isBinaryType', () => {
     expect(isBinaryType('json')).toBe(false);
     expect(isBinaryType('csv')).toBe(false);
     expect(isBinaryType('html')).toBe(false);
+    expect(isBinaryType('rtf')).toBe(false);
   });
 });
 

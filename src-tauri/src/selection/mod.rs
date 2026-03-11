@@ -55,6 +55,7 @@ pub use types::{Selection, SourceAppInfo};
 #[allow(unused_imports)]
 pub use types::TextType;
 
+use crate::context::WindowManager;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -62,10 +63,48 @@ use std::sync::Arc;
 use tauri::{Emitter, Manager};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
+use uuid::Uuid;
+
+const ERROR_KIND_EXTRACT_FAILED: &str = "extract_failed";
+const ERROR_KIND_TOOLBAR_SHOW_FAILED: &str = "toolbar_show_failed";
+const ERROR_KIND_CONFIG_SYNC_FAILED: &str = "config_sync_failed";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TriggerMode {
+    Auto,
+    Shortcut,
+    Both,
+}
+
+fn parse_trigger_mode(mode: &str) -> TriggerMode {
+    match mode.trim().to_ascii_lowercase().as_str() {
+        "auto" => TriggerMode::Auto,
+        "shortcut" | "manual" => TriggerMode::Shortcut,
+        "both" => TriggerMode::Both,
+        _ => TriggerMode::Auto,
+    }
+}
+
+fn trigger_mode_supports_auto(mode: &str) -> bool {
+    matches!(parse_trigger_mode(mode), TriggerMode::Auto | TriggerMode::Both)
+}
+
+fn trigger_mode_supports_manual(mode: &str) -> bool {
+    matches!(
+        parse_trigger_mode(mode),
+        TriggerMode::Auto | TriggerMode::Shortcut | TriggerMode::Both
+    )
+}
+
+fn is_effectively_empty_selection(text: &str) -> bool {
+    text.trim().is_empty()
+}
 
 /// Selection event payload sent to the frontend
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SelectionPayload {
+    /// Correlation ID for linking lifecycle and action/history events
+    pub event_id: Option<String>,
     /// The selected text
     pub text: String,
     /// Mouse X position (screen coordinates)
@@ -74,6 +113,16 @@ pub struct SelectionPayload {
     pub y: i32,
     /// Timestamp of the selection
     pub timestamp: i64,
+    /// Source application name (if available)
+    pub source_app: Option<String>,
+    /// Source process name (if available)
+    pub source_process: Option<String>,
+    /// Source window title (if available)
+    pub source_window_title: Option<String>,
+    /// Detected text type (if available)
+    pub text_type: Option<String>,
+    /// Detection mode that produced this payload (`auto` or `manual`)
+    pub detection_mode: Option<String>,
 }
 
 /// Selection toolbar configuration
@@ -81,7 +130,7 @@ pub struct SelectionPayload {
 pub struct SelectionConfig {
     /// Whether the selection toolbar is enabled
     pub enabled: bool,
-    /// Trigger mode: "auto" or "shortcut"
+    /// Trigger mode: "auto", "shortcut", or "both"
     pub trigger_mode: String,
     /// Minimum text length to trigger toolbar
     pub min_text_length: usize,
@@ -231,6 +280,67 @@ impl SelectionManager {
         Ok(())
     }
 
+    fn get_active_source_app_info() -> Option<SourceAppInfo> {
+        let window = WindowManager::new().get_active_window().ok()?;
+        Some(SourceAppInfo {
+            name: window.process_name.clone(),
+            process: window.process_name,
+            window_title: window.title,
+            app_type: "unknown".to_string(),
+        })
+    }
+
+    fn is_excluded_app(cfg: &SelectionConfig, source_app: Option<&SourceAppInfo>) -> bool {
+        let Some(source_app) = source_app else {
+            return false;
+        };
+
+        if cfg.excluded_apps.is_empty() {
+            return false;
+        }
+
+        let app_name = source_app.name.to_ascii_lowercase();
+        let process = source_app.process.to_ascii_lowercase();
+        let window_title = source_app.window_title.to_ascii_lowercase();
+
+        cfg.excluded_apps.iter().any(|pattern| {
+            let p = pattern.trim().to_ascii_lowercase();
+            if p.is_empty() {
+                return false;
+            }
+            app_name == p
+                || process == p
+                || process.ends_with(&p)
+                || app_name.contains(&p)
+                || process.contains(&p)
+                || window_title.contains(&p)
+        })
+    }
+
+    fn is_text_within_limits(text: &str, cfg: &SelectionConfig) -> bool {
+        let text_len = text.chars().count();
+        text_len >= cfg.min_text_length && text_len <= cfg.max_text_length
+    }
+
+    fn emit_selection_error(
+        app_handle: &tauri::AppHandle,
+        kind: &str,
+        stage: &str,
+        message: &str,
+        details: serde_json::Value,
+    ) {
+        let payload = serde_json::json!({
+            "kind": kind,
+            "stage": stage,
+            "message": message,
+            "timestamp": chrono::Utc::now().timestamp_millis(),
+            "details": details,
+        });
+        if let Err(err) = app_handle.emit("selection-error", payload) {
+            log::error!("[SelectionManager] Failed to emit selection-error event: {}", err);
+        }
+    }
+
     /// Start the selection detection service
     pub async fn start(&self) -> Result<(), String> {
         log::debug!("[SelectionManager] start() called");
@@ -297,9 +407,12 @@ impl SelectionManager {
                             continue;
                         }
 
-                        // Only process in auto mode
-                        if cfg.trigger_mode != "auto" {
-                            log::trace!("[SelectionManager] Skipping event: trigger_mode={}", cfg.trigger_mode);
+                        // Process auto-detection only when trigger mode supports auto
+                        if !trigger_mode_supports_auto(&cfg.trigger_mode) {
+                            log::trace!(
+                                "[SelectionManager] Skipping auto event: trigger_mode={}",
+                                cfg.trigger_mode
+                            );
                             continue;
                         }
 
@@ -319,9 +432,21 @@ impl SelectionManager {
                         // Wait for the configured delay (allows selection to complete)
                         tokio::time::sleep(tokio::time::Duration::from_millis(cfg.delay_ms)).await;
 
+                        let source_app = SelectionManager::get_active_source_app_info();
+                        if SelectionManager::is_excluded_app(&cfg, source_app.as_ref()) {
+                            log::trace!(
+                                "[SelectionManager] Skipping selection in excluded app: {:?}",
+                                source_app.as_ref().map(|app| (&app.name, &app.process))
+                            );
+                            if toolbar_window.is_visible() {
+                                let _ = toolbar_window.hide();
+                            }
+                            continue;
+                        }
+
                         // Try to get selected text
                         match detector.get_selected_text() {
-                            Ok(Some(text)) if !text.is_empty() => {
+                            Ok(Some(text)) if !is_effectively_empty_selection(&text) => {
                                 // For simple clicks (not selection actions), don't show new toolbar
                                 // This prevents false triggers when clicking to position cursor
                                 if !is_selection_action {
@@ -330,9 +455,13 @@ impl SelectionManager {
                                 }
 
                                 // Check text length
-                                if text.len() < cfg.min_text_length || text.len() > cfg.max_text_length {
-                                    log::debug!("[SelectionManager] Text length {} outside bounds [{}, {}]",
-                                        text.len(), cfg.min_text_length, cfg.max_text_length);
+                                if !SelectionManager::is_text_within_limits(&text, &cfg) {
+                                    log::debug!(
+                                        "[SelectionManager] Text length {} outside bounds [{}, {}]",
+                                        text.chars().count(),
+                                        cfg.min_text_length,
+                                        cfg.max_text_length
+                                    );
                                     continue;
                                 }
 
@@ -345,31 +474,50 @@ impl SelectionManager {
                                 *last_selection_timestamp.write() = Some(timestamp);
 
                                 // Analyze text and record to history
-                                let analysis = detector.analyze(&text, None);
-                                let mut history_entry = SelectionHistoryEntry::new(text.clone(), x as i32, y as i32);
+                                let event_id = Uuid::new_v4().to_string();
+                                let analysis = detector.analyze(&text, source_app.clone());
+                                let mut history_entry =
+                                    SelectionHistoryEntry::new(text.clone(), x as i32, y as i32)
+                                        .with_event_id(Some(event_id.clone()))
+                                        .with_source_app(source_app.as_ref());
                                 history_entry = history_entry.with_type_info(
                                     Some(format!("{:?}", analysis.text_type)),
                                     analysis.language.clone(),
                                 );
+                                history_entry.is_manual = false;
                                 history.add(history_entry);
 
                                 // Show toolbar
                                 if let Err(e) = toolbar_window.show(x as i32, y as i32, text.clone()) {
                                     log::error!("[SelectionManager] Failed to show toolbar: {}", e);
-                                    // Emit error event to frontend
-                                    let _ = app_handle.emit("selection-error", serde_json::json!({
-                                        "error": e,
-                                        "type": "toolbar_show_failed"
-                                    }));
+                                    SelectionManager::emit_selection_error(
+                                        &app_handle,
+                                        ERROR_KIND_TOOLBAR_SHOW_FAILED,
+                                        "toolbar_show",
+                                        &e,
+                                        serde_json::json!({
+                                            "x": x,
+                                            "y": y,
+                                            "triggerMode": cfg.trigger_mode,
+                                        }),
+                                    );
                                     continue;
                                 }
 
                                 // Emit event to frontend
                                 let payload = SelectionPayload {
+                                    event_id: Some(event_id),
                                     text,
                                     x: x as i32,
                                     y: y as i32,
                                     timestamp,
+                                    source_app: source_app.as_ref().map(|app| app.name.clone()),
+                                    source_process: source_app.as_ref().map(|app| app.process.clone()),
+                                    source_window_title: source_app
+                                        .as_ref()
+                                        .map(|app| app.window_title.clone()),
+                                    text_type: Some(format!("{:?}", analysis.text_type)),
+                                    detection_mode: Some("auto".to_string()),
                                 };
 
                                 if let Err(e) = app_handle.emit("selection-detected", &payload) {
@@ -387,6 +535,16 @@ impl SelectionManager {
                             }
                             Err(e) => {
                                 log::debug!("[SelectionManager] Failed to get selected text: {}", e);
+                                SelectionManager::emit_selection_error(
+                                    &app_handle,
+                                    ERROR_KIND_EXTRACT_FAILED,
+                                    "extract_selection_auto",
+                                    &e,
+                                    serde_json::json!({
+                                        "triggerMode": cfg.trigger_mode,
+                                        "selectionAction": is_selection_action,
+                                    }),
+                                );
                             }
                         }
                     }
@@ -446,27 +604,46 @@ impl SelectionManager {
     pub fn update_config(&self, new_config: SelectionConfig) {
         log::debug!("[SelectionManager] update_config called");
         let old_config = self.config.read().clone();
+        let requested_trigger_mode = new_config.trigger_mode.clone();
+        let mut normalized_config = new_config;
+        normalized_config.trigger_mode = match parse_trigger_mode(&normalized_config.trigger_mode) {
+            TriggerMode::Auto => "auto".to_string(),
+            TriggerMode::Shortcut => "shortcut".to_string(),
+            TriggerMode::Both => "both".to_string(),
+        };
+        if requested_trigger_mode != normalized_config.trigger_mode {
+            SelectionManager::emit_selection_error(
+                &self.app_handle,
+                ERROR_KIND_CONFIG_SYNC_FAILED,
+                "normalize_trigger_mode",
+                "Unsupported trigger mode provided; falling back to normalized mode",
+                serde_json::json!({
+                    "requested": requested_trigger_mode,
+                    "normalized": normalized_config.trigger_mode,
+                }),
+            );
+        }
 
         // Update config
         {
             let mut current = self.config.write();
-            *current = new_config.clone();
+            *current = normalized_config.clone();
         }
 
         // Emit config change event
         let _ = self
             .app_handle
-            .emit("selection-config-changed", &new_config);
+            .emit("selection-config-changed", &normalized_config);
 
         // Handle enable/disable state change
-        if old_config.enabled != new_config.enabled {
-            if !new_config.enabled {
+        if old_config.enabled != normalized_config.enabled {
+            if !normalized_config.enabled {
                 // Hide toolbar when disabled
                 let _ = self.toolbar_window.hide();
             }
             log::info!(
                 "[SelectionManager] Selection toolbar {}",
-                if new_config.enabled {
+                if normalized_config.enabled {
                     "enabled"
                 } else {
                     "disabled"
@@ -476,9 +653,9 @@ impl SelectionManager {
 
         log::debug!(
             "[SelectionManager] Config updated: enabled={}, trigger_mode={}, delay={}ms",
-            new_config.enabled,
-            new_config.trigger_mode,
-            new_config.delay_ms
+            normalized_config.enabled,
+            normalized_config.trigger_mode,
+            normalized_config.delay_ms
         );
     }
 
@@ -544,11 +721,27 @@ impl SelectionManager {
             log::debug!("[SelectionManager] Trigger ignored: selection disabled");
             return Ok(None);
         }
+        if !trigger_mode_supports_manual(&cfg.trigger_mode) {
+            log::trace!(
+                "[SelectionManager] Trigger ignored: mode does not support manual trigger ({})",
+                cfg.trigger_mode
+            );
+            return Ok(None);
+        }
+
+        let source_app = Self::get_active_source_app_info();
+        if Self::is_excluded_app(&cfg, source_app.as_ref()) {
+            log::trace!(
+                "[SelectionManager] Manual trigger ignored for excluded app: {:?}",
+                source_app.as_ref().map(|app| (&app.name, &app.process))
+            );
+            return Ok(None);
+        }
 
         // Get selected text
         log::trace!("[SelectionManager] Getting selected text");
         let text = match self.detector.get_selected_text()? {
-            Some(t) if !t.is_empty() => t,
+            Some(t) if !is_effectively_empty_selection(&t) => t,
             _ => {
                 log::debug!("[SelectionManager] Trigger: no text selected");
                 return Ok(None);
@@ -556,10 +749,10 @@ impl SelectionManager {
         };
 
         // Check text length
-        if text.len() < cfg.min_text_length || text.len() > cfg.max_text_length {
+        if !Self::is_text_within_limits(&text, &cfg) {
             log::debug!(
                 "[SelectionManager] Trigger: text length {} outside bounds",
-                text.len()
+                text.chars().count()
             );
             return Ok(None);
         }
@@ -573,12 +766,35 @@ impl SelectionManager {
             y
         );
 
+        let event_id = Uuid::new_v4().to_string();
+        let timestamp = chrono::Utc::now().timestamp_millis();
+        *self.last_selection_timestamp.write() = Some(timestamp);
+
+        let analysis = self.detector.analyze(&text, source_app.clone());
+        let mut history_entry = SelectionHistoryEntry::new(text.clone(), x as i32, y as i32)
+            .with_event_id(Some(event_id.clone()))
+            .with_source_app(source_app.as_ref());
+        history_entry = history_entry.with_type_info(
+            Some(format!("{:?}", analysis.text_type)),
+            analysis.language.clone(),
+        );
+        history_entry.is_manual = true;
+        self.history.add(history_entry);
+
         // Create payload
         let payload = SelectionPayload {
+            event_id: Some(event_id),
             text: text.clone(),
             x: x as i32,
             y: y as i32,
-            timestamp: chrono::Utc::now().timestamp_millis(),
+            timestamp,
+            source_app: source_app.as_ref().map(|app| app.name.clone()),
+            source_process: source_app.as_ref().map(|app| app.process.clone()),
+            source_window_title: source_app
+                .as_ref()
+                .map(|app| app.window_title.clone()),
+            text_type: Some(format!("{:?}", analysis.text_type)),
+            detection_mode: Some("manual".to_string()),
         };
 
         // Show toolbar
@@ -612,15 +828,25 @@ fn get_mouse_position() -> (f64, f64) {
 mod tests {
     use super::*;
 
+    fn build_test_payload(text: &str, x: i32, y: i32, timestamp: i64) -> SelectionPayload {
+        SelectionPayload {
+            event_id: None,
+            text: text.to_string(),
+            x,
+            y,
+            timestamp,
+            source_app: None,
+            source_process: None,
+            source_window_title: None,
+            text_type: None,
+            detection_mode: None,
+        }
+    }
+
     // SelectionPayload tests
     #[test]
     fn test_selection_payload_creation() {
-        let payload = SelectionPayload {
-            text: "test text".to_string(),
-            x: 100,
-            y: 200,
-            timestamp: 1234567890,
-        };
+        let payload = build_test_payload("test text", 100, 200, 1234567890);
 
         assert_eq!(payload.text, "test text");
         assert_eq!(payload.x, 100);
@@ -630,12 +856,7 @@ mod tests {
 
     #[test]
     fn test_selection_payload_clone() {
-        let payload = SelectionPayload {
-            text: "test".to_string(),
-            x: 50,
-            y: 75,
-            timestamp: 999,
-        };
+        let payload = build_test_payload("test", 50, 75, 999);
 
         let cloned = payload.clone();
         assert_eq!(cloned.text, payload.text);
@@ -646,12 +867,7 @@ mod tests {
 
     #[test]
     fn test_selection_payload_debug() {
-        let payload = SelectionPayload {
-            text: "debug test".to_string(),
-            x: 10,
-            y: 20,
-            timestamp: 123,
-        };
+        let payload = build_test_payload("debug test", 10, 20, 123);
 
         let debug_str = format!("{:?}", payload);
         assert!(debug_str.contains("SelectionPayload"));
@@ -660,12 +876,7 @@ mod tests {
 
     #[test]
     fn test_selection_payload_serialize() {
-        let payload = SelectionPayload {
-            text: "serialize test".to_string(),
-            x: 100,
-            y: 200,
-            timestamp: 1000,
-        };
+        let payload = build_test_payload("serialize test", 100, 200, 1000);
 
         let json = serde_json::to_string(&payload);
         assert!(json.is_ok());
@@ -878,24 +1089,14 @@ mod tests {
     // Edge case tests
     #[test]
     fn test_selection_payload_empty_text() {
-        let payload = SelectionPayload {
-            text: "".to_string(),
-            x: 0,
-            y: 0,
-            timestamp: 0,
-        };
+        let payload = build_test_payload("", 0, 0, 0);
 
         assert!(payload.text.is_empty());
     }
 
     #[test]
     fn test_selection_payload_unicode_text() {
-        let payload = SelectionPayload {
-            text: "你好世界 🌍 émoji".to_string(),
-            x: 100,
-            y: 200,
-            timestamp: 1000,
-        };
+        let payload = build_test_payload("你好世界 🌍 émoji", 100, 200, 1000);
 
         assert_eq!(payload.text, "你好世界 🌍 émoji");
 
@@ -907,12 +1108,7 @@ mod tests {
     #[test]
     fn test_selection_payload_negative_coordinates() {
         // Negative coordinates are valid (multi-monitor setups)
-        let payload = SelectionPayload {
-            text: "test".to_string(),
-            x: -100,
-            y: -50,
-            timestamp: 1000,
-        };
+        let payload = build_test_payload("test", -100, -50, 1000);
 
         assert_eq!(payload.x, -100);
         assert_eq!(payload.y, -50);
@@ -1017,12 +1213,7 @@ mod tests {
     #[test]
     fn test_payload_timestamp_is_recent() {
         let now = chrono::Utc::now().timestamp_millis();
-        let payload = SelectionPayload {
-            text: "test".to_string(),
-            x: 0,
-            y: 0,
-            timestamp: now,
-        };
+        let payload = build_test_payload("test", 0, 0, now);
 
         // Timestamp should be very close to now
         let diff = (payload.timestamp - now).abs();
@@ -1059,6 +1250,56 @@ mod tests {
 
         assert_eq!(auto_config.trigger_mode, "auto");
         assert_eq!(shortcut_config.trigger_mode, "shortcut");
+    }
+
+    #[test]
+    fn test_parse_trigger_mode_aliases() {
+        assert_eq!(parse_trigger_mode("auto"), TriggerMode::Auto);
+        assert_eq!(parse_trigger_mode("manual"), TriggerMode::Shortcut);
+        assert_eq!(parse_trigger_mode("shortcut"), TriggerMode::Shortcut);
+        assert_eq!(parse_trigger_mode("both"), TriggerMode::Both);
+        assert_eq!(parse_trigger_mode("unknown"), TriggerMode::Auto);
+    }
+
+    #[test]
+    fn test_trigger_mode_support_flags() {
+        assert!(trigger_mode_supports_auto("auto"));
+        assert!(trigger_mode_supports_auto("both"));
+        assert!(!trigger_mode_supports_auto("manual"));
+
+        assert!(trigger_mode_supports_manual("auto"));
+        assert!(trigger_mode_supports_manual("manual"));
+        assert!(trigger_mode_supports_manual("both"));
+    }
+
+    #[test]
+    fn test_empty_selection_detection() {
+        assert!(is_effectively_empty_selection(""));
+        assert!(is_effectively_empty_selection("   \n\t "));
+        assert!(!is_effectively_empty_selection("hello"));
+    }
+
+    #[test]
+    fn test_excluded_app_matching() {
+        let cfg = SelectionConfig {
+            enabled: true,
+            trigger_mode: "auto".to_string(),
+            min_text_length: 1,
+            max_text_length: 5000,
+            delay_ms: 200,
+            target_language: "zh-CN".to_string(),
+            excluded_apps: vec!["notepad.exe".to_string()],
+        };
+
+        let source = SourceAppInfo {
+            name: "Notepad.exe".to_string(),
+            process: "notepad.exe".to_string(),
+            window_title: "Notes".to_string(),
+            app_type: "editor".to_string(),
+        };
+
+        assert!(SelectionManager::is_excluded_app(&cfg, Some(&source)));
+        assert!(!SelectionManager::is_excluded_app(&cfg, None));
     }
 
     #[test]

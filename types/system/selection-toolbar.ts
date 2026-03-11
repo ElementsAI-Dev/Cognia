@@ -174,7 +174,17 @@ export interface SelectionPayload {
   y: number;
   timestamp?: number;
   sourceApp?: string;
+  source_app?: string;
+  sourceProcess?: string;
+  source_process?: string;
+  sourceWindowTitle?: string;
+  source_window_title?: string;
   textType?: TextType;
+  text_type?: string;
+  eventId?: string;
+  event_id?: string;
+  detectionMode?: 'auto' | 'manual';
+  detection_mode?: 'auto' | 'manual';
 }
 
 export interface SelectionConfig {

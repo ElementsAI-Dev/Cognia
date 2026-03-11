@@ -222,9 +222,13 @@ impl ClipboardHistory {
                 entries.remove(pos);
                 removed += 1;
             } else {
-                // All entries are pinned, remove oldest anyway
-                entries.pop_back();
-                removed += 1;
+                // Preserve pinned entries even if this exceeds max_size.
+                // Pinning is an explicit user retention signal.
+                log::trace!(
+                    "[ClipboardHistory] Max size exceeded but all entries are pinned; preserving {} entries",
+                    entries.len()
+                );
+                break;
             }
         }
 
@@ -706,6 +710,22 @@ mod tests {
         let pinned = history.get_pinned();
         assert_eq!(pinned.len(), 1);
         assert_eq!(pinned[0].text, Some("Pinned Entry".to_string()));
+    }
+
+    #[test]
+    fn test_all_pinned_entries_are_never_evicted() {
+        let history = ClipboardHistory::new();
+
+        for i in 0..60 {
+            let entry = ClipboardEntry::new_text(format!("Pinned {}", i));
+            let id = entry.id.clone();
+            history.add(entry);
+            history.pin_entry(&id);
+        }
+
+        // When every entry is pinned, overflow pruning should preserve all entries.
+        assert_eq!(history.get_pinned().len(), history.len());
+        assert!(history.len() >= 50);
     }
 
     #[test]

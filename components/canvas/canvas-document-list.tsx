@@ -179,7 +179,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
                 className="pl-9 h-8"
               />
             </div>
-            <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+            <Button size="sm" data-testid="canvas-doc-new-button" onClick={() => setCreateDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-1" />
               {t('new')}
             </Button>
@@ -236,6 +236,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
                   variant="outline"
                   size="sm"
                   className="mt-4"
+                  data-testid="canvas-doc-create-first-button"
                   onClick={() => setCreateDialogOpen(true)}
                 >
                   <Plus className="h-4 w-4 mr-1" />
@@ -337,6 +338,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
                 value={newDocTitle}
                 onChange={(e) => setNewDocTitle(e.target.value)}
                 placeholder={t('enterTitle')}
+                data-testid="canvas-doc-title-input"
                 autoFocus
               />
             </div>
@@ -380,7 +382,11 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
               {t('cancel')}
             </Button>
-            <Button onClick={handleCreateDocument} disabled={!newDocTitle.trim()}>
+            <Button
+              data-testid="canvas-doc-create-button"
+              onClick={handleCreateDocument}
+              disabled={!newDocTitle.trim()}
+            >
               {t('create')}
             </Button>
           </DialogFooter>
