@@ -1,14 +1,14 @@
 /**
  * Plugin Marketplace Infrastructure
- * 
- * Provides plugin discovery, installation, and dependency management.
+ *
+ * Provides plugin discovery, installation, update, and dependency management.
  */
 
 import type { PluginManifest } from '@/types/plugin';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
+import { isTauri } from '@/lib/native/utils';
 import { loggers } from '../core/logger';
 import { satisfiesConstraint } from './dependency-resolver';
-import { isTauri } from '@/lib/utils';
 
 // =============================================================================
 // Types
@@ -36,6 +36,8 @@ export interface PluginRegistryEntry {
   updatedAt: Date;
   verified: boolean;
   featured: boolean;
+  downloadUrl?: string;
+  checksum?: string;
 }
 
 /**
@@ -104,6 +106,42 @@ export interface InstallationProgress {
   error?: string;
 }
 
+export type MarketplaceErrorCategory =
+  | 'network'
+  | 'auth'
+  | 'rate_limit'
+  | 'validation'
+  | 'unsupported_env'
+  | 'install_conflict'
+  | 'unknown';
+
+export interface MarketplaceOperationError {
+  category: MarketplaceErrorCategory;
+  message: string;
+  retryable: boolean;
+  code?: string;
+  status?: number;
+}
+
+export interface PluginInstallResult {
+  success: boolean;
+  error?: string;
+  errorCategory?: MarketplaceErrorCategory;
+  retryable?: boolean;
+}
+
+interface PluginDownloadVersionResult {
+  success: boolean;
+  pluginId?: string;
+  version?: string;
+  downloadUrl?: string;
+  errorCode?: string;
+  error?: string;
+  retryable?: boolean;
+}
+
+type InstallOperation = 'install' | 'update';
+
 // =============================================================================
 // Plugin Marketplace Client
 // =============================================================================
@@ -123,11 +161,158 @@ const DEFAULT_CONFIG: MarketplaceConfig = {
   verifySignatures: true,
 };
 
+const MAX_CACHE_SIZE = 100;
+
+const RETRYABLE_CATEGORIES = new Set<MarketplaceErrorCategory>(['network', 'rate_limit']);
+
+function parseDate(value: unknown): Date {
+  if (value instanceof Date) return value;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return new Date(0);
+}
+
+function normalizeRegistryEntry(raw: unknown): PluginRegistryEntry {
+  const entry = (raw || {}) as Record<string, unknown>;
+  return {
+    id: String(entry.id || ''),
+    name: String(entry.name || ''),
+    description: String(entry.description || ''),
+    author: String(entry.author || ''),
+    version: String(entry.version || '0.0.0'),
+    latestVersion: String(entry.latestVersion || entry.latest_version || entry.version || '0.0.0'),
+    repository: typeof entry.repository === 'string' ? entry.repository : undefined,
+    homepage: typeof entry.homepage === 'string' ? entry.homepage : undefined,
+    downloads: Number(entry.downloads || 0),
+    rating: Number(entry.rating || 0),
+    ratingCount: Number(entry.ratingCount || entry.rating_count || 0),
+    tags: Array.isArray(entry.tags) ? entry.tags.map(String) : [],
+    categories: Array.isArray(entry.categories) ? entry.categories.map(String) : [],
+    manifest: (entry.manifest || {}) as PluginManifest,
+    publishedAt: parseDate(entry.publishedAt || entry.published_at),
+    updatedAt: parseDate(entry.updatedAt || entry.updated_at),
+    verified: Boolean(entry.verified),
+    featured: Boolean(entry.featured),
+    downloadUrl: typeof entry.downloadUrl === 'string'
+      ? entry.downloadUrl
+      : typeof entry.download_url === 'string'
+        ? entry.download_url
+        : undefined,
+    checksum: typeof entry.checksum === 'string' ? entry.checksum : undefined,
+  };
+}
+
+function normalizeVersionInfo(raw: unknown): PluginVersionInfo {
+  const value = (raw || {}) as Record<string, unknown>;
+  return {
+    version: String(value.version || '0.0.0'),
+    changelog: typeof value.changelog === 'string' ? value.changelog : undefined,
+    publishedAt: parseDate(value.publishedAt || value.published_at),
+    minAppVersion: typeof value.minAppVersion === 'string'
+      ? value.minAppVersion
+      : typeof value.min_app_version === 'string'
+        ? value.min_app_version
+        : undefined,
+    downloadUrl: String(value.downloadUrl || value.download_url || ''),
+    checksum: typeof value.checksum === 'string' ? value.checksum : undefined,
+  };
+}
+
+function categoryFromStatus(status: number): MarketplaceErrorCategory {
+  if (status === 401 || status === 403) return 'auth';
+  if (status === 429) return 'rate_limit';
+  if (status === 400 || status === 404 || status === 422) return 'validation';
+  if (status === 409) return 'install_conflict';
+  if (status >= 500) return 'network';
+  return 'unknown';
+}
+
+function categoryFromMessage(message: string): MarketplaceErrorCategory {
+  const lower = message.toLowerCase();
+  if (lower.includes('not supported') || lower.includes('desktop app')) return 'unsupported_env';
+  if (lower.includes('unauthorized') || lower.includes('forbidden') || lower.includes('auth')) {
+    return 'auth';
+  }
+  if (lower.includes('429') || lower.includes('rate')) return 'rate_limit';
+  if (
+    lower.includes('network') ||
+    lower.includes('timeout') ||
+    lower.includes('econn') ||
+    lower.includes('enotfound') ||
+    lower.includes('proxy request failed') ||
+    lower.includes('failed to fetch')
+  ) {
+    return 'network';
+  }
+  if (
+    lower.includes('invalid') ||
+    lower.includes('validation') ||
+    lower.includes('not found') ||
+    lower.includes('bad request')
+  ) {
+    return 'validation';
+  }
+  if (lower.includes('conflict') || lower.includes('already exists')) return 'install_conflict';
+  return 'unknown';
+}
+
+function normalizeOperationError(
+  error: unknown,
+  fallbackMessage: string,
+  status?: number
+): MarketplaceOperationError {
+  const message = error instanceof Error ? error.message : String(error || fallbackMessage);
+  const statusCategory = typeof status === 'number' ? categoryFromStatus(status) : null;
+  const category = statusCategory || categoryFromMessage(message);
+  return {
+    category,
+    message,
+    retryable: RETRYABLE_CATEGORIES.has(category),
+    status,
+  };
+}
+
+function normalizeDownloadVersionResult(
+  payload: unknown,
+  pluginId: string,
+  version: string
+): PluginDownloadVersionResult {
+  const value = (payload || {}) as Record<string, unknown>;
+  if (typeof value.success === 'boolean') {
+    return {
+      success: value.success,
+      pluginId: typeof value.pluginId === 'string' ? value.pluginId : pluginId,
+      version: typeof value.version === 'string' ? value.version : version,
+      downloadUrl: typeof value.downloadUrl === 'string' ? value.downloadUrl : undefined,
+      errorCode: typeof value.errorCode === 'string' ? value.errorCode : undefined,
+      error: typeof value.error === 'string' ? value.error : undefined,
+      retryable: typeof value.retryable === 'boolean' ? value.retryable : undefined,
+    };
+  }
+
+  // Backward-compatible interpretation for legacy command responses.
+  if (typeof value.error === 'string') {
+    return {
+      success: false,
+      pluginId,
+      version,
+      error: value.error,
+    };
+  }
+
+  return {
+    success: true,
+    pluginId,
+    version,
+    downloadUrl: typeof value.downloadUrl === 'string' ? value.downloadUrl : undefined,
+  };
+}
+
 /**
  * Plugin Marketplace Client
  */
-const MAX_CACHE_SIZE = 100;
-
 export class PluginMarketplace {
   private config: MarketplaceConfig;
   private cache: Map<string, { data: unknown; timestamp: number }> = new Map();
@@ -138,34 +323,60 @@ export class PluginMarketplace {
   }
 
   /**
-   * Search for plugins
+   * Strict search for plugins.
+   * Throws on transport or HTTP failures.
    */
-  async searchPlugins(options: PluginSearchOptions = {}): Promise<PluginSearchResult> {
+  async searchPluginsStrict(options: PluginSearchOptions = {}): Promise<PluginSearchResult> {
     const cacheKey = `search:${JSON.stringify(options)}`;
     const cached = this.getFromCache<PluginSearchResult>(cacheKey);
     if (cached) return cached;
 
+    const params = new URLSearchParams();
+    if (options.query) params.set('q', options.query);
+    if (options.category) params.set('category', options.category);
+    if (options.tags?.length) params.set('tags', options.tags.join(','));
+    if (options.sortBy) params.set('sort', options.sortBy);
+    if (options.sortOrder) params.set('order', options.sortOrder);
+    if (options.verified !== undefined) params.set('verified', String(options.verified));
+    if (options.featured !== undefined) params.set('featured', String(options.featured));
+    if (options.limit) params.set('limit', String(options.limit));
+    if (options.offset) params.set('offset', String(options.offset));
+
+    let response: Response;
     try {
-      const params = new URLSearchParams();
-      if (options.query) params.set('q', options.query);
-      if (options.category) params.set('category', options.category);
-      if (options.tags?.length) params.set('tags', options.tags.join(','));
-      if (options.sortBy) params.set('sort', options.sortBy);
-      if (options.sortOrder) params.set('order', options.sortOrder);
-      if (options.verified !== undefined) params.set('verified', String(options.verified));
-      if (options.featured !== undefined) params.set('featured', String(options.featured));
-      if (options.limit) params.set('limit', String(options.limit));
-      if (options.offset) params.set('offset', String(options.offset));
-
-      const response = await proxyFetch(`${this.config.registryUrl}/plugins?${params}`);
-      if (!response.ok) throw new Error('Failed to search plugins');
-
-      const result: PluginSearchResult = await response.json();
-      this.setCache(cacheKey, result);
-      return result;
+      response = await proxyFetch(`${this.config.registryUrl}/plugins?${params}`);
     } catch (error) {
-      loggers.marketplace.error('Search failed:', error);
-      // Return empty result on error
+      throw normalizeOperationError(error, 'Failed to search plugins');
+    }
+
+    if (!response.ok) {
+      throw normalizeOperationError(
+        new Error(`Failed to search plugins: HTTP ${response.status}`),
+        'Failed to search plugins',
+        response.status
+      );
+    }
+
+    const payload = await response.json();
+    const rawPlugins = Array.isArray(payload?.plugins) ? payload.plugins : [];
+    const result: PluginSearchResult = {
+      plugins: rawPlugins.map(normalizeRegistryEntry),
+      total: Number(payload?.total || 0),
+      hasMore: Boolean(payload?.hasMore || payload?.has_more),
+    };
+    this.setCache(cacheKey, result);
+    return result;
+  }
+
+  /**
+   * Search for plugins.
+   * Returns empty result on errors for backwards compatibility.
+   */
+  async searchPlugins(options: PluginSearchOptions = {}): Promise<PluginSearchResult> {
+    try {
+      return await this.searchPluginsStrict(options);
+    } catch (error) {
+      loggers.marketplace.error('Search failed:', error as Error);
       return { plugins: [], total: 0, hasMore: false };
     }
   }
@@ -178,24 +389,28 @@ export class PluginMarketplace {
     const cached = this.getFromCache<PluginRegistryEntry>(cacheKey);
     if (cached) return cached;
 
+    let response: Response;
     try {
-      const response = await proxyFetch(`${this.config.registryUrl}/plugins/${pluginId}`);
-      if (!response.ok) {
-        if (response.status === 404) return null;
-        throw new Error('Failed to get plugin');
-      }
-
-      const plugin: PluginRegistryEntry = await response.json();
-      this.setCache(cacheKey, plugin);
-      return plugin;
+      response = await proxyFetch(`${this.config.registryUrl}/plugins/${pluginId}`);
     } catch (error) {
-      loggers.marketplace.error('Get plugin failed:', error);
+      loggers.marketplace.error('Get plugin failed:', error as Error);
       return null;
     }
+
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      loggers.marketplace.error('Get plugin failed: HTTP', new Error(String(response.status)));
+      return null;
+    }
+
+    const plugin = normalizeRegistryEntry(await response.json());
+    this.setCache(cacheKey, plugin);
+    return plugin;
   }
 
   /**
-   * Get available versions for a plugin
+   * Get available versions for a plugin.
+   * Uses compatibility command in desktop mode when available.
    */
   async getVersions(pluginId: string): Promise<PluginVersionInfo[]> {
     const cacheKey = `versions:${pluginId}`;
@@ -203,14 +418,29 @@ export class PluginMarketplace {
     if (cached) return cached;
 
     try {
-      const response = await proxyFetch(`${this.config.registryUrl}/plugins/${pluginId}/versions`);
-      if (!response.ok) throw new Error('Failed to get versions');
+      let payload: unknown;
 
-      const versions: PluginVersionInfo[] = await response.json();
+      if (isTauri()) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        payload = await invoke<unknown>('plugin_marketplace_versions', { pluginId });
+      } else {
+        const response = await proxyFetch(`${this.config.registryUrl}/plugins/${pluginId}/versions`);
+        if (!response.ok) {
+          throw normalizeOperationError(
+            new Error(`Failed to get versions: HTTP ${response.status}`),
+            'Failed to get versions',
+            response.status
+          );
+        }
+        payload = await response.json();
+      }
+
+      const entries = Array.isArray(payload) ? payload : [];
+      const versions = entries.map(normalizeVersionInfo).filter((entry) => entry.downloadUrl.length > 0);
       this.setCache(cacheKey, versions);
       return versions;
     } catch (error) {
-      loggers.marketplace.error('Get versions failed:', error);
+      loggers.marketplace.error('Get versions failed:', error as Error);
       return [];
     }
   }
@@ -249,13 +479,20 @@ export class PluginMarketplace {
 
     try {
       const response = await proxyFetch(`${this.config.registryUrl}/categories`);
-      if (!response.ok) throw new Error('Failed to get categories');
+      if (!response.ok) throw new Error(`Failed to get categories: HTTP ${response.status}`);
 
       const categories = await response.json();
-      this.setCache(cacheKey, categories);
-      return categories;
+      const normalized = Array.isArray(categories)
+        ? categories.map((item) => ({
+            id: String(item?.id || ''),
+            name: String(item?.name || ''),
+            count: Number(item?.count || 0),
+          }))
+        : [];
+      this.setCache(cacheKey, normalized);
+      return normalized;
     } catch (error) {
-      loggers.marketplace.error('Get categories failed:', error);
+      loggers.marketplace.error('Get categories failed:', error as Error);
       return [];
     }
   }
@@ -285,20 +522,18 @@ export class PluginMarketplace {
           const depPlugin = await this.getPlugin(depId);
           if (!depPlugin) {
             missing.push(depId);
+          } else if (!satisfiesConstraint(depPlugin.latestVersion, depVersion)) {
+            conflicts.push({
+              pluginId: depId,
+              required: depVersion,
+              available: depPlugin.latestVersion,
+            });
           } else {
-            if (!satisfiesConstraint(depPlugin.latestVersion, depVersion)) {
-              conflicts.push({
-                pluginId: depId,
-                required: depVersion,
-                available: depPlugin.latestVersion,
-              });
-            } else {
-              dependencies.push({
-                id: depId,
-                version: depPlugin.latestVersion,
-                optional: false,
-              });
-            }
+            dependencies.push({
+              id: depId,
+              version: depPlugin.latestVersion,
+              optional: false,
+            });
           }
         }
       }
@@ -310,7 +545,7 @@ export class PluginMarketplace {
         missing,
       };
     } catch (error) {
-      loggers.marketplace.error('Resolve dependencies failed:', error);
+      loggers.marketplace.error('Resolve dependencies failed:', error as Error);
       return {
         resolved: false,
         dependencies: [],
@@ -344,17 +579,18 @@ export class PluginMarketplace {
    * Install a plugin from the marketplace
    */
   async installPlugin(
-    pluginId: string, 
+    pluginId: string,
     version?: string,
-    options: { installDependencies?: boolean } = {}
-  ): Promise<{ success: boolean; error?: string }> {
+    options: { installDependencies?: boolean; operation?: InstallOperation } = {}
+  ): Promise<PluginInstallResult> {
+    const operation = options.operation || 'install';
     try {
       // Emit initial progress
       this.emitProgress({
         pluginId,
         stage: 'downloading',
         progress: 0,
-        message: 'Starting download...',
+        message: operation === 'update' ? 'Starting update...' : 'Starting download...',
       });
 
       // Resolve dependencies first
@@ -364,18 +600,23 @@ export class PluginMarketplace {
           return {
             success: false,
             error: `Dependency resolution failed: Missing: ${deps.missing.join(', ')}`,
+            errorCategory: 'validation',
+            retryable: false,
           };
         }
 
         // Install dependencies first
         for (const dep of deps.dependencies) {
-          const depResult = await this.installPlugin(dep.id, dep.version, { 
-            installDependencies: false 
+          const depResult = await this.installPlugin(dep.id, dep.version, {
+            installDependencies: false,
+            operation: 'install',
           });
           if (!depResult.success) {
             return {
               success: false,
               error: `Failed to install dependency ${dep.id}: ${depResult.error}`,
+              errorCategory: depResult.errorCategory || 'install_conflict',
+              retryable: depResult.retryable,
             };
           }
         }
@@ -384,74 +625,143 @@ export class PluginMarketplace {
       // Get plugin info
       const plugin = await this.getPlugin(pluginId);
       if (!plugin) {
-        return { success: false, error: 'Plugin not found' };
+        return { success: false, error: 'Plugin not found', errorCategory: 'validation', retryable: false };
       }
 
       // Get version info
       const versions = await this.getVersions(pluginId);
-      const targetVersion = version 
-        ? versions.find(v => v.version === version)
-        : versions[0];
+      const targetVersion = version ? versions.find((v) => v.version === version) : versions[0];
 
       if (!targetVersion) {
-        return { success: false, error: 'Version not found' };
+        return {
+          success: false,
+          error: version
+            ? `Version ${version} not found for plugin ${pluginId}`
+            : 'Version not found',
+          errorCategory: 'validation',
+          retryable: false,
+        };
       }
 
       this.emitProgress({
         pluginId,
         stage: 'downloading',
         progress: 30,
-        message: `Downloading ${plugin.name} v${targetVersion.version}...`,
+        message:
+          operation === 'update'
+            ? `Preparing update ${plugin.name} -> v${targetVersion.version}...`
+            : `Downloading ${plugin.name} v${targetVersion.version}...`,
       });
 
-      // Use Tauri backend for real installation in desktop environment
-      if (isTauri()) {
-        const { invoke } = await import('@tauri-apps/api/core');
-
+      // Installation and updates are desktop-only.
+      if (!isTauri()) {
+        const unsupportedError = normalizeOperationError(
+          new Error('Plugin installation requires the Cognia desktop app'),
+          'Plugin installation requires the Cognia desktop app'
+        );
         this.emitProgress({
           pluginId,
-          stage: 'installing',
-          progress: 50,
-          message: `Installing ${plugin.name}...`,
+          stage: 'error',
+          progress: 0,
+          message: unsupportedError.message,
+          error: unsupportedError.message,
         });
+        return {
+          success: false,
+          error: unsupportedError.message,
+          errorCategory: unsupportedError.category,
+          retryable: unsupportedError.retryable,
+        };
+      }
 
+      const { invoke } = await import('@tauri-apps/api/core');
+
+      this.emitProgress({
+        pluginId,
+        stage: 'installing',
+        progress: 55,
+        message: operation === 'update' ? `Updating ${plugin.name}...` : `Installing ${plugin.name}...`,
+      });
+
+      if (version) {
+        const downloadResultPayload = await invoke<unknown>('plugin_download_version', {
+          pluginId,
+          version: targetVersion.version,
+        });
+        const downloadResult = normalizeDownloadVersionResult(
+          downloadResultPayload,
+          pluginId,
+          targetVersion.version
+        );
+        if (!downloadResult.success) {
+          const errorInfo = normalizeOperationError(
+            new Error(downloadResult.error || 'Version download failed'),
+            'Version download failed'
+          );
+          this.emitProgress({
+            pluginId,
+            stage: 'error',
+            progress: 0,
+            message: errorInfo.message,
+            error: errorInfo.message,
+          });
+          return {
+            success: false,
+            error: errorInfo.message,
+            errorCategory: errorInfo.category,
+            retryable: downloadResult.retryable ?? errorInfo.retryable,
+          };
+        }
+      } else {
         const pluginDir = await invoke<string>('plugin_get_directory');
         await invoke('plugin_install', {
           source: pluginId,
           installType: 'marketplace',
           pluginDir,
         });
-
-        this.emitProgress({
-          pluginId,
-          stage: 'configuring',
-          progress: 90,
-          message: 'Configuring plugin...',
-        });
-      } else {
-        // Web environment: notify that installation requires the desktop app
-        loggers.marketplace.warn('Plugin installation requires the Cognia desktop app');
       }
+
+      this.emitProgress({
+        pluginId,
+        stage: 'configuring',
+        progress: 90,
+        message: operation === 'update' ? 'Finalizing update...' : 'Configuring plugin...',
+      });
 
       this.emitProgress({
         pluginId,
         stage: 'complete',
         progress: 100,
-        message: 'Installation complete!',
+        message: operation === 'update' ? 'Update complete!' : 'Installation complete!',
       });
 
       return { success: true };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Installation failed';
+      const normalized = normalizeOperationError(error, 'Installation failed');
       this.emitProgress({
         pluginId,
         stage: 'error',
         progress: 0,
-        message: errorMessage,
-        error: errorMessage,
+        message: normalized.message,
+        error: normalized.message,
       });
-      return { success: false, error: errorMessage };
+      return {
+        success: false,
+        error: normalized.message,
+        errorCategory: normalized.category,
+        retryable: normalized.retryable,
+      };
     }
+  }
+
+  /**
+   * Update plugin using an optional target version.
+   */
+  async updatePlugin(pluginId: string, version?: string): Promise<PluginInstallResult> {
+    return this.installPlugin(pluginId, version, {
+      installDependencies: true,
+      operation: 'update',
+    });
   }
 
   /**
@@ -490,7 +800,7 @@ export class PluginMarketplace {
   private getFromCache<T>(key: string): T | null {
     const cached = this.cache.get(key);
     if (!cached) return null;
-    
+
     if (Date.now() - cached.timestamp > this.config.cacheTimeout) {
       this.cache.delete(key);
       return null;
@@ -507,7 +817,6 @@ export class PluginMarketplace {
     }
     this.cache.set(key, { data, timestamp: Date.now() });
   }
-
 }
 
 // =============================================================================

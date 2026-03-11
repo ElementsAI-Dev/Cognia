@@ -34,6 +34,7 @@ export function createConfigFromMarketplaceItem(
     args: ['-y', item.mcpId],
     env: { ...envValues },
     connectionType: 'stdio',
+    fallbackToSse: false,
     enabled: true,
     autoStart: false,
   };
@@ -41,8 +42,10 @@ export function createConfigFromMarketplaceItem(
   // Handle remote/SSE connections
   if (item.remote && item.connectionConfig) {
     if (item.connectionConfig.type === 'sse' || item.connectionConfig.type === 'streamable-http') {
-      config.connectionType = 'sse';
+      config.connectionType =
+        item.connectionConfig.type === 'streamable-http' ? 'streamableHttp' : 'sse';
       config.url = item.connectionConfig.url;
+      config.fallbackToSse = item.connectionConfig.type === 'streamable-http';
       config.command = '';
       config.args = [];
     } else if (item.connectionConfig.command) {
@@ -114,6 +117,8 @@ export function cloneServerConfig(
     env: overrides.env ?? { ...config.env },
     connectionType: overrides.connectionType ?? config.connectionType,
     url: overrides.url ?? config.url,
+    messageUrl: overrides.messageUrl ?? config.messageUrl,
+    fallbackToSse: overrides.fallbackToSse ?? config.fallbackToSse,
     enabled: overrides.enabled ?? config.enabled,
     autoStart: overrides.autoStart ?? config.autoStart,
   };
@@ -128,6 +133,8 @@ export function areConfigsEqual(a: McpServerConfig, b: McpServerConfig): boolean
     a.command === b.command &&
     a.connectionType === b.connectionType &&
     a.url === b.url &&
+    a.messageUrl === b.messageUrl &&
+    a.fallbackToSse === b.fallbackToSse &&
     a.enabled === b.enabled &&
     a.autoStart === b.autoStart &&
     JSON.stringify(a.args) === JSON.stringify(b.args) &&
@@ -144,6 +151,8 @@ export function getConnectionTypeLabel(type: McpConnectionType): string {
       return 'Standard I/O (Local)';
     case 'sse':
       return 'Server-Sent Events (Remote)';
+    case 'streamableHttp':
+      return 'Streamable HTTP (Remote)';
     default:
       return type;
   }
@@ -160,8 +169,8 @@ export function requiresLocalExecution(config: McpServerConfig): boolean {
  * Get display summary for a server config
  */
 export function getConfigSummary(config: McpServerConfig): string {
-  if (config.connectionType === 'sse') {
-    return config.url || 'SSE Connection';
+  if (config.connectionType === 'sse' || config.connectionType === 'streamableHttp') {
+    return config.url || 'Remote MCP Connection';
   }
   return formatCommandLine(config.command, config.args) || 'No command specified';
 }

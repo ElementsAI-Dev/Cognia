@@ -53,7 +53,7 @@ import {
 import { PluginList } from '@/components/plugin/core/plugin-list';
 import { PluginFilterBar } from '@/components/plugin/config/plugin-filter-bar';
 import { PluginEmptyState } from '@/components/plugin/core/plugin-empty-state';
-import { PluginMarketplace, PluginDetailModal, type MarketplacePlugin } from '@/components/plugin/marketplace';
+import { PluginMarketplace } from '@/components/plugin/marketplace';
 import { PluginCreateWizard } from '@/components/plugin/config/plugin-create-wizard';
 import { PluginConfig } from '@/components/plugin/config/plugin-config';
 import { PluginInstalledDetail } from '@/components/plugin/core/plugin-installed-detail';
@@ -112,8 +112,6 @@ export function PluginPageContent({ className }: PluginPageContentProps) {
   const [configPlugin, setConfigPlugin] = useState<Plugin | null>(null);
   const [detailPlugin, setDetailPlugin] = useState<Plugin | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [selectedMarketplacePlugin, setSelectedMarketplacePlugin] = useState<MarketplacePlugin | null>(null);
-  const [isMarketplaceDetailOpen, setIsMarketplaceDetailOpen] = useState(false);
 
   // Settings state (local — persisted via store eventually)
   const [autoScanEnabled, setAutoScanEnabled] = useState(false);
@@ -292,14 +290,7 @@ export function PluginPageContent({ className }: PluginPageContentProps) {
   const renderContent = () => {
     switch (activeTab) {
       case 'marketplace':
-        return (
-          <PluginMarketplace
-            onViewDetails={(plugin) => {
-              setSelectedMarketplacePlugin(plugin);
-              setIsMarketplaceDetailOpen(true);
-            }}
-          />
-        );
+        return <PluginMarketplace />;
 
       case 'analytics':
         return (
@@ -735,12 +726,6 @@ export function PluginPageContent({ className }: PluginPageContentProps) {
         }}
       />
 
-      {/* Marketplace Detail Modal */}
-      <PluginDetailModal
-        plugin={selectedMarketplacePlugin}
-        open={isMarketplaceDetailOpen}
-        onOpenChange={setIsMarketplaceDetailOpen}
-      />
     </PluginLayout>
   );
 }

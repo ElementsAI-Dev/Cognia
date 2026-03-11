@@ -231,10 +231,12 @@ describe('PluginMarketplace', () => {
 
       const result = await marketplace.installPlugin('test-plugin');
 
-      expect(result.success).toBeDefined();
+      expect(result.success).toBe(false);
+      expect(result.errorCategory).toBe('unsupported_env');
+      expect(progressUpdates).toContain('error');
     });
 
-    it('should emit progress events in web environment', async () => {
+    it('should emit error progress events in web environment', async () => {
       const stages: string[] = [];
 
       marketplace.onInstallProgress('web-plugin', (progress) => {
@@ -253,8 +255,9 @@ describe('PluginMarketplace', () => {
 
       await marketplace.installPlugin('web-plugin');
 
-      // Web environment: should reach complete stage (no Tauri)
-      expect(stages).toContain('complete');
+      // Web environment: install/update is blocked without desktop runtime.
+      expect(stages).toContain('error');
+      expect(stages).not.toContain('complete');
     });
   });
 

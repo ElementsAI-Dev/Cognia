@@ -754,4 +754,38 @@ describe('PluginManager', () => {
       );
     });
   });
+
+  describe('plugin point governance', () => {
+    it('blocks virtual activation events in block mode', async () => {
+      const manager = new PluginManager({
+        pluginDirectory: '/plugins',
+        pluginPointGovernanceMode: 'block',
+      });
+
+      const manifest: PluginManifest = {
+        ...createManifest('blocked-activation'),
+        activationEvents: ['onLanguage:typescript'],
+      };
+
+      expect(() => (manager as unknown as { parseActivationSpec: (m: PluginManifest) => unknown }).parseActivationSpec(manifest))
+        .toThrow(/blocked by plugin point governance mode/i);
+    });
+
+    it('blocks unknown hook declarations in block mode', () => {
+      const manager = new PluginManager({
+        pluginDirectory: '/plugins',
+        pluginPointGovernanceMode: 'block',
+      });
+
+      const hooks = {
+        onLoad: jest.fn(),
+        onUnknownHookName: jest.fn(),
+      };
+
+      expect(() =>
+        (manager as unknown as { validateHookDeclarations: (pluginId: string, hooksObj: Record<string, unknown>) => void })
+          .validateHookDeclarations('hook-plugin', hooks)
+      ).toThrow(/blocked by plugin point governance mode/i);
+    });
+  });
 });

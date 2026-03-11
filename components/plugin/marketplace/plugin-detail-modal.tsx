@@ -4,7 +4,7 @@
  * Plugin Detail Modal - Full plugin details with screenshots, reviews, changelog
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Star,
@@ -41,11 +41,13 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { usePluginMarketplaceStore } from '@/stores/plugin/plugin-marketplace-store';
 import type { MarketplacePlugin, PluginReview, ChangelogEntry, InstallProgressInfo } from './components/marketplace-types';
 import { MOCK_REVIEWS, MOCK_CHANGELOG } from './components/marketplace-constants';
 import { ScreenshotGallery } from './components/screenshot-gallery';
+import type { PluginVersionInfo } from '@/lib/plugin';
 
 // =============================================================================
 // Types
@@ -55,8 +57,13 @@ interface PluginDetailModalProps {
   plugin: MarketplacePlugin | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onInstall?: (pluginId: string) => Promise<void>;
+  onInstall?: (pluginId: string) => Promise<unknown>;
+  onUpdate?: (pluginId: string, version?: string) => Promise<unknown>;
+  onRetry?: (pluginId: string, operation: 'install' | 'update', version?: string) => Promise<unknown>;
   installProgress?: InstallProgressInfo;
+  availableVersions?: PluginVersionInfo[];
+  isLoadingVersions?: boolean;
+  operationError?: { category?: string; message?: string };
   variant?: 'dialog' | 'sheet';
 }
 
@@ -278,14 +285,37 @@ export function PluginDetailModal({
   open,
   onOpenChange,
   onInstall,
+  onUpdate,
+  onRetry,
   installProgress,
+  availableVersions = [],
+  isLoadingVersions = false,
+  operationError,
   variant = 'sheet',
 }: PluginDetailModalProps) {
   const t = useTranslations('pluginDetail');
   const { toggleFavorite, isFavorite, submitReview, getUserReview, addRecentlyViewed } = usePluginMarketplaceStore();
   const [isInstalling, setIsInstalling] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState<string>('');
+
+  useEffect(() => {
+    if (!plugin) {
+      setSelectedVersion('');
+      return;
+    }
+
+    if (availableVersions.length === 0) {
+      setSelectedVersion('');
+      return;
+    }
+
+    const preferred = availableVersions[0]?.version || '';
+    setSelectedVersion((current) => current || preferred);
+  }, [plugin, availableVersions]);
 
   const handleOpen = useCallback((isOpen: boolean) => {
     if (isOpen && plugin) {
@@ -304,6 +334,27 @@ export function PluginDetailModal({
       }
     }
   }, [onInstall, plugin]);
+
+  const handleUpdate = useCallback(async () => {
+    if (!plugin || !onUpdate) return;
+    setIsUpdating(true);
+    try {
+      await onUpdate(plugin.id, selectedVersion || undefined);
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [plugin, onUpdate, selectedVersion]);
+
+  const handleRetry = useCallback(async () => {
+    if (!plugin || !onRetry) return;
+    const operation = plugin.installed ? 'update' : 'install';
+    setIsRetrying(true);
+    try {
+      await onRetry(plugin.id, operation, selectedVersion || undefined);
+    } finally {
+      setIsRetrying(false);
+    }
+  }, [plugin, onRetry, selectedVersion]);
 
   const handleReviewSubmit = useCallback((rating: number, content: string) => {
     if (plugin) {
@@ -326,6 +377,17 @@ export function PluginDetailModal({
   const userReview = getUserReview(plugin.id);
   const pluginIsFavorite = isFavorite(plugin.id);
   const isCurrentlyInstalling = isInstalling || (installProgress != null && !['idle', 'complete', 'error'].includes(installProgress.stage));
+  const isCurrentlyUpdating = isUpdating || plugin.operationStage === 'updating';
+  const showRetry = Boolean(operationError?.message && onRetry);
+  const hasVersions = availableVersions.length > 0;
+  const selectedVersionEntry = availableVersions.find((v) => v.version === selectedVersion);
+  const canUpdate = Boolean(
+    plugin.installed &&
+      onUpdate &&
+      hasVersions &&
+      selectedVersion &&
+      selectedVersion !== plugin.version
+  );
   const hasLinks = plugin.repository || plugin.homepage || plugin.documentation;
 
   const content = (
@@ -379,22 +441,55 @@ export function PluginDetailModal({
           </div>
         )}
 
+        {/* Typed operation error */}
+        {operationError?.message && (
+          <div className="mt-4 p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-xs">
+            <div className="font-medium">
+              {operationError.category ? `${operationError.category}` : 'operation-error'}
+            </div>
+            <div className="mt-1">{operationError.message}</div>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex items-center gap-2 mt-4">
-          <Button
-            className="flex-1 sm:flex-none"
-            onClick={handleInstall}
-            disabled={!!isCurrentlyInstalling || plugin.installed}
-          >
-            {isCurrentlyInstalling ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : plugin.installed ? (
-              <CheckCircle className="h-4 w-4 mr-2" />
-            ) : (
-              <Download className="h-4 w-4 mr-2" />
-            )}
-            {isCurrentlyInstalling ? t('installing') : plugin.installed ? t('installed') : t('install')}
-          </Button>
+          {plugin.installed ? (
+            <Button
+              className="flex-1 sm:flex-none"
+              onClick={handleUpdate}
+              disabled={isCurrentlyUpdating || !canUpdate}
+            >
+              {isCurrentlyUpdating ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              {isCurrentlyUpdating ? 'Updating...' : canUpdate ? 'Update' : t('installed')}
+            </Button>
+          ) : (
+            <Button
+              className="flex-1 sm:flex-none"
+              onClick={handleInstall}
+              disabled={!!isCurrentlyInstalling}
+            >
+              {isCurrentlyInstalling ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              {isCurrentlyInstalling ? t('installing') : t('install')}
+            </Button>
+          )}
+          {showRetry && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRetry}
+              disabled={isRetrying}
+            >
+              {isRetrying ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Retry'}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="icon"
@@ -478,6 +573,10 @@ export function PluginDetailModal({
                 <div className="font-mono text-sm">{plugin.version}</div>
               </div>
               <div className="space-y-1">
+                <div className="text-xs text-muted-foreground">Latest</div>
+                <div className="font-mono text-sm">{plugin.latestVersion || plugin.version}</div>
+              </div>
+              <div className="space-y-1">
                 <div className="text-xs text-muted-foreground">{t('overview.type')}</div>
                 <div className="text-sm capitalize">{plugin.type}</div>
               </div>
@@ -490,6 +589,37 @@ export function PluginDetailModal({
                 <div className="text-sm">{plugin.license || 'MIT'}</div>
               </div>
             </div>
+
+            {(plugin.installed || hasVersions || isLoadingVersions) && (
+              <div className="space-y-2 mt-4">
+                <h3 className="font-semibold text-sm">Version Management</h3>
+                {isLoadingVersions ? (
+                  <div className="text-xs text-muted-foreground">Loading available versions...</div>
+                ) : hasVersions ? (
+                  <Select value={selectedVersion} onValueChange={setSelectedVersion}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select target version" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableVersions.map((version) => (
+                        <SelectItem key={version.version} value={version.version}>
+                          {version.version}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="text-xs text-muted-foreground">
+                    No version metadata available.
+                  </div>
+                )}
+                {selectedVersionEntry?.minAppVersion && (
+                  <div className="text-xs text-muted-foreground">
+                    Min app version: {selectedVersionEntry.minAppVersion}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Links */}
             {hasLinks && (

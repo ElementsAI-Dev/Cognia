@@ -425,6 +425,28 @@ describe('Project API', () => {
       expect(pyFile?.type).toBe('code');
     });
 
+    it('should infer new document types from extension', async () => {
+      const api = createProjectAPI(testPluginId);
+
+      await api.addKnowledgeFile('kb-proj', {
+        name: 'slides.pptx',
+        content: 'presentation content',
+      });
+      await api.addKnowledgeFile('kb-proj', {
+        name: 'notes.rtf',
+        content: '{\\rtf1\\ansi sample}',
+      });
+      await api.addKnowledgeFile('kb-proj', {
+        name: 'book.epub',
+        content: 'epub content',
+      });
+
+      const files = await api.getKnowledgeFiles('kb-proj');
+      expect(files.find(f => f.name === 'slides.pptx')?.type).toBe('presentation');
+      expect(files.find(f => f.name === 'notes.rtf')?.type).toBe('rtf');
+      expect(files.find(f => f.name === 'book.epub')?.type).toBe('epub');
+    });
+
     it('should remove knowledge file', async () => {
       const api = createProjectAPI(testPluginId);
       await api.removeKnowledgeFile('kb-proj', 'file-1');

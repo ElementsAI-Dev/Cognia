@@ -72,6 +72,7 @@ const createMockServerState = (
   resources: [],
   prompts: [],
   reconnectAttempts: 0,
+  connectionVersion: 1,
 });
 
 describe('useMcpStore', () => {
@@ -276,6 +277,7 @@ describe('useMcpStore', () => {
         origin: 'https://widget.example.com',
         toolName: 'test-tool',
         arguments: { arg: 'value' },
+        requestId: undefined,
       });
       expect(result).toEqual(mockResult);
     });

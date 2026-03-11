@@ -35,16 +35,18 @@ export function PluginGridCard({
   isFavorite = false,
   onToggleFavorite,
 }: PluginCardProps) {
-  const [isInstalling, setIsInstalling] = useState(false);
+  const [localInstalling, setLocalInstalling] = useState(false);
+  const isInstalling =
+    localInstalling || plugin.operationStage === 'installing' || plugin.operationStage === 'updating';
 
   const handleInstall = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onInstall) {
-      setIsInstalling(true);
+      setLocalInstalling(true);
       try {
         await onInstall(plugin.id);
       } finally {
-        setIsInstalling(false);
+        setLocalInstalling(false);
       }
     }
   };

@@ -28,7 +28,9 @@ describe('useMcpResourceBrowser', () => {
   const mockUnsubscribeResource = jest.fn();
   const mockListResourceTemplates = jest.fn();
 
-  const createServer = (overrides: Partial<McpServerState> = {}): McpServerState => ({
+  const createServer = (
+    overrides: Omit<Partial<McpServerState>, 'connectionVersion'> & { connectionVersion?: number } = {}
+  ): McpServerState => ({
     id: 'server-1',
     name: 'Test Server',
     config: {
@@ -49,6 +51,7 @@ describe('useMcpResourceBrowser', () => {
     ],
     prompts: [],
     reconnectAttempts: 0,
+    connectionVersion: 1,
     ...overrides,
   });
 

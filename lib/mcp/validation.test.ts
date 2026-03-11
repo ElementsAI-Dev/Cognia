@@ -165,6 +165,17 @@ describe('MCP Validation', () => {
       expect(result.errors).toEqual({});
     });
 
+    it('should return valid for complete Streamable HTTP config', () => {
+      const result = validateServerConfig({
+        name: 'streamable-server',
+        connectionType: 'streamableHttp',
+        url: 'https://api.example.com/mcp',
+        fallbackToSse: true,
+      });
+      expect(result.isValid).toBe(true);
+      expect(result.errors).toEqual({});
+    });
+
     it('should return error for missing name', () => {
       const result = validateServerConfig({
         connectionType: 'stdio',
@@ -233,6 +244,15 @@ describe('MCP Validation', () => {
         command: 'npx test',
       });
       expect(result.isValid).toBe(true);
+    });
+
+    it('should fail fast for unsupported connection type', () => {
+      const result = validateServerConfig({
+        name: 'test-server',
+        connectionType: 'invalid' as never,
+      });
+      expect(result.isValid).toBe(false);
+      expect(result.errors.connectionType).toContain('Unsupported connection type');
     });
   });
 

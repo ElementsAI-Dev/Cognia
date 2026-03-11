@@ -7,11 +7,14 @@ use std::collections::HashMap;
 
 /// Connection type for MCP server
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "lowercase")]
 pub enum McpConnectionType {
+    #[serde(rename = "stdio")]
     #[default]
     Stdio,
+    #[serde(rename = "sse")]
     Sse,
+    #[serde(rename = "streamableHttp")]
+    StreamableHttp,
 }
 
 /// MCP server configuration (compatible with Claude Desktop format)
@@ -33,7 +36,7 @@ pub struct McpServerConfig {
     #[serde(default)]
     pub env: HashMap<String, String>,
 
-    /// Connection type (stdio or sse)
+    /// Connection type (stdio, sse, or streamableHttp)
     #[serde(default)]
     pub connection_type: McpConnectionType,
 
@@ -44,6 +47,10 @@ pub struct McpServerConfig {
     /// Message endpoint URL for SSE (optional, defaults to url)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message_url: Option<String>,
+
+    /// Whether streamableHttp should fall back to SSE on compatibility failures
+    #[serde(default)]
+    pub fallback_to_sse: bool,
 
     /// Whether the server is enabled
     #[serde(default = "default_true")]
@@ -68,6 +75,7 @@ impl Default for McpServerConfig {
             connection_type: McpConnectionType::Stdio,
             url: None,
             message_url: None,
+            fallback_to_sse: false,
             enabled: true,
             auto_start: false,
         }
@@ -139,6 +147,14 @@ pub struct McpServerState {
     /// Number of reconnection attempts
     #[serde(default)]
     pub reconnect_attempts: u32,
+
+    /// Last lifecycle reason code for status transitions and diagnostics
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason_code: Option<String>,
+
+    /// Monotonic connection version incremented on successful connect/reconnect
+    #[serde(default)]
+    pub connection_version: u64,
 }
 
 impl McpServerState {
@@ -155,6 +171,8 @@ impl McpServerState {
             error_message: None,
             connected_at: None,
             reconnect_attempts: 0,
+            reason_code: None,
+            connection_version: 0,
         }
     }
 }
@@ -1413,6 +1431,10 @@ mod tests {
             serde_json::to_string(&McpConnectionType::Sse).unwrap(),
             "\"sse\""
         );
+        assert_eq!(
+            serde_json::to_string(&McpConnectionType::StreamableHttp).unwrap(),
+            "\"streamableHttp\""
+        );
     }
 
     #[test]
@@ -1424,6 +1446,10 @@ mod tests {
         assert_eq!(
             serde_json::from_str::<McpConnectionType>("\"sse\"").unwrap(),
             McpConnectionType::Sse
+        );
+        assert_eq!(
+            serde_json::from_str::<McpConnectionType>("\"streamableHttp\"").unwrap(),
+            McpConnectionType::StreamableHttp
         );
     }
 
@@ -1440,6 +1466,7 @@ mod tests {
         assert!(config.env.is_empty());
         assert_eq!(config.connection_type, McpConnectionType::Stdio);
         assert!(config.url.is_none());
+        assert!(!config.fallback_to_sse);
         assert!(config.enabled);
         assert!(!config.auto_start);
     }
@@ -1454,6 +1481,7 @@ mod tests {
             connection_type: McpConnectionType::Stdio,
             url: None,
             message_url: None,
+            fallback_to_sse: false,
             enabled: true,
             auto_start: true,
         };
@@ -1484,6 +1512,7 @@ mod tests {
         assert_eq!(config.args, vec!["server.js"]);
         assert_eq!(config.connection_type, McpConnectionType::Sse);
         assert_eq!(config.url, Some("http://localhost:8080/sse".to_string()));
+        assert!(!config.fallback_to_sse);
         assert!(config.enabled); // default true
         assert!(!config.auto_start); // default false
     }
@@ -1543,6 +1572,8 @@ mod tests {
         assert!(state.error_message.is_none());
         assert!(state.connected_at.is_none());
         assert_eq!(state.reconnect_attempts, 0);
+        assert!(state.reason_code.is_none());
+        assert_eq!(state.connection_version, 0);
     }
 
     #[test]
@@ -1555,12 +1586,16 @@ mod tests {
         let mut state = McpServerState::new("test-id".to_string(), config);
         state.status = McpServerStatus::Connected;
         state.connected_at = Some(1234567890);
+        state.reason_code = Some("connect_succeeded".to_string());
+        state.connection_version = 2;
 
         let json = serde_json::to_value(&state).unwrap();
         assert_eq!(json["id"], "test-id");
         assert_eq!(json["name"], "Test");
         assert_eq!(json["status"]["type"], "connected");
         assert_eq!(json["connectedAt"], 1234567890);
+        assert_eq!(json["reasonCode"], "connect_succeeded");
+        assert_eq!(json["connectionVersion"], 2);
     }
 
     // ============================================================================

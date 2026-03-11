@@ -290,15 +290,21 @@ describe('Manifest Types', () => {
   describe('PluginActivationEvent', () => {
     it('should support standard activation events', () => {
       const events: PluginActivationEvent[] = [
+        'startup',
         'onStartup',
         'onCommand:*',
+        'onTool:*',
+        'onAgentTool:*',
         'onChat:*',
         'onAgent:start',
         'onA2UI:surface',
       ];
 
+      expect(events).toContain('startup');
       expect(events).toContain('onStartup');
       expect(events).toContain('onCommand:*');
+      expect(events).toContain('onTool:*');
+      expect(events).toContain('onAgentTool:*');
       expect(events).toContain('onChat:*');
       expect(events).toContain('onAgent:start');
       expect(events).toContain('onA2UI:surface');

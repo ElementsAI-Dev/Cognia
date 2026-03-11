@@ -14,7 +14,14 @@ export { createCanvasAPI } from './canvas-api';
 export { createArtifactAPI, getArtifactRenderers, getBuiltinRenderers, getDefaultArtifactRenderer, getArtifactPreviewComponent } from './artifact-api';
 export { createNotificationCenterAPI, dispatchNotificationAction } from './notification-api';
 export { createAIProviderAPI, getCustomAIProviders } from './ai-provider-api';
-export { createExtensionAPI, getExtensionsForPoint, clearPluginExtensions } from './extension-api';
+export {
+  createExtensionAPI,
+  getExtensionsForPoint,
+  clearPluginExtensions,
+  getPluginExtensionRegistrationCount,
+  getPluginExtensionDiagnostics,
+  clearAllExtensionDiagnostics,
+} from './extension-api';
 export { 
   createPermissionAPI, 
   initializePluginPermissions,

@@ -4,6 +4,7 @@
 
 pub mod sse;
 pub mod stdio;
+pub mod streamable_http;
 
 use async_trait::async_trait;
 
@@ -30,6 +31,7 @@ pub trait Transport: Send + Sync {
 pub enum TransportType {
     Stdio,
     Sse,
+    StreamableHttp,
 }
 
 #[cfg(test)]
@@ -44,9 +46,11 @@ mod tests {
     fn test_transport_type_debug() {
         let stdio = TransportType::Stdio;
         let sse = TransportType::Sse;
+        let streamable_http = TransportType::StreamableHttp;
 
         assert_eq!(format!("{:?}", stdio), "Stdio");
         assert_eq!(format!("{:?}", sse), "Sse");
+        assert_eq!(format!("{:?}", streamable_http), "StreamableHttp");
     }
 
     #[test]
@@ -69,12 +73,18 @@ mod tests {
     fn test_transport_type_equality() {
         assert_eq!(TransportType::Stdio, TransportType::Stdio);
         assert_eq!(TransportType::Sse, TransportType::Sse);
+        assert_eq!(TransportType::StreamableHttp, TransportType::StreamableHttp);
         assert_ne!(TransportType::Stdio, TransportType::Sse);
+        assert_ne!(TransportType::Sse, TransportType::StreamableHttp);
     }
 
     #[test]
     fn test_transport_type_variants() {
-        let types = [TransportType::Stdio, TransportType::Sse];
-        assert_eq!(types.len(), 2);
+        let types = [
+            TransportType::Stdio,
+            TransportType::Sse,
+            TransportType::StreamableHttp,
+        ];
+        assert_eq!(types.len(), 3);
     }
 }

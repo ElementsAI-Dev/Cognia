@@ -15,6 +15,7 @@ import type {
 import type { AgentModeConfig } from '../agent/agent-mode';
 import type { Skill as _Skill } from '../system/skill';
 import type { PluginSchedulerAPI } from './plugin-scheduler';
+import type { ActivationEventDeclaration } from '@/lib/plugin/contracts/plugin-points';
 
 // =============================================================================
 // Core Plugin Types
@@ -287,20 +288,7 @@ export interface PluginConfigProperty {
 /**
  * Activation events
  */
-export type PluginActivationEvent =
-  | 'startup'
-  | 'onStartup'
-  | 'onCommand:*'
-  | `onCommand:${string}`
-  | 'onTool:*'
-  | `onTool:${string}`
-  | 'onAgentTool:*'
-  | `onAgentTool:${string}`
-  | 'onChat:*'
-  | 'onAgent:start'
-  | 'onA2UI:surface'
-  | `onLanguage:${string}`
-  | `onFile:${string}`;
+export type PluginActivationEvent = ActivationEventDeclaration;
 
 // =============================================================================
 // A2UI Integration Types

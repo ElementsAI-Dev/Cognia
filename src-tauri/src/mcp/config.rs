@@ -433,6 +433,7 @@ mod tests {
                 connection_type: McpConnectionType::Stdio,
                 url: None,
                 message_url: None,
+                fallback_to_sse: false,
                 enabled: true,
                 auto_start: false,
             },

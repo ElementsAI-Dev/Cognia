@@ -31,6 +31,7 @@ describe('useMcpServerForm', () => {
       env: { NODE_ENV: 'test' },
       connectionType: 'stdio',
       url: '',
+      fallbackToSse: false,
       enabled: true,
       autoStart: false,
     },
@@ -39,6 +40,7 @@ describe('useMcpServerForm', () => {
     resources: [],
     prompts: [],
     reconnectAttempts: 0,
+    connectionVersion: 1,
   };
 
   const mockDefaultConfig = {
@@ -48,6 +50,7 @@ describe('useMcpServerForm', () => {
     env: {},
     connectionType: 'stdio' as McpConnectionType,
     url: '',
+    fallbackToSse: false,
     enabled: true,
     autoStart: false,
   };
@@ -111,6 +114,7 @@ describe('useMcpServerForm', () => {
         env: { ...mockServer.config.env },
         connectionType: mockServer.config.connectionType,
         url: mockServer.config.url || '',
+        fallbackToSse: mockServer.config.fallbackToSse ?? false,
         enabled: mockServer.config.enabled,
         autoStart: mockServer.config.autoStart,
       });
@@ -637,6 +641,7 @@ describe('useMcpServerForm', () => {
           env: {},
           connectionType: 'stdio',
           url: undefined,
+          fallbackToSse: false,
           enabled: true,
           autoStart: false,
         })
@@ -700,6 +705,7 @@ describe('useMcpServerForm', () => {
           command: '',
           connectionType: 'stdio',
           url: undefined,
+          fallbackToSse: false,
         })
       );
       expect(result.current.state.saving).toBe(false);

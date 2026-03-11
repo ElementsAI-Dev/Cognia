@@ -29,6 +29,11 @@ export interface MarketplacePlugin {
   verified?: boolean;
   price?: number;
   installed?: boolean;
+  latestVersion?: string;
+  updateAvailable?: boolean;
+  operationStage?: 'idle' | 'installing' | 'updating' | 'installed' | 'error';
+  operationErrorCategory?: string;
+  operationErrorMessage?: string;
   // Extended fields for detail view
   repository?: string;
   homepage?: string;

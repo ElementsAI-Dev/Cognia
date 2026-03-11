@@ -143,6 +143,10 @@ export function createProjectAPI(pluginId: string): PluginProjectAPI {
           'docx': 'word',
           'xls': 'excel',
           'xlsx': 'excel',
+          'ppt': 'presentation',
+          'pptx': 'presentation',
+          'rtf': 'rtf',
+          'epub': 'epub',
         };
         fileType = typeMap[ext || ''] || 'text';
       }

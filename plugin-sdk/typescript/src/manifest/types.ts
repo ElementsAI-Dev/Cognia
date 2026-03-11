@@ -261,11 +261,19 @@ export interface PluginConfigProperty {
  * ```
  */
 export type PluginActivationEvent =
+  | 'startup'
   | 'onStartup'
   | 'onCommand:*'
   | `onCommand:${string}`
+  | 'onTool:*'
+  | `onTool:${string}`
+  | 'onAgentTool:*'
+  | `onAgentTool:${string}`
   | 'onChat:*'
+  | `onChat:${string}`
   | 'onAgent:start'
   | 'onA2UI:surface'
+  | 'onLanguage:*'
   | `onLanguage:${string}`
+  | 'onFile:*'
   | `onFile:${string}`;

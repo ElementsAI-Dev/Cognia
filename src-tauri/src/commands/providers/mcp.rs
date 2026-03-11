@@ -102,9 +102,17 @@ pub async fn mcp_call_tool_from_ui(
     origin: String,
     tool_name: String,
     arguments: serde_json::Value,
+    request_id: Option<String>,
 ) -> Result<ToolCallResult, McpErrorInfo> {
     manager
-        .call_tool_from_ui(&server_id, &session_id, &origin, &tool_name, arguments)
+        .call_tool_from_ui(
+            &server_id,
+            &session_id,
+            &origin,
+            &tool_name,
+            arguments,
+            request_id.as_deref(),
+        )
         .await
         .map_err(|e| (&e).into())
 }

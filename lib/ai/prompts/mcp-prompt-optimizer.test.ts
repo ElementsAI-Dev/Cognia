@@ -32,7 +32,9 @@ jest.mock('@/lib/logger', () => ({
   },
 }));
 
-function createMockServer(overrides: Partial<McpServerState> = {}): McpServerState {
+function createMockServer(
+  overrides: Omit<Partial<McpServerState>, 'connectionVersion'> & { connectionVersion?: number } = {}
+): McpServerState {
   return {
     id: 'ace-tool',
     name: 'ace-tool',
@@ -61,6 +63,7 @@ function createMockServer(overrides: Partial<McpServerState> = {}): McpServerSta
     resources: [],
     prompts: [],
     reconnectAttempts: 0,
+    connectionVersion: 1,
     ...overrides,
   };
 }

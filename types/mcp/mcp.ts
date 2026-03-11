@@ -7,7 +7,7 @@
 import type { ToolState } from '@/types/core/message';
 
 /** Connection type for MCP server */
-export type McpConnectionType = 'stdio' | 'sse';
+export type McpConnectionType = 'stdio' | 'sse' | 'streamableHttp';
 
 /** Server runtime status */
 export type McpServerStatus =
@@ -27,10 +27,14 @@ export interface McpServerConfig {
   args: string[];
   /** Environment variables */
   env: Record<string, string>;
-  /** Connection type (stdio or sse) */
+  /** Connection type (stdio, sse, or streamableHttp) */
   connectionType: McpConnectionType;
   /** URL for SSE connections */
   url?: string;
+  /** Optional explicit message endpoint for remote transports */
+  messageUrl?: string;
+  /** Fallback policy from streamableHttp to SSE */
+  fallbackToSse?: boolean;
   /** Whether the server is enabled */
   enabled: boolean;
   /** Whether to auto-start on application launch */
@@ -117,6 +121,10 @@ export interface McpServerState {
   connectedAt?: number;
   /** Number of reconnection attempts */
   reconnectAttempts: number;
+  /** Last lifecycle reason code emitted by backend */
+  reasonCode?: string;
+  /** Monotonic connection version for snapshot coherence */
+  connectionVersion?: number;
 }
 
 /** Content item in tool results or messages */
@@ -246,6 +254,7 @@ export function createDefaultServerConfig(): McpServerConfig {
     args: [],
     env: {},
     connectionType: 'stdio',
+    fallbackToSse: false,
     enabled: true,
     autoStart: false,
   };

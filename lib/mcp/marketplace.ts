@@ -658,8 +658,9 @@ export function formatRelativeTime(dateString: string): string {
 export interface McpInstallConfig {
   command: string;
   args: string[];
-  connectionType: 'stdio' | 'sse';
+  connectionType: 'stdio' | 'sse' | 'streamableHttp';
   url?: string;
+  fallbackToSse?: boolean;
   envKeys?: string[];
 }
 
@@ -680,8 +681,10 @@ export function parseInstallationConfig(
   // Check for SSE/remote connection config from item
   if (item.remote && item.connectionConfig) {
     if (item.connectionConfig.type === 'sse' || item.connectionConfig.type === 'streamable-http') {
-      config.connectionType = 'sse';
+      config.connectionType =
+        item.connectionConfig.type === 'streamable-http' ? 'streamableHttp' : 'sse';
       config.url = item.connectionConfig.url;
+      config.fallbackToSse = item.connectionConfig.type === 'streamable-http';
       config.command = '';
       config.args = [];
     } else if (item.connectionConfig.command) {

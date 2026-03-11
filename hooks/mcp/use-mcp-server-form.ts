@@ -15,6 +15,7 @@ export interface McpServerFormData {
   env: Record<string, string>;
   connectionType: McpConnectionType;
   url: string;
+  fallbackToSse: boolean;
   enabled: boolean;
   autoStart: boolean;
 }
@@ -41,6 +42,7 @@ export interface UseMcpServerFormReturn {
   setCommand: (command: string) => void;
   setConnectionType: (type: McpConnectionType) => void;
   setUrl: (url: string) => void;
+  setFallbackToSse: (enabled: boolean) => void;
   setEnabled: (enabled: boolean) => void;
   setAutoStart: (autoStart: boolean) => void;
   setNewArg: (arg: string) => void;
@@ -64,6 +66,7 @@ const createDefaultFormData = (): McpServerFormData => {
     env: {},
     connectionType: defaults.connectionType,
     url: '',
+    fallbackToSse: defaults.fallbackToSse ?? false,
     enabled: defaults.enabled,
     autoStart: defaults.autoStart,
   };
@@ -90,6 +93,7 @@ export function useMcpServerForm(options: UseMcpServerFormOptions = {}): UseMcpS
         env: { ...editingServer.config.env },
         connectionType: editingServer.config.connectionType,
         url: editingServer.config.url || '',
+        fallbackToSse: editingServer.config.fallbackToSse ?? false,
         enabled: editingServer.config.enabled,
         autoStart: editingServer.config.autoStart,
       });
@@ -102,9 +106,11 @@ export function useMcpServerForm(options: UseMcpServerFormOptions = {}): UseMcpS
     }
   }, [editingServer]);
 
+  const isRemoteConnection =
+    data.connectionType === 'sse' || data.connectionType === 'streamableHttp';
   const isValid =
     data.name.trim() !== '' &&
-    (data.connectionType === 'stdio' ? data.command.trim() !== '' : data.url.trim() !== '');
+    (data.connectionType === 'stdio' ? data.command.trim() !== '' : isRemoteConnection && data.url.trim() !== '');
 
   const setName = useCallback((name: string) => {
     setData((prev) => ({ ...prev, name }));
@@ -120,6 +126,10 @@ export function useMcpServerForm(options: UseMcpServerFormOptions = {}): UseMcpS
 
   const setUrl = useCallback((url: string) => {
     setData((prev) => ({ ...prev, url }));
+  }, []);
+
+  const setFallbackToSse = useCallback((fallbackToSse: boolean) => {
+    setData((prev) => ({ ...prev, fallbackToSse }));
   }, []);
 
   const setEnabled = useCallback((enabled: boolean) => {
@@ -184,11 +194,12 @@ export function useMcpServerForm(options: UseMcpServerFormOptions = {}): UseMcpS
   const handleSave = useCallback(async () => {
     const config: McpServerConfig = {
       name: data.name.trim(),
-      command: data.command.trim(),
-      args: data.args,
+      command: data.connectionType === 'stdio' ? data.command.trim() : '',
+      args: data.connectionType === 'stdio' ? data.args : [],
       env: data.env,
       connectionType: data.connectionType,
-      url: data.connectionType === 'sse' ? data.url.trim() : undefined,
+      url: data.connectionType === 'stdio' ? undefined : data.url.trim(),
+      fallbackToSse: data.connectionType === 'streamableHttp' ? data.fallbackToSse : false,
       enabled: data.enabled,
       autoStart: data.autoStart,
     };
@@ -227,6 +238,7 @@ export function useMcpServerForm(options: UseMcpServerFormOptions = {}): UseMcpS
     setCommand,
     setConnectionType,
     setUrl,
+    setFallbackToSse,
     setEnabled,
     setAutoStart,
     setNewArg,

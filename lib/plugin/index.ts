@@ -233,6 +233,9 @@ export {
   type PluginDependency,
   type DependencyResolutionResult,
   type InstallationProgress,
+  type MarketplaceErrorCategory,
+  type MarketplaceOperationError,
+  type PluginInstallResult,
   type MarketplaceConfig,
 } from './package/marketplace';
 

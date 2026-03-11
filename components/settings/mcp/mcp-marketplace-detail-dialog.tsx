@@ -422,7 +422,9 @@ export function McpMarketplaceDetailDialog({
                           <Badge variant="outline">
                             {installConfig.connectionType.toUpperCase()}
                           </Badge>
-                          {installConfig.connectionType === 'sse' && installConfig.url && (
+                          {(installConfig.connectionType === 'sse' ||
+                            installConfig.connectionType === 'streamableHttp') &&
+                            installConfig.url && (
                             <p className="text-xs text-muted-foreground mt-1">
                               {installConfig.url}
                             </p>

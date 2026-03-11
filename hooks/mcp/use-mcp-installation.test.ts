@@ -8,7 +8,7 @@ import { useMcpMarketplaceStore, useMcpStore } from '@/stores/mcp';
 import { parseInstallationConfig } from '@/lib/mcp/marketplace';
 import { checkMcpEnvironment } from '@/lib/mcp/marketplace-utils';
 import type { McpMarketplaceItem, McpDownloadResponse } from '@/types/mcp/mcp-marketplace';
-import type { McpServerConfig } from '@/types/mcp';
+import type { McpInstallConfig } from '@/lib/mcp/marketplace';
 import type { EnvironmentCheckResult } from '@/lib/mcp/marketplace-utils';
 
 // Mock stores and utilities
@@ -90,7 +90,7 @@ describe('useMcpInstallation', () => {
       url: '',
       enabled: true,
       autoStart: false,
-    } as McpServerConfig);
+    } as unknown as McpInstallConfig);
     mockCheckMcpEnvironment.mockResolvedValue(mockEnvCheckResult);
   });
 

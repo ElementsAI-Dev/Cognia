@@ -174,6 +174,79 @@ export default definePlugin({
 });
 ```
 
+## Canonical Plugin Point Contract
+
+Plugin points are governed by a canonical contract registry. Plugin declarations are validated against this registry at runtime.
+
+### UI Extension Points
+
+All canonical extension point IDs:
+
+- `sidebar.left.top` (virtual)
+- `sidebar.left.bottom` (implemented)
+- `sidebar.right.top` (virtual)
+- `sidebar.right.bottom` (virtual)
+- `toolbar.left` (virtual)
+- `toolbar.center` (virtual)
+- `toolbar.right` (virtual)
+- `statusbar.left` (virtual)
+- `statusbar.center` (virtual)
+- `statusbar.right` (virtual)
+- `chat.header` (implemented)
+- `chat.footer` (implemented)
+- `chat.input.above` (implemented)
+- `chat.input.below` (implemented)
+- `chat.input.actions` (virtual)
+- `chat.message.before` (virtual)
+- `chat.message.after` (virtual)
+- `chat.message.actions` (virtual)
+- `chat.message.footer` (virtual)
+- `artifact.toolbar` (virtual)
+- `artifact.actions` (virtual)
+- `canvas.toolbar` (virtual)
+- `canvas.sidebar` (virtual)
+- `panel.header` (virtual)
+- `panel.footer` (virtual)
+- `settings.general` (virtual)
+- `settings.appearance` (virtual)
+- `settings.ai` (virtual)
+- `settings.plugins` (virtual)
+- `command-palette` (virtual)
+
+Deprecated aliases are accepted for migration diagnostics (for example `sidebar:top` -> `sidebar.left.top`), but plugins should always use canonical IDs.
+
+### Activation Events
+
+Supported runtime dispatch:
+
+- `startup`
+- `onCommand:*`
+- `onTool:*`
+
+Deprecated aliases:
+
+- `onStartup` -> use `startup`
+- `onAgentTool:*` -> use `onTool:*`
+
+Declared-but-virtual (validated, but not currently dispatched by runtime):
+
+- `onChat:*`
+- `onAgent:start`
+- `onA2UI:surface`
+- `onLanguage:*`
+- `onFile:*`
+
+### Governance Modes
+
+- `warn`: report unknown/deprecated/virtual plugin-point usage with diagnostics.
+- `block`: reject unsupported plugin-point declarations during plugin load/registration.
+
+Migration guidance:
+
+1. Replace aliases with canonical IDs.
+2. Prefer implemented activation events (`startup`, `onCommand:*`, `onTool:*`).
+3. Keep plugin-point declarations aligned with current SDK exports.
+
 ## Tools
 
 Tools are functions that the AI agent can call:

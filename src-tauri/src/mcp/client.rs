@@ -21,6 +21,7 @@ use crate::mcp::protocol::sampling::{SamplingCreateMessageRequest, SamplingCreat
 use crate::mcp::protocol::tools::{ToolsCallParams, ToolsCallResponse, ToolsListResponse};
 use crate::mcp::transport::sse::SseTransport;
 use crate::mcp::transport::stdio::StdioTransport;
+use crate::mcp::transport::streamable_http::StreamableHttpTransport;
 use crate::mcp::transport::Transport;
 use crate::mcp::types::*;
 
@@ -113,6 +114,31 @@ impl McpClient {
         }
 
         log::info!("SSE transport connected successfully to: {}", url);
+        Self::new(Arc::new(transport), notification_tx)
+    }
+
+    /// Create a new MCP client with streamable HTTP transport and optional proxy support.
+    pub async fn connect_streamable_http_with_options(
+        url: &str,
+        message_url: Option<&str>,
+        proxy_url: Option<&str>,
+        notification_tx: mpsc::Sender<JsonRpcNotification>,
+    ) -> McpResult<Self> {
+        log::debug!("Creating Streamable HTTP MCP client: url='{}'", url);
+
+        let mut transport = if let Some(proxy) = proxy_url {
+            log::debug!("Using proxy for streamable HTTP: {}", proxy);
+            StreamableHttpTransport::connect_with_proxy(url, Some(proxy)).await?
+        } else {
+            StreamableHttpTransport::connect(url).await?
+        };
+
+        if let Some(msg_url) = message_url {
+            log::debug!("Setting custom streamable HTTP message URL: {}", msg_url);
+            transport.set_message_url(msg_url.to_string());
+        }
+
+        log::info!("Streamable HTTP transport connected successfully to: {}", url);
         Self::new(Arc::new(transport), notification_tx)
     }
 

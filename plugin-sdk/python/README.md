@@ -561,6 +561,13 @@ See the `examples/` directory for complete plugin examples:
 - **`a2ui_dashboard/`** - Interactive A2UI dashboards
 - **`custom_mode/`** - Custom AI chat modes
 
+## Plugin Point Contract Notes
+
+- Use canonical UI extension point IDs (for example `chat.header`, `chat.input.above`, `sidebar.left.bottom`).
+- Prefer canonical activation patterns: `startup`, `onCommand:*`, `onTool:*`.
+- Legacy aliases (`onStartup`, `onAgentTool:*`) are migration-only and should be replaced in new plugins.
+- Keep hook and extension declarations aligned with current SDK types; release gates validate host/SDK contract parity.
+
 ## License
 
 MIT License

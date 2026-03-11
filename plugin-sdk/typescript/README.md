@@ -157,6 +157,20 @@ The SDK provides comprehensive TypeScript types and helper functions for:
 | `context.extensions` | UI extension points |
 | `context.permissions` | Permission management |
 
+### Canonical Extension Point IDs
+
+Use canonical IDs when calling `context.extensions.registerExtension(...)`:
+
+`sidebar.left.top`, `sidebar.left.bottom`, `sidebar.right.top`, `sidebar.right.bottom`, `toolbar.left`, `toolbar.center`, `toolbar.right`, `statusbar.left`, `statusbar.center`, `statusbar.right`, `chat.header`, `chat.footer`, `chat.input.above`, `chat.input.below`, `chat.input.actions`, `chat.message.before`, `chat.message.after`, `chat.message.actions`, `chat.message.footer`, `artifact.toolbar`, `artifact.actions`, `canvas.toolbar`, `canvas.sidebar`, `panel.header`, `panel.footer`, `settings.general`, `settings.appearance`, `settings.ai`, `settings.plugins`, `command-palette`.
+
+Stability notes:
+- Implemented host slots: `sidebar.left.bottom`, `chat.header`, `chat.footer`, `chat.input.above`, `chat.input.below`.
+- Remaining canonical slots are virtual declarations and may not render on all host surfaces yet.
+
+Migration guidance:
+- Replace legacy aliases (for example `sidebar:top`) with canonical IDs.
+- Keep manifest activation events aligned with canonical patterns (`startup`, `onCommand:*`, `onTool:*`).
+
 ## Examples
 
 ### Define a Tool

@@ -15,6 +15,8 @@ export interface ServerConfigValidationOptions {
   allowedConnectionTypes?: McpConnectionType[];
 }
 
+const VALID_CONNECTION_TYPES: McpConnectionType[] = ['stdio', 'sse', 'streamableHttp'];
+
 /**
  * Validate server name
  */
@@ -112,7 +114,16 @@ export function validateServerConfig(
   }
 
   // Validate based on connection type
-  const connectionType = config.connectionType || 'stdio';
+  const rawConnectionType = config.connectionType;
+  const connectionType: McpConnectionType = VALID_CONNECTION_TYPES.includes(
+    (rawConnectionType as McpConnectionType) || 'stdio'
+  )
+    ? ((rawConnectionType as McpConnectionType) || 'stdio')
+    : 'stdio';
+
+  if (rawConnectionType && !VALID_CONNECTION_TYPES.includes(rawConnectionType as McpConnectionType)) {
+    errors.connectionType = `Unsupported connection type: ${String(rawConnectionType)}. Supported: ${VALID_CONNECTION_TYPES.join(', ')}`;
+  }
 
   if (options.allowedConnectionTypes && !options.allowedConnectionTypes.includes(connectionType)) {
     errors.connectionType = `Connection type must be one of: ${options.allowedConnectionTypes.join(', ')}`;
@@ -123,7 +134,7 @@ export function validateServerConfig(
     if (commandError) {
       errors.command = commandError;
     }
-  } else if (connectionType === 'sse') {
+  } else if (connectionType === 'sse' || connectionType === 'streamableHttp') {
     const urlError = validateSseUrl(config.url || '');
     if (urlError) {
       errors.url = urlError;

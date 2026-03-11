@@ -11,6 +11,10 @@ import type {
   PluginType,
 } from '@/types/plugin';
 import { loggers } from './logger';
+import {
+  validateActivationEvent,
+  type PluginPointGovernanceMode,
+} from '@/lib/plugin/contracts/plugin-points';
 
 // =============================================================================
 // Types
@@ -38,6 +42,10 @@ export interface ConfigValidationResult {
   valid: boolean;
   errors: ValidationError[];
   warnings: string[];
+}
+
+export interface ManifestValidationOptions {
+  governanceMode?: PluginPointGovernanceMode;
 }
 
 // =============================================================================
@@ -85,15 +93,17 @@ const VALID_PLUGIN_TYPES: PluginType[] = ['frontend', 'python', 'hybrid'];
 
 const ID_PATTERN = /^[a-z0-9]([a-z0-9-_.]*[a-z0-9])?$/;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+(-[a-z0-9]+)?$/i;
-const ACTIVATION_EVENT_PATTERN =
-  /^(startup|onStartup|onCommand:\*|onCommand:.+|onTool:\*|onTool:.+|onAgentTool:\*|onAgentTool:.+|onChat:\*|onAgent:start|onA2UI:surface|onLanguage:.+|onFile:.+)$/;
 
 // =============================================================================
 // Manifest Validation
 // =============================================================================
 
-export function validatePluginManifest(manifest: unknown): ValidationResult {
+export function validatePluginManifest(
+  manifest: unknown,
+  options: ManifestValidationOptions = {}
+): ValidationResult {
   const diagnostics: ManifestDiagnostic[] = [];
+  const governanceMode = options.governanceMode || 'warn';
 
   if (!manifest || typeof manifest !== 'object') {
     return {
@@ -318,8 +328,16 @@ export function validatePluginManifest(manifest: unknown): ValidationResult {
           pushError(`activationEvents[${i}]`, 'manifest.activationEvents.invalid_item', `Activation event at index ${i} must be a string`);
           continue;
         }
-        if (!ACTIVATION_EVENT_PATTERN.test(event)) {
-          pushWarning(`activationEvents[${i}]`, 'manifest.activationEvents.unknown', `Unknown activation event "${event}"`);
+
+        const outcome = validateActivationEvent(event, { governanceMode });
+        for (const diagnostic of outcome.diagnostics) {
+          const field = `activationEvents[${i}]`;
+          const code = `manifest.activationEvents.${diagnostic.code}`;
+          if (diagnostic.severity === 'error') {
+            pushError(field, code, diagnostic.message, diagnostic.hint);
+          } else {
+            pushWarning(field, code, diagnostic.message, diagnostic.hint);
+          }
         }
       }
     }

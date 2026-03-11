@@ -3,7 +3,7 @@
 //! Manages the lifecycle of MCP servers including connection, disconnection,
 //! state management, notification handling, and auto-reconnection.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc, RwLock};
@@ -27,6 +27,7 @@ pub mod events {
     pub const TOOL_CALL_PROGRESS: &str = "mcp:tool-call-progress";
     pub const SERVER_HEALTH: &str = "mcp:server-health";
     pub const LOG_MESSAGE: &str = "mcp:log-message";
+    pub const TRANSPORT_EVENT: &str = "mcp:transport-event";
     pub const APP_BRIDGE: &str = "mcp:app-bridge";
     pub const APP_SECURITY_EVENT: &str = "mcp:app-security-event";
 }
@@ -47,6 +48,29 @@ struct ServerInstance {
     stop_tx: Option<broadcast::Sender<()>>,
 }
 
+#[derive(Debug, Clone)]
+struct UiCallPolicy {
+    max_concurrent_per_session: usize,
+    max_calls_per_window: usize,
+    window_ms: i64,
+    call_timeout_ms: u64,
+}
+
+impl Default for UiCallPolicy {
+    fn default() -> Self {
+        Self {
+            max_concurrent_per_session: 3,
+            max_calls_per_window: 20,
+            window_ms: 60_000,
+            call_timeout_ms: 30_000,
+        }
+    }
+}
+
+fn now_ms() -> i64 {
+    chrono::Utc::now().timestamp_millis()
+}
+
 /// MCP Manager - manages all MCP server connections
 pub struct McpManager {
     /// Configuration manager
@@ -57,6 +81,12 @@ pub struct McpManager {
     app_handle: AppHandle,
     /// Default reconnection config
     reconnect_config: ReconnectConfig,
+    /// MCP Apps UI call policy
+    ui_call_policy: UiCallPolicy,
+    /// In-flight UI-initiated tool calls per server/session
+    ui_call_inflight: Arc<RwLock<HashMap<String, usize>>>,
+    /// Rolling UI-initiated tool call history per server/session
+    ui_call_history: Arc<RwLock<HashMap<String, VecDeque<i64>>>>,
 }
 
 impl McpManager {
@@ -66,6 +96,7 @@ impl McpManager {
         let config_manager = Arc::new(McpConfigManager::new(app_data_dir));
 
         let reconnect_config = ReconnectConfig::default();
+        let ui_call_policy = UiCallPolicy::default();
         log::debug!(
             "Reconnect config: enabled={}, max_attempts={}, initial_delay={}ms, max_delay={}ms",
             reconnect_config.enabled,
@@ -73,12 +104,22 @@ impl McpManager {
             reconnect_config.initial_delay_ms,
             reconnect_config.max_delay_ms
         );
+        log::debug!(
+            "UI call policy: max_concurrent={}, max_per_window={}, window_ms={}, timeout_ms={}",
+            ui_call_policy.max_concurrent_per_session,
+            ui_call_policy.max_calls_per_window,
+            ui_call_policy.window_ms,
+            ui_call_policy.call_timeout_ms
+        );
 
         Self {
             config_manager,
             servers: Arc::new(RwLock::new(HashMap::new())),
             app_handle,
             reconnect_config,
+            ui_call_policy,
+            ui_call_inflight: Arc::new(RwLock::new(HashMap::new())),
+            ui_call_history: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -133,6 +174,101 @@ impl McpManager {
             .unwrap_or(false)
     }
 
+    fn reason_code_for_error(error: &McpError) -> &'static str {
+        match error {
+            McpError::MissingUrl => "transport_config_invalid",
+            McpError::RequestError(e) => {
+                if e.is_timeout() {
+                    "transport_timeout"
+                } else if e.is_connect() {
+                    "transport_unreachable"
+                } else {
+                    "transport_error"
+                }
+            }
+            McpError::ConnectionTimeout => "transport_timeout",
+            McpError::InitializationFailed(_) => "init_failed",
+            McpError::UnsupportedCapability(_) => "capability_unsupported",
+            McpError::TransportError(msg) => {
+                let normalized = msg.to_ascii_lowercase();
+                if normalized.contains("incompatible") || normalized.contains("unsupported") {
+                    "transport_incompatible"
+                } else {
+                    "transport_error"
+                }
+            }
+            McpError::ProtocolError(_) => "protocol_error",
+            McpError::NotConnected => "not_connected",
+            _ => "connection_failed",
+        }
+    }
+
+    fn should_attempt_streamable_fallback(
+        requested_transport: &McpConnectionType,
+        fallback_to_sse: bool,
+        primary_error: &McpError,
+    ) -> bool {
+        if *requested_transport != McpConnectionType::StreamableHttp || !fallback_to_sse {
+            return false;
+        }
+
+        matches!(
+            Self::reason_code_for_error(primary_error),
+            "transport_incompatible"
+        )
+    }
+
+    fn emit_transport_event(
+        app_handle: &AppHandle,
+        server_id: &str,
+        event_type: &str,
+        requested: McpConnectionType,
+        selected: McpConnectionType,
+        reason_code: Option<&str>,
+    ) {
+        let _ = app_handle.emit(
+            events::TRANSPORT_EVENT,
+            &serde_json::json!({
+                "type": event_type,
+                "serverId": server_id,
+                "requestedTransport": requested,
+                "selectedTransport": selected,
+                "reasonCode": reason_code,
+                "timestamp": now_ms()
+            }),
+        );
+    }
+
+    fn validate_server_config(config: &McpServerConfig) -> McpResult<()> {
+        match config.connection_type {
+            McpConnectionType::Stdio => {
+                if config.command.trim().is_empty() {
+                    return Err(McpError::ProtocolError(
+                        "Invalid MCP config: stdio connection requires non-empty command"
+                            .to_string(),
+                    ));
+                }
+            }
+            McpConnectionType::Sse | McpConnectionType::StreamableHttp => {
+                let url = config.url.as_deref().ok_or_else(|| {
+                    McpError::ProtocolError(
+                        "Invalid MCP config: remote connection requires URL".to_string(),
+                    )
+                })?;
+                let parsed = reqwest::Url::parse(url).map_err(|_| {
+                    McpError::ProtocolError(format!("Invalid MCP URL: '{}'", url))
+                })?;
+                if parsed.scheme() != "http" && parsed.scheme() != "https" {
+                    return Err(McpError::ProtocolError(format!(
+                        "Invalid MCP URL scheme '{}': only http/https are supported",
+                        parsed.scheme()
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Determine whether a tool can be invoked by MCP App UI runtime.
     ///
     /// Rules:
@@ -162,11 +298,36 @@ impl McpManager {
         true
     }
 
+    fn emit_app_security_event(
+        app_handle: &AppHandle,
+        server_id: &str,
+        session_id: Option<&str>,
+        reason_code: &str,
+        method: Option<&str>,
+        request_id: Option<&str>,
+        detail: serde_json::Value,
+    ) {
+        let _ = app_handle.emit(
+            events::APP_SECURITY_EVENT,
+            &serde_json::json!({
+                "serverId": server_id,
+                "sessionId": session_id,
+                "reasonCode": reason_code,
+                "method": method,
+                "requestId": request_id,
+                "timestamp": now_ms(),
+                "detail": detail
+            }),
+        );
+    }
+
     fn emit_app_bridge_event(
         app_handle: &AppHandle,
         event_type: &str,
         server_id: &str,
         session_id: &str,
+        request_id: Option<&str>,
+        reason_code: Option<&str>,
         payload: serde_json::Value,
     ) {
         let _ = app_handle.emit(
@@ -175,6 +336,9 @@ impl McpManager {
                 "type": event_type,
                 "serverId": server_id,
                 "sessionId": session_id,
+                "requestId": request_id,
+                "reasonCode": reason_code,
+                "timestamp": now_ms(),
                 "payload": payload
             }),
         );
@@ -189,6 +353,7 @@ impl McpManager {
         let transport_type = match config.connection_type {
             McpConnectionType::Stdio => TransportType::Stdio,
             McpConnectionType::Sse => TransportType::Sse,
+            McpConnectionType::StreamableHttp => TransportType::StreamableHttp,
         };
 
         log::debug!(
@@ -240,6 +405,102 @@ impl McpManager {
                     (None, None) => McpClient::connect_sse(url, notification_tx).await,
                 }
             }
+            McpConnectionType::StreamableHttp => {
+                let url = config.url.as_ref().ok_or_else(|| {
+                    log::error!(
+                        "Streamable HTTP connection requires URL but none provided for server '{}'",
+                        config.name
+                    );
+                    McpError::MissingUrl
+                })?;
+
+                log::trace!(
+                    "Using Streamable HTTP transport: url='{}', proxy={:?}",
+                    url,
+                    proxy_url
+                );
+                McpClient::connect_streamable_http_with_options(
+                    url,
+                    config.message_url.as_deref(),
+                    proxy_url,
+                    notification_tx,
+                )
+                .await
+            }
+        }
+    }
+
+    async fn create_client_with_fallback(
+        app_handle: &AppHandle,
+        server_id: &str,
+        config: &McpServerConfig,
+        notification_tx: mpsc::Sender<JsonRpcNotification>,
+        proxy_url: Option<&str>,
+    ) -> McpResult<(McpClient, McpConnectionType)> {
+        let requested_transport = config.connection_type.clone();
+        let primary_result = if requested_transport == McpConnectionType::StreamableHttp
+            && std::env::var("COGNIA_FORCE_STREAMABLE_HTTP_FAIL")
+                .map(|v| Self::parse_truthy_flag(&v))
+                .unwrap_or(false)
+        {
+            Err(McpError::TransportError(
+                "forced streamable HTTP incompatible handshake".to_string(),
+            ))
+        } else {
+            Self::create_client(config, notification_tx.clone(), proxy_url).await
+        };
+
+        match primary_result {
+            Ok(client) => {
+                Self::emit_transport_event(
+                    app_handle,
+                    server_id,
+                    "transport_selected",
+                    requested_transport.clone(),
+                    requested_transport.clone(),
+                    Some("transport_selected"),
+                );
+                Ok((client, requested_transport))
+            }
+            Err(primary_error) => {
+                if Self::should_attempt_streamable_fallback(
+                    &requested_transport,
+                    config.fallback_to_sse,
+                    &primary_error,
+                ) {
+                    let primary_reason = Self::reason_code_for_error(&primary_error);
+                    Self::emit_transport_event(
+                        app_handle,
+                        server_id,
+                        "transport_fallback_attempted",
+                        McpConnectionType::StreamableHttp,
+                        McpConnectionType::Sse,
+                        Some(primary_reason),
+                    );
+
+                    let mut fallback_cfg = config.clone();
+                    fallback_cfg.connection_type = McpConnectionType::Sse;
+                    let fallback_result =
+                        Self::create_client(&fallback_cfg, notification_tx, proxy_url).await;
+
+                    match fallback_result {
+                        Ok(client) => {
+                            Self::emit_transport_event(
+                                app_handle,
+                                server_id,
+                                "transport_selected",
+                                McpConnectionType::StreamableHttp,
+                                McpConnectionType::Sse,
+                                Some("transport_fallback_sse"),
+                            );
+                            Ok((client, McpConnectionType::Sse))
+                        }
+                        Err(fallback_error) => Err(fallback_error),
+                    }
+                } else {
+                    Err(primary_error)
+                }
+            }
         }
     }
 
@@ -248,6 +509,7 @@ impl McpManager {
         servers: &Arc<RwLock<HashMap<String, ServerInstance>>>,
         server_id: &str,
         error: &McpError,
+        reason_code: Option<&str>,
     ) {
         log::warn!("Connection error for server '{}': {}", server_id, error);
         let mut servers_lock = servers.write().await;
@@ -255,6 +517,15 @@ impl McpManager {
             instance.state.status = McpServerStatus::Error(error.to_string());
             instance.state.error_message = Some(error.to_string());
             instance.state.reconnect_attempts += 1;
+            instance.state.reason_code = Some(
+                reason_code
+                    .unwrap_or_else(|| Self::reason_code_for_error(error))
+                    .to_string(),
+            );
+            // Clear snapshots immediately on failure to avoid surfacing stale capabilities.
+            instance.state.tools.clear();
+            instance.state.resources.clear();
+            instance.state.prompts.clear();
             log::debug!(
                 "Server '{}' error state updated, reconnect attempts: {}",
                 server_id,
@@ -274,6 +545,7 @@ impl McpManager {
         resources: Vec<McpResource>,
         prompts: Vec<McpPrompt>,
         stop_tx: broadcast::Sender<()>,
+        reason_code: &str,
     ) {
         log::info!(
             "Server '{}' connected successfully: {} tools, {} resources, {} prompts",
@@ -298,6 +570,8 @@ impl McpManager {
             instance.state.error_message = None;
             instance.state.connected_at = Some(chrono::Utc::now().timestamp());
             instance.state.reconnect_attempts = 0;
+            instance.state.reason_code = Some(reason_code.to_string());
+            instance.state.connection_version = instance.state.connection_version.saturating_add(1);
             instance.client = Some(client);
             instance.stop_tx = Some(stop_tx);
         }
@@ -317,6 +591,82 @@ impl McpManager {
                 instance.state.status
             );
             let _ = app_handle.emit(events::SERVER_UPDATE, &instance.state);
+        }
+    }
+
+    fn is_origin_allowed_for_server(config: &McpServerConfig, origin: &reqwest::Url) -> bool {
+        let host = origin.host_str().unwrap_or_default();
+        if host.eq_ignore_ascii_case("localhost")
+            || host == "127.0.0.1"
+            || host == "::1"
+        {
+            return true;
+        }
+
+        if let Some(server_url) = config.url.as_deref() {
+            if let Ok(parsed_server_url) = reqwest::Url::parse(server_url) {
+                if parsed_server_url.origin() == origin.origin() {
+                    return true;
+                }
+            }
+        }
+
+        if let Some(origins_csv) = config.env.get("COGNIA_MCP_ALLOWED_UI_ORIGINS") {
+            return origins_csv
+                .split(',')
+                .map(|item| item.trim())
+                .filter(|item| !item.is_empty())
+                .any(|allowed| {
+                    reqwest::Url::parse(allowed)
+                        .map(|url| url.origin() == origin.origin())
+                        .unwrap_or(false)
+                });
+        }
+
+        false
+    }
+
+    async fn reserve_ui_call_slot(&self, key: &str) -> Result<(), &'static str> {
+        {
+            let mut inflight = self.ui_call_inflight.write().await;
+            let count = inflight.entry(key.to_string()).or_insert(0);
+            if *count >= self.ui_call_policy.max_concurrent_per_session {
+                return Err("ui_concurrency_limit_exceeded");
+            }
+            *count += 1;
+        }
+
+        let now = now_ms();
+        let mut history = self.ui_call_history.write().await;
+        let entries = history.entry(key.to_string()).or_insert_with(VecDeque::new);
+        while let Some(ts) = entries.front() {
+            if now - *ts > self.ui_call_policy.window_ms {
+                entries.pop_front();
+            } else {
+                break;
+            }
+        }
+        if entries.len() >= self.ui_call_policy.max_calls_per_window {
+            let mut inflight = self.ui_call_inflight.write().await;
+            if let Some(count) = inflight.get_mut(key) {
+                *count = count.saturating_sub(1);
+                if *count == 0 {
+                    inflight.remove(key);
+                }
+            }
+            return Err("ui_rate_limit_exceeded");
+        }
+        entries.push_back(now);
+        Ok(())
+    }
+
+    async fn release_ui_call_slot(&self, key: &str) {
+        let mut inflight = self.ui_call_inflight.write().await;
+        if let Some(count) = inflight.get_mut(key) {
+            *count = count.saturating_sub(1);
+            if *count == 0 {
+                inflight.remove(key);
+            }
         }
     }
 
@@ -428,6 +778,7 @@ impl McpManager {
             config.enabled,
             config.auto_start
         );
+        Self::validate_server_config(&config)?;
 
         // Add to config
         self.config_manager.set_server(id.clone(), config.clone());
@@ -481,6 +832,7 @@ impl McpManager {
     /// Update a server configuration
     pub async fn update_server(&self, id: &str, config: McpServerConfig) -> McpResult<()> {
         log::info!("Updating MCP server configuration: '{}'", id);
+        Self::validate_server_config(&config)?;
 
         // Check if server exists
         if !self.config_manager.has_server(id) {
@@ -528,6 +880,7 @@ impl McpManager {
             .config_manager
             .get_server(id)
             .ok_or_else(|| McpError::ServerNotFound(id.to_string()))?;
+        Self::validate_server_config(&config)?;
 
         if !config.enabled {
             return Err(McpError::ProtocolError("Server is disabled".to_string()));
@@ -550,6 +903,7 @@ impl McpManager {
             let mut servers = self.servers.write().await;
             if let Some(instance) = servers.get_mut(id) {
                 instance.state.status = McpServerStatus::Connecting;
+                instance.state.reason_code = Some("connect_requested".to_string());
             }
         }
         self.emit_server_update(id).await;
@@ -558,26 +912,41 @@ impl McpManager {
         log::trace!("Creating notification channel for server '{}'", id);
         let (notification_tx, notification_rx) = mpsc::channel(100);
 
-        // Get proxy URL if configured (only for SSE connections)
-        let proxy_url = if config.connection_type == McpConnectionType::Sse {
+        // Get proxy URL if configured (only for remote connections)
+        let proxy_url = if matches!(
+            config.connection_type,
+            McpConnectionType::Sse | McpConnectionType::StreamableHttp
+        ) {
             Self::get_system_proxy_url()
         } else {
             None
         };
 
-        // Create client using helper method
+        // Create client using transport selection + fallback helper.
         log::debug!("Creating MCP client for server '{}'", id);
-        let client = match Self::create_client(&config, notification_tx, proxy_url.as_deref()).await
+        let (client, selected_transport) = match Self::create_client_with_fallback(
+            &self.app_handle,
+            id,
+            &config,
+            notification_tx,
+            proxy_url.as_deref(),
+        )
+        .await
         {
-            Ok(c) => c,
+            Ok(result) => result,
             Err(e) => {
                 log::error!("Failed to create client for server '{}': {}", id, e);
-                Self::handle_connection_error(&self.servers, id, &e).await;
+                Self::handle_connection_error(&self.servers, id, &e, None).await;
                 self.emit_server_update(id).await;
                 self.schedule_reconnection(id.to_string()).await;
                 return Err(e);
             }
         };
+        log::debug!(
+            "Selected transport for server '{}': {:?}",
+            id,
+            selected_transport
+        );
 
         // Start receive loop
         log::debug!("Starting receive loop for server '{}'", id);
@@ -591,7 +960,8 @@ impl McpManager {
                 let init_err = McpError::InitializationFailed(format!("Server '{}': {}", id, e));
                 log::error!("{}", init_err);
                 client.close().await.ok();
-                Self::handle_connection_error(&self.servers, id, &init_err).await;
+                Self::handle_connection_error(&self.servers, id, &init_err, Some("init_failed"))
+                    .await;
                 self.emit_server_update(id).await;
                 self.schedule_reconnection(id.to_string()).await;
                 return Err(init_err);
@@ -624,6 +994,7 @@ impl McpManager {
             resources,
             prompts,
             stop_tx.clone(),
+            "connect_succeeded",
         )
         .await;
 
@@ -687,6 +1058,7 @@ impl McpManager {
         // Update state
         log::trace!("Clearing server '{}' state", id);
         instance.state.status = McpServerStatus::Disconnected;
+        instance.state.reason_code = Some("disconnect_requested".to_string());
         instance.state.connected_at = None;
         instance.state.tools.clear();
         instance.state.resources.clear();
@@ -801,6 +1173,7 @@ impl McpManager {
         origin: &str,
         tool_name: &str,
         arguments: serde_json::Value,
+        request_id: Option<&str>,
     ) -> McpResult<ToolCallResult> {
         if !Self::is_mcp_apps_host_enabled() {
             return Err(McpError::ProtocolError(
@@ -809,12 +1182,16 @@ impl McpManager {
         }
 
         if session_id.trim().is_empty() {
-            let _ = self.app_handle.emit(
-                events::APP_SECURITY_EVENT,
-                &serde_json::json!({
-                    "type": "invalid_session_id",
-                    "serverId": server_id,
-                    "sessionId": session_id
+            Self::emit_app_security_event(
+                &self.app_handle,
+                server_id,
+                Some(session_id),
+                "invalid_session_id",
+                Some("tools/call"),
+                request_id,
+                serde_json::json!({
+                    "origin": origin,
+                    "toolName": tool_name
                 }),
             );
             return Err(McpError::ProtocolError(
@@ -823,24 +1200,28 @@ impl McpManager {
         }
 
         let parsed_origin = reqwest::Url::parse(origin).map_err(|_| {
-            let _ = self.app_handle.emit(
-                events::APP_SECURITY_EVENT,
-                &serde_json::json!({
-                    "type": "invalid_origin",
-                    "serverId": server_id,
-                    "sessionId": session_id,
+            Self::emit_app_security_event(
+                &self.app_handle,
+                server_id,
+                Some(session_id),
+                "invalid_origin",
+                Some("tools/call"),
+                request_id,
+                serde_json::json!({
                     "origin": origin
                 }),
             );
             McpError::ProtocolError(format!("Invalid MCP Apps bridge origin: {}", origin))
         })?;
         if parsed_origin.scheme() != "https" && parsed_origin.scheme() != "http" {
-            let _ = self.app_handle.emit(
-                events::APP_SECURITY_EVENT,
-                &serde_json::json!({
-                    "type": "invalid_origin_scheme",
-                    "serverId": server_id,
-                    "sessionId": session_id,
+            Self::emit_app_security_event(
+                &self.app_handle,
+                server_id,
+                Some(session_id),
+                "invalid_origin_scheme",
+                Some("tools/call"),
+                request_id,
+                serde_json::json!({
                     "origin": origin
                 }),
             );
@@ -855,6 +1236,23 @@ impl McpManager {
             let instance = servers
                 .get(server_id)
                 .ok_or_else(|| McpError::ServerNotFound(server_id.to_string()))?;
+            if !Self::is_origin_allowed_for_server(&instance.state.config, &parsed_origin) {
+                Self::emit_app_security_event(
+                    &self.app_handle,
+                    server_id,
+                    Some(session_id),
+                    "policy_denied_origin",
+                    Some("tools/call"),
+                    request_id,
+                    serde_json::json!({
+                        "origin": origin
+                    }),
+                );
+                return Err(McpError::ProtocolError(format!(
+                    "Bridge origin '{}' is not allowed for server '{}'",
+                    origin, server_id
+                )));
+            }
             let tool = instance
                 .state
                 .tools
@@ -865,12 +1263,14 @@ impl McpManager {
                 })?;
 
             if !Self::is_tool_ui_visible(tool) {
-                let _ = self.app_handle.emit(
-                    events::APP_SECURITY_EVENT,
-                    &serde_json::json!({
-                        "type": "tool_visibility_denied",
-                        "serverId": server_id,
-                        "sessionId": session_id,
+                Self::emit_app_security_event(
+                    &self.app_handle,
+                    server_id,
+                    Some(session_id),
+                    "tool_visibility_denied",
+                    Some("tools/call"),
+                    request_id,
+                    serde_json::json!({
                         "toolName": tool_name
                     }),
                 );
@@ -881,24 +1281,104 @@ impl McpManager {
             }
         }
 
+        let session_key = format!("{}:{}", server_id, session_id);
+        if let Err(limit_reason) = self.reserve_ui_call_slot(&session_key).await {
+            Self::emit_app_security_event(
+                &self.app_handle,
+                server_id,
+                Some(session_id),
+                limit_reason,
+                Some("tools/call"),
+                request_id,
+                serde_json::json!({
+                    "toolName": tool_name
+                }),
+            );
+            return Err(McpError::ProtocolError(match limit_reason {
+                "ui_concurrency_limit_exceeded" => {
+                    "MCP App UI call concurrency limit exceeded".to_string()
+                }
+                _ => "MCP App UI call rate limit exceeded".to_string(),
+            }));
+        }
+
         Self::emit_app_bridge_event(
             &self.app_handle,
             "tool_call_requested",
             server_id,
             session_id,
+            request_id,
+            Some("bridge_request_started"),
             serde_json::json!({
                 "origin": origin,
                 "toolName": tool_name
             }),
         );
 
-        let result = self.call_tool(server_id, tool_name, arguments).await?;
+        let result = tokio::time::timeout(
+            Duration::from_millis(self.ui_call_policy.call_timeout_ms),
+            self.call_tool(server_id, tool_name, arguments),
+        )
+        .await;
+
+        self.release_ui_call_slot(&session_key).await;
+
+        let result = match result {
+            Ok(Ok(result)) => result,
+            Ok(Err(error)) => {
+                Self::emit_app_bridge_event(
+                    &self.app_handle,
+                    "tool_call_failed",
+                    server_id,
+                    session_id,
+                    request_id,
+                    Some("bridge_request_failed"),
+                    serde_json::json!({
+                        "origin": origin,
+                        "toolName": tool_name,
+                        "error": error.to_string()
+                    }),
+                );
+                return Err(error);
+            }
+            Err(_) => {
+                Self::emit_app_security_event(
+                    &self.app_handle,
+                    server_id,
+                    Some(session_id),
+                    "timeout",
+                    Some("tools/call"),
+                    request_id,
+                    serde_json::json!({
+                        "toolName": tool_name
+                    }),
+                );
+                Self::emit_app_bridge_event(
+                    &self.app_handle,
+                    "tool_call_timed_out",
+                    server_id,
+                    session_id,
+                    request_id,
+                    Some("timeout"),
+                    serde_json::json!({
+                        "origin": origin,
+                        "toolName": tool_name
+                    }),
+                );
+                return Err(McpError::ProtocolError(format!(
+                    "MCP Apps UI call timed out after {}ms",
+                    self.ui_call_policy.call_timeout_ms
+                )));
+            }
+        };
 
         Self::emit_app_bridge_event(
             &self.app_handle,
             "tool_call_completed",
             server_id,
             session_id,
+            request_id,
+            Some("bridge_request_completed"),
             serde_json::json!({
                 "origin": origin,
                 "toolName": tool_name,
@@ -1582,6 +2062,17 @@ impl McpManager {
                 "Max reconnection attempts reached for server: {}",
                 server_id
             );
+            {
+                let mut servers = self.servers.write().await;
+                if let Some(instance) = servers.get_mut(&server_id) {
+                    instance.state.status = McpServerStatus::Error(
+                        "Reconnect attempts exhausted".to_string(),
+                    );
+                    instance.state.error_message = Some("Reconnect attempts exhausted".to_string());
+                    instance.state.reason_code = Some("reconnect_exhausted".to_string());
+                }
+            }
+            self.emit_server_update(&server_id).await;
             return;
         }
 
@@ -1607,6 +2098,7 @@ impl McpManager {
             let mut servers = self.servers.write().await;
             if let Some(instance) = servers.get_mut(&server_id) {
                 instance.state.status = McpServerStatus::Reconnecting;
+                instance.state.reason_code = Some("reconnect_scheduled".to_string());
             }
         }
         self.emit_server_update(&server_id).await;
@@ -1649,19 +2141,29 @@ impl McpManager {
             // Create notification channel and client
             let (notification_tx, notification_rx) = mpsc::channel(100);
 
-            // Get proxy URL if configured (only for SSE connections)
-            let proxy_url = if config.connection_type == McpConnectionType::Sse {
+            // Get proxy URL if configured (only for remote connections)
+            let proxy_url = if matches!(
+                config.connection_type,
+                McpConnectionType::Sse | McpConnectionType::StreamableHttp
+            ) {
                 Self::get_system_proxy_url()
             } else {
                 None
             };
 
-            let client =
-                match Self::create_client(&config, notification_tx, proxy_url.as_deref()).await {
-                    Ok(c) => c,
+            let (client, _) = match Self::create_client_with_fallback(
+                &app_handle,
+                &server_id,
+                &config,
+                notification_tx,
+                proxy_url.as_deref(),
+            )
+            .await
+            {
+                Ok(result) => result,
                     Err(e) => {
                         log::error!("Reconnection failed for {}: {}", server_id, e);
-                        Self::handle_connection_error(&servers, &server_id, &e).await;
+                        Self::handle_connection_error(&servers, &server_id, &e, None).await;
                         Self::emit_server_state(&app_handle, &servers, &server_id).await;
                         return;
                     }
@@ -1678,7 +2180,8 @@ impl McpManager {
                         server_id,
                         e
                     );
-                    Self::handle_connection_error(&servers, &server_id, &e).await;
+                    Self::handle_connection_error(&servers, &server_id, &e, Some("init_failed"))
+                        .await;
                     Self::emit_server_state(&app_handle, &servers, &server_id).await;
                     return;
                 }
@@ -1701,6 +2204,7 @@ impl McpManager {
                 resources,
                 prompts,
                 stop_tx.clone(),
+                "reconnect_succeeded",
             )
             .await;
 
@@ -1892,6 +2396,49 @@ mod tests {
         assert!(!McpManager::parse_truthy_flag("off"));
         assert!(!McpManager::parse_truthy_flag("no"));
         assert!(!McpManager::parse_truthy_flag(""));
+    }
+
+    #[test]
+    fn test_reason_code_for_error_maps_transport_incompatible_variants() {
+        let incompatible = McpError::TransportError("server is incompatible".to_string());
+        assert_eq!(
+            McpManager::reason_code_for_error(&incompatible),
+            "transport_incompatible"
+        );
+
+        let unsupported = McpError::TransportError("handshake unsupported".to_string());
+        assert_eq!(
+            McpManager::reason_code_for_error(&unsupported),
+            "transport_incompatible"
+        );
+    }
+
+    #[test]
+    fn test_should_attempt_streamable_fallback_only_for_compatibility_errors() {
+        let requested = McpConnectionType::StreamableHttp;
+        let compatibility = McpError::TransportError("protocol incompatible".to_string());
+        let timeout = McpError::ConnectionTimeout;
+
+        assert!(McpManager::should_attempt_streamable_fallback(
+            &requested,
+            true,
+            &compatibility
+        ));
+        assert!(!McpManager::should_attempt_streamable_fallback(
+            &requested,
+            true,
+            &timeout
+        ));
+        assert!(!McpManager::should_attempt_streamable_fallback(
+            &requested,
+            false,
+            &compatibility
+        ));
+        assert!(!McpManager::should_attempt_streamable_fallback(
+            &McpConnectionType::Sse,
+            true,
+            &compatibility
+        ));
     }
 
     #[test]

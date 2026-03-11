@@ -5,10 +5,29 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { PluginMarketplace } from './plugin-marketplace';
 
+const mockSetViewMode = jest.fn();
+const mockUseMarketplace = jest.fn();
+
 jest.mock('@/stores/plugin', () => ({
   usePluginStore: () => ({
     plugins: {},
   }),
+}));
+
+jest.mock('@/stores/plugin/plugin-marketplace-store', () => ({
+  usePluginMarketplaceStore: () => ({
+    viewMode: 'grid',
+    setViewMode: mockSetViewMode,
+    searchHistory: [],
+    addSearchHistory: jest.fn(),
+    clearSearchHistory: jest.fn(),
+    recentlyViewed: [],
+    favorites: {},
+  }),
+}));
+
+jest.mock('@/hooks/plugin/use-marketplace', () => ({
+  useMarketplace: () => mockUseMarketplace(),
 }));
 
 const messages = {
@@ -80,12 +99,60 @@ const renderWithProviders = (ui: React.ReactElement) => {
 
 describe('PluginMarketplace', () => {
   const mockHandlers = {
-    onInstall: jest.fn().mockResolvedValue(undefined),
     onViewDetails: jest.fn(),
+  };
+
+  const basePlugin = {
+    id: 'plugin-1',
+    name: 'Plugin One',
+    description: 'Test plugin',
+    author: { name: 'Author', verified: true },
+    version: '1.0.0',
+    latestVersion: '1.0.0',
+    type: 'tool',
+    capabilities: ['tools'],
+    rating: 4.5,
+    reviewCount: 10,
+    downloadCount: 1000,
+    lastUpdated: '2026-03-10',
+    tags: ['test'],
+    featured: true,
+    trending: true,
+    verified: true,
+    installed: false,
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseMarketplace.mockReturnValue({
+      plugins: [basePlugin],
+      featuredPlugins: [basePlugin],
+      trendingPlugins: [basePlugin],
+      isLoading: false,
+      error: null,
+      sourceMode: 'remote',
+      sourceErrorCategory: undefined,
+      sourceErrorMessage: undefined,
+      query: '',
+      sortBy: 'popular',
+      categoryFilter: 'all',
+      quickFilter: 'all',
+      setQuery: jest.fn(),
+      setSortBy: jest.fn(),
+      setCategoryFilter: jest.fn(),
+      setQuickFilter: jest.fn(),
+      setPage: jest.fn(),
+      page: 1,
+      refresh: jest.fn(),
+      installPlugin: jest.fn().mockResolvedValue({ success: true }),
+      updatePlugin: jest.fn().mockResolvedValue({ success: true }),
+      retryPluginOperation: jest.fn().mockResolvedValue({ success: true }),
+      getVersions: jest.fn().mockResolvedValue([]),
+      getInstallProgress: jest.fn(),
+      getOperationError: jest.fn().mockReturnValue({}),
+      isFavorite: jest.fn().mockReturnValue(false),
+      toggleFavorite: jest.fn(),
+    });
   });
 
   it('renders marketplace', () => {

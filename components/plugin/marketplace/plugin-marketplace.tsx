@@ -39,9 +39,11 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { useMarketplace } from '@/hooks/plugin';
+import { useMarketplace } from '@/hooks/plugin/use-marketplace';
 import { usePluginMarketplaceStore } from '@/stores/plugin/plugin-marketplace-store';
 import { cn } from '@/lib/utils';
+import { PluginDetailModal } from './plugin-detail-modal';
+import type { PluginVersionInfo } from '@/lib/plugin';
 
 // Import extracted components
 import {
@@ -79,6 +81,8 @@ const PAGE_SIZE = 20;
 interface PluginMarketplaceProps {
   className?: string;
   onViewDetails?: (plugin: MarketplacePlugin) => void;
+  selectedPluginId?: string | null;
+  onInvalidateSelection?: () => void;
 }
 
 // =============================================================================
@@ -88,6 +92,8 @@ interface PluginMarketplaceProps {
 export function PluginMarketplace({
   className,
   onViewDetails,
+  selectedPluginId: externalSelectedPluginId,
+  onInvalidateSelection,
 }: PluginMarketplaceProps) {
   const t = useTranslations('pluginMarketplace');
   const {
@@ -96,8 +102,26 @@ export function PluginMarketplace({
     trendingPlugins,
     isLoading,
     error,
+    sourceMode,
+    sourceErrorCategory,
+    sourceErrorMessage,
+    query: canonicalQuery,
+    sortBy: canonicalSortBy,
+    categoryFilter: canonicalCategoryFilter,
+    quickFilter: canonicalQuickFilter,
+    setQuery: setCanonicalQuery,
+    setSortBy: setCanonicalSort,
+    setCategoryFilter: setCanonicalCategory,
+    setQuickFilter: setCanonicalQuickFilter,
+    setPage: setCanonicalPage,
+    page: canonicalPage,
     refresh,
     installPlugin,
+    updatePlugin,
+    retryPluginOperation,
+    getVersions,
+    getInstallProgress,
+    getOperationError,
     isFavorite,
     toggleFavorite,
   } = useMarketplace();
@@ -112,29 +136,34 @@ export function PluginMarketplace({
     favorites,
   } = usePluginMarketplaceStore();
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(canonicalQuery);
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [sortBy, setSortByState] = useState<SortOption>('popular');
-  const [categoryFilter, setCategoryFilterState] = useState<CategoryFilter>('all');
-  const [quickFilter, setQuickFilterState] = useState<QuickFilter>('all');
+  const [sortBy, setSortByState] = useState<SortOption>(canonicalSortBy);
+  const [categoryFilter, setCategoryFilterState] = useState<CategoryFilter>(canonicalCategoryFilter as CategoryFilter);
+  const [quickFilter, setQuickFilterState] = useState<QuickFilter>(canonicalQuickFilter as QuickFilter);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [errorDismissed, setErrorDismissed] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [detailPluginId, setDetailPluginId] = useState<string | null>(externalSelectedPluginId || null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [pluginVersions, setPluginVersions] = useState<Record<string, PluginVersionInfo[]>>({});
 
   // Search debounce + persist to search history
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(searchQuery);
       setVisibleCount(PAGE_SIZE);
+      setCanonicalQuery(searchQuery);
+      setCanonicalPage(1);
       if (searchQuery.trim().length >= 2) {
         addSearchHistory(searchQuery.trim());
       }
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [searchQuery, addSearchHistory]);
+  }, [searchQuery, addSearchHistory, setCanonicalQuery, setCanonicalPage]);
 
   // Close search suggestions when clicking outside
   useEffect(() => {
@@ -188,41 +217,72 @@ export function PluginMarketplace({
     await installPlugin(pluginId);
   }, [installPlugin]);
 
+  const handleUpdate = useCallback(async (pluginId: string, version?: string) => {
+    await updatePlugin(pluginId, version);
+  }, [updatePlugin]);
+
+  const handleRetry = useCallback(
+    async (pluginId: string, operation: 'install' | 'update', version?: string) => {
+      await retryPluginOperation(pluginId, operation, version);
+    },
+    [retryPluginOperation]
+  );
+
+  const handleViewDetails = useCallback((plugin: MarketplacePlugin) => {
+    setDetailPluginId(plugin.id);
+    setIsDetailOpen(true);
+    onViewDetails?.(plugin);
+  }, [onViewDetails]);
+
   const setSortBy = useCallback((v: SortOption) => {
     setSortByState(v);
     setVisibleCount(PAGE_SIZE);
-  }, []);
+    setCanonicalSort(v);
+    setCanonicalPage(1);
+  }, [setCanonicalSort, setCanonicalPage]);
 
   const setCategoryFilter = useCallback((v: CategoryFilter) => {
     setCategoryFilterState(v);
     setVisibleCount(PAGE_SIZE);
-  }, []);
+    setCanonicalCategory(v);
+    setCanonicalPage(1);
+  }, [setCanonicalCategory, setCanonicalPage]);
 
   const setQuickFilter = useCallback((v: QuickFilter) => {
     setQuickFilterState(v);
     setVisibleCount(PAGE_SIZE);
-  }, []);
+    setCanonicalQuickFilter(v);
+    setCanonicalPage(1);
+  }, [setCanonicalQuickFilter, setCanonicalPage]);
 
   const clearFilters = useCallback(() => {
     setSearchQuery('');
     setDebouncedQuery('');
     setCategoryFilter('all');
     setQuickFilter('all');
-  }, [setCategoryFilter, setQuickFilter]);
+    setCanonicalQuery('');
+    setCanonicalCategory('all');
+    setCanonicalQuickFilter('all');
+    setCanonicalPage(1);
+  }, [setCategoryFilter, setQuickFilter, setCanonicalQuery, setCanonicalCategory, setCanonicalQuickFilter, setCanonicalPage]);
 
   const handleSearchSelect = useCallback((term: string) => {
     setSearchQuery(term);
     setDebouncedQuery(term);
     setVisibleCount(PAGE_SIZE);
     setIsSearchFocused(false);
-  }, []);
+    setCanonicalQuery(term);
+    setCanonicalPage(1);
+  }, [setCanonicalQuery, setCanonicalPage]);
 
   const handleCollectionClick = useCallback((collectionTags: string[]) => {
     if (collectionTags.length > 0) {
       setSearchQuery(collectionTags[0]);
       setDebouncedQuery(collectionTags[0]);
+      setCanonicalQuery(collectionTags[0]);
+      setCanonicalPage(1);
     }
-  }, []);
+  }, [setCanonicalQuery, setCanonicalPage]);
 
   const handleTrendingViewAll = useCallback(() => {
     setQuickFilter('popular');
@@ -294,6 +354,37 @@ export function PluginMarketplace({
     [filteredPlugins, visibleCount]
   );
   const hasMore = visibleCount < filteredPlugins.length;
+  const selectedDetailPlugin = useMemo(
+    () => marketplacePlugins.find((plugin) => plugin.id === detailPluginId) || null,
+    [marketplacePlugins, detailPluginId]
+  );
+  const isLoadingVersions = Boolean(
+    isDetailOpen && detailPluginId && !pluginVersions[detailPluginId]
+  );
+
+  useEffect(() => {
+    const trackedSelectionId = externalSelectedPluginId || detailPluginId;
+    if (!trackedSelectionId || !onInvalidateSelection) return;
+    const exists = filteredPlugins.some((plugin) => plugin.id === trackedSelectionId);
+    if (!exists) {
+      onInvalidateSelection();
+    }
+  }, [externalSelectedPluginId, detailPluginId, onInvalidateSelection, filteredPlugins]);
+
+  useEffect(() => {
+    if (!isDetailOpen || !detailPluginId) return;
+    if (pluginVersions[detailPluginId]) return;
+    let cancelled = false;
+    getVersions(detailPluginId)
+      .then((versions) => {
+        if (cancelled) return;
+        setPluginVersions((prev) => ({ ...prev, [detailPluginId]: versions }));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isDetailOpen, detailPluginId, getVersions, pluginVersions]);
 
   // IntersectionObserver for infinite scroll
   useEffect(() => {
@@ -302,7 +393,14 @@ export function PluginMarketplace({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          setVisibleCount((c) => c + PAGE_SIZE);
+          setVisibleCount((c) => {
+            const next = c + PAGE_SIZE;
+            const nextPage = Math.max(1, Math.ceil(next / PAGE_SIZE));
+            if (nextPage !== canonicalPage) {
+              setCanonicalPage(nextPage);
+            }
+            return next;
+          });
         }
       },
       { rootMargin: '200px' }
@@ -311,12 +409,25 @@ export function PluginMarketplace({
       observer.observe(sentinel);
     }
     return () => observer.disconnect();
-  }, [hasMore]);
+  }, [hasMore, canonicalPage, setCanonicalPage]);
 
   const hasActiveFilters = debouncedQuery || categoryFilter !== 'all' || quickFilter !== 'all';
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
+      {/* Fallback Source Banner */}
+      {sourceMode === 'fallback-mock' && (
+        <div className="flex items-center gap-2 px-4 sm:px-6 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-800 dark:text-amber-200 text-sm">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span className="flex-1 truncate">
+            {sourceErrorMessage || `Marketplace fallback mode (${sourceErrorCategory || 'unknown'})`}
+          </span>
+          <Button variant="ghost" size="sm" className="h-7 text-xs shrink-0" onClick={() => refresh()}>
+            {t('error.retry')}
+          </Button>
+        </div>
+      )}
+
       {/* Error Banner */}
       {error && !errorDismissed && (
         <div className="flex items-center gap-2 px-4 sm:px-6 py-2 bg-destructive/10 border-b border-destructive/20 text-destructive text-sm">
@@ -355,7 +466,7 @@ export function PluginMarketplace({
                     <FeaturedPluginCard
                       plugin={plugin}
                       onInstall={handleInstall}
-                      onViewDetails={onViewDetails}
+                      onViewDetails={handleViewDetails}
                       isFavorite={isFavorite(plugin.id)}
                       onToggleFavorite={toggleFavorite}
                     />
@@ -370,7 +481,7 @@ export function PluginMarketplace({
                   key={plugin.id}
                   plugin={plugin}
                   onInstall={handleInstall}
-                  onViewDetails={onViewDetails}
+                  onViewDetails={handleViewDetails}
                   isFavorite={isFavorite(plugin.id)}
                   onToggleFavorite={toggleFavorite}
                 />
@@ -419,7 +530,7 @@ export function PluginMarketplace({
                   <FeaturedPluginCard
                     plugin={plugin}
                     onInstall={handleInstall}
-                    onViewDetails={onViewDetails}
+                    onViewDetails={handleViewDetails}
                     isFavorite={true}
                     onToggleFavorite={toggleFavorite}
                   />
@@ -432,7 +543,7 @@ export function PluginMarketplace({
       )}
 
       {/* Recently Viewed Section */}
-      <RecentlyViewedSection plugins={recentlyViewedPlugins} onViewDetails={onViewDetails} />
+      <RecentlyViewedSection plugins={recentlyViewedPlugins} onViewDetails={handleViewDetails} />
 
       {/* Trending Section */}
       <div className="p-4 sm:px-6 border-b">
@@ -452,7 +563,7 @@ export function PluginMarketplace({
               <TrendingPluginItem
                 key={plugin.id}
                 plugin={plugin}
-                onClick={() => onViewDetails?.(plugin)}
+                onClick={() => handleViewDetails(plugin)}
               />
             ))}
           </div>
@@ -575,7 +686,12 @@ export function PluginMarketplace({
                 variant="ghost"
                 size="icon"
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                onClick={() => { setSearchQuery(''); setDebouncedQuery(''); }}
+                onClick={() => {
+                  setSearchQuery('');
+                  setDebouncedQuery('');
+                  setCanonicalQuery('');
+                  setCanonicalPage(1);
+                }}
               >
                 <X className="h-3.5 w-3.5" />
               </Button>
@@ -682,7 +798,7 @@ export function PluginMarketplace({
                     <PluginGridCard
                       plugin={plugin}
                       onInstall={handleInstall}
-                      onViewDetails={onViewDetails}
+                      onViewDetails={handleViewDetails}
                       isFavorite={isFavorite(plugin.id)}
                       onToggleFavorite={toggleFavorite}
                     />
@@ -707,7 +823,7 @@ export function PluginMarketplace({
                     <PluginListItem
                       plugin={plugin}
                       onInstall={handleInstall}
-                      onViewDetails={onViewDetails}
+                      onViewDetails={handleViewDetails}
                       isFavorite={isFavorite(plugin.id)}
                       onToggleFavorite={toggleFavorite}
                     />
@@ -738,6 +854,24 @@ export function PluginMarketplace({
           )}
         </div>
       </div>
+
+      <PluginDetailModal
+        plugin={selectedDetailPlugin}
+        open={isDetailOpen && selectedDetailPlugin != null}
+        onOpenChange={(open) => {
+          setIsDetailOpen(open);
+          if (!open) {
+            setDetailPluginId(null);
+          }
+        }}
+        onInstall={handleInstall}
+        onUpdate={handleUpdate}
+        onRetry={handleRetry}
+        installProgress={selectedDetailPlugin ? getInstallProgress(selectedDetailPlugin.id) : undefined}
+        availableVersions={selectedDetailPlugin ? pluginVersions[selectedDetailPlugin.id] || [] : []}
+        isLoadingVersions={isLoadingVersions}
+        operationError={selectedDetailPlugin ? getOperationError(selectedDetailPlugin.id) : undefined}
+      />
     </div>
   );
 }

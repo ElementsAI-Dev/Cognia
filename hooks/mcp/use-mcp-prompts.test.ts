@@ -35,7 +35,9 @@ jest.mock('@/stores', () => ({
 describe('useMcpPrompts', () => {
   const mockGetPrompt = jest.fn();
 
-  const createServer = (overrides: Partial<McpServerState> = {}): McpServerState => ({
+  const createServer = (
+    overrides: Omit<Partial<McpServerState>, 'connectionVersion'> & { connectionVersion?: number } = {}
+  ): McpServerState => ({
     id: 'server-1',
     name: 'Test Server',
     config: {
@@ -57,6 +59,7 @@ describe('useMcpPrompts', () => {
       { name: 'translate', description: 'Translate text', arguments: [{ name: 'language', required: true }] },
     ] as McpPrompt[],
     reconnectAttempts: 0,
+    connectionVersion: 1,
     ...overrides,
   });
 

@@ -5,6 +5,11 @@ import { PluginManager } from '@/lib/plugin/core/manager';
 import type { Plugin, PluginManifest } from '@/types/plugin';
 import { getPluginSignatureVerifier } from '@/lib/plugin/security/signature';
 import { getPermissionGuard } from '@/lib/plugin/security/permission-guard';
+import {
+  clearPluginExtensions,
+  createExtensionAPI,
+  getPluginExtensionRegistrationCount,
+} from '@/lib/plugin/api/extension-api';
 
 jest.mock('@tauri-apps/api/core', () => ({
   invoke: jest.fn(),
@@ -157,6 +162,9 @@ describe('Plugin lifecycle conformance', () => {
       unregisterPlugin: jest.fn(),
       revokeAll: jest.fn(),
     });
+
+    clearPluginExtensions('ts-conformance');
+    clearPluginExtensions('py-conformance');
   });
 
   it('runs frontend and python plugin lifecycle with tool execution', async () => {
@@ -180,6 +188,10 @@ describe('Plugin lifecycle conformance', () => {
     await manager.enablePlugin('ts-conformance');
     await manager.enablePlugin('py-conformance');
 
+    const extensionApi = createExtensionAPI('ts-conformance');
+    extensionApi.registerExtension('chat.header', () => null);
+    expect(getPluginExtensionRegistrationCount('ts-conformance')).toBe(1);
+
     const tool = manager.getRegistry().getTool('py-conformance:sum');
     expect(tool).toBeDefined();
     const execution = await tool!.execute(
@@ -190,6 +202,9 @@ describe('Plugin lifecycle conformance', () => {
 
     await manager.disablePlugin('ts-conformance');
     await manager.disablePlugin('py-conformance');
+
+    expect(getPluginExtensionRegistrationCount('ts-conformance')).toBe(0);
+    expect(getPluginExtensionRegistrationCount('py-conformance')).toBe(0);
 
     const store = mockGetState.mock.results[0].value as ReturnType<typeof createStore>;
     expect(store.plugins['ts-conformance'].status).toBe('disabled');

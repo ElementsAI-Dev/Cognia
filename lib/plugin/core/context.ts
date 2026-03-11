@@ -148,6 +148,8 @@ export function createFullPluginContext(
   
   // Get the base context (with optional debug mode)
   const baseContext = createPluginContext(plugin, manager, options);
+
+  const permissionsAPI = createPermissionAPI(pluginId, plugin.manifest.permissions || []);
   
   // Create feature APIs
   const contextAPI: PluginContextAPI = {
@@ -162,8 +164,11 @@ export function createFullPluginContext(
     media: createMediaAPI(pluginId, manager),
     notifications: createNotificationCenterAPI(pluginId),
     ai: createAIProviderAPI(pluginId),
-    extensions: createExtensionAPI(pluginId),
-    permissions: createPermissionAPI(pluginId, plugin.manifest.permissions || []),
+    extensions: createExtensionAPI(pluginId, {
+      governanceMode: manager.getPluginPointGovernanceMode(),
+      hasPermission: (permission) => permissionsAPI.hasPermission(permission as never),
+    }),
+    permissions: permissionsAPI,
   };
 
   // Add new communication and utility APIs to base context

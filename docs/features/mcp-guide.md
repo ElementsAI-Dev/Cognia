@@ -25,7 +25,7 @@ MCP is an open protocol that allows AI assistants to:
 Cognia Frontend (React)
     ↓ JSON-RPC 2.0
 Cognia Backend (Rust/Tauri)
-    ↓ stdio / SSE
+    ↓ stdio / SSE / Streamable HTTP
 MCP Servers (Node.js, Python, etc.)
     ↓
 External Services (Filesystem, GitHub, Database, etc.)
@@ -409,6 +409,33 @@ Read the last 50 messages from #general and summarize key points.
 - Requires network
 - More complex setup
 
+#### Streamable HTTP (Remote MCP)
+
+**How it works**: Uses dedicated `streamableHttp` mode for modern remote MCP endpoints, with optional fallback to SSE.
+
+**Best for**: MCP servers that support streamable HTTP handshake semantics.
+
+**Configuration**:
+
+```json
+{
+  "name": "remote-streamable-server",
+  "url": "https://api.example.com/mcp",
+  "messageUrl": "https://api.example.com/mcp/message",
+  "connectionType": "streamableHttp",
+  "fallbackToSse": true,
+  "env": {
+    "AUTH_TOKEN": "your-token"
+  }
+}
+```
+
+**Operational notes**:
+
+- Keep `fallbackToSse` enabled during rollout to preserve deterministic downgrade behavior.
+- Inspect `mcp:transport-event` for selected transport and fallback reason code.
+- Use `reasonCode` from server updates (`transport_incompatible`, `transport_timeout`, etc.) for troubleshooting.
+
 ### MCP Apps Host (Interactive Widget Runtime)
 
 Cognia supports MCP Apps widget hosting behind feature flags.
@@ -667,7 +694,7 @@ Create custom prompts in server configuration:
 - Name: Display name
 - Command: Executable command
 - Args: Command arguments
-- Connection Type: stdio or SSE
+- Connection Type: stdio, SSE, or Streamable HTTP
 
 **Environment Variables**:
 
@@ -779,6 +806,22 @@ Create custom prompts in server configuration:
 - Check network connection
 - Disable firewall temporarily
 - Use HTTP instead of HTTPS (local)
+
+### Connection Issues (Streamable HTTP)
+
+**Check**:
+
+- Server supports streamable HTTP handshake semantics
+- `messageUrl` is correct when server uses a non-default POST endpoint
+- `fallbackToSse` is enabled if compatibility is uncertain
+- Latest `reasonCode` in server state (`transport_incompatible`, `transport_timeout`, `transport_unreachable`)
+
+**Solutions**:
+
+- Enable fallback and retry connection
+- Temporarily switch connection type to SSE
+- Verify proxy and TLS settings in the desktop environment
+- Check `mcp:transport-event` for fallback attempt/selection telemetry
 
 ### Performance Issues
 
@@ -976,6 +1019,15 @@ If MCP Apps runtime causes regressions:
 2. Set `COGNIA_ENABLE_MCP_APPS_HOST=false`.
 3. Restart Cognia desktop process.
 4. Verify tool output returns to legacy renderer path.
+
+### Remote Transport Rollback
+
+If streamable HTTP rollout introduces instability:
+
+1. Change affected server `connectionType` from `streamableHttp` to `sse`.
+2. Keep `fallbackToSse=true` while validating recovery.
+3. Reconnect server from Settings > MCP.
+4. Confirm `mcp:server-update` reason codes return to steady-state (`connect_succeeded` / `reconnect_succeeded`).
 
 ### Data Privacy
 

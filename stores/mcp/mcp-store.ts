@@ -90,7 +90,8 @@ interface McpState {
     sessionId: string,
     origin: string,
     toolName: string,
-    args: Record<string, unknown>
+    args: Record<string, unknown>,
+    requestId?: string
   ) => Promise<ToolCallResult>;
   readResource: (serverId: string, uri: string) => Promise<ResourceContent>;
   getPrompt: (
@@ -275,13 +276,16 @@ export const useMcpStore = create<McpState>((set, get) => ({
           typeof payload?.serverId === 'string' ? payload.serverId : undefined;
         const sessionId =
           typeof payload?.sessionId === 'string' ? payload.sessionId : undefined;
-        const securityType =
-          typeof payload?.type === 'string' ? payload.type : 'unknown';
+        const reasonCode =
+          typeof payload?.reasonCode === 'string' ? payload.reasonCode : 'unknown';
+        const method = typeof payload?.method === 'string' ? payload.method : undefined;
+        const requestId =
+          typeof payload?.requestId === 'string' ? payload.requestId : undefined;
 
-        log.warn(`MCP app security event: ${securityType}`, payload);
+        log.warn(`MCP app security event: ${reasonCode}`, payload);
         get().addLog({
           level: 'warning',
-          message: `MCP App security event (${securityType})${sessionId ? ` [session:${sessionId}]` : ''}`,
+          message: `MCP App security event (${reasonCode})${method ? ` [${method}]` : ''}${sessionId ? ` [session:${sessionId}]` : ''}${requestId ? ` [request:${requestId}]` : ''}`,
           serverId,
           serverName: get().servers.find((s) => s.id === serverId)?.name,
           logger: 'mcp-app-security',
@@ -386,13 +390,14 @@ export const useMcpStore = create<McpState>((set, get) => ({
     return result;
   },
 
-  callToolFromUi: async (serverId, sessionId, origin, toolName, args) => {
+  callToolFromUi: async (serverId, sessionId, origin, toolName, args, requestId) => {
     return invoke<ToolCallResult>('mcp_call_tool_from_ui', {
       serverId,
       sessionId,
       origin,
       toolName,
       arguments: args,
+      requestId,
     });
   },
 
@@ -665,7 +670,10 @@ export const useMcpStore = create<McpState>((set, get) => ({
     // Auto-sync tool descriptions when server status changes
     const wasConnected = prev?.status.type === 'connected';
     const isConnected = state.status.type === 'connected';
-    if (isConnected && !wasConnected) {
+    const connectionVersionChanged =
+      typeof prev?.connectionVersion === 'number' &&
+      prev.connectionVersion !== state.connectionVersion;
+    if (isConnected && (!wasConnected || connectionVersionChanged)) {
       // Server just connected — sync tools to context files
       syncMcpServer(state.id, state.name, state.tools || [], 'connected').catch((err) =>
         log.error(`Failed to sync MCP tools for ${state.id}`, err as Error)
@@ -687,7 +695,10 @@ export const useMcpStore = create<McpState>((set, get) => ({
       const prev = prevServers.find((s) => s.id === server.id);
       const wasConnected = prev?.status.type === 'connected';
       const isConnected = server.status.type === 'connected';
-      if (isConnected && !wasConnected) {
+      const connectionVersionChanged =
+        typeof prev?.connectionVersion === 'number' &&
+        prev.connectionVersion !== server.connectionVersion;
+      if (isConnected && (!wasConnected || connectionVersionChanged)) {
         syncMcpServer(server.id, server.name, server.tools || [], 'connected').catch((err) =>
           log.error(`Failed to sync MCP tools for ${server.id}`, err as Error)
         );

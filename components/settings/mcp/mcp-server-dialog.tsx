@@ -66,6 +66,7 @@ export function McpServerDialog({
     setCommand,
     setConnectionType,
     setUrl,
+    setFallbackToSse,
     setEnabled,
     setAutoStart,
     setNewArg,
@@ -83,7 +84,7 @@ export function McpServerDialog({
   });
 
   const {
-    data: { name, command, args, env, connectionType, url, enabled, autoStart },
+    data: { name, command, args, env, connectionType, url, fallbackToSse, enabled, autoStart },
     newArg,
     newEnvKey,
     newEnvValue,
@@ -125,6 +126,7 @@ export function McpServerDialog({
               <SelectContent>
                 <SelectItem value="stdio">{t('stdio')}</SelectItem>
                 <SelectItem value="sse">{t('sse')}</SelectItem>
+                <SelectItem value="streamableHttp">Streamable HTTP</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -194,16 +196,33 @@ export function McpServerDialog({
               </div>
             </>
           ) : (
-            /* SSE URL */
-            <div className="space-y-2">
-              <Label htmlFor="sse-url">{t('serverUrl')}</Label>
-              <Input
-                id="sse-url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder={t('serverUrlPlaceholder')}
-              />
-            </div>
+            <>
+              {/* Remote URL */}
+              <div className="space-y-2">
+                <Label htmlFor="sse-url">{t('serverUrl')}</Label>
+                <Input
+                  id="sse-url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder={t('serverUrlPlaceholder')}
+                />
+              </div>
+              {connectionType === 'streamableHttp' && (
+                <div className="flex items-center justify-between pt-1">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="fallback-to-sse">Fallback to SSE</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Automatically retry with SSE when streamable HTTP is incompatible
+                    </p>
+                  </div>
+                  <Switch
+                    id="fallback-to-sse"
+                    checked={fallbackToSse}
+                    onCheckedChange={setFallbackToSse}
+                  />
+                </div>
+              )}
+            </>
           )}
 
           {/* Environment Variables */}

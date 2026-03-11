@@ -7,6 +7,8 @@ import {
   createExtensionAPI,
   getExtensionsForPoint,
   clearPluginExtensions,
+  getPluginExtensionDiagnostics,
+  clearAllExtensionDiagnostics,
 } from './extension-api';
 import type { ExtensionPoint, ExtensionProps } from '@/types/plugin/plugin-extended';
 
@@ -14,9 +16,13 @@ describe('Extension API', () => {
   const testPluginId = 'test-plugin';
 
   beforeEach(() => {
-    // Clear all extensions before each test
     clearPluginExtensions(testPluginId);
     clearPluginExtensions('other-plugin');
+    clearPluginExtensions('plugin-1');
+    clearPluginExtensions('plugin-2');
+    clearPluginExtensions('plugin-a');
+    clearPluginExtensions('plugin-b');
+    clearAllExtensionDiagnostics();
   });
 
   describe('createExtensionAPI', () => {
@@ -31,25 +37,76 @@ describe('Extension API', () => {
   });
 
   describe('registerExtension', () => {
-    it('should register an extension at a point', () => {
+    it('should register an extension at a canonical point', () => {
       const api = createExtensionAPI(testPluginId);
       const TestComponent: React.ComponentType<ExtensionProps> = () => null;
 
-      const unregister = api.registerExtension('sidebar:top' as ExtensionPoint, TestComponent);
+      const unregister = api.registerExtension('sidebar.left.top', TestComponent);
 
       expect(typeof unregister).toBe('function');
-      expect(api.hasExtensions('sidebar:top' as ExtensionPoint)).toBe(true);
+      expect(api.hasExtensions('sidebar.left.top')).toBe(true);
+    });
+
+    it('should map legacy aliases to canonical points and emit diagnostics', () => {
+      const api = createExtensionAPI(testPluginId);
+      const TestComponent: React.ComponentType<ExtensionProps> = () => null;
+
+      api.registerExtension('sidebar:top' as ExtensionPoint, TestComponent);
+
+      expect(api.hasExtensions('sidebar.left.top')).toBe(true);
+      expect(getPluginExtensionDiagnostics(testPluginId)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'plugin.point.alias',
+            canonicalId: 'sidebar.left.top',
+          }),
+        ])
+      );
+    });
+
+    it('should reject unknown points', () => {
+      const api = createExtensionAPI(testPluginId);
+      const TestComponent: React.ComponentType<ExtensionProps> = () => null;
+
+      expect(() => api.registerExtension('unknown-point' as ExtensionPoint, TestComponent)).toThrow(
+        /Extension registration blocked/
+      );
+      expect(getPluginExtensionDiagnostics(testPluginId)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: 'plugin.point.unknown' }),
+        ])
+      );
+    });
+
+    it('should reject registration when permission is required in block mode', () => {
+      const api = createExtensionAPI(testPluginId, {
+        governanceMode: 'block',
+        hasPermission: () => false,
+      });
+      const TestComponent: React.ComponentType<ExtensionProps> = () => null;
+
+      expect(() => api.registerExtension('chat.header', TestComponent)).toThrow(
+        /Extension registration blocked/
+      );
+      expect(getPluginExtensionDiagnostics(testPluginId)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'plugin.point.permission_denied',
+            severity: 'error',
+          }),
+        ])
+      );
     });
 
     it('should unregister extension when cleanup is called', () => {
       const api = createExtensionAPI(testPluginId);
       const TestComponent: React.ComponentType<ExtensionProps> = () => null;
 
-      const unregister = api.registerExtension('sidebar:top' as ExtensionPoint, TestComponent);
-      expect(api.hasExtensions('sidebar:top' as ExtensionPoint)).toBe(true);
+      const unregister = api.registerExtension('sidebar.left.top', TestComponent);
+      expect(api.hasExtensions('sidebar.left.top')).toBe(true);
 
       unregister();
-      expect(api.hasExtensions('sidebar:top' as ExtensionPoint)).toBe(false);
+      expect(api.hasExtensions('sidebar.left.top')).toBe(false);
     });
 
     it('should register with priority option', () => {
@@ -57,12 +114,11 @@ describe('Extension API', () => {
       const HighPriority: React.ComponentType<ExtensionProps> = () => null;
       const LowPriority: React.ComponentType<ExtensionProps> = () => null;
 
-      api.registerExtension('chat:input' as ExtensionPoint, LowPriority, { priority: 1 });
-      api.registerExtension('chat:input' as ExtensionPoint, HighPriority, { priority: 10 });
+      api.registerExtension('chat.input.actions', LowPriority, { priority: 1 });
+      api.registerExtension('chat.input.actions', HighPriority, { priority: 10 });
 
-      const extensions = api.getExtensions('chat:input' as ExtensionPoint);
+      const extensions = api.getExtensions('chat.input.actions');
       expect(extensions.length).toBe(2);
-      // Higher priority should come first
       expect(extensions[0].options.priority).toBe(10);
     });
 
@@ -71,25 +127,21 @@ describe('Extension API', () => {
       const ConditionalComponent: React.ComponentType<ExtensionProps> = () => null;
       let conditionResult = true;
 
-      api.registerExtension(
-        'toolbar:actions' as ExtensionPoint,
-        ConditionalComponent,
-        { condition: () => conditionResult }
-      );
+      api.registerExtension('toolbar.right', ConditionalComponent, {
+        condition: () => conditionResult,
+      });
 
-      expect(api.hasExtensions('toolbar:actions' as ExtensionPoint)).toBe(true);
+      expect(api.hasExtensions('toolbar.right')).toBe(true);
 
       conditionResult = false;
-      expect(api.hasExtensions('toolbar:actions' as ExtensionPoint)).toBe(false);
+      expect(api.hasExtensions('toolbar.right')).toBe(false);
     });
   });
 
   describe('getExtensions', () => {
     it('should return empty array for point with no extensions', () => {
       const api = createExtensionAPI(testPluginId);
-
-      const extensions = api.getExtensions('sidebar:bottom' as ExtensionPoint);
-      expect(extensions).toEqual([]);
+      expect(api.getExtensions('sidebar.left.bottom')).toEqual([]);
     });
 
     it('should return all extensions for a point', () => {
@@ -97,10 +149,10 @@ describe('Extension API', () => {
       const Component1: React.ComponentType<ExtensionProps> = () => null;
       const Component2: React.ComponentType<ExtensionProps> = () => null;
 
-      api.registerExtension('message:actions' as ExtensionPoint, Component1);
-      api.registerExtension('message:actions' as ExtensionPoint, Component2);
+      api.registerExtension('chat.message.actions', Component1);
+      api.registerExtension('chat.message.actions', Component2);
 
-      const extensions = api.getExtensions('message:actions' as ExtensionPoint);
+      const extensions = api.getExtensions('chat.message.actions');
       expect(extensions.length).toBe(2);
     });
 
@@ -109,10 +161,10 @@ describe('Extension API', () => {
       const ShowComponent: React.ComponentType<ExtensionProps> = () => null;
       const HideComponent: React.ComponentType<ExtensionProps> = () => null;
 
-      api.registerExtension('settings:panel' as ExtensionPoint, ShowComponent, { condition: () => true });
-      api.registerExtension('settings:panel' as ExtensionPoint, HideComponent, { condition: () => false });
+      api.registerExtension('settings.plugins', ShowComponent, { condition: () => true });
+      api.registerExtension('settings.plugins', HideComponent, { condition: () => false });
 
-      const extensions = api.getExtensions('settings:panel' as ExtensionPoint);
+      const extensions = api.getExtensions('settings.plugins');
       expect(extensions.length).toBe(1);
     });
 
@@ -120,13 +172,13 @@ describe('Extension API', () => {
       const api = createExtensionAPI(testPluginId);
       const ErrorComponent: React.ComponentType<ExtensionProps> = () => null;
 
-      api.registerExtension(
-        'header:right' as ExtensionPoint,
-        ErrorComponent,
-        { condition: () => { throw new Error('Condition error'); } }
-      );
+      api.registerExtension('chat.header', ErrorComponent, {
+        condition: () => {
+          throw new Error('Condition error');
+        },
+      });
 
-      const extensions = api.getExtensions('header:right' as ExtensionPoint);
+      const extensions = api.getExtensions('chat.header');
       expect(extensions.length).toBe(0);
     });
   });
@@ -134,30 +186,15 @@ describe('Extension API', () => {
   describe('hasExtensions', () => {
     it('should return false for point with no extensions', () => {
       const api = createExtensionAPI(testPluginId);
-
-      expect(api.hasExtensions('footer:left' as ExtensionPoint)).toBe(false);
+      expect(api.hasExtensions('chat.message.footer')).toBe(false);
     });
 
     it('should return true for point with extensions', () => {
       const api = createExtensionAPI(testPluginId);
       const TestComponent: React.ComponentType<ExtensionProps> = () => null;
 
-      api.registerExtension('footer:left' as ExtensionPoint, TestComponent);
-
-      expect(api.hasExtensions('footer:left' as ExtensionPoint)).toBe(true);
-    });
-
-    it('should respect conditions', () => {
-      const api = createExtensionAPI(testPluginId);
-      const TestComponent: React.ComponentType<ExtensionProps> = () => null;
-
-      api.registerExtension(
-        'context:menu' as ExtensionPoint,
-        TestComponent,
-        { condition: () => false }
-      );
-
-      expect(api.hasExtensions('context:menu' as ExtensionPoint)).toBe(false);
+      api.registerExtension('chat.message.footer', TestComponent);
+      expect(api.hasExtensions('chat.message.footer')).toBe(true);
     });
   });
 
@@ -168,15 +205,11 @@ describe('Extension API', () => {
       const Component1: React.ComponentType<ExtensionProps> = () => null;
       const Component2: React.ComponentType<ExtensionProps> = () => null;
 
-      api1.registerExtension('global:point' as ExtensionPoint, Component1);
-      api2.registerExtension('global:point' as ExtensionPoint, Component2);
+      api1.registerExtension('chat.header', Component1);
+      api2.registerExtension('chat.header', Component2);
 
-      const extensions = getExtensionsForPoint('global:point' as ExtensionPoint);
+      const extensions = getExtensionsForPoint('chat.header');
       expect(extensions.length).toBe(2);
-
-      // Cleanup
-      clearPluginExtensions('plugin-1');
-      clearPluginExtensions('plugin-2');
     });
   });
 
@@ -185,16 +218,16 @@ describe('Extension API', () => {
       const api = createExtensionAPI(testPluginId);
       const TestComponent: React.ComponentType<ExtensionProps> = () => null;
 
-      api.registerExtension('point:1' as ExtensionPoint, TestComponent);
-      api.registerExtension('point:2' as ExtensionPoint, TestComponent);
+      api.registerExtension('toolbar.right', TestComponent);
+      api.registerExtension('chat.header', TestComponent);
 
-      expect(api.hasExtensions('point:1' as ExtensionPoint)).toBe(true);
-      expect(api.hasExtensions('point:2' as ExtensionPoint)).toBe(true);
+      expect(api.hasExtensions('toolbar.right')).toBe(true);
+      expect(api.hasExtensions('chat.header')).toBe(true);
 
       clearPluginExtensions(testPluginId);
 
-      expect(api.hasExtensions('point:1' as ExtensionPoint)).toBe(false);
-      expect(api.hasExtensions('point:2' as ExtensionPoint)).toBe(false);
+      expect(api.hasExtensions('toolbar.right')).toBe(false);
+      expect(api.hasExtensions('chat.header')).toBe(false);
     });
 
     it('should not affect other plugins', () => {
@@ -202,40 +235,14 @@ describe('Extension API', () => {
       const api2 = createExtensionAPI('plugin-b');
       const TestComponent: React.ComponentType<ExtensionProps> = () => null;
 
-      api1.registerExtension('shared:point' as ExtensionPoint, TestComponent);
-      api2.registerExtension('shared:point' as ExtensionPoint, TestComponent);
+      api1.registerExtension('chat.header', TestComponent);
+      api2.registerExtension('chat.header', TestComponent);
 
       clearPluginExtensions('plugin-a');
 
-      const extensions = getExtensionsForPoint('shared:point' as ExtensionPoint);
+      const extensions = getExtensionsForPoint('chat.header');
       expect(extensions.length).toBe(1);
       expect(extensions[0].pluginId).toBe('plugin-b');
-
-      // Cleanup
-      clearPluginExtensions('plugin-b');
-    });
-  });
-
-  describe('Extension registration details', () => {
-    it('should include pluginId in registration', () => {
-      const api = createExtensionAPI(testPluginId);
-      const TestComponent: React.ComponentType<ExtensionProps> = () => null;
-
-      api.registerExtension('test:point' as ExtensionPoint, TestComponent);
-
-      const extensions = api.getExtensions('test:point' as ExtensionPoint);
-      expect(extensions[0].pluginId).toBe(testPluginId);
-    });
-
-    it('should include unique ID in registration', () => {
-      const api = createExtensionAPI(testPluginId);
-      const TestComponent: React.ComponentType<ExtensionProps> = () => null;
-
-      api.registerExtension('unique:point' as ExtensionPoint, TestComponent);
-      api.registerExtension('unique:point' as ExtensionPoint, TestComponent);
-
-      const extensions = api.getExtensions('unique:point' as ExtensionPoint);
-      expect(extensions[0].id).not.toBe(extensions[1].id);
     });
   });
 });

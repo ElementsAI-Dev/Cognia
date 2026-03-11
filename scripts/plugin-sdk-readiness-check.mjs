@@ -40,6 +40,16 @@ const checks = [
     args: ['scripts/verify-plugin-sdk-doc-commands.mjs'],
   },
   {
+    id: 'plugin-point-contract-audit',
+    command: 'pnpm',
+    args: ['audit:plugin-points'],
+  },
+  {
+    id: 'plugin-point-parity-check',
+    command: 'pnpm',
+    args: ['check:plugin-point-parity'],
+  },
+  {
     id: 'python-sdk-cli-tests',
     command: 'python',
     args: ['-m', 'pytest', 'plugin-sdk/python/tests/test_cli.py', '-q'],

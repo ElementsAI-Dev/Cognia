@@ -26,6 +26,7 @@ import { createFullPluginContext } from '@/lib/plugin/core/context';
 import { createPluginA2UIBridge, type PluginA2UIBridge } from '@/lib/plugin/bridge/a2ui-bridge';
 import { PluginLifecycleHooks, getPluginLifecycleHooks } from '@/lib/plugin/messaging/hooks-system';
 import { validatePluginManifest } from '@/lib/plugin/core/validation';
+import { clearPluginExtensions } from '@/lib/plugin/api/extension-api';
 import {
   evaluatePluginCompatibility,
   type CompatibilityDiagnostic,
@@ -34,6 +35,11 @@ import {
 import { loggers } from '@/lib/plugin/core/logger';
 import { getPluginSignatureVerifier } from '@/lib/plugin/security/signature';
 import { getPermissionGuard } from '@/lib/plugin/security/permission-guard';
+import {
+  validateActivationEvent,
+  validateHookPoint,
+  type PluginPointGovernanceMode,
+} from '@/lib/plugin/contracts/plugin-points';
 
 // =============================================================================
 // Types
@@ -47,6 +53,7 @@ interface PluginManagerConfig {
   sandboxed?: boolean;
   hostVersion?: string;
   compatibilityMode?: 'warn' | 'block';
+  pluginPointGovernanceMode?: PluginPointGovernanceMode;
 }
 
 interface DiscoveredPlugin {
@@ -135,6 +142,7 @@ export class PluginManager {
   private warnedActivationEvents: Set<string> = new Set();
   private initialized = false;
   private compatibilityMode: 'warn' | 'block';
+  private pluginPointGovernanceMode: PluginPointGovernanceMode;
   private compatibilityRuntime: CompatibilityRuntime;
 
   constructor(config: PluginManagerConfig) {
@@ -143,6 +151,7 @@ export class PluginManager {
     this.registry = new PluginRegistry();
     this.hooksManager = getPluginLifecycleHooks();
     this.compatibilityMode = config.compatibilityMode || 'warn';
+    this.pluginPointGovernanceMode = config.pluginPointGovernanceMode || 'warn';
     this.compatibilityRuntime = {
       cogniaVersion: config.hostVersion || '0.1.0',
       nodeVersion: typeof process !== 'undefined' ? process.versions?.node : undefined,
@@ -278,7 +287,9 @@ export class PluginManager {
 
       for (const { manifest, path } of localPlugins) {
         // Validate manifest
-        const validation = validatePluginManifest(manifest);
+        const validation = validatePluginManifest(manifest, {
+          governanceMode: this.pluginPointGovernanceMode,
+        });
         if (!validation.valid) {
           loggers.manager.warn(`Invalid plugin manifest at ${path}:`, validation.diagnostics || validation.errors);
           continue;
@@ -334,7 +345,9 @@ export class PluginManager {
       });
 
       // Validate manifest
-      const validation = validatePluginManifest(result.manifest);
+      const validation = validatePluginManifest(result.manifest, {
+        governanceMode: this.pluginPointGovernanceMode,
+      });
       if (!validation.valid) {
         throw new Error(`Invalid plugin manifest: ${validation.errors.join(', ')}`);
       }
@@ -377,7 +390,9 @@ export class PluginManager {
     }
 
     try {
-      const validation = validatePluginManifest(plugin.manifest);
+      const validation = validatePluginManifest(plugin.manifest, {
+        governanceMode: this.pluginPointGovernanceMode,
+      });
       if (!validation.valid) {
         throw new Error(`Invalid plugin manifest: ${validation.errors.join(', ')}`);
       }
@@ -416,6 +431,7 @@ export class PluginManager {
 
       // Register hooks
       if (hooks) {
+        this.validateHookDeclarations(pluginId, hooks);
         store.registerPluginHooks(pluginId, hooks);
         this.hooksManager.registerHooks(pluginId, hooks);
       }
@@ -626,20 +642,28 @@ export class PluginManager {
       .filter(Boolean);
 
     for (const event of rawEvents) {
-      const supported =
-        event === 'startup' ||
-        event === 'onStartup' ||
-        event.startsWith('onCommand:') ||
-        event.startsWith('onTool:') ||
-        event.startsWith('onAgentTool:');
-      if (!supported) {
-        const warningKey = `${manifest.id}:${event}`;
-        if (!this.warnedActivationEvents.has(warningKey)) {
-          this.warnedActivationEvents.add(warningKey);
-          loggers.manager.warn(
-            `[plugin:${manifest.id}] unsupported activation event "${event}" will be ignored`
-          );
+      const validation = validateActivationEvent(event, {
+        governanceMode: this.pluginPointGovernanceMode,
+      });
+
+      for (const diagnostic of validation.diagnostics) {
+        const diagnosticKey = `${manifest.id}:${event}:${diagnostic.code}`;
+        if (this.warnedActivationEvents.has(diagnosticKey)) {
+          continue;
         }
+        this.warnedActivationEvents.add(diagnosticKey);
+        const message = `[plugin:${manifest.id}] ${diagnostic.message}`;
+        if (diagnostic.severity === 'error') {
+          loggers.manager.error(message);
+        } else {
+          loggers.manager.warn(message);
+        }
+      }
+
+      if (!validation.allowed) {
+        throw new Error(
+          `Activation event "${event}" is blocked by plugin point governance mode "${this.pluginPointGovernanceMode}".`
+        );
       }
     }
 
@@ -652,7 +676,15 @@ export class PluginManager {
   }
 
   private shouldActivateOnStartup(manifest: PluginManifest): boolean {
-    return this.parseActivationSpec(manifest).startup;
+    try {
+      return this.parseActivationSpec(manifest).startup;
+    } catch (error) {
+      loggers.manager.warn(
+        `[plugin:${manifest.id}] startup activation evaluation failed:`,
+        error
+      );
+      return false;
+    }
   }
 
   private matchesActivation(eventPattern: string, value: string): boolean {
@@ -1007,6 +1039,7 @@ export class PluginManager {
 
     this.a2uiBridge?.unregisterPluginComponents(pluginId);
     this.a2uiBridge?.unregisterPluginTemplates(pluginId);
+    clearPluginExtensions(pluginId);
 
     // Unregister all tools
     if (plugin.tools) {
@@ -1172,5 +1205,32 @@ export class PluginManager {
 
   isInitialized(): boolean {
     return this.initialized;
+  }
+
+  getPluginPointGovernanceMode(): PluginPointGovernanceMode {
+    return this.pluginPointGovernanceMode;
+  }
+
+  private validateHookDeclarations(pluginId: string, hooks: PluginHooks): void {
+    for (const hookName of Object.keys(hooks)) {
+      const validation = validateHookPoint(hookName, {
+        governanceMode: this.pluginPointGovernanceMode,
+      });
+
+      for (const diagnostic of validation.diagnostics) {
+        const message = `[plugin:${pluginId}] ${diagnostic.message}`;
+        if (diagnostic.severity === 'error') {
+          loggers.manager.error(message);
+        } else {
+          loggers.manager.warn(message);
+        }
+      }
+
+      if (!validation.allowed) {
+        throw new Error(
+          `Hook declaration "${hookName}" is blocked by plugin point governance mode "${this.pluginPointGovernanceMode}".`
+        );
+      }
+    }
   }
 }

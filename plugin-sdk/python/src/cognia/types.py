@@ -28,6 +28,9 @@ class PluginCapability(Enum):
     PROVIDERS = "providers"
     EXPORTERS = "exporters"
     IMPORTERS = "importers"
+    A2UI = "a2ui"
+    PYTHON = "python"
+    SCHEDULER = "scheduler"
 
 
 class PluginPermission(Enum):
@@ -47,6 +50,11 @@ class PluginPermission(Enum):
     SETTINGS_WRITE = "settings:write"
     SESSION_READ = "session:read"
     SESSION_WRITE = "session:write"
+    MEDIA_IMAGE_READ = "media:image:read"
+    MEDIA_IMAGE_WRITE = "media:image:write"
+    MEDIA_VIDEO_READ = "media:video:read"
+    MEDIA_VIDEO_WRITE = "media:video:write"
+    MEDIA_VIDEO_EXPORT = "media:video:export"
     AGENT_CONTROL = "agent:control"
     PYTHON_EXECUTE = "python:execute"
 
@@ -690,15 +698,21 @@ class ExtensionPoint(Enum):
     STATUSBAR_LEFT = "statusbar.left"
     STATUSBAR_CENTER = "statusbar.center"
     STATUSBAR_RIGHT = "statusbar.right"
+    CHAT_HEADER = "chat.header"
+    CHAT_FOOTER = "chat.footer"
     CHAT_INPUT_ABOVE = "chat.input.above"
     CHAT_INPUT_BELOW = "chat.input.below"
     CHAT_INPUT_ACTIONS = "chat.input.actions"
+    CHAT_MESSAGE_BEFORE = "chat.message.before"
+    CHAT_MESSAGE_AFTER = "chat.message.after"
     CHAT_MESSAGE_ACTIONS = "chat.message.actions"
     CHAT_MESSAGE_FOOTER = "chat.message.footer"
     ARTIFACT_TOOLBAR = "artifact.toolbar"
     ARTIFACT_ACTIONS = "artifact.actions"
     CANVAS_TOOLBAR = "canvas.toolbar"
     CANVAS_SIDEBAR = "canvas.sidebar"
+    PANEL_HEADER = "panel.header"
+    PANEL_FOOTER = "panel.footer"
     SETTINGS_GENERAL = "settings.general"
     SETTINGS_APPEARANCE = "settings.appearance"
     SETTINGS_AI = "settings.ai"
@@ -737,6 +751,11 @@ class ExtendedPermission(Enum):
     EXPORT_PROJECT = "export:project"
     THEME_READ = "theme:read"
     THEME_WRITE = "theme:write"
+    MEDIA_IMAGE_READ = "media:image:read"
+    MEDIA_IMAGE_WRITE = "media:image:write"
+    MEDIA_VIDEO_READ = "media:video:read"
+    MEDIA_VIDEO_WRITE = "media:video:write"
+    MEDIA_VIDEO_EXPORT = "media:video:export"
     EXTENSION_UI = "extension:ui"
     NOTIFICATION_SHOW = "notification:show"
 
@@ -1075,12 +1094,16 @@ class PluginSource(Enum):
 
 class PluginActivationEvent(Enum):
     """Plugin activation events"""
+    STARTUP = "startup"
     ON_STARTUP = "onStartup"
-    ON_COMMAND = "onCommand"
-    ON_LANGUAGE = "onLanguage"
-    ON_VIEW = "onView"
-    ON_FILE_SYSTEM = "onFileSystem"
-    WORKSPACES_CONTAINS = "workspaceContains"
+    ON_COMMAND_STAR = "onCommand:*"
+    ON_TOOL_STAR = "onTool:*"
+    ON_AGENT_TOOL_STAR = "onAgentTool:*"
+    ON_CHAT_STAR = "onChat:*"
+    ON_AGENT_START = "onAgent:start"
+    ON_A2UI_SURFACE = "onA2UI:surface"
+    ON_LANGUAGE_STAR = "onLanguage:*"
+    ON_FILE_STAR = "onFile:*"
 
 
 # =============================================================================

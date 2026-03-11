@@ -48,6 +48,7 @@ describe('useMcpServerActions', () => {
     resources: [],
     prompts: [],
     reconnectAttempts: 0,
+    connectionVersion: 1,
   };
 
   const createMockStore = (overrides: Record<string, unknown> = {}) => ({

@@ -234,6 +234,42 @@ describe('Plugin Validation', () => {
         ])
       );
     });
+
+    it('should report warning diagnostics for virtual activation events in warn mode', () => {
+      const manifest = createValidManifest();
+      manifest.activationEvents = ['onLanguage:typescript'];
+
+      const result = validatePluginManifest(manifest, { governanceMode: 'warn' });
+
+      expect(result.valid).toBe(true);
+      expect(result.diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            severity: 'warning',
+            field: 'activationEvents[0]',
+            code: 'manifest.activationEvents.plugin.point.virtual',
+          }),
+        ])
+      );
+    });
+
+    it('should fail validation for virtual activation events in block mode', () => {
+      const manifest = createValidManifest();
+      manifest.activationEvents = ['onLanguage:typescript'];
+
+      const result = validatePluginManifest(manifest, { governanceMode: 'block' });
+
+      expect(result.valid).toBe(false);
+      expect(result.diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            severity: 'error',
+            field: 'activationEvents[0]',
+            code: 'manifest.activationEvents.plugin.point.virtual',
+          }),
+        ])
+      );
+    });
   });
 
   describe('validatePluginConfig', () => {

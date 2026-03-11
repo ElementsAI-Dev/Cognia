@@ -16,6 +16,7 @@ import type { Artifact, ArtifactLanguage } from '../artifact/artifact';
 import type { CanvasDocumentVersion, CanvasSuggestion } from '../artifact/artifact';
 import type { ChatMode } from '../core/session';
 import type { PluginMediaAPI } from '@/lib/plugin/api/media-api';
+import type { CanonicalExtensionPoint } from '@/lib/plugin/contracts/plugin-points';
 
 // =============================================================================
 // Session API - Chat Session Management
@@ -956,37 +957,7 @@ export interface PluginAIProviderAPI {
 /**
  * UI extension points
  */
-export type ExtensionPoint =
-  | 'sidebar.left.top'
-  | 'sidebar.left.bottom'
-  | 'sidebar.right.top'
-  | 'sidebar.right.bottom'
-  | 'toolbar.left'
-  | 'toolbar.center'
-  | 'toolbar.right'
-  | 'statusbar.left'
-  | 'statusbar.center'
-  | 'statusbar.right'
-  | 'chat.header'
-  | 'chat.footer'
-  | 'chat.input.above'
-  | 'chat.input.below'
-  | 'chat.input.actions'
-  | 'chat.message.before'
-  | 'chat.message.after'
-  | 'chat.message.actions'
-  | 'chat.message.footer'
-  | 'artifact.toolbar'
-  | 'artifact.actions'
-  | 'canvas.toolbar'
-  | 'canvas.sidebar'
-  | 'panel.header'
-  | 'panel.footer'
-  | 'settings.general'
-  | 'settings.appearance'
-  | 'settings.ai'
-  | 'settings.plugins'
-  | 'command-palette';
+export type ExtensionPoint = CanonicalExtensionPoint;
 
 /**
  * Extension options

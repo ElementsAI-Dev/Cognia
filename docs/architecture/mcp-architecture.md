@@ -14,6 +14,7 @@ Cognia implements comprehensive Model Context Protocol (MCP) support, enabling A
 6. [Server Lifecycle Management](#server-lifecycle-management)
 7. [Frontend Integration](#frontend-integration)
 8. [Communication Flows](#communication-flows)
+9. [Diagnostics and Rollback](#diagnostics-and-rollback)
 
 ## MCP System Overview
 
@@ -58,7 +59,7 @@ The Model Context Protocol (MCP) is an open standard that enables AI models to:
             v                                      v
 +---------------------+               +-----------------------------+
 |   MCP Server 1      |               |   MCP Server 2              |
-|   (stdio)           |               |   (SSE)                      |
+|   (stdio)           |               |   (SSE / Streamable HTTP)   |
 |                     |               |                             |
 |  - tools/call       |<------------->|  - tools/call               |
 |  - resources/read   |  JSON-RPC 2.0 |  - resources/list           |
@@ -119,9 +120,9 @@ The Model Context Protocol (MCP) is an open standard that enables AI models to:
                             v
 +---------------------------------------------------------------+
 |                      Transport Layer                           |
-|  stdio.rs (Standard I/O)    sse.rs (Server-Sent Events)       |
-|  - Process spawning          - HTTP connection                |
-|  - stdin/stdout RW           - GET/POST endpoints             |
+|  stdio.rs (Standard I/O)    sse.rs / streamable_http.rs       |
+|  - Process spawning          - Remote HTTP MCP transport       |
+|  - stdin/stdout RW           - Deterministic fallback policy   |
 +---------------------------+-----------------------------------+
                             |
                             v
@@ -146,7 +147,8 @@ src-tauri/src/mcp/
 ├── transport/                # Transport layer
 │   ├── mod.rs
 │   ├── stdio.rs             # stdio transport
-│   └── sse.rs               # SSE transport
+│   ├── sse.rs               # SSE transport
+│   └── streamable_http.rs   # Streamable HTTP transport
 └── protocol/                 # JSON-RPC protocol
     ├── mod.rs
     ├── jsonrpc.rs           # JSON-RPC types
@@ -167,6 +169,8 @@ pub struct McpServerConfig {
     pub args: Vec<String>,
     pub env: HashMap<String, String>,
     pub url: Option<String>,
+    pub message_url: Option<String>,
+    pub fallback_to_sse: bool,
     pub enabled: bool,
     pub auto_start: bool,
 }
@@ -182,12 +186,15 @@ pub struct McpServerState {
     pub resources: Vec<McpResource>,
     pub prompts: Vec<McpPrompt>,
     pub connected_at: Option<i64>,
+    pub reason_code: Option<String>,
+    pub connection_version: u64,
 }
 
 // Connection types
 pub enum McpConnectionType {
     Stdio,  // Spawn process, communicate via stdin/stdout
     Sse,    // HTTP Server-Sent Events
+    StreamableHttp, // Modern remote HTTP MCP mode
 }
 ```
 
@@ -401,6 +408,25 @@ impl SseTransport {
             .await?;
         Ok(())
     }
+}
+```
+
+### Streamable HTTP Transport
+
+`streamable_http.rs` is a dedicated transport mode for modern remote MCP endpoints. It keeps a distinct connection type (`streamableHttp`) in config/state while reusing the stable SSE receive/send pipeline internally.
+
+- Primary use case: remote MCP servers that advertise streamable HTTP compatibility
+- Optional fallback: when `fallback_to_sse=true`, manager can fall back from `streamableHttp` to `sse` on compatibility-class failures
+- Selection telemetry: manager emits `mcp:transport-event` with deterministic payload:
+
+```json
+{
+  "type": "transport_selected",
+  "serverId": "github-remote",
+  "requestedTransport": "streamableHttp",
+  "selectedTransport": "sse",
+  "reasonCode": "transport_fallback_sse",
+  "timestamp": 1741670400000
 }
 ```
 
@@ -1020,6 +1046,43 @@ Linux           | ~/.config/com.elementsai.cognia/mcp/servers.json
   }
 }
 ```
+
+## Diagnostics and Rollback
+
+### Lifecycle `reasonCode` Reference
+
+`mcp:server-update`, `mcp:app-bridge`, and `mcp:app-security-event` now carry machine-readable reason codes to support deterministic UI behavior and operations triage.
+
+| Reason code | Typical source | Meaning |
+|-------------|----------------|---------|
+| `connect_requested` | server connect start | connection workflow was requested |
+| `connect_succeeded` | server connected | transport + init succeeded |
+| `init_failed` | initialization stage | transport connected but MCP initialize failed |
+| `transport_unreachable` | remote transport | endpoint not reachable |
+| `transport_timeout` | remote transport | remote request/handshake timed out |
+| `transport_incompatible` | remote transport | requested transport handshake unsupported |
+| `reconnect_scheduled` | reconnection manager | retry has been scheduled |
+| `reconnect_exhausted` | reconnection manager | retry budget exhausted |
+| `policy_denied` | app bridge policy | backend policy denied UI-initiated action |
+| `ui_rate_limit_exceeded` / `ui_concurrency_limit_exceeded` | app bridge limits | session exceeded configured guardrails |
+
+### Remote Transport Rollback
+
+If a rollout with `streamableHttp` causes regressions:
+
+1. Edit affected server config and set `connectionType` to `sse`.
+2. Keep `fallback_to_sse=true` during transition to preserve deterministic downgrade behavior.
+3. Restart the MCP server connection from Settings > MCP.
+4. Monitor `mcp:transport-event` and `mcp:server-update` for stabilization.
+
+### MCP Apps Bridge Rollback
+
+If bridge hardening blocks expected widget behavior:
+
+1. Disable frontend flag `NEXT_PUBLIC_ENABLE_MCP_APPS_HOST`.
+2. Disable backend flag `COGNIA_ENABLE_MCP_APPS_HOST`.
+3. Restart desktop runtime.
+4. Confirm legacy text/resource renderers continue showing tool output while policy telemetry is reviewed.
 
 ## Related Documentation
 
