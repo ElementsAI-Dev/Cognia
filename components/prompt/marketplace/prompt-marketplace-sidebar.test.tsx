@@ -4,6 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PromptMarketplaceSidebar } from './prompt-marketplace-sidebar';
+import type { PromptQualityTier } from '@/types/content/prompt-marketplace';
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
@@ -72,10 +73,10 @@ jest.mock('@/types/content/prompt-marketplace', () => ({
 }));
 
 describe('PromptMarketplaceSidebar', () => {
-  const defaultProps = {
+  const defaultProps: React.ComponentProps<typeof PromptMarketplaceSidebar> = {
     selectedCategory: 'all' as const,
     onSelectCategory: jest.fn(),
-    selectedTiers: [] as string[],
+    selectedTiers: [] as PromptQualityTier[],
     onToggleTier: jest.fn(),
     minRating: 0,
     onMinRatingChange: jest.fn(),

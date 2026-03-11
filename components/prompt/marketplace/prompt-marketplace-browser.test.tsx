@@ -13,6 +13,16 @@ const mockFetchTrending = jest.fn();
 const mockSetRemoteFirstEnabled = jest.fn();
 const mockCheckForUpdates = jest.fn();
 const mockUpdateInstalledPrompt = jest.fn();
+const mockSetBrowseQuery = jest.fn();
+const mockSetBrowseCategory = jest.fn();
+const mockSetBrowseSortBy = jest.fn();
+const mockSetBrowseMinRating = jest.fn();
+const mockToggleBrowseQualityTier = jest.fn();
+const mockClearBrowseFilters = jest.fn();
+const mockSetBrowsePage = jest.fn();
+const mockSetBrowseScrollOffset = jest.fn();
+const mockSetSelectedPrompt = jest.fn();
+const mockSetDetailOpen = jest.fn();
 
 const prompt = {
   id: 'p1',
@@ -45,6 +55,20 @@ const storeState = {
   sourceWarning: null as string | null,
   remoteFirstEnabled: true,
   lastSyncedAt: new Date(),
+  operationStates: {},
+  browseViewState: {
+    query: '',
+    category: 'all' as const,
+    sortBy: 'downloads' as const,
+    minRating: 0,
+    selectedTiers: [],
+    page: 1,
+    pageSize: 20,
+    selectedPromptId: null,
+    detailOpen: false,
+    scrollOffset: 0,
+  },
+  installRetryContexts: {},
   userActivity: {
     installed: [],
     favorites: [],
@@ -58,6 +82,16 @@ const storeState = {
   getPromptById: (id: string) => (storeState.prompts as Record<string, typeof prompt>)[id],
   checkForUpdates: mockCheckForUpdates,
   updateInstalledPrompt: mockUpdateInstalledPrompt,
+  setBrowseQuery: mockSetBrowseQuery,
+  setBrowseCategory: mockSetBrowseCategory,
+  setBrowseSortBy: mockSetBrowseSortBy,
+  setBrowseMinRating: mockSetBrowseMinRating,
+  toggleBrowseQualityTier: mockToggleBrowseQualityTier,
+  clearBrowseFilters: mockClearBrowseFilters,
+  setBrowsePage: mockSetBrowsePage,
+  setBrowseScrollOffset: mockSetBrowseScrollOffset,
+  setSelectedPrompt: mockSetSelectedPrompt,
+  setDetailOpen: mockSetDetailOpen,
 };
 
 jest.mock('next-intl', () => ({
@@ -143,6 +177,10 @@ jest.mock('./prompt-marketplace-detail', () => ({
   PromptMarketplaceDetail: () => <div>detail</div>,
 }));
 
+jest.mock('./prompt-marketplace-inspector', () => ({
+  PromptMarketplaceInspector: () => <div>inspector</div>,
+}));
+
 jest.mock('./prompt-author-profile', () => ({
   PromptAuthorProfile: () => <div>profile</div>,
 }));
@@ -176,17 +214,13 @@ describe('PromptMarketplaceBrowser', () => {
     expect(screen.getByLabelText('promptMarketplace.source.remoteFirst')).toBeInTheDocument();
   });
 
-  it('applies browse query into search filters', async () => {
+  it('updates canonical browse query state', async () => {
     render(<PromptMarketplaceBrowser />);
     const searchInput = screen.getByPlaceholderText('search.placeholder');
     fireEvent.change(searchInput, { target: { value: 'author' } });
 
     await waitFor(() => {
-      expect(mockSearchPrompts).toHaveBeenCalledWith(
-        expect.objectContaining({
-          query: 'author',
-        })
-      );
+      expect(mockSetBrowseQuery).toHaveBeenCalledWith('author');
     });
   });
 

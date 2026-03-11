@@ -32,6 +32,7 @@ export function usePresetQuickSwitcher({
 
   // Preset store
   const presets = usePresetStore((state) => state.presets);
+  const selectedPresetId = usePresetStore((state) => state.selectedPresetId);
   const selectPreset = usePresetStore((state) => state.selectPreset);
   const trackPresetUsage = usePresetStore((state) => state.usePreset);
   const toggleFavorite = usePresetStore((state) => state.toggleFavorite);
@@ -48,7 +49,11 @@ export function usePresetQuickSwitcher({
     [activeSessionId, sessions],
   );
 
-  const currentPresetId = currentSession?.presetId;
+  const currentPresetId =
+    currentSession?.presetId
+    || selectedPresetId
+    || presets.find((preset) => preset.isDefault)?.id
+    || null;
   const currentPreset = useMemo(
     () => (currentPresetId ? presets.find((p) => p.id === currentPresetId) : null),
     [currentPresetId, presets],

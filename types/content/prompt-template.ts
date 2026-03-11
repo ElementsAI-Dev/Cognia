@@ -8,6 +8,89 @@ export type PromptTemplateTarget = 'chat' | 'workflow' | 'agent' | 'ide-rules' |
 
 export type PromptTemplateVariableType = 'text' | 'multiline' | 'number' | 'boolean' | 'select';
 
+export type PromptTemplateImportStrategy = 'skip' | 'overwrite' | 'duplicate';
+
+export type PromptTemplateOperationStatus = 'idle' | 'running' | 'success' | 'error';
+
+export type PromptTemplateOperationCode =
+  | 'OK'
+  | 'TEMPLATE_NOT_FOUND'
+  | 'INVALID_PAYLOAD'
+  | 'VALIDATION_FAILED'
+  | 'CONFLICT_SKIPPED'
+  | 'CONFLICT_OVERWRITTEN'
+  | 'CONFLICT_DUPLICATED'
+  | 'SOURCE_GUARDED'
+  | 'VERSION_NOT_FOUND'
+  | 'UNKNOWN_ERROR';
+
+export interface PromptTemplateOperationError {
+  code: PromptTemplateOperationCode;
+  message: string;
+  field?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface PromptTemplateOperationState {
+  status: PromptTemplateOperationStatus;
+  code?: PromptTemplateOperationCode;
+  message?: string;
+  updatedAt: Date;
+}
+
+export interface PromptTemplateOperationResult<TData = undefined> {
+  ok: boolean;
+  code: PromptTemplateOperationCode;
+  message?: string;
+  data?: TData;
+  errors?: PromptTemplateOperationError[];
+}
+
+export interface PromptTemplateImportOptions {
+  strategy?: PromptTemplateImportStrategy;
+}
+
+export type PromptTemplateImportItemStatus =
+  | 'imported'
+  | 'overwritten'
+  | 'duplicated'
+  | 'skipped'
+  | 'failed';
+
+export interface PromptTemplateImportItemResult {
+  inputName?: string;
+  templateId?: string;
+  existingTemplateId?: string;
+  status: PromptTemplateImportItemStatus;
+  code: PromptTemplateOperationCode;
+  message: string;
+}
+
+export interface PromptTemplateImportReport {
+  success: boolean;
+  strategy: PromptTemplateImportStrategy;
+  imported: number;
+  overwritten: number;
+  duplicated: number;
+  skipped: number;
+  failed: number;
+  items: PromptTemplateImportItemResult[];
+}
+
+export type PromptTemplateMutationPolicy = 'direct-update' | 'fork-on-update' | 'restricted-update';
+
+export type PromptTemplateMutationReason =
+  | 'user-owned'
+  | 'builtin'
+  | 'mcp'
+  | 'imported'
+  | 'marketplace-linked';
+
+export interface PromptTemplateMutationDecision {
+  policy: PromptTemplateMutationPolicy;
+  reason: PromptTemplateMutationReason;
+}
+
 export interface TemplateVariable {
   name: string;
   description?: string;

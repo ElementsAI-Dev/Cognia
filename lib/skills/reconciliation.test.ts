@@ -92,6 +92,14 @@ describe('skills reconciliation helpers', () => {
         nativeSkillId: 'native:abc',
       })
     ).toBe('native:native:abc');
+
+    expect(
+      buildCanonicalSkillId({
+        source: 'marketplace',
+        metadata: { name: 'Skill Name' },
+        marketplaceSkillId: 'owner/repo/skills/test',
+      })
+    ).toBe('marketplace:owner-repo-skills-test');
   });
 
   it('maps source to default sync origin', () => {

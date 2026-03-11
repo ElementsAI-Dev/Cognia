@@ -117,6 +117,7 @@ export function parsePresetImportFile(
 ): Promise<{
   entries: Array<CreatePresetInput & { isFavorite?: boolean }>;
   skipped: number;
+  skippedReasons: Record<string, number>;
 }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -129,6 +130,7 @@ export function parsePresetImportFile(
         }
 
         let skipped = 0;
+        const skippedReasons: Record<string, number> = {};
         const entries: Array<CreatePresetInput & { isFavorite?: boolean }> = [];
 
         for (const raw of data.presets) {
@@ -137,10 +139,11 @@ export function parsePresetImportFile(
             entries.push(validated);
           } else {
             skipped++;
+            skippedReasons.invalidEntry = (skippedReasons.invalidEntry || 0) + 1;
           }
         }
 
-        resolve({ entries, skipped });
+        resolve({ entries, skipped, skippedReasons });
       } catch {
         reject(new Error('parseFileFailed'));
       }

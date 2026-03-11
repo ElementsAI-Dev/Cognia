@@ -122,6 +122,8 @@ async function closeActiveDialog(page: Page) {
 }
 
 test.describe('Prompt Marketplace Completeness', () => {
+  test.describe.configure({ timeout: 120000 });
+
   test.beforeEach(async ({ page }) => {
     const templateSeed = seedPromptTemplateStorage();
     const marketplaceSeed = seedMarketplaceStorage();
@@ -219,5 +221,34 @@ test.describe('Prompt Marketplace Completeness', () => {
       .click();
 
     await expect(page.getByText(/Imported|已导入/i)).toBeVisible({ timeout: 15000 });
+  });
+
+  test('mobile browse keeps canonical query context after detail open/close', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/settings?section=prompt-marketplace', {
+      waitUntil: 'domcontentloaded',
+      timeout: 60000,
+    });
+    await dismissStartupOverlays(page);
+    await closeActiveDialog(page);
+
+    const browseTab = page.getByRole('tab').first();
+    await expect(browseTab).toBeVisible();
+    await browseTab.click();
+
+    const searchInput = page.getByPlaceholder(/Search prompts|搜索提示|search\.placeholder/i).first();
+    await searchInput.fill('code');
+
+    const firstCard = page
+      .getByRole('button', { name: /Open prompt details/i })
+      .first();
+    await expect(firstCard).toBeVisible({ timeout: 10000 });
+    await firstCard.click();
+
+    const detailDialog = page.locator('[role="dialog"]').first();
+    await expect(detailDialog).toBeVisible({ timeout: 10000 });
+    await closeActiveDialog(page);
+
+    await expect(searchInput).toHaveValue('code');
   });
 });

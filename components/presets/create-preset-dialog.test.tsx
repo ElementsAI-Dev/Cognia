@@ -84,6 +84,23 @@ jest.mock('@/components/ui/dialog', () => ({
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2 data-testid="dialog-title">{children}</h2>,
 }));
 
+jest.mock('@/components/ui/alert-dialog', () => ({
+  AlertDialog: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="alert-dialog">{children}</div>
+  ),
+  AlertDialogAction: ({ children, onClick, className }: { children: React.ReactNode; onClick?: () => void; className?: string }) => (
+    <button onClick={onClick} className={className}>{children}</button>
+  ),
+  AlertDialogCancel: ({ children }: { children: React.ReactNode }) => (
+    <button>{children}</button>
+  ),
+  AlertDialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  AlertDialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
+}));
+
 jest.mock('@/components/ui/button', () => ({
   Button: ({ children, onClick, disabled, className, variant, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; className?: string }) => (
     <button onClick={onClick} disabled={disabled} className={className} data-variant={variant} {...props}>{children}</button>

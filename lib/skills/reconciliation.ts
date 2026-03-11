@@ -67,10 +67,12 @@ export function getDefaultSyncOrigin(source: SkillSource): SkillSyncOrigin {
 export function buildCanonicalSkillId(skill: {
   source?: SkillSource;
   metadata?: { name?: string };
+  marketplaceSkillId?: string;
   nativeSkillId?: string;
   nativeDirectory?: string;
 }): string {
   if (skill.nativeSkillId) return `native:${skill.nativeSkillId}`;
+  if (skill.marketplaceSkillId) return `marketplace:${normalizeSkillName(skill.marketplaceSkillId)}`;
   if (skill.source === 'builtin') {
     return `builtin:${normalizeSkillName(skill.metadata?.name ?? '')}`;
   }

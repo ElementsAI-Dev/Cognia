@@ -5,7 +5,7 @@
  * Modern design with improved responsive layout, better space utilization, and enhanced UX
  */
 
-import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
+import { useState, useEffect, useMemo, useCallback, useDeferredValue, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTranslations } from 'next-intl';
 import {
@@ -37,17 +37,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { getPromptMarketplaceErrorMessageKey } from '@/lib/prompts/marketplace-error-adapter';
 import type {
   MarketplacePrompt,
-  MarketplaceCategory,
   MarketplaceSearchFilters,
 } from '@/types/content/prompt-marketplace';
 import { usePromptMarketplaceStore } from '@/stores/prompt/prompt-marketplace-store';
 import { PromptMarketplaceSidebar } from './prompt-marketplace-sidebar';
 import { PromptMarketplaceDetail } from './prompt-marketplace-detail';
+import { PromptMarketplaceInspector } from './prompt-marketplace-inspector';
 import { PromptAuthorProfile } from './prompt-author-profile';
 import type { PromptAuthor } from '@/types/content/prompt-marketplace';
 import { BrowseTab, InstalledTab, FavoritesTab, CollectionsTab, RecentTab } from './tabs';
@@ -72,22 +72,28 @@ export function PromptMarketplaceBrowser({
     featuredIds,
     trendingIds,
     isLoading,
+    listError,
     collectionsMap,
     sourceState,
     sourceWarning,
     remoteFirstEnabled,
     lastSyncedAt,
+    browseViewState,
+    installRetryContexts,
   } = usePromptMarketplaceStore(
     useShallow((state) => ({
       promptsMap: state.prompts,
       featuredIds: state.featuredIds,
       trendingIds: state.trendingIds,
       isLoading: state.isLoading,
+      listError: state.operationStates.list,
       collectionsMap: state.collections,
       sourceState: state.sourceState,
       sourceWarning: state.sourceWarning,
       remoteFirstEnabled: state.remoteFirstEnabled,
       lastSyncedAt: state.lastSyncedAt,
+      browseViewState: state.browseViewState,
+      installRetryContexts: state.installRetryContexts,
     }))
   );
 
@@ -118,6 +124,16 @@ export function PromptMarketplaceBrowser({
     getPromptById,
     checkForUpdates,
     updateInstalledPrompt,
+    setBrowseQuery,
+    setBrowseCategory,
+    setBrowseSortBy,
+    setBrowseMinRating,
+    toggleBrowseQualityTier,
+    clearBrowseFilters,
+    setBrowsePage,
+    setBrowseScrollOffset,
+    setSelectedPrompt,
+    setDetailOpen,
   } = usePromptMarketplaceStore(
     useShallow((state) => ({
       searchPrompts: state.searchPrompts,
@@ -128,25 +144,25 @@ export function PromptMarketplaceBrowser({
       getPromptById: state.getPromptById,
       checkForUpdates: state.checkForUpdates,
       updateInstalledPrompt: state.updateInstalledPrompt,
+      setBrowseQuery: state.setBrowseQuery,
+      setBrowseCategory: state.setBrowseCategory,
+      setBrowseSortBy: state.setBrowseSortBy,
+      setBrowseMinRating: state.setBrowseMinRating,
+      toggleBrowseQualityTier: state.toggleBrowseQualityTier,
+      clearBrowseFilters: state.clearBrowseFilters,
+      setBrowsePage: state.setBrowsePage,
+      setBrowseScrollOffset: state.setBrowseScrollOffset,
+      setSelectedPrompt: state.setSelectedPrompt,
+      setDetailOpen: state.setDetailOpen,
     }))
   );
 
   // Local state
   const [activeTab, setActiveTab] = useState<TabValue>(defaultTab);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [selectedCategory, setSelectedCategory] = useState<MarketplaceCategory | 'all'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [sortBy, setSortBy] = useState<MarketplaceSearchFilters['sortBy']>('downloads');
-  const [minRating, setMinRating] = useState(0);
-  const [selectedTiers, setSelectedTiers] = useState<string[]>([]);
-  const [selectedPrompt, setSelectedPrompt] = useState<MarketplacePrompt | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [searchResults, setSearchResults] = useState<MarketplacePrompt[]>([]);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
   const [promptsWithUpdates, setPromptsWithUpdates] = useState<string[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 20;
   const [installedSearchQuery, setInstalledSearchQuery] = useState('');
   const deferredInstalledSearchQuery = useDeferredValue(installedSearchQuery);
   const [installedSortBy, setInstalledSortBy] = useState<'name' | 'date' | 'rating'>('date');
@@ -156,6 +172,10 @@ export function PromptMarketplaceBrowser({
   const [selectedAuthor, setSelectedAuthor] = useState<PromptAuthor | null>(null);
   const [authorProfileOpen, setAuthorProfileOpen] = useState(false);
   const [isRefreshingCatalog, setIsRefreshingCatalog] = useState(false);
+  const contentContainerRef = useRef<HTMLDivElement | null>(null);
+  const selectedPrompt = browseViewState.selectedPromptId
+    ? getPromptById(browseViewState.selectedPromptId) || null
+    : null;
 
   // Initialize/refresh catalog on mount
   useEffect(() => {
@@ -170,6 +190,18 @@ export function PromptMarketplaceBrowser({
     fetchFeatured();
     fetchTrending();
   }, [promptsMap, fetchFeatured, fetchTrending]);
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1023px)');
+    const handleChange = () => {
+      setIsMobileViewport(media.matches);
+    };
+    handleChange();
+    media.addEventListener('change', handleChange);
+    return () => {
+      media.removeEventListener('change', handleChange);
+    };
+  }, []);
 
   // Check for updates handler
   const handleCheckForUpdates = useCallback(async () => {
@@ -209,22 +241,27 @@ export function PromptMarketplaceBrowser({
     [refreshCatalog, setRemoteFirstEnabled]
   );
 
-  // Search effect
-  useEffect(() => {
-    const filters: MarketplaceSearchFilters = {
-      query: deferredSearchQuery,
-      category: selectedCategory === 'all' ? undefined : selectedCategory,
-      sortBy,
-      minRating: minRating > 0 ? minRating : undefined,
-      qualityTier:
-        selectedTiers.length > 0
-          ? (selectedTiers as MarketplaceSearchFilters['qualityTier'])
-          : undefined,
-    };
+  const browseFilters = useMemo<MarketplaceSearchFilters>(
+    () => ({
+      query: browseViewState.query || undefined,
+      category: browseViewState.category === 'all' ? undefined : browseViewState.category,
+      sortBy: browseViewState.sortBy,
+      minRating: browseViewState.minRating > 0 ? browseViewState.minRating : undefined,
+      qualityTier: browseViewState.selectedTiers.length > 0 ? browseViewState.selectedTiers : undefined,
+    }),
+    [
+      browseViewState.category,
+      browseViewState.minRating,
+      browseViewState.query,
+      browseViewState.selectedTiers,
+      browseViewState.sortBy,
+    ]
+  );
 
-    const result = searchPrompts(filters);
-    setSearchResults(result.prompts);
-  }, [deferredSearchQuery, selectedCategory, sortBy, minRating, selectedTiers, searchPrompts]);
+  const searchResults = useMemo(
+    () => searchPrompts(browseFilters).prompts,
+    [browseFilters, searchPrompts]
+  );
 
   // Computed lists
   const featuredPrompts = useMemo(
@@ -299,54 +336,40 @@ export function PromptMarketplaceBrowser({
     return list;
   }, [favoriteIds, getPromptById, deferredFavoritesSearchQuery, favoritesSortBy]);
 
-  const displayPrompts = useMemo(() => {
-    if (deferredSearchQuery || selectedCategory !== 'all' || minRating > 0 || selectedTiers.length > 0) {
-      return searchResults;
-    }
-    return prompts;
-  }, [deferredSearchQuery, selectedCategory, minRating, selectedTiers, searchResults, prompts]);
+  const displayPrompts = searchResults;
 
   // Paginated prompts
   const paginatedPrompts = useMemo(() => {
     const startIndex = 0;
-    const endIndex = currentPage * ITEMS_PER_PAGE;
+    const endIndex = browseViewState.page * browseViewState.pageSize;
     return displayPrompts.slice(startIndex, endIndex);
-  }, [displayPrompts, currentPage]);
+  }, [browseViewState.page, browseViewState.pageSize, displayPrompts]);
 
   const hasMorePrompts = paginatedPrompts.length < displayPrompts.length;
 
   const loadMorePrompts = useCallback(() => {
     if (hasMorePrompts) {
-      setCurrentPage((prev) => prev + 1);
+      setBrowsePage(browseViewState.page + 1);
     }
-  }, [hasMorePrompts]);
-
-  // Reset pagination when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, selectedCategory, minRating, selectedTiers, sortBy]);
+  }, [browseViewState.page, hasMorePrompts, setBrowsePage]);
 
   const handleViewDetail = useCallback((prompt: MarketplacePrompt) => {
-    setSelectedPrompt(prompt);
-    setDetailOpen(true);
-  }, []);
+    setSelectedPrompt(prompt.id);
+    setBrowseScrollOffset(contentContainerRef.current?.scrollTop || 0);
+    if (isMobileViewport) {
+      setDetailOpen(true);
+    }
+  }, [isMobileViewport, setBrowseScrollOffset, setDetailOpen, setSelectedPrompt]);
 
-  const handleTierToggle = (tier: string) => {
-    setSelectedTiers((prev) =>
-      prev.includes(tier) ? prev.filter((t) => t !== tier) : [...prev, tier]
-    );
-  };
-
-  const clearFilters = () => {
-    setSearchQuery('');
-    setSelectedCategory('all');
-    setSortBy('downloads');
-    setMinRating(0);
-    setSelectedTiers([]);
-  };
+  const clearFilters = useCallback(() => {
+    clearBrowseFilters();
+  }, [clearBrowseFilters]);
 
   const hasActiveFilters =
-    searchQuery || selectedCategory !== 'all' || minRating > 0 || selectedTiers.length > 0;
+    !!browseViewState.query
+    || browseViewState.category !== 'all'
+    || browseViewState.minRating > 0
+    || browseViewState.selectedTiers.length > 0;
 
   // Handle viewing author profile
   const handleViewAuthor = useCallback((author: PromptAuthor) => {
@@ -375,7 +398,39 @@ export function PromptMarketplaceBrowser({
     ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4'
     : 'flex flex-col gap-3';
 
-  const activeFilterCount = (selectedCategory !== 'all' ? 1 : 0) + selectedTiers.length + (minRating > 0 ? 1 : 0);
+  const activeFilterCount =
+    (browseViewState.category !== 'all' ? 1 : 0)
+    + browseViewState.selectedTiers.length
+    + (browseViewState.minRating > 0 ? 1 : 0);
+
+  useEffect(() => {
+    if (!browseViewState.selectedPromptId) {
+      return;
+    }
+    const isSelectedPromptVisible = displayPrompts.some((prompt) => prompt.id === browseViewState.selectedPromptId);
+    if (!isSelectedPromptVisible) {
+      setSelectedPrompt(null);
+      setDetailOpen(false);
+    }
+  }, [browseViewState.selectedPromptId, displayPrompts, setDetailOpen, setSelectedPrompt]);
+
+  useEffect(() => {
+    if (activeTab !== 'browse' || browseViewState.detailOpen || !isMobileViewport) {
+      return;
+    }
+    const container = contentContainerRef.current;
+    if (!container) {
+      return;
+    }
+    container.scrollTop = browseViewState.scrollOffset;
+  }, [
+    activeTab,
+    browseViewState.detailOpen,
+    browseViewState.scrollOffset,
+    isMobileViewport,
+  ]);
+
+  const listErrorMessageKey = getPromptMarketplaceErrorMessageKey(listError?.category);
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-gradient-to-br from-background via-background to-muted/20">
@@ -436,7 +491,7 @@ export function PromptMarketplaceBrowser({
                     variant="outline"
                     size="sm"
                     className={cn(
-                      'gap-1.5 h-8',
+                      'gap-1.5 h-8 lg:hidden',
                       hasActiveFilters && 'border-primary/50 bg-primary/5'
                     )}
                   >
@@ -451,14 +506,12 @@ export function PromptMarketplaceBrowser({
                 </SheetTrigger>
                 <SheetContent side="left" className="p-0 w-80 sm:w-96">
                   <PromptMarketplaceSidebar
-                    selectedCategory={selectedCategory}
-                    onSelectCategory={(cat) => {
-                      setSelectedCategory(cat);
-                    }}
-                    selectedTiers={selectedTiers}
-                    onToggleTier={handleTierToggle}
-                    minRating={minRating}
-                    onMinRatingChange={setMinRating}
+                    selectedCategory={browseViewState.category}
+                    onSelectCategory={setBrowseCategory}
+                    selectedTiers={browseViewState.selectedTiers}
+                    onToggleTier={toggleBrowseQualityTier}
+                    minRating={browseViewState.minRating}
+                    onMinRatingChange={setBrowseMinRating}
                     categoryCounts={categoryCounts}
                     className="flex w-full h-full border-none"
                     isMobile
@@ -560,16 +613,16 @@ export function PromptMarketplaceBrowser({
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 placeholder={t('search.placeholder')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={browseViewState.query}
+                onChange={(e) => setBrowseQuery(e.target.value)}
                 className="pl-8 pr-8 h-8 text-sm bg-muted/30 border-muted-foreground/20 focus-visible:bg-background focus-visible:border-primary/40 transition-all"
               />
-              {searchQuery && (
+              {browseViewState.query && (
                 <Button
                   variant="ghost"
                   size="icon"
                   className="absolute right-0.5 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground hover:text-foreground"
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => setBrowseQuery('')}
                 >
                   <X className="h-3 w-3" />
                 </Button>
@@ -577,8 +630,8 @@ export function PromptMarketplaceBrowser({
             </div>
 
             <Select
-              value={sortBy}
-              onValueChange={(v) => setSortBy(v as MarketplaceSearchFilters['sortBy'])}
+              value={browseViewState.sortBy}
+              onValueChange={(v) => setBrowseSortBy(v as NonNullable<MarketplaceSearchFilters['sortBy']>)}
             >
               <SelectTrigger className="w-32 sm:w-36 h-8 text-xs bg-muted/30 border-muted-foreground/20">
                 <SelectValue placeholder={t('sort.placeholder')} />
@@ -596,34 +649,34 @@ export function PromptMarketplaceBrowser({
         {/* Active Filters Pills */}
         {hasActiveFilters && activeTab === 'browse' && (
           <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
-            {selectedCategory !== 'all' && (
+            {browseViewState.category !== 'all' && (
               <Badge
                 variant="secondary"
                 className="shrink-0 gap-1 pl-2 pr-1 py-0.5 text-xs cursor-pointer hover:bg-secondary/80"
-                onClick={() => setSelectedCategory('all')}
+                onClick={() => setBrowseCategory('all')}
               >
-                {selectedCategory}
+                {browseViewState.category}
                 <X className="h-3 w-3" />
               </Badge>
             )}
-            {selectedTiers.map((tier) => (
+            {browseViewState.selectedTiers.map((tier) => (
               <Badge
                 key={tier}
                 variant="secondary"
                 className="shrink-0 gap-1 pl-2 pr-1 py-0.5 text-xs cursor-pointer hover:bg-secondary/80"
-                onClick={() => handleTierToggle(tier)}
+                onClick={() => toggleBrowseQualityTier(tier)}
               >
                 {tier}
                 <X className="h-3 w-3" />
               </Badge>
             ))}
-            {minRating > 0 && (
+            {browseViewState.minRating > 0 && (
               <Badge
                 variant="secondary"
                 className="shrink-0 gap-1 pl-2 pr-1 py-0.5 text-xs cursor-pointer hover:bg-secondary/80"
-                onClick={() => setMinRating(0)}
+                onClick={() => setBrowseMinRating(0)}
               >
-                {minRating}+ ★
+                {browseViewState.minRating}+ ★
                 <X className="h-3 w-3" />
               </Badge>
             )}
@@ -639,10 +692,52 @@ export function PromptMarketplaceBrowser({
         )}
       </div>
 
+      {activeTab === 'browse' && listError?.status === 'error' && (
+        <div className="mx-3 mt-3 lg:mx-4 rounded-lg border border-amber-300/60 bg-amber-50/90 p-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{t(listErrorMessageKey)}</p>
+              {listError.error && <p className="mt-0.5 truncate text-amber-800/90 dark:text-amber-200/90">{listError.error}</p>}
+            </div>
+            {listError.retryable !== false && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-[11px]"
+                onClick={handleRefreshCatalog}
+              >
+                {t('errors.retry')}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Scrollable Content */}
-      <ScrollArea className="flex-1">
+      <div
+        ref={contentContainerRef}
+        className="flex-1 overflow-y-auto"
+        onScroll={(event) => {
+          if (activeTab === 'browse' && !browseViewState.detailOpen) {
+            setBrowseScrollOffset(event.currentTarget.scrollTop);
+          }
+        }}
+      >
         <div className="p-3 lg:p-4 space-y-5">
-            {activeTab === 'browse' && (
+          {activeTab === 'browse' && (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)_360px]">
+              <PromptMarketplaceSidebar
+                selectedCategory={browseViewState.category}
+                onSelectCategory={setBrowseCategory}
+                selectedTiers={browseViewState.selectedTiers}
+                onToggleTier={toggleBrowseQualityTier}
+                minRating={browseViewState.minRating}
+                onMinRatingChange={setBrowseMinRating}
+                categoryCounts={categoryCounts}
+                className="hidden lg:flex lg:sticky lg:top-0 lg:max-h-[calc(100vh-13.5rem)]"
+              />
+
               <BrowseTab
                 featuredPrompts={featuredPrompts}
                 trendingPrompts={trendingPrompts}
@@ -658,67 +753,76 @@ export function PromptMarketplaceBrowser({
                 onLoadMore={loadMorePrompts}
                 onClearFilters={clearFilters}
               />
-            )}
 
-            {activeTab === 'installed' && (
-              <InstalledTab
-                installedPrompts={installedPrompts}
-                installedPromptsList={installedPromptsList}
-                promptsWithUpdates={promptsWithUpdates}
-                isCheckingUpdates={isCheckingUpdates}
-                installedSearchQuery={installedSearchQuery}
-                installedSortBy={installedSortBy}
-                gridClasses={gridClasses}
-                viewMode={viewMode}
-                onSearchChange={setInstalledSearchQuery}
-                onSortChange={setInstalledSortBy}
-                onViewDetail={handleViewDetail}
-                onCheckForUpdates={handleCheckForUpdates}
-                onUpdatePrompt={handleUpdatePrompt}
-                onNavigateToBrowse={() => setActiveTab('browse')}
+              <PromptMarketplaceInspector
+                prompt={selectedPrompt}
+                retryContext={selectedPrompt ? installRetryContexts[selectedPrompt.id] : undefined}
+                className="hidden lg:block lg:sticky lg:top-0 lg:max-h-[calc(100vh-13.5rem)]"
+                onOpenDetail={() => setDetailOpen(true)}
+                onViewAuthor={handleViewAuthor}
               />
-            )}
+            </div>
+          )}
 
-            {activeTab === 'favorites' && (
-              <FavoritesTab
-                favoriteIds={favoriteIds}
-                favoritePrompts={favoritePrompts}
-                favoritesSearchQuery={favoritesSearchQuery}
-                favoritesSortBy={favoritesSortBy}
-                gridClasses={gridClasses}
-                viewMode={viewMode}
-                onSearchChange={setFavoritesSearchQuery}
-                onSortChange={setFavoritesSortBy}
-                onViewDetail={handleViewDetail}
-                onInstall={onInstall}
-                onNavigateToBrowse={() => setActiveTab('browse')}
-              />
-            )}
+          {activeTab === 'installed' && (
+            <InstalledTab
+              installedPrompts={installedPrompts}
+              installedPromptsList={installedPromptsList}
+              promptsWithUpdates={promptsWithUpdates}
+              isCheckingUpdates={isCheckingUpdates}
+              installedSearchQuery={installedSearchQuery}
+              installedSortBy={installedSortBy}
+              gridClasses={gridClasses}
+              viewMode={viewMode}
+              onSearchChange={setInstalledSearchQuery}
+              onSortChange={setInstalledSortBy}
+              onViewDetail={handleViewDetail}
+              onCheckForUpdates={handleCheckForUpdates}
+              onUpdatePrompt={handleUpdatePrompt}
+              onNavigateToBrowse={() => setActiveTab('browse')}
+            />
+          )}
 
-            {activeTab === 'collections' && (
-              <CollectionsTab
-                collections={collections}
-                getPromptById={getPromptById}
-              />
-            )}
+          {activeTab === 'favorites' && (
+            <FavoritesTab
+              favoriteIds={favoriteIds}
+              favoritePrompts={favoritePrompts}
+              favoritesSearchQuery={favoritesSearchQuery}
+              favoritesSortBy={favoritesSortBy}
+              gridClasses={gridClasses}
+              viewMode={viewMode}
+              onSearchChange={setFavoritesSearchQuery}
+              onSortChange={setFavoritesSortBy}
+              onViewDetail={handleViewDetail}
+              onInstall={onInstall}
+              onNavigateToBrowse={() => setActiveTab('browse')}
+            />
+          )}
 
-            {activeTab === 'recent' && (
-              <RecentTab
-                recentlyViewed={recentlyViewed}
-                gridClasses={gridClasses}
-                viewMode={viewMode}
-                onViewDetail={handleViewDetail}
-                onInstall={onInstall}
-                onNavigateToBrowse={() => setActiveTab('browse')}
-              />
-            )}
-          </div>
-        </ScrollArea>
+          {activeTab === 'collections' && (
+            <CollectionsTab
+              collections={collections}
+              getPromptById={getPromptById}
+            />
+          )}
+
+          {activeTab === 'recent' && (
+            <RecentTab
+              recentlyViewed={recentlyViewed}
+              gridClasses={gridClasses}
+              viewMode={viewMode}
+              onViewDetail={handleViewDetail}
+              onInstall={onInstall}
+              onNavigateToBrowse={() => setActiveTab('browse')}
+            />
+          )}
+        </div>
+      </div>
 
       {/* Detail Dialog */}
       <PromptMarketplaceDetail
         prompt={selectedPrompt}
-        open={detailOpen}
+        open={browseViewState.detailOpen && !!selectedPrompt}
         onOpenChange={setDetailOpen}
         onViewAuthor={handleViewAuthor}
       />

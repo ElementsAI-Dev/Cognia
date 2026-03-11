@@ -80,6 +80,19 @@ describe('Skills Marketplace API', () => {
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('INVALID_API_KEY');
     });
+
+    it('should handle 429 rate-limit error', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 429,
+        statusText: 'Too Many Requests',
+      });
+
+      const result = await searchSkillsMarketplace('test', { apiKey: 'sk_test_key' });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('RATE_LIMIT');
+    });
   });
 
   describe('aiSearchSkillsMarketplace', () => {

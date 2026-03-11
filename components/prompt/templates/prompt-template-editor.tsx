@@ -29,11 +29,18 @@ import { cn } from '@/lib/utils';
 export interface PromptTemplateEditorProps {
   template?: PromptTemplate;
   categories: string[];
+  submitError?: string;
   onCancel?: () => void;
   onSubmit: (input: CreatePromptTemplateInput) => void;
 }
 
-export function PromptTemplateEditor({ template, categories, onCancel, onSubmit }: PromptTemplateEditorProps) {
+export function PromptTemplateEditor({
+  template,
+  categories,
+  submitError,
+  onCancel,
+  onSubmit,
+}: PromptTemplateEditorProps) {
   const t = useTranslations('promptTemplate.editor');
   
   // State initialized from template props - parent should use key={template?.id} to reset on template change
@@ -326,13 +333,18 @@ export function PromptTemplateEditor({ template, categories, onCancel, onSubmit 
         </Tabs>
       </div>
 
-      <div className="flex items-center justify-end gap-2 pt-2">
+      <div className="flex items-center justify-between gap-2 pt-2">
+        <div>
+          {submitError && <p className="text-sm text-destructive">{submitError}</p>}
+        </div>
+        <div className="flex items-center gap-2">
         {onCancel && (
           <Button variant="ghost" onClick={onCancel}>
             {t('cancel')}
           </Button>
         )}
         <Button onClick={handleSubmit}>{template ? t('save') : t('createTemplateBtn')}</Button>
+        </div>
       </div>
     </div>
   );

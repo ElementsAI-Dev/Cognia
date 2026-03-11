@@ -164,6 +164,13 @@ export async function searchSkillsMarketplace(
           error: { code: 'INVALID_API_KEY', message: 'Invalid or expired API key' },
         };
       }
+      if (response.status === 429) {
+        return {
+          success: false,
+          data: [],
+          error: { code: 'RATE_LIMIT', message: 'Rate limit exceeded' },
+        };
+      }
       throw new Error(`API error: ${response.statusText}`);
     }
 
@@ -248,6 +255,13 @@ export async function aiSearchSkillsMarketplace(
           success: false,
           data: [],
           error: { code: 'INVALID_API_KEY', message: 'Invalid or expired API key' },
+        };
+      }
+      if (response.status === 429) {
+        return {
+          success: false,
+          data: [],
+          error: { code: 'RATE_LIMIT', message: 'Rate limit exceeded' },
         };
       }
       throw new Error(`API error: ${response.statusText}`);

@@ -18,13 +18,14 @@ import {
   MARKETPLACE_CATEGORIES,
   QUALITY_TIER_INFO,
   type MarketplaceCategory,
+  type PromptQualityTier,
 } from '@/types/content/prompt-marketplace';
 
 interface PromptMarketplaceSidebarProps {
   selectedCategory: MarketplaceCategory | 'all';
   onSelectCategory: (category: MarketplaceCategory | 'all') => void;
-  selectedTiers: string[];
-  onToggleTier: (tier: string) => void;
+  selectedTiers: PromptQualityTier[];
+  onToggleTier: (tier: PromptQualityTier) => void;
   minRating: number;
   onMinRatingChange: (value: number) => void;
   categoryCounts?: Record<string, number>;
@@ -184,13 +185,13 @@ export function PromptMarketplaceSidebar({
                   className={cn(
                     'flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-all',
                     'hover:bg-muted/50',
-                    selectedTiers.includes(tier) && 'bg-muted/70 ring-1 ring-border'
+                    selectedTiers.includes(tier as PromptQualityTier) && 'bg-muted/70 ring-1 ring-border'
                   )}
                 >
                   <Checkbox
                     id={`sidebar-tier-${tier}`}
-                    checked={selectedTiers.includes(tier)}
-                    onCheckedChange={() => onToggleTier(tier)}
+                    checked={selectedTiers.includes(tier as PromptQualityTier)}
+                    onCheckedChange={() => onToggleTier(tier as PromptQualityTier)}
                     className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                   />
                   <div className="flex items-center gap-2 flex-1">

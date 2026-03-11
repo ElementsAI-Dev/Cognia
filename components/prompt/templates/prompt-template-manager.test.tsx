@@ -4,6 +4,9 @@ import { usePromptTemplateStore } from '@/stores/prompt/prompt-template-store';
 import type { PromptTemplate } from '@/types/content/prompt-template';
 import { PromptTemplateManager } from './prompt-template-manager';
 
+jest.mock('zustand', () => jest.requireActual('zustand'));
+jest.mock('zustand/middleware', () => jest.requireActual('zustand/middleware'));
+
 // Bypass __mocks__/stores.ts which doesn't export usePromptTemplateStore
 jest.unmock('@/stores');
 

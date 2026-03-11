@@ -26,6 +26,8 @@ jest.mock('@/hooks/skills/use-skill-marketplace', () => ({
     filters: { query: '', sortBy: 'stars', page: 1, limit: 20, useAiSearch: false },
     isLoading: false,
     error: null,
+    errorCategory: null,
+    lastDiagnostic: null,
     hasApiKey: true,
     apiKey: 'test-key',
     currentPage: 1,

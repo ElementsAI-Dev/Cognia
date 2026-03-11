@@ -73,4 +73,17 @@ describe('PromptTemplateEditor', () => {
       })
     );
   });
+
+  it('renders submit error message when provided', () => {
+    const onSubmit = jest.fn();
+    render(
+      <PromptTemplateEditor
+        categories={categories}
+        onSubmit={onSubmit}
+        submitError="Template save failed"
+      />
+    );
+
+    expect(screen.getByText('Template save failed')).toBeInTheDocument();
+  });
 });

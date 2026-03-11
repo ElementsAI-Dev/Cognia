@@ -18,12 +18,23 @@ export type PromptMarketplaceDataSource = 'remote' | 'fallback';
 export type PromptMarketplaceOperationStatus = 'idle' | 'loading' | 'success' | 'error';
 export type PromptMarketplaceImportConflictStrategy = 'skip' | 'overwrite' | 'duplicate';
 export type PromptMarketplaceImportItemStatus = 'imported' | 'skipped' | 'failed';
+export type PromptMarketplaceErrorCategory =
+  | 'auth'
+  | 'network'
+  | 'rate_limit'
+  | 'validation'
+  | 'not_found'
+  | 'conflict'
+  | 'unknown';
 
 export const PROMPT_MARKETPLACE_EXCHANGE_VERSION = '1.1';
 
 export interface PromptMarketplaceOperationState {
   status: PromptMarketplaceOperationStatus;
   error?: string;
+  category?: PromptMarketplaceErrorCategory;
+  retryable?: boolean;
+  code?: string;
   updatedAt: Date;
 }
 

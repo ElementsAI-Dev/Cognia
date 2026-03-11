@@ -61,11 +61,12 @@ import {
 import { EmptyState } from '@/components/layout/feedback/empty-state';
 import { cn } from '@/lib/utils';
 import { usePromptTemplateStore } from '@/stores';
+import { toast } from '@/components/ui/sonner';
 import { PromptTemplateCard } from './prompt-template-card';
 import { PromptTemplateCardSkeleton } from './prompt-template-card-skeleton';
 import { PromptTemplateEditor } from './prompt-template-editor';
 import { PromptTemplateAdvancedEditor } from './prompt-template-advanced-editor';
-import type { PromptTemplate } from '@/types/content/prompt-template';
+import type { PromptTemplate, PromptTemplateImportStrategy } from '@/types/content/prompt-template';
 
 type ViewMode = 'grid' | 'list';
 type SortMode = 'name' | 'updated' | 'usage';
@@ -84,6 +85,7 @@ export function PromptTemplateManager() {
   const importTemplates = usePromptTemplateStore((state) => state.importTemplates);
   const exportTemplates = usePromptTemplateStore((state) => state.exportTemplates);
   const initializeDefaults = usePromptTemplateStore((state) => state.initializeDefaults);
+  const operationStates = usePromptTemplateStore((state) => state.operationStates);
 
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -91,10 +93,12 @@ export function PromptTemplateManager() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [importPayload, setImportPayload] = useState('');
+  const [importStrategy, setImportStrategy] = useState<PromptTemplateImportStrategy>('skip');
   const [useAdvancedEditor, setUseAdvancedEditor] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortMode, setSortMode] = useState<SortMode>('updated');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Keyboard shortcuts
@@ -183,23 +187,47 @@ export function PromptTemplateManager() {
 
   const handleCreate = () => {
     setEditing(null);
+    setSubmitError(null);
     setIsEditorOpen(true);
   };
 
   const handleSave = (input: Parameters<typeof createTemplate>[0]) => {
-    if (editing) {
-      updateTemplate(editing.id, input);
+    setSubmitError(null);
+    const result = editing ? updateTemplate(editing.id, input) : createTemplate(input);
+    if (!result.ok) {
+      const message = result.errors?.[0]?.message || result.message || t('saveFailed');
+      setSubmitError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (editing && result.code === 'SOURCE_GUARDED') {
+      toast.success(t('sourceGuardedForked'));
     } else {
-      createTemplate(input);
+      toast.success(t('saveSuccess'));
     }
     setIsEditorOpen(false);
+    setEditing(null);
   };
 
   const handleImport = () => {
-    const added = importTemplates(importPayload);
-    setImportPayload('');
-    setIsImportOpen(false);
-    return added;
+    const report = importTemplates(importPayload, { strategy: importStrategy });
+    const successCount = report.imported + report.overwritten + report.duplicated;
+    if (successCount > 0) {
+      toast.success(
+        t('importSummary', {
+          success: successCount,
+          skipped: report.skipped,
+          failed: report.failed,
+        })
+      );
+      setImportPayload('');
+      setIsImportOpen(false);
+    } else {
+      const firstFailure = report.items.find((item) => item.status === 'failed');
+      toast.error(firstFailure?.message || t('importFailed'));
+    }
+    return report;
   };
 
   const handleDeleteRequest = useCallback((id: string) => {
@@ -208,12 +236,26 @@ export function PromptTemplateManager() {
 
   const confirmDelete = useCallback(() => {
     if (deleteConfirmId) {
-      deleteTemplate(deleteConfirmId);
+      const result = deleteTemplate(deleteConfirmId);
+      if (!result.ok) {
+        toast.error(result.message || t('deleteFailed'));
+      }
     }
     setDeleteConfirmId(null);
-  }, [deleteConfirmId, deleteTemplate]);
+  }, [deleteConfirmId, deleteTemplate, t]);
+
+  const handleDuplicate = useCallback((id: string) => {
+    const result = duplicateTemplate(id);
+    if (!result.ok) {
+      toast.error(result.message || t('duplicateFailed'));
+      return;
+    }
+    toast.success(t('duplicateSuccess'));
+  }, [duplicateTemplate, t]);
 
   const isLoading = !isInitialized && templates.length === 0;
+  const importIsRunning = operationStates.import?.status === 'running';
+  const exportIsRunning = operationStates.export?.status === 'running';
 
   return (
     <div className="space-y-6">
@@ -343,7 +385,16 @@ export function PromptTemplateManager() {
               variant="outline"
               size="sm"
               className="h-9"
-              onClick={() => navigator.clipboard.writeText(exportTemplates())}
+              disabled={exportIsRunning}
+              onClick={() => {
+                const result = exportTemplates();
+                if (!result.ok || !result.data) {
+                  toast.error(result.message || t('exportFailed'));
+                  return;
+                }
+                navigator.clipboard.writeText(result.data.json);
+                toast.success(t('copyExportSuccess', { count: result.data.count }));
+              }}
             >
               <Download className="h-4 w-4 mr-1.5" />
               <span className="hidden sm:inline">{t('copyExport')}</span>
@@ -386,9 +437,10 @@ export function PromptTemplateManager() {
                   template={template}
                   onEdit={(tpl) => {
                     setEditing(tpl);
+                    setSubmitError(null);
                     setIsEditorOpen(true);
                   }}
-                  onDuplicate={duplicateTemplate}
+                  onDuplicate={handleDuplicate}
                   onDelete={handleDeleteRequest}
                 />
               ))}
@@ -418,9 +470,10 @@ export function PromptTemplateManager() {
                           template={template}
                           onEdit={(tpl) => {
                             setEditing(tpl);
+                            setSubmitError(null);
                             setIsEditorOpen(true);
                           }}
-                          onDuplicate={duplicateTemplate}
+                          onDuplicate={handleDuplicate}
                           onDelete={handleDeleteRequest}
                         />
                       ))}
@@ -433,9 +486,10 @@ export function PromptTemplateManager() {
                           template={template}
                           onEdit={(tpl) => {
                             setEditing(tpl);
+                            setSubmitError(null);
                             setIsEditorOpen(true);
                           }}
-                          onDuplicate={duplicateTemplate}
+                          onDuplicate={handleDuplicate}
                           onDelete={handleDeleteRequest}
                         />
                       ))}
@@ -469,6 +523,7 @@ export function PromptTemplateManager() {
               key={editing?.id ?? 'new-advanced'}
               template={editing ?? undefined}
               categories={categories}
+              submitError={submitError ?? undefined}
               onCancel={() => setIsEditorOpen(false)}
               onSubmit={handleSave}
             />
@@ -477,6 +532,7 @@ export function PromptTemplateManager() {
               key={editing?.id ?? 'new'}
               template={editing ?? undefined}
               categories={categories}
+              submitError={submitError ?? undefined}
               onCancel={() => setIsEditorOpen(false)}
               onSubmit={handleSave}
             />
@@ -495,11 +551,26 @@ export function PromptTemplateManager() {
             value={importPayload}
             onChange={(e) => setImportPayload(e.target.value)}
           />
+          <Select value={importStrategy} onValueChange={(value) => setImportStrategy(value as PromptTemplateImportStrategy)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="skip">{t('importStrategySkip')}</SelectItem>
+              <SelectItem value="overwrite">{t('importStrategyOverwrite')}</SelectItem>
+              <SelectItem value="duplicate">{t('importStrategyDuplicate')}</SelectItem>
+            </SelectContent>
+          </Select>
+          {operationStates.import?.status === 'error' && (
+            <p className="text-sm text-destructive">{operationStates.import.message || t('importFailed')}</p>
+          )}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setIsImportOpen(false)}>
               {t('cancel')}
             </Button>
-            <Button onClick={handleImport}>{t('import')}</Button>
+            <Button onClick={handleImport} disabled={importIsRunning}>
+              {importIsRunning ? t('importing') : t('import')}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

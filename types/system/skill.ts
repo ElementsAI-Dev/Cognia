@@ -191,6 +191,8 @@ export interface Skill {
 
   /** Canonical identity used for cross-source reconciliation */
   canonicalId?: string;
+  /** Canonical marketplace item id when the skill originates from marketplace installation */
+  marketplaceSkillId?: string;
   /** Linked native installed skill id (desktop mode) */
   nativeSkillId?: string;
   /** Linked native directory (desktop mode) */
@@ -300,6 +302,8 @@ export interface CreateSkillInput {
   status?: SkillStatus;
   /** Canonical identity used for cross-source reconciliation */
   canonicalId?: string;
+  /** Canonical marketplace item id from marketplace install source */
+  marketplaceSkillId?: string;
   /** Linked native installed skill id */
   nativeSkillId?: string;
   /** Linked native directory */
@@ -344,6 +348,8 @@ export interface UpdateSkillInput {
   author?: string;
   /** Updated canonical id */
   canonicalId?: string | null;
+  /** Updated marketplace skill id */
+  marketplaceSkillId?: string | null;
   /** Updated linked native skill id */
   nativeSkillId?: string | null;
   /** Updated linked native directory */

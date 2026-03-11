@@ -160,6 +160,12 @@
     "generatePromptsSuccess": "快捷提示生成成功！",
     "insertTemplate": "插入模板",
     "switchedTo": "已切换到 {name}",
+    "unsavedChangesTitle": "要放弃未保存的更改吗？",
+    "unsavedChangesDesc": "当前预设有未保存更改。现在关闭将丢失这些编辑内容。",
+    "discardChanges": "放弃更改",
+    "keepEditing": "继续编辑",
+    "importResultSummary": "已导入 {imported}，已跳过 {skipped}",
+    "importAdjusted": "已调整 {count} 条",
     "removeFromFavoritesTitle": "从收藏移除",
     "addToFavoritesTitle": "添加到收藏",
     "removePrompt": "移除提示",
@@ -185,9 +191,16 @@
       "generatePromptsFailed": "生成提示词失败",
       "generatePromptsFailedRetry": "生成提示词失败，请重试。",
       "nameRequired": "请输入预设名称",
+      "providerRequired": "请选择服务商",
       "modelRequired": "请选择模型",
+      "maxTokensInvalid": "最大令牌数必须大于 0",
       "invalidFileFormat": "预设文件格式无效",
-      "parseFileFailed": "解析预设文件失败"
+      "parseFileFailed": "解析预设文件失败",
+      "invalidEntry": "无效条目"
+    },
+    "compatibility": {
+      "providerFallback": "当前服务商不可用，已切换到自动模式并使用模型 {toModel}。",
+      "modelFallback": "模型 {fromModel} 不可用，已自动切换为 {toModel}。"
     }
   }
 }

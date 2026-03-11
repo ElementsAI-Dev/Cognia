@@ -17,6 +17,9 @@ import {
 import { promoteSkillToNative } from '@/lib/skills/skill-actions';
 import { isNativeSkillAvailable } from '@/lib/native/skill';
 
+jest.mock('zustand', () => jest.requireActual('zustand'));
+jest.mock('zustand/middleware', () => jest.requireActual('zustand/middleware'));
+
 // Mock the marketplace API
 jest.mock('@/lib/skills/marketplace', () => ({
   searchSkillsMarketplace: jest.fn(),
@@ -34,6 +37,13 @@ jest.mock('@/lib/skills/parser', () => ({
     metadata: { name: 'parsed-skill', description: 'Parsed description' },
     content: content.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, ''),
   })),
+  toHyphenCase: jest.fn((value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .replace(/-+/g, '-')
+  ),
   inferCategoryFromContent: jest.fn(() => 'development'),
   extractTagsFromContent: jest.fn(() => ['auto-tag']),
 }));
@@ -82,7 +92,9 @@ describe('Skill Marketplace Store', () => {
       filters: DEFAULT_SKILLS_MARKETPLACE_FILTERS,
       isLoading: false,
       error: null,
+      errorCategory: null,
       lastSearched: null,
+      lastDiagnostic: null,
       currentPage: 1,
       totalPages: 1,
       totalItems: 0,
@@ -185,7 +197,8 @@ describe('Skill Marketplace Store', () => {
         await result.current.searchSkills('test');
       });
 
-      expect(result.current.error).toBe('API key is required. Configure it in settings.');
+      expect(result.current.error).toBe('i18n:marketplace.errors.auth');
+      expect(result.current.errorCategory).toBe('auth');
     });
 
     it('should clear items for empty query', async () => {
@@ -227,6 +240,8 @@ describe('Skill Marketplace Store', () => {
       expect(result.current.items).toEqual(mockItems);
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
+      expect(result.current.lastDiagnostic?.operation).toBe('search');
+      expect(result.current.lastDiagnostic?.outcome).toBe('success');
     });
 
     it('should handle search error', async () => {
@@ -246,7 +261,43 @@ describe('Skill Marketplace Store', () => {
         await result.current.searchSkills('test');
       });
 
-      expect(result.current.error).toBe('Search failed');
+      expect(result.current.error).toBe('i18n:marketplace.errors.unknown');
+      expect(result.current.errorCategory).toBe('unknown');
+    });
+
+    it('dispatches page navigation search using canonical state', async () => {
+      mockMarketplace.searchSkillsMarketplace.mockResolvedValue({
+        success: true,
+        data: [{ id: '1', name: 'Test Skill', description: 'Test' }],
+        pagination: { page: 1, limit: 20, total: 1, totalPages: 3 },
+      });
+
+      const { result } = renderHook(() => useSkillMarketplaceStore());
+
+      act(() => {
+        result.current.setApiKey('test-key');
+        result.current.setFilters({ query: 'test' });
+      });
+
+      await act(async () => {
+        await result.current.searchSkills();
+      });
+
+      mockMarketplace.searchSkillsMarketplace.mockResolvedValue({
+        success: true,
+        data: [{ id: '2', name: 'Test Skill 2', description: 'Test 2' }],
+        pagination: { page: 2, limit: 20, total: 2, totalPages: 3 },
+      });
+
+      await act(async () => {
+        result.current.setCurrentPage(2);
+        await Promise.resolve();
+      });
+
+      expect(mockMarketplace.searchSkillsMarketplace).toHaveBeenLastCalledWith(
+        'test',
+        expect.objectContaining({ page: 2, sortBy: 'stars' })
+      );
     });
   });
 
@@ -372,6 +423,42 @@ describe('Skill Marketplace Store', () => {
       const { result } = renderHook(() => useSkillMarketplaceStore());
 
       expect(result.current.getInstallStatus('unknown-id')).toBe('not_installed');
+    });
+
+    it('prefers canonical marketplace identity and migrates legacy-name linkage', () => {
+      const mockItem: SkillsMarketplaceItem = {
+        id: 'owner/repo/legacy-skill',
+        name: 'Legacy Skill',
+        description: 'legacy',
+        author: 'owner',
+        repository: 'owner/repo',
+        directory: 'skills/legacy-skill',
+        stars: 10,
+        createdAt: '2024-01-01',
+        updatedAt: '2024-01-02',
+      };
+
+      mockGetAllSkills.mockReturnValue([
+        {
+          id: 'legacy-id',
+          metadata: { name: 'legacy-skill', description: 'legacy' },
+          source: 'marketplace',
+          canonicalId: 'frontend:legacy-skill',
+          nativeSkillId: undefined,
+          nativeDirectory: undefined,
+        },
+      ]);
+
+      const { result } = renderHook(() => useSkillMarketplaceStore());
+      const installed = result.current.isItemInstalled(mockItem.id, mockItem);
+
+      expect(installed).toBe(true);
+      expect(mockUpdateSkill).toHaveBeenCalledWith(
+        'legacy-id',
+        expect.objectContaining({
+          marketplaceSkillId: mockItem.id,
+        })
+      );
     });
   });
 

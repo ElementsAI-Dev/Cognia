@@ -66,6 +66,7 @@ import { buildTemplateVariables } from '@/lib/prompts/template-utils';
 interface PromptTemplateAdvancedEditorProps {
   template?: PromptTemplate;
   categories: string[];
+  submitError?: string;
   onSubmit: (input: CreatePromptTemplateInput) => void;
   onCancel: () => void;
   onRequestOptimization?: (content: string) => Promise<string>;
@@ -74,6 +75,7 @@ interface PromptTemplateAdvancedEditorProps {
 export function PromptTemplateAdvancedEditor({
   template,
   categories,
+  submitError,
   onSubmit,
   onCancel,
   onRequestOptimization,
@@ -598,12 +600,20 @@ export function PromptTemplateAdvancedEditor({
       </ResizablePanelGroup>
       
       {/* Validation Errors */}
-      {!validation.isValid && (
+      {(!validation.isValid || submitError) && (
         <div className="px-4 py-2 border-t bg-red-50 dark:bg-red-950/20">
-          <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
-            <AlertCircle className="h-4 w-4" />
-            {validation.errors.join(', ')}
-          </div>
+          {!validation.isValid && (
+            <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
+              <AlertCircle className="h-4 w-4" />
+              {validation.errors.join(', ')}
+            </div>
+          )}
+          {submitError && (
+            <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm mt-1">
+              <AlertCircle className="h-4 w-4" />
+              {submitError}
+            </div>
+          )}
         </div>
       )}
     </div>

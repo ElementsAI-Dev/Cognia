@@ -4,7 +4,7 @@
  * CreatePresetDialog - dialog for creating or editing presets with AI features
  */
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,6 +29,16 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Wand2,
   Loader2,
@@ -69,6 +79,7 @@ export function CreatePresetDialog({
   const tChat = useTranslations('chat');
   const tPlaceholders = useTranslations('placeholders');
   const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
 
   // Form state (extracted to hook)
   const {
@@ -85,6 +96,10 @@ export function CreatePresetDialog({
     addBuiltinPrompt,
     updateBuiltinPrompt,
     removeBuiltinPrompt,
+    fieldErrors,
+    lastCompatibilityAdjustment,
+    clearValidationState,
+    isDirty,
     handleSubmit: submitForm,
   } = usePresetForm({
     editPreset,
@@ -154,11 +169,49 @@ export function CreatePresetDialog({
     const result = submitForm();
     if (!result.valid && result.error) {
       toast.error(t(`errors.${result.error}`));
+      return;
+    }
+
+    if (result.adjustment) {
+      toast.warning(
+        t(`compatibility.${result.adjustment.code}`, {
+          fromProvider: result.adjustment.fromProvider,
+          toProvider: result.adjustment.toProvider,
+          fromModel: result.adjustment.fromModel,
+          toModel: result.adjustment.toModel,
+        }),
+      );
     }
   };
 
+  const closeDialog = useCallback(() => {
+    clearValidationState();
+    onOpenChange(false);
+  }, [clearValidationState, onOpenChange]);
+
+  const handleDialogOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) {
+        return;
+      }
+
+      if (isDirty) {
+        setDiscardDialogOpen(true);
+        return;
+      }
+
+      closeDialog();
+    },
+    [isDirty, closeDialog],
+  );
+
+  const handleDiscardConfirm = useCallback(() => {
+    setDiscardDialogOpen(false);
+    closeDialog();
+  }, [closeDialog]);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
@@ -220,6 +273,11 @@ export function CreatePresetDialog({
                   onChange={(e) => updateField('name', e.target.value)}
                   placeholder={tPlaceholders('enterPresetName')}
                 />
+                {fieldErrors.name && (
+                  <p className="text-xs text-destructive">
+                    {t(`errors.${fieldErrors.name}`)}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -323,6 +381,11 @@ export function CreatePresetDialog({
                       ))}
                     </SelectContent>
                   </Select>
+                  {fieldErrors.provider && (
+                    <p className="text-xs text-destructive">
+                      {t(`errors.${fieldErrors.provider}`)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -339,8 +402,24 @@ export function CreatePresetDialog({
                       ))}
                     </SelectContent>
                   </Select>
+                  {fieldErrors.model && (
+                    <p className="text-xs text-destructive">
+                      {t(`errors.${fieldErrors.model}`)}
+                    </p>
+                  )}
                 </div>
               </div>
+
+              {lastCompatibilityAdjustment && (
+                <p className="text-xs text-amber-600">
+                  {t(`compatibility.${lastCompatibilityAdjustment.code}`, {
+                    fromProvider: lastCompatibilityAdjustment.fromProvider,
+                    toProvider: lastCompatibilityAdjustment.toProvider,
+                    fromModel: lastCompatibilityAdjustment.fromModel,
+                    toModel: lastCompatibilityAdjustment.toModel,
+                  })}
+                </p>
+              )}
 
               <div className="space-y-2">
                 <Label>{t('temperature')}: {form.temperature.toFixed(1)}</Label>
@@ -368,6 +447,11 @@ export function CreatePresetDialog({
                   }
                   placeholder={t('maxTokensPlaceholder')}
                 />
+                {fieldErrors.maxTokens && (
+                  <p className="text-xs text-destructive">
+                    {t(`errors.${fieldErrors.maxTokens}`)}
+                  </p>
+                )}
               </div>
 
               {/* Feature toggles */}
@@ -553,7 +637,7 @@ export function CreatePresetDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleDialogOpenChange(false)}>
             {tCommon('cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={!form.name.trim()}>
@@ -561,6 +645,26 @@ export function CreatePresetDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('unsavedChangesTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('unsavedChangesDesc')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('keepEditing')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDiscardConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('discardChanges')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

@@ -124,6 +124,30 @@ describe('usePresetStore', () => {
 
       expect(usePresetStore.getState().selectedPresetId).toBeNull();
     });
+
+    it('should reassign selectedPresetId to a valid preset when others remain', () => {
+      let preset1, preset2;
+      act(() => {
+        preset1 = usePresetStore.getState().createPreset({
+          name: 'First',
+          provider: 'openai',
+          model: 'gpt-4',
+          isDefault: true,
+        });
+        preset2 = usePresetStore.getState().createPreset({
+          name: 'Second',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+        usePresetStore.getState().selectPreset(preset2!.id);
+      });
+
+      act(() => {
+        usePresetStore.getState().deletePreset(preset2!.id);
+      });
+
+      expect(usePresetStore.getState().selectedPresetId).toBe(preset1!.id);
+    });
   });
 
   describe('duplicatePreset', () => {
@@ -218,6 +242,39 @@ describe('usePresetStore', () => {
       expect(presets.find((p) => p.id === preset1!.id)?.isDefault).toBe(false);
       expect(presets.find((p) => p.id === preset2!.id)?.isDefault).toBe(true);
     });
+
+    it('should keep exactly one default preset', () => {
+      let preset1, preset2, preset3;
+      act(() => {
+        preset1 = usePresetStore.getState().createPreset({
+          name: 'First',
+          provider: 'openai',
+          model: 'gpt-4',
+          isDefault: true,
+        });
+        preset2 = usePresetStore.getState().createPreset({
+          name: 'Second',
+          provider: 'openai',
+          model: 'gpt-4',
+          isDefault: true,
+        });
+        preset3 = usePresetStore.getState().createPreset({
+          name: 'Third',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+      });
+
+      act(() => {
+        usePresetStore.getState().setDefaultPreset(preset3!.id);
+      });
+
+      const defaults = usePresetStore.getState().presets.filter((p) => p.isDefault);
+      expect(defaults).toHaveLength(1);
+      expect(defaults[0].id).toBe(preset3!.id);
+      expect(defaults.some((p) => p.id === preset1!.id)).toBe(false);
+      expect(defaults.some((p) => p.id === preset2!.id)).toBe(false);
+    });
   });
 
   describe('toggleFavorite', () => {
@@ -273,6 +330,9 @@ describe('usePresetStore', () => {
       const presets = usePresetStore.getState().presets;
       // After reorder, preset3 should be first
       expect(presets[0].name).toBe('Third');
+      expect(presets[0].sortOrder).toBe(0);
+      expect(presets[1].sortOrder).toBe(1);
+      expect(presets[2].sortOrder).toBe(2);
     });
   });
 

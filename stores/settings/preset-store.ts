@@ -13,6 +13,77 @@ import {
   DEFAULT_PRESETS,
 } from '@/types/content/preset';
 
+function applySortOrder(presets: Preset[]): Preset[] {
+  return presets.map((preset, index) =>
+    preset.sortOrder === index
+      ? preset
+      : {
+          ...preset,
+          sortOrder: index,
+        },
+  );
+}
+
+function enforceDefaultInvariant(
+  presets: Preset[],
+  preferredDefaultId?: string,
+): Preset[] {
+  if (presets.length === 0) return presets;
+
+  if (preferredDefaultId && presets.some((preset) => preset.id === preferredDefaultId)) {
+    return presets.map((preset) =>
+      preset.isDefault === (preset.id === preferredDefaultId)
+        ? preset
+        : {
+            ...preset,
+            isDefault: preset.id === preferredDefaultId,
+          },
+    );
+  }
+
+  let hasDefault = false;
+  return presets.map((preset) => {
+    const nextIsDefault = Boolean(preset.isDefault) && !hasDefault;
+    if (nextIsDefault) hasDefault = true;
+
+    return preset.isDefault === nextIsDefault
+      ? preset
+      : {
+          ...preset,
+          isDefault: nextIsDefault,
+        };
+  });
+}
+
+function resolveSelectedPresetId(
+  selectedPresetId: string | null,
+  presets: Preset[],
+): string | null {
+  if (selectedPresetId && presets.some((preset) => preset.id === selectedPresetId)) {
+    return selectedPresetId;
+  }
+
+  const defaultPreset = presets.find((preset) => preset.isDefault);
+  if (defaultPreset) return defaultPreset.id;
+
+  return presets[0]?.id || null;
+}
+
+function sanitizePresetState(
+  presets: Preset[],
+  selectedPresetId: string | null,
+  options?: {
+    preferredDefaultId?: string;
+  },
+): Pick<PresetState, 'presets' | 'selectedPresetId'> {
+  const withDefault = enforceDefaultInvariant(presets, options?.preferredDefaultId);
+  const withSortOrder = applySortOrder(withDefault);
+  return {
+    presets: withSortOrder,
+    selectedPresetId: resolveSelectedPresetId(selectedPresetId, withSortOrder),
+  };
+}
+
 export interface CreateFromSessionInput {
   name: string;
   description?: string;
@@ -87,10 +158,11 @@ export const usePresetStore = create<PresetState>()(
               updatedAt: now,
             }));
 
+            const sanitized = sanitizePresetState(defaultPresets, null);
             set({
-              presets: defaultPresets,
+              presets: sanitized.presets,
               isInitialized: true,
-              selectedPresetId: defaultPresets.find((p) => p.isDefault)?.id || null,
+              selectedPresetId: sanitized.selectedPresetId,
             });
           } else {
             set({ isInitialized: true });
@@ -116,15 +188,20 @@ export const usePresetStore = create<PresetState>()(
           webSearchEnabled: input.webSearchEnabled,
           thinkingEnabled: input.thinkingEnabled,
           category: input.category,
-          isDefault: false,
+          isDefault: Boolean(input.isDefault),
           usageCount: 0,
           createdAt: now,
           updatedAt: now,
+          sortOrder: get().presets.length,
         };
 
-        set((state) => ({
-          presets: [...state.presets, newPreset],
-        }));
+        set((state) =>
+          sanitizePresetState(
+            [...state.presets, newPreset],
+            state.selectedPresetId,
+            input.isDefault ? { preferredDefaultId: newPreset.id } : undefined,
+          ),
+        );
 
         return newPreset;
       },
@@ -150,24 +227,33 @@ export const usePresetStore = create<PresetState>()(
       },
 
       updatePreset: (id, input) => {
-        set((state) => ({
-          presets: state.presets.map((preset) =>
+        set((state) => {
+          const updatedPresets = state.presets.map((preset) =>
             preset.id === id
               ? {
                   ...preset,
                   ...input,
                   updatedAt: new Date(),
                 }
-              : preset
-          ),
-        }));
+              : preset,
+          );
+
+          return sanitizePresetState(
+            updatedPresets,
+            state.selectedPresetId,
+            input.isDefault ? { preferredDefaultId: id } : undefined,
+          );
+        });
       },
 
       deletePreset: (id) => {
-        set((state) => ({
-          presets: state.presets.filter((p) => p.id !== id),
-          selectedPresetId: state.selectedPresetId === id ? null : state.selectedPresetId,
-        }));
+        set((state) => {
+          const remainingPresets = state.presets.filter((p) => p.id !== id);
+          return sanitizePresetState(
+            remainingPresets,
+            state.selectedPresetId === id ? null : state.selectedPresetId,
+          );
+        });
       },
 
       duplicatePreset: (id) => {
@@ -195,7 +281,9 @@ export const usePresetStore = create<PresetState>()(
       },
 
       selectPreset: (id) => {
-        set({ selectedPresetId: id });
+        set((state) => ({
+          selectedPresetId: resolveSelectedPresetId(id, state.presets),
+        }));
       },
 
       usePreset: (id) => {
@@ -213,12 +301,11 @@ export const usePresetStore = create<PresetState>()(
       },
 
       setDefaultPreset: (id) => {
-        set((state) => ({
-          presets: state.presets.map((preset) => ({
-            ...preset,
-            isDefault: preset.id === id,
-          })),
-        }));
+        set((state) =>
+          sanitizePresetState(state.presets, state.selectedPresetId, {
+            preferredDefaultId: id,
+          }),
+        );
       },
 
       toggleFavorite: (id) => {
@@ -239,14 +326,7 @@ export const usePresetStore = create<PresetState>()(
           const newPresets = [...state.presets];
           const [removed] = newPresets.splice(oldIndex, 1);
           newPresets.splice(newIndex, 0, removed);
-
-          // Update sortOrder for all presets
-          const updatedPresets = newPresets.map((preset, index) => ({
-            ...preset,
-            sortOrder: index,
-          }));
-
-          return { presets: updatedPresets };
+          return sanitizePresetState(newPresets, state.selectedPresetId);
         });
       },
 
@@ -260,9 +340,10 @@ export const usePresetStore = create<PresetState>()(
           updatedAt: now,
         }));
 
+        const sanitized = sanitizePresetState(defaultPresets, null);
         set({
-          presets: defaultPresets,
-          selectedPresetId: defaultPresets.find((p) => p.isDefault)?.id || null,
+          presets: sanitized.presets,
+          selectedPresetId: sanitized.selectedPresetId,
         });
       },
 
@@ -327,12 +408,15 @@ export const usePresetStore = create<PresetState>()(
             const d = new Date(v as string | number);
             return isNaN(d.getTime()) ? new Date() : d;
           };
-          state.presets = state.presets.map((p) => ({
+          const rehydratedPresets = state.presets.map((p) => ({
             ...p,
             createdAt: safeDate(p.createdAt),
             updatedAt: safeDate(p.updatedAt),
             lastUsedAt: p.lastUsedAt ? safeDate(p.lastUsedAt) : undefined,
           }));
+          const sanitized = sanitizePresetState(rehydratedPresets, state.selectedPresetId);
+          state.presets = sanitized.presets;
+          state.selectedPresetId = sanitized.selectedPresetId;
         }
       },
     }

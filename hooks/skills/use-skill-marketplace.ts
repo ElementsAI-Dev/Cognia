@@ -5,34 +5,19 @@
 
 import { useCallback, useMemo } from 'react';
 import { useSkillMarketplaceStore } from '@/stores/skills/skill-marketplace-store';
-import { useSkillStore } from '@/stores/skills/skill-store';
 import type { SkillsMarketplaceItem } from '@/types/skill/skill-marketplace';
 
 export function useSkillMarketplace() {
   const store = useSkillMarketplaceStore();
-  const skillStore = useSkillStore();
 
   /**
    * Check if a marketplace skill is already installed
    */
   const isInstalled = useCallback(
     (item: SkillsMarketplaceItem): boolean => {
-      // Check by marketplace ID first
-      const status = store.installingItems.get(item.id);
-      if (status === 'error') return false;
-      if (status === 'installed') return true;
-
-      // Check local skills by name or marketplace ID
-      const skills = skillStore.getAllSkills();
-      return skills.some(
-        (s) =>
-          // @ts-expect-error - marketplace fields may not exist
-          s.marketplaceId === item.id ||
-          s.metadata.name === item.name ||
-          s.metadata.name === item.directory.split('/').pop()
-      );
+      return store.isItemInstalled(item.id, item);
     },
-    [store.installingItems, skillStore]
+    [store]
   );
 
   /**
@@ -73,10 +58,9 @@ export function useSkillMarketplace() {
    */
   const getInstallStatus = useCallback(
     (item: SkillsMarketplaceItem) => {
-      if (isInstalled(item)) return 'installed';
-      return store.getInstallStatus(item.id);
+      return store.getInstallStatus(item.id, item);
     },
-    [store, isInstalled]
+    [store]
   );
 
   /**
@@ -126,6 +110,8 @@ export function useSkillMarketplace() {
     filters: store.filters,
     isLoading: store.isLoading,
     error: store.error,
+    errorCategory: store.errorCategory,
+    lastDiagnostic: store.lastDiagnostic,
     hasApiKey,
     apiKey: store.apiKey,
 

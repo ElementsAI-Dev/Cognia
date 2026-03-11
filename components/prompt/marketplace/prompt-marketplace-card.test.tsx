@@ -23,8 +23,13 @@ jest.mock('@/stores/prompt/prompt-marketplace-store', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/card', () => ({
-  Card: ({ children, onClick, className }: { children: React.ReactNode; onClick?: () => void; className?: string }) => (
-    <div data-testid="card" onClick={onClick} className={className}>{children}</div>
+  Card: ({
+    children,
+    onClick,
+    className,
+    ...props
+  }: React.HTMLAttributes<HTMLDivElement>) => (
+    <div data-testid="card" onClick={onClick} className={className} {...props}>{children}</div>
   ),
   CardContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   CardFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -104,6 +109,13 @@ describe('PromptMarketplaceCard', () => {
     const card = screen.getByTestId('card');
     fireEvent.click(card);
     
+    expect(defaultProps.onViewDetail).toHaveBeenCalledWith(mockPrompt);
+  });
+
+  it('supports keyboard activation for accessibility', () => {
+    render(<PromptMarketplaceCard {...defaultProps} />);
+    const card = screen.getByTestId('card');
+    fireEvent.keyDown(card, { key: 'Enter' });
     expect(defaultProps.onViewDetail).toHaveBeenCalledWith(mockPrompt);
   });
 

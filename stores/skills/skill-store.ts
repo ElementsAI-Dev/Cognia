@@ -260,9 +260,11 @@ export const useSkillStore = create<SkillState>()(
           canonicalId: input.canonicalId ?? buildCanonicalSkillId({
             source: input.source ?? 'custom',
             metadata: { name },
+            marketplaceSkillId: input.marketplaceSkillId,
             nativeSkillId: input.nativeSkillId,
             nativeDirectory: input.nativeDirectory,
           }),
+          marketplaceSkillId: input.marketplaceSkillId,
           nativeSkillId: input.nativeSkillId,
           nativeDirectory: input.nativeDirectory,
           syncOrigin: input.syncOrigin ?? getDefaultSyncOrigin(input.source ?? 'custom'),
@@ -306,6 +308,9 @@ export const useSkillStore = create<SkillState>()(
           const resolvedNativeSkillId = hasOwn('nativeSkillId')
             ? updates.nativeSkillId ?? undefined
             : skill.nativeSkillId;
+          const resolvedMarketplaceSkillId = hasOwn('marketplaceSkillId')
+            ? updates.marketplaceSkillId ?? undefined
+            : skill.marketplaceSkillId;
           const resolvedNativeDirectory = hasOwn('nativeDirectory')
             ? updates.nativeDirectory ?? undefined
             : skill.nativeDirectory;
@@ -341,9 +346,11 @@ export const useSkillStore = create<SkillState>()(
             canonicalId: resolvedCanonicalId ?? buildCanonicalSkillId({
               source: resolvedSource,
               metadata: updatedMetadata,
+              marketplaceSkillId: resolvedMarketplaceSkillId,
               nativeSkillId: resolvedNativeSkillId,
               nativeDirectory: resolvedNativeDirectory,
             }),
+            marketplaceSkillId: resolvedMarketplaceSkillId,
             nativeSkillId: resolvedNativeSkillId,
             nativeDirectory: resolvedNativeDirectory,
             syncOrigin: resolvedSyncOrigin,
@@ -756,9 +763,11 @@ export const useSkillStore = create<SkillState>()(
             canonicalId: skillData.canonicalId ?? duplicate.canonicalId ?? buildCanonicalSkillId({
               source: skillData.source ?? duplicate.source,
               metadata: skillData.metadata ?? duplicate.metadata,
+              marketplaceSkillId: skillData.marketplaceSkillId ?? duplicate.marketplaceSkillId,
               nativeSkillId: skillData.nativeSkillId ?? duplicate.nativeSkillId,
               nativeDirectory: skillData.nativeDirectory ?? duplicate.nativeDirectory,
             }),
+            marketplaceSkillId: skillData.marketplaceSkillId ?? duplicate.marketplaceSkillId,
             nativeSkillId: skillData.nativeSkillId ?? duplicate.nativeSkillId,
             nativeDirectory: skillData.nativeDirectory ?? duplicate.nativeDirectory,
             syncOrigin: skillData.syncOrigin ?? duplicate.syncOrigin ?? getDefaultSyncOrigin(skillData.source ?? duplicate.source),
@@ -793,9 +802,11 @@ export const useSkillStore = create<SkillState>()(
           canonicalId: skillData.canonicalId ?? buildCanonicalSkillId({
             source: skillData.source ?? 'imported',
             metadata: skillData.metadata,
+            marketplaceSkillId: skillData.marketplaceSkillId,
             nativeSkillId: skillData.nativeSkillId,
             nativeDirectory: skillData.nativeDirectory,
           }),
+          marketplaceSkillId: skillData.marketplaceSkillId,
           nativeSkillId: skillData.nativeSkillId,
           nativeDirectory: skillData.nativeDirectory,
           syncOrigin: skillData.syncOrigin ?? getDefaultSyncOrigin(skillData.source ?? 'imported'),
@@ -1006,7 +1017,7 @@ export const useSkillStore = create<SkillState>()(
     }),
     {
       name: 'cognia-skills-storage',
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState: unknown, version: number) => {
         const state = (persistedState ?? {}) as Record<string, unknown>;
@@ -1033,6 +1044,7 @@ export const useSkillStore = create<SkillState>()(
             const canonicalId = skill.canonicalId ?? buildCanonicalSkillId({
               source,
               metadata: { name: normalizedName },
+              marketplaceSkillId: skill.marketplaceSkillId,
               nativeSkillId: skill.nativeSkillId,
               nativeDirectory: skill.nativeDirectory,
             });
@@ -1044,6 +1056,11 @@ export const useSkillStore = create<SkillState>()(
                 name: normalizedName,
               },
               canonicalId,
+              marketplaceSkillId:
+                skill.marketplaceSkillId
+                ?? (typeof canonicalId === 'string' && canonicalId.startsWith('marketplace:')
+                  ? canonicalId.slice('marketplace:'.length)
+                  : undefined),
               syncOrigin,
               nativeDirectory: skill.nativeDirectory ?? (source === 'imported' ? normalizedName : undefined),
               syncFingerprint: skill.syncFingerprint
@@ -1086,6 +1103,25 @@ export const useSkillStore = create<SkillState>()(
           state.bootstrapFailureCode = null;
           state.bootstrapFailureAffectedSkillIds = [];
           state.lastActivationJournal = null;
+        }
+
+        if (version <= 3) {
+          const rawSkills = state.skills as Record<string, Skill>;
+          const upgradedSkills: Record<string, Skill> = {};
+
+          for (const [id, skill] of Object.entries(rawSkills)) {
+            const canonicalId = skill.canonicalId;
+            upgradedSkills[id] = {
+              ...skill,
+              marketplaceSkillId:
+                skill.marketplaceSkillId
+                ?? (typeof canonicalId === 'string' && canonicalId.startsWith('marketplace:')
+                  ? canonicalId.slice('marketplace:'.length)
+                  : undefined),
+            };
+          }
+
+          state.skills = upgradedSkills;
         }
         return state;
       },

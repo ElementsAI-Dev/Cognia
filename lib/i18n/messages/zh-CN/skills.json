@@ -446,7 +446,15 @@
       "noReadme": "暂无 README",
       "noSkillmd": "暂无 SKILL.md",
       "previous": "上一页",
-      "next": "下一页"
+      "next": "下一页",
+      "errors": {
+        "auth": "鉴权失败，请更新 SkillsMP API Key 后重试。",
+        "network": "网络请求失败，请检查网络后重试。",
+        "rateLimit": "请求过于频繁，请稍后重试。",
+        "validation": "搜索请求无效，请调整查询后重试。",
+        "partialSync": "技能内容已导入，但本地同步未完成，请重试以完成配置。",
+        "unknown": "市场操作失败，请重试。"
+      }
     },
     "skillSeekers": {
       "title": "技能探索者",

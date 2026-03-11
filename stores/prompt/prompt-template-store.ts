@@ -16,6 +16,14 @@ import {
   type OptimizationRecommendation,
   type CreatePromptTemplateInput,
   type UpdatePromptTemplateInput,
+  type PromptTemplateImportOptions,
+  type PromptTemplateImportReport,
+  type PromptTemplateImportStrategy,
+  type PromptTemplateMutationDecision,
+  type PromptTemplateOperationCode,
+  type PromptTemplateOperationError,
+  type PromptTemplateOperationResult,
+  type PromptTemplateOperationState,
   DEFAULT_PROMPT_TEMPLATE_CATEGORIES,
   DEFAULT_PROMPT_TEMPLATES,
 } from '@/types/content/prompt-template';
@@ -29,12 +37,15 @@ import { loggers } from '@/lib/logger';
 const log = loggers.store;
 
 import { buildTemplateVariables } from '@/lib/prompts/template-utils';
+import { buildPromptTemplateIdentity } from '@/lib/prompts/prompt-template-identity';
+import { validatePromptTemplateInput } from '@/lib/prompts/prompt-template-validation';
 
 interface PromptTemplateState {
   templates: PromptTemplate[];
   categories: string[];
   selectedTemplateId: string | null;
   isInitialized: boolean;
+  operationStates: Record<string, PromptTemplateOperationState>;
 
   // Feedback & A/B Testing state
   feedback: Record<string, PromptFeedback[]>;
@@ -42,10 +53,19 @@ interface PromptTemplateState {
   optimizationHistory: Record<string, PromptOptimizationHistory[]>;
 
   initializeDefaults: () => void;
-  createTemplate: (input: CreatePromptTemplateInput) => PromptTemplate;
-  updateTemplate: (id: string, input: UpdatePromptTemplateInput) => void;
-  deleteTemplate: (id: string) => void;
-  duplicateTemplate: (id: string) => PromptTemplate | null;
+  createTemplate: (
+    input: CreatePromptTemplateInput
+  ) => PromptTemplateOperationResult<PromptTemplate>;
+  updateTemplate: (
+    id: string,
+    input: UpdatePromptTemplateInput
+  ) => PromptTemplateOperationResult<{
+    template: PromptTemplate;
+    action: 'updated' | 'forked';
+    sourceId?: string;
+  }>;
+  deleteTemplate: (id: string) => PromptTemplateOperationResult<{ deletedId: string }>;
+  duplicateTemplate: (id: string) => PromptTemplateOperationResult<PromptTemplate>;
   selectTemplate: (id: string | null) => void;
   recordUsage: (id: string) => void;
 
@@ -53,15 +73,23 @@ interface PromptTemplateState {
   searchTemplates: (query: string) => PromptTemplate[];
   getTemplatesByCategory: (category: string) => PromptTemplate[];
   getTemplatesByTags: (tags: string[]) => PromptTemplate[];
+  getOperationState: (operationKey: string) => PromptTemplateOperationState | undefined;
+  clearOperationState: (operationKey: string) => void;
 
-  importTemplates: (payload: string | PromptTemplate[]) => number;
-  exportTemplates: (ids?: string[]) => string;
+  importTemplates: (
+    payload: string | PromptTemplate[],
+    options?: PromptTemplateImportOptions
+  ) => PromptTemplateImportReport;
+  exportTemplates: (ids?: string[]) => PromptTemplateOperationResult<{ json: string; count: number }>;
 
   syncFromMcpPrompts: (serverId: string, prompts: McpPrompt[]) => void;
 
   // Version History
   saveVersion: (id: string, changelog?: string) => PromptTemplateVersion | null;
-  restoreVersion: (id: string, versionId: string) => boolean;
+  restoreVersion: (
+    id: string,
+    versionId: string
+  ) => PromptTemplateOperationResult<{ template: PromptTemplate; restoredVersionId: string }>;
   getVersionHistory: (id: string) => PromptTemplateVersion[];
 
   // Feedback & Stats
@@ -155,6 +183,92 @@ function calculateStats(feedbackList: PromptFeedback[]): PromptTemplateStats {
   };
 }
 
+const MAX_VERSION_HISTORY = 50;
+const DEFAULT_IMPORT_STRATEGY: PromptTemplateImportStrategy = 'skip';
+
+function createOperationState(
+  status: PromptTemplateOperationState['status'],
+  code?: PromptTemplateOperationCode,
+  message?: string
+): PromptTemplateOperationState {
+  return {
+    status,
+    code,
+    message,
+    updatedAt: new Date(),
+  };
+}
+
+function okResult<TData>(
+  data: TData,
+  message?: string,
+  code: PromptTemplateOperationCode = 'OK'
+): PromptTemplateOperationResult<TData> {
+  return {
+    ok: true,
+    code,
+    message,
+    data,
+  };
+}
+
+function errorResult<TData = undefined>(
+  code: PromptTemplateOperationCode,
+  message: string,
+  errors?: PromptTemplateOperationError[]
+): PromptTemplateOperationResult<TData> {
+  return {
+    ok: false,
+    code,
+    message,
+    errors,
+  };
+}
+
+function deriveMutationDecision(template: PromptTemplate): PromptTemplateMutationDecision {
+  if (template.meta?.marketplace?.marketplaceId) {
+    return {
+      policy: 'restricted-update',
+      reason: 'marketplace-linked',
+    };
+  }
+
+  if (template.source === 'builtin') {
+    return {
+      policy: 'fork-on-update',
+      reason: 'builtin',
+    };
+  }
+
+  if (template.source === 'mcp') {
+    return {
+      policy: 'fork-on-update',
+      reason: 'mcp',
+    };
+  }
+
+  if (template.source === 'imported') {
+    return {
+      policy: 'direct-update',
+      reason: 'imported',
+    };
+  }
+
+  return {
+    policy: 'direct-update',
+    reason: 'user-owned',
+  };
+}
+
+function ensureForkName(baseName: string): string {
+  return /\(custom\)$/i.test(baseName) ? baseName : `${baseName} (Custom)`;
+}
+
+function pruneVersionHistory(history: PromptTemplateVersion[]): PromptTemplateVersion[] {
+  if (history.length <= MAX_VERSION_HISTORY) return history;
+  return history.slice(history.length - MAX_VERSION_HISTORY);
+}
+
 export const usePromptTemplateStore = create<PromptTemplateState>()(
   persist(
     (set, get) => ({
@@ -162,6 +276,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
       categories: DEFAULT_PROMPT_TEMPLATE_CATEGORIES,
       selectedTemplateId: null,
       isInitialized: false,
+      operationStates: {},
       feedback: {},
       abTests: {},
       optimizationHistory: {},
@@ -185,10 +300,27 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
       },
 
       createTemplate: (input) => {
+        set((state) => ({
+          operationStates: {
+            ...state.operationStates,
+            create: createOperationState('running'),
+          },
+        }));
+        const validation = validatePromptTemplateInput(input);
+        if (!validation.isValid) {
+          set((state) => ({
+            operationStates: {
+              ...state.operationStates,
+              create: createOperationState('error', 'VALIDATION_FAILED', validation.errors[0]?.message),
+            },
+          }));
+          return errorResult('VALIDATION_FAILED', 'Template creation failed validation.', validation.errors);
+        }
+
         const now = new Date();
         const template: PromptTemplate = {
           id: nanoid(),
-          name: input.name,
+          name: input.name.trim(),
           description: input.description,
           content: input.content,
           category: input.category,
@@ -202,39 +334,185 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
           updatedAt: now,
         };
 
-        set((state) => ({ templates: [...state.templates, template] }));
-        return template;
+        set((state) => ({
+          templates: [...state.templates, template],
+          selectedTemplateId: template.id,
+          operationStates: {
+            ...state.operationStates,
+            create: createOperationState('success', 'OK'),
+          },
+        }));
+        return okResult(template, 'Template created.');
       },
 
       updateTemplate: (id, input) => {
         set((state) => ({
-          templates: state.templates.map((tpl) =>
-            tpl.id === id
-              ? {
-                  ...tpl,
-                  ...input,
-                  tags: input.tags ?? tpl.tags,
-                  variables: buildTemplateVariables(
-                    input.content ?? tpl.content,
-                    input.variables ?? tpl.variables
-                  ),
-                  updatedAt: new Date(),
-                }
-              : tpl
-          ),
+          operationStates: {
+            ...state.operationStates,
+            update: createOperationState('running'),
+          },
         }));
+        const existing = get().templates.find((tpl) => tpl.id === id);
+        if (!existing) {
+          const result = errorResult<{ template: PromptTemplate; action: 'updated' | 'forked' }>(
+            'TEMPLATE_NOT_FOUND',
+            'Template not found.'
+          );
+          set((state) => ({
+            operationStates: {
+              ...state.operationStates,
+              update: createOperationState('error', result.code, result.message),
+            },
+          }));
+          return result;
+        }
+
+        const validation = validatePromptTemplateInput(input, { allowPartial: true });
+        if (!validation.isValid) {
+          const result = errorResult<{ template: PromptTemplate; action: 'updated' | 'forked' }>(
+            'VALIDATION_FAILED',
+            'Template update failed validation.',
+            validation.errors
+          );
+          set((state) => ({
+            operationStates: {
+              ...state.operationStates,
+              update: createOperationState('error', result.code, result.message),
+            },
+          }));
+          return result;
+        }
+
+        const mutationDecision = deriveMutationDecision(existing);
+        if (mutationDecision.policy === 'fork-on-update') {
+          const now = new Date();
+          const nextContent = input.content ?? existing.content;
+          const forked: PromptTemplate = {
+            ...existing,
+            ...input,
+            id: nanoid(),
+            name: ensureForkName(input.name?.trim() || existing.name),
+            content: nextContent,
+            tags: input.tags ?? existing.tags,
+            variables: buildTemplateVariables(nextContent, input.variables ?? existing.variables),
+            source: 'user',
+            usageCount: 0,
+            lastUsedAt: undefined,
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          set((state) => ({
+            templates: [...state.templates, forked],
+            selectedTemplateId: forked.id,
+            operationStates: {
+              ...state.operationStates,
+              update: createOperationState('success', 'SOURCE_GUARDED', 'Source template forked.'),
+            },
+          }));
+
+          return okResult(
+            { template: forked, action: 'forked', sourceId: existing.id },
+            'Source template forked into a user-owned template.',
+            'SOURCE_GUARDED'
+          );
+        }
+
+        let updatedTemplate: PromptTemplate | undefined;
+        set((state) => ({
+          templates: state.templates.map((tpl) => {
+            if (tpl.id !== id) return tpl;
+            const nextContent = input.content ?? tpl.content;
+            updatedTemplate = {
+              ...tpl,
+              ...input,
+              name: input.name?.trim() || tpl.name,
+              tags: input.tags ?? tpl.tags,
+              variables: buildTemplateVariables(nextContent, input.variables ?? tpl.variables),
+              content: nextContent,
+              source: mutationDecision.policy === 'restricted-update' ? tpl.source : (input.source ?? tpl.source),
+              meta:
+                mutationDecision.policy === 'restricted-update'
+                  ? {
+                      ...input.meta,
+                      marketplace: tpl.meta?.marketplace,
+                    }
+                  : (input.meta ?? tpl.meta),
+              updatedAt: new Date(),
+            };
+            return updatedTemplate;
+          }),
+          operationStates: {
+            ...state.operationStates,
+            update: createOperationState('success', 'OK'),
+          },
+        }));
+
+        if (!updatedTemplate) {
+          const result = errorResult<{ template: PromptTemplate; action: 'updated' | 'forked' }>(
+            'TEMPLATE_NOT_FOUND',
+            'Template not found.'
+          );
+          set((state) => ({
+            operationStates: {
+              ...state.operationStates,
+              update: createOperationState('error', result.code, result.message),
+            },
+          }));
+          return result;
+        }
+
+        return okResult({ template: updatedTemplate, action: 'updated' }, 'Template updated.');
       },
 
       deleteTemplate: (id) => {
         set((state) => ({
+          operationStates: {
+            ...state.operationStates,
+            delete: createOperationState('running'),
+          },
+        }));
+        const template = get().templates.find((tpl) => tpl.id === id);
+        if (!template) {
+          const result = errorResult<{ deletedId: string }>('TEMPLATE_NOT_FOUND', 'Template not found.');
+          set((state) => ({
+            operationStates: {
+              ...state.operationStates,
+              delete: createOperationState('error', result.code, result.message),
+            },
+          }));
+          return result;
+        }
+
+        set((state) => ({
           templates: state.templates.filter((tpl) => tpl.id !== id),
           selectedTemplateId: state.selectedTemplateId === id ? null : state.selectedTemplateId,
+          operationStates: {
+            ...state.operationStates,
+            delete: createOperationState('success', 'OK'),
+          },
         }));
+        return okResult({ deletedId: id }, 'Template deleted.');
       },
 
       duplicateTemplate: (id) => {
+        set((state) => ({
+          operationStates: {
+            ...state.operationStates,
+            duplicate: createOperationState('running'),
+          },
+        }));
         const found = get().templates.find((tpl) => tpl.id === id);
-        if (!found) return null;
+        if (!found) {
+          const result = errorResult<PromptTemplate>('TEMPLATE_NOT_FOUND', 'Template not found.');
+          set((state) => ({
+            operationStates: {
+              ...state.operationStates,
+              duplicate: createOperationState('error', result.code, result.message),
+            },
+          }));
+          return result;
+        }
 
         const duplicate = withTimestamps({
           ...found,
@@ -245,8 +523,15 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
           source: 'user',
         });
 
-        set((state) => ({ templates: [...state.templates, duplicate] }));
-        return duplicate;
+        set((state) => ({
+          templates: [...state.templates, duplicate],
+          selectedTemplateId: duplicate.id,
+          operationStates: {
+            ...state.operationStates,
+            duplicate: createOperationState('success', 'OK'),
+          },
+        }));
+        return okResult(duplicate, 'Template duplicated.');
       },
 
       selectTemplate: (id) => {
@@ -293,27 +578,189 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
         );
       },
 
-      importTemplates: (payload) => {
+      getOperationState: (operationKey) => get().operationStates[operationKey],
+
+      clearOperationState: (operationKey) => {
+        set((state) => {
+          const next = { ...state.operationStates };
+          delete next[operationKey];
+          return { operationStates: next };
+        });
+      },
+
+      importTemplates: (payload, options) => {
+        const strategy = options?.strategy ?? DEFAULT_IMPORT_STRATEGY;
+        set((state) => ({
+          operationStates: {
+            ...state.operationStates,
+            import: createOperationState('running'),
+          },
+        }));
         const data = typeof payload === 'string' ? safeParse(payload) : payload;
-        if (!Array.isArray(data)) return 0;
+        const report: PromptTemplateImportReport = {
+          success: true,
+          strategy,
+          imported: 0,
+          overwritten: 0,
+          duplicated: 0,
+          skipped: 0,
+          failed: 0,
+          items: [],
+        };
 
-        const normalized = data
-          .map((tpl) => normalizeImportedTemplate(tpl))
-          .filter(Boolean) as PromptTemplate[];
+        if (!Array.isArray(data)) {
+          report.success = false;
+          report.failed = 1;
+          report.items.push({
+            status: 'failed',
+            code: 'INVALID_PAYLOAD',
+            message: 'Import payload is not a valid template array.',
+          });
+          set((state) => ({
+            operationStates: {
+              ...state.operationStates,
+              import: createOperationState('error', 'INVALID_PAYLOAD', 'Import payload is invalid.'),
+            },
+          }));
+          return report;
+        }
 
-        if (normalized.length === 0) return 0;
+        let nextTemplates = [...get().templates];
+        for (const rawTemplate of data) {
+          const normalized = normalizeImportedTemplate(rawTemplate);
+          const inputName =
+            rawTemplate && typeof rawTemplate === 'object' && 'name' in rawTemplate
+              ? String((rawTemplate as { name?: string }).name ?? '')
+              : undefined;
 
-        set((state) => ({ templates: [...state.templates, ...normalized] }));
-        return normalized.length;
+          if (!normalized) {
+            report.failed += 1;
+            report.success = false;
+            report.items.push({
+              inputName,
+              status: 'failed',
+              code: 'VALIDATION_FAILED',
+              message: 'Template is missing required fields.',
+            });
+            continue;
+          }
+
+          const conflict = findTemplateConflict(nextTemplates, normalized);
+          if (!conflict) {
+            nextTemplates.push(normalized);
+            report.imported += 1;
+            report.items.push({
+              inputName: normalized.name,
+              templateId: normalized.id,
+              status: 'imported',
+              code: 'OK',
+              message: 'Template imported.',
+            });
+            continue;
+          }
+
+          if (strategy === 'skip') {
+            report.skipped += 1;
+            report.items.push({
+              inputName: normalized.name,
+              existingTemplateId: conflict.id,
+              status: 'skipped',
+              code: 'CONFLICT_SKIPPED',
+              message: 'Conflict detected and skipped by strategy.',
+            });
+            continue;
+          }
+
+          if (strategy === 'duplicate') {
+            const duplicate = withTimestamps({
+              ...normalized,
+              id: nanoid(),
+              name: `${normalized.name} (Imported)`,
+            });
+            nextTemplates.push(duplicate);
+            report.duplicated += 1;
+            report.items.push({
+              inputName: normalized.name,
+              templateId: duplicate.id,
+              existingTemplateId: conflict.id,
+              status: 'duplicated',
+              code: 'CONFLICT_DUPLICATED',
+              message: 'Conflict detected; imported as duplicate.',
+            });
+            continue;
+          }
+
+          const snapshot: PromptTemplateVersion = {
+            id: nanoid(),
+            version: (conflict.currentVersion || 0) + 1,
+            content: conflict.content,
+            variables: [...conflict.variables],
+            changelog: 'Snapshot before overwrite import',
+            createdAt: new Date(),
+          };
+
+          nextTemplates = nextTemplates.map((tpl) => {
+            if (tpl.id !== conflict.id) return tpl;
+            return {
+              ...tpl,
+              ...normalized,
+              id: tpl.id,
+              name: normalized.name.trim(),
+              source: tpl.source,
+              meta: {
+                ...normalized.meta,
+                marketplace: tpl.meta?.marketplace ?? normalized.meta?.marketplace,
+              },
+              tags: normalized.tags,
+              variables: buildTemplateVariables(normalized.content, normalized.variables),
+              usageCount: tpl.usageCount,
+              createdAt: tpl.createdAt,
+              lastUsedAt: tpl.lastUsedAt,
+              stats: tpl.stats,
+              updatedAt: new Date(),
+              versionHistory: pruneVersionHistory([...(tpl.versionHistory || []), snapshot]),
+              currentVersion: snapshot.version,
+            };
+          });
+
+          report.overwritten += 1;
+          report.items.push({
+            inputName: normalized.name,
+            templateId: conflict.id,
+            existingTemplateId: conflict.id,
+            status: 'overwritten',
+            code: 'CONFLICT_OVERWRITTEN',
+            message: 'Conflict detected and overwritten by strategy.',
+          });
+        }
+
+        set((state) => ({
+          templates: nextTemplates,
+          operationStates: {
+            ...state.operationStates,
+            import: createOperationState(
+              report.failed > 0 ? 'error' : 'success',
+              report.failed > 0 ? 'VALIDATION_FAILED' : 'OK',
+              report.failed > 0 ? 'Import completed with failures.' : 'Import completed.'
+            ),
+          },
+        }));
+        return report;
       },
 
       exportTemplates: (ids) => {
+        set((state) => ({
+          operationStates: {
+            ...state.operationStates,
+            export: createOperationState('running'),
+          },
+        }));
         const list =
           ids && ids.length > 0
             ? get().templates.filter((tpl) => ids.includes(tpl.id))
             : get().templates;
 
-        return JSON.stringify(
+        const json = JSON.stringify(
           list.map((tpl) => ({
             ...tpl,
             createdAt: tpl.createdAt.toISOString(),
@@ -323,6 +770,13 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
           null,
           2
         );
+        set((state) => ({
+          operationStates: {
+            ...state.operationStates,
+            export: createOperationState('success', 'OK'),
+          },
+        }));
+        return okResult({ json, count: list.length }, 'Templates exported.');
       },
 
       syncFromMcpPrompts: (serverId, prompts) => {
@@ -376,7 +830,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
             tpl.id === id
               ? {
                   ...tpl,
-                  versionHistory: [...(tpl.versionHistory || []), version],
+                  versionHistory: pruneVersionHistory([...(tpl.versionHistory || []), version]),
                   currentVersion: version.version,
                   updatedAt: new Date(),
                 }
@@ -388,29 +842,82 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
       },
 
       restoreVersion: (id, versionId) => {
+        set((state) => ({
+          operationStates: {
+            ...state.operationStates,
+            restore: createOperationState('running'),
+          },
+        }));
         const template = get().templates.find((t) => t.id === id);
-        if (!template || !template.versionHistory) return false;
+        if (!template || !template.versionHistory) {
+          const result = errorResult<{ template: PromptTemplate; restoredVersionId: string }>(
+            'TEMPLATE_NOT_FOUND',
+            'Template not found.'
+          );
+          set((state) => ({
+            operationStates: {
+              ...state.operationStates,
+              restore: createOperationState('error', result.code, result.message),
+            },
+          }));
+          return result;
+        }
 
         const version = template.versionHistory.find((v) => v.id === versionId);
-        if (!version) return false;
+        if (!version) {
+          const result = errorResult<{ template: PromptTemplate; restoredVersionId: string }>(
+            'VERSION_NOT_FOUND',
+            'Version not found.'
+          );
+          set((state) => ({
+            operationStates: {
+              ...state.operationStates,
+              restore: createOperationState('error', result.code, result.message),
+            },
+          }));
+          return result;
+        }
 
         // Save current state as a new version before restoring
         get().saveVersion(id, `Auto-saved before restoring to v${version.version}`);
 
+        let restoredTemplate: PromptTemplate | undefined;
         set((state) => ({
           templates: state.templates.map((tpl) =>
             tpl.id === id
-              ? {
+              ? ((restoredTemplate = {
                   ...tpl,
                   content: version.content,
                   variables: [...version.variables],
                   updatedAt: new Date(),
-                }
+                }),
+                restoredTemplate)
               : tpl
           ),
+          operationStates: {
+            ...state.operationStates,
+            restore: createOperationState('success', 'OK'),
+          },
         }));
 
-        return true;
+        if (!restoredTemplate) {
+          const result = errorResult<{ template: PromptTemplate; restoredVersionId: string }>(
+            'TEMPLATE_NOT_FOUND',
+            'Template not found.'
+          );
+          set((state) => ({
+            operationStates: {
+              ...state.operationStates,
+              restore: createOperationState('error', result.code, result.message),
+            },
+          }));
+          return result;
+        }
+
+        return okResult(
+          { template: restoredTemplate, restoredVersionId: versionId },
+          'Template restored.'
+        );
       },
 
       getVersionHistory: (id) => {
@@ -568,6 +1075,23 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
 
       // Optimization
       markAsOptimized: (id, optimizedContent, suggestions) => {
+        set((state) => ({
+          operationStates: {
+            ...state.operationStates,
+            optimize: createOperationState('running'),
+          },
+        }));
+        const existing = get().templates.find((tpl) => tpl.id === id);
+        if (!existing) {
+          set((state) => ({
+            operationStates: {
+              ...state.operationStates,
+              optimize: createOperationState('error', 'TEMPLATE_NOT_FOUND', 'Template not found.'),
+            },
+          }));
+          return;
+        }
+
         // Save current version before applying optimization
         get().saveVersion(id, 'Before optimization');
 
@@ -584,6 +1108,10 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
                 }
               : tpl
           ),
+          operationStates: {
+            ...state.operationStates,
+            optimize: createOperationState('success', 'OK'),
+          },
         }));
       },
 
@@ -647,23 +1175,30 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
     }),
     {
       name: 'cognia-prompt-templates',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState: unknown, version: number) => {
         const state = persistedState as Record<string, unknown>;
-        if (version === 0) {
-          // v0 -> v1: Ensure newer fields exist
+        if (version <= 1) {
+          // Ensure persisted state has object defaults for maps.
           if (!state.feedback || typeof state.feedback !== 'object') {
             state.feedback = {};
           }
-          if (!Array.isArray(state.abTests)) {
-            state.abTests = [];
+          if (!state.abTests || typeof state.abTests !== 'object' || Array.isArray(state.abTests)) {
+            state.abTests = {};
           }
-          if (!Array.isArray(state.optimizationHistory)) {
-            state.optimizationHistory = [];
+          if (
+            !state.optimizationHistory ||
+            typeof state.optimizationHistory !== 'object' ||
+            Array.isArray(state.optimizationHistory)
+          ) {
+            state.optimizationHistory = {};
           }
           if (!Array.isArray(state.categories)) {
-            state.categories = [];
+            state.categories = DEFAULT_PROMPT_TEMPLATE_CATEGORIES;
+          }
+          if (typeof state.isInitialized !== 'boolean') {
+            state.isInitialized = false;
           }
         }
         return state;
@@ -721,11 +1256,17 @@ function normalizeImportedTemplate(value: unknown): PromptTemplate | null {
   if (!value || typeof value !== 'object') return null;
   const tpl = value as Partial<PromptTemplate>;
   if (!tpl.name || !tpl.content) return null;
+  const validation = validatePromptTemplateInput({
+    name: tpl.name,
+    content: tpl.content,
+    variables: tpl.variables,
+  });
+  if (!validation.isValid) return null;
 
   const now = new Date();
   return {
     id: tpl.id ?? nanoid(),
-    name: tpl.name,
+    name: tpl.name.trim(),
     description: tpl.description,
     content: tpl.content,
     category: tpl.category ?? 'custom',
@@ -741,13 +1282,22 @@ function normalizeImportedTemplate(value: unknown): PromptTemplate | null {
   };
 }
 
+function findTemplateConflict(
+  templates: PromptTemplate[],
+  candidate: PromptTemplate
+): PromptTemplate | undefined {
+  const candidateIdentity = buildPromptTemplateIdentity(candidate);
+  if (!candidateIdentity) return undefined;
+  return templates.find((template) => {
+    const identity = buildPromptTemplateIdentity(template);
+    return identity?.key === candidateIdentity.key;
+  });
+}
+
 function dedupeTemplates(templates: PromptTemplate[]): PromptTemplate[] {
   const seen = new Map<string, PromptTemplate>();
   templates.forEach((tpl) => {
-    const key =
-      tpl.meta?.mcp?.promptName && tpl.meta.mcp.serverId
-        ? `${tpl.meta.mcp.serverId}:${tpl.meta.mcp.promptName}`
-        : tpl.id;
+    const key = buildPromptTemplateIdentity(tpl)?.key ?? `id:${tpl.id}`;
 
     if (!seen.has(key)) {
       seen.set(key, tpl);

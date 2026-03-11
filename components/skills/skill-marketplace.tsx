@@ -58,6 +58,7 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
     filters,
     isLoading,
     error,
+    errorCategory,
     hasApiKey,
     apiKey,
     currentPage,
@@ -94,7 +95,6 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
   const [searchQuery, setSearchQuery] = useState(filters.query);
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState(apiKey || '');
-  const [useAiSearch, setUseAiSearch] = useState(filters.useAiSearch);
 
   const handleAddRepo = useCallback(
     async (input: AddSkillRepoInput) => {
@@ -106,20 +106,21 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
 
   // Handle search
   const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim()) return;
+    const query = searchQuery.trim();
+    if (!query) return;
 
     if (!hasApiKey) {
       setShowApiKeyDialog(true);
       return;
     }
 
-    setFilters({ query: searchQuery, useAiSearch });
-    if (useAiSearch) {
-      await aiSearch(searchQuery);
+    setFilters({ query, useAiSearch: filters.useAiSearch });
+    if (filters.useAiSearch) {
+      await aiSearch(query);
     } else {
-      await search(searchQuery);
+      await search(query);
     }
-  }, [searchQuery, hasApiKey, useAiSearch, setFilters, aiSearch, search]);
+  }, [searchQuery, hasApiKey, filters.useAiSearch, setFilters, aiSearch, search]);
 
   // Handle enter key
   const handleKeyDown = useCallback(
@@ -133,14 +134,22 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
 
   // Handle sort change
   const handleSortChange = useCallback(
-    (sort: SkillsMarketplaceSortOption) => {
+    async (sort: SkillsMarketplaceSortOption) => {
       setFilters({ sortBy: sort });
-      if (searchQuery.trim()) {
-        search(searchQuery);
+      const query = searchQuery.trim();
+      if (query) {
+        await search(query);
       }
     },
     [setFilters, search, searchQuery]
   );
+
+  const handleRetrySearch = useCallback(async () => {
+    const query = searchQuery.trim() || filters.query.trim();
+    if (query) {
+      await search(query);
+    }
+  }, [filters.query, search, searchQuery]);
 
   // Handle API key save
   const handleSaveApiKey = useCallback(() => {
@@ -200,10 +209,10 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
               <Button
-                variant={useAiSearch ? 'default' : 'ghost'}
+                variant={filters.useAiSearch ? 'default' : 'ghost'}
                 size="sm"
                 className="h-7 px-2"
-                onClick={() => setUseAiSearch(!useAiSearch)}
+                onClick={() => setFilters({ useAiSearch: !filters.useAiSearch })}
                 title={t('marketplace.aiSearchTooltip')}
               >
                 <Sparkles className="h-3.5 w-3.5" />
@@ -290,11 +299,27 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-between">
-            <span>{error.startsWith('i18n:') ? t(error.replace('i18n:', '')) : error}</span>
-            <Button variant="ghost" size="sm" onClick={clearError}>
-              <X className="h-4 w-4" />
-            </Button>
+          <AlertDescription className="flex items-center justify-between gap-2">
+            <span className="flex-1">
+              {error.startsWith('i18n:') ? t(error.replace('i18n:', '')) : error}
+            </span>
+            <div className="flex items-center gap-2">
+              {errorCategory === 'auth' && (
+                <Button variant="outline" size="sm" onClick={() => setShowApiKeyDialog(true)}>
+                  <Key className="h-4 w-4 mr-1" />
+                  {t('marketplace.configure')}
+                </Button>
+              )}
+              {(errorCategory === 'network' || errorCategory === 'rate-limit') && (
+                <Button variant="outline" size="sm" onClick={handleRetrySearch}>
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  {t('retry')}
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={clearError}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </AlertDescription>
         </Alert>
       )}
@@ -346,7 +371,8 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
                       className="text-xs"
                       onClick={() => {
                         setSearchQuery(query);
-                        search(query);
+                        setFilters({ query });
+                        void search(query);
                       }}
                     >
                       {query}

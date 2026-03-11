@@ -13,6 +13,13 @@ jest.mock('next-intl', () => ({
   }),
 }));
 
+jest.mock('@/components/ui/sonner', () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
 // Mock stores
 jest.mock('@/stores', () => ({
   usePromptTemplateStore: (selector: (state: Record<string, unknown>) => unknown) => {
@@ -172,5 +179,10 @@ describe('PromptTemplateAdvancedEditor', () => {
     const nameInput = screen.getByDisplayValue('Test Template');
     fireEvent.change(nameInput, { target: { value: 'New Name' } });
     expect(nameInput).toHaveValue('New Name');
+  });
+
+  it('shows submit error message when provided', () => {
+    render(<PromptTemplateAdvancedEditor {...defaultProps} submitError="Save failed" />);
+    expect(screen.getByText('Save failed')).toBeInTheDocument();
   });
 });

@@ -119,11 +119,13 @@ jest.mock('@/lib/logger', () => ({
 const mockExportPresetsToFile = jest.fn();
 const mockParsePresetImportFile = jest.fn();
 const mockGetPresetAIConfig = jest.fn();
+const mockNormalizePresetInput = jest.fn((...args: unknown[]) => ({ normalized: args[0] }));
 
 jest.mock('@/lib/presets', () => ({
   exportPresetsToFile: (...args: unknown[]) => mockExportPresetsToFile(...args),
   parsePresetImportFile: (...args: unknown[]) => mockParsePresetImportFile(...args),
   getPresetAIConfig: (...args: unknown[]) => mockGetPresetAIConfig(...args),
+  normalizePresetInput: (...args: unknown[]) => mockNormalizePresetInput(...args),
 }));
 
 const mockGeneratePreset = jest.fn();
@@ -222,6 +224,23 @@ describe('usePresetManager', () => {
     });
 
     expect(mockDuplicatePreset).toHaveBeenCalledWith('p1');
+  });
+
+  it('setDefaultPreset keeps selection in sync', () => {
+    const onSelectPreset = jest.fn();
+    const { result } = renderHook(() =>
+      usePresetManager({ onSelectPreset, t: mockT }),
+    );
+
+    act(() => {
+      result.current.setDefaultPreset('p2');
+    });
+
+    expect(mockSetDefaultPreset).toHaveBeenCalledWith('p2');
+    expect(mockSelectPreset).toHaveBeenCalledWith('p2');
+    expect(onSelectPreset).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'p2' }),
+    );
   });
 
   it('handleDelete deletes preset and clears state', () => {

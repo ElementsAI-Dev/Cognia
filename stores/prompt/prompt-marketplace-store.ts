@@ -15,6 +15,7 @@ import type {
   MarketplaceUserActivity,
   PromptCollection,
   PromptReview,
+  PromptQualityTier,
 } from '@/types/content/prompt-marketplace';
 import {
   applyMarketplaceFilters,
@@ -29,11 +30,36 @@ import {
   type PromptMarketplaceImportConflictStrategy,
   type PromptMarketplaceImportItemResult,
   type PromptMarketplaceImportReport,
+  type PromptMarketplaceErrorCategory,
   type PromptMarketplaceOperationState,
   type PromptMarketplaceOperationStatus,
 } from '@/lib/prompts/marketplace-utils';
 import { promptMarketplaceRepository } from '@/lib/prompts/marketplace';
+import { normalizePromptMarketplaceError } from '@/lib/prompts/marketplace-error-adapter';
 import { usePromptTemplateStore } from './prompt-template-store';
+
+interface PromptMarketplaceBrowseViewState {
+  query: string;
+  category: MarketplaceCategory | 'all';
+  sortBy: NonNullable<MarketplaceSearchFilters['sortBy']>;
+  minRating: number;
+  selectedTiers: PromptQualityTier[];
+  page: number;
+  pageSize: number;
+  selectedPromptId: string | null;
+  detailOpen: boolean;
+  scrollOffset: number;
+}
+
+interface PromptMarketplaceInstallRetryContext {
+  marketplaceId: string;
+  attemptCount: number;
+  stage: 'create-template' | 'persist-installation';
+  localTemplateId?: string;
+  message: string;
+  category: PromptMarketplaceErrorCategory;
+  updatedAt: Date;
+}
 
 interface PromptMarketplaceState {
   // Cached marketplace data
@@ -54,16 +80,30 @@ interface PromptMarketplaceState {
   sourceWarning: string | null;
   remoteFirstEnabled: boolean;
   operationStates: Record<string, PromptMarketplaceOperationState>;
+  browseViewState: PromptMarketplaceBrowseViewState;
+  installRetryContexts: Record<string, PromptMarketplaceInstallRetryContext>;
 
   // Actions - Fetching
   refreshCatalog: () => Promise<void>;
   fetchFeatured: () => void;
   fetchTrending: () => void;
   fetchByCategory: (category: MarketplaceCategory) => MarketplacePrompt[];
-  searchPrompts: (filters: MarketplaceSearchFilters) => MarketplaceSearchResult;
+  searchPrompts: (filters?: MarketplaceSearchFilters) => MarketplaceSearchResult;
   getPromptById: (id: string) => MarketplacePrompt | undefined;
   fetchPromptDetails: (id: string) => MarketplacePrompt | null;
   fetchPromptReviews: (promptId: string, page?: number) => PromptReview[];
+
+  // Actions - Browse state
+  setBrowseQuery: (query: string) => void;
+  setBrowseCategory: (category: MarketplaceCategory | 'all') => void;
+  setBrowseSortBy: (sortBy: NonNullable<MarketplaceSearchFilters['sortBy']>) => void;
+  setBrowseMinRating: (minRating: number) => void;
+  toggleBrowseQualityTier: (tier: PromptQualityTier) => void;
+  clearBrowseFilters: () => void;
+  setBrowsePage: (page: number) => void;
+  setBrowseScrollOffset: (offset: number) => void;
+  setSelectedPrompt: (promptId: string | null) => void;
+  setDetailOpen: (open: boolean) => void;
 
   // Actions - Installation
   installPrompt: (prompt: MarketplacePrompt) => Promise<string>;
@@ -120,23 +160,42 @@ const initialUserActivity: MarketplaceUserActivity = {
 };
 
 const remoteFirstDefault = process.env.NEXT_PUBLIC_PROMPT_MARKETPLACE_REMOTE_FIRST === 'true';
+const defaultBrowseViewState: PromptMarketplaceBrowseViewState = {
+  query: '',
+  category: 'all',
+  sortBy: 'downloads',
+  minRating: 0,
+  selectedTiers: [],
+  page: 1,
+  pageSize: 20,
+  selectedPromptId: null,
+  detailOpen: false,
+  scrollOffset: 0,
+};
 
 function createOperationState(
   status: PromptMarketplaceOperationStatus,
-  error?: string
+  error?: string,
+  options?: { category?: PromptMarketplaceErrorCategory; retryable?: boolean; code?: string }
 ): PromptMarketplaceOperationState {
   return {
     status,
     error,
+    category: options?.category,
+    retryable: options?.retryable,
+    code: options?.code,
     updatedAt: new Date(),
   };
 }
 
-function asErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return 'Unknown marketplace error';
+function deriveBrowseFilters(state: PromptMarketplaceBrowseViewState): MarketplaceSearchFilters {
+  return {
+    query: state.query || undefined,
+    category: state.category === 'all' ? undefined : state.category,
+    sortBy: state.sortBy,
+    minRating: state.minRating > 0 ? state.minRating : undefined,
+    qualityTier: state.selectedTiers.length > 0 ? state.selectedTiers : undefined,
+  };
 }
 
 function findInstallation(
@@ -196,7 +255,7 @@ function nextDuplicatePromptId(baseId: string, prompts: Record<string, Marketpla
 
 function createTemplateFromMarketplacePrompt(prompt: MarketplacePrompt): string {
   const templateStore = usePromptTemplateStore.getState();
-  const template = templateStore.createTemplate({
+  const result = templateStore.createTemplate({
     name: prompt.name,
     description: prompt.description,
     content: prompt.content,
@@ -211,7 +270,11 @@ function createTemplateFromMarketplacePrompt(prompt: MarketplacePrompt): string 
     },
   });
 
-  return template.id;
+  if (!result.ok || !result.data) {
+    throw new Error(result.message || 'Failed to create local template from marketplace prompt');
+  }
+
+  return result.data.id;
 }
 
 function createImportReport(
@@ -244,14 +307,29 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       const updateOperationState = (
         operationKey: string,
         status: PromptMarketplaceOperationStatus,
-        error?: string
+        error?: string,
+        options?: { category?: PromptMarketplaceErrorCategory; retryable?: boolean; code?: string }
       ) => {
         set((state) => ({
           operationStates: {
             ...state.operationStates,
-            [operationKey]: createOperationState(status, error),
+            [operationKey]: createOperationState(status, error, options),
           },
         }));
+      };
+
+      const setOperationError = (
+        operationKey: string,
+        error: unknown,
+        fallbackMessage: string = 'Unknown marketplace error'
+      ) => {
+        const normalized = normalizePromptMarketplaceError(error, fallbackMessage);
+        updateOperationState(operationKey, 'error', normalized.message, {
+          category: normalized.category,
+          retryable: normalized.retryable,
+          code: normalized.code,
+        });
+        return normalized;
       };
 
       return {
@@ -268,9 +346,12 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       sourceWarning: null,
       remoteFirstEnabled: remoteFirstDefault,
       operationStates: {},
+      browseViewState: defaultBrowseViewState,
+      installRetryContexts: {},
 
       // Fetching Actions
       refreshCatalog: async () => {
+        updateOperationState('list', 'loading');
         set({ isLoading: true, error: null });
         try {
           const catalog = await promptMarketplaceRepository.getCatalog({
@@ -288,8 +369,9 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
             error: null,
             lastSyncedAt: new Date(),
           }));
+          updateOperationState('list', 'success');
         } catch (error) {
-          const message = asErrorMessage(error);
+          const normalized = setOperationError('list', error);
           const fallbackCatalog = promptMarketplaceRepository.getFallbackCatalog();
           set((state) => ({
             prompts: mergeCatalogPrompts(
@@ -301,9 +383,9 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
             featuredIds: fallbackCatalog.featuredIds,
             trendingIds: fallbackCatalog.trendingIds,
             sourceState: 'fallback',
-            sourceWarning: message,
+            sourceWarning: normalized.message,
             isLoading: false,
-            error: message,
+            error: normalized.message,
             lastSyncedAt: new Date(),
           }));
         }
@@ -340,18 +422,25 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
         return prompts.filter((p) => p.category === category);
       },
 
-      searchPrompts: (filters: MarketplaceSearchFilters) => {
-        const filtered = applyMarketplaceFilters(Object.values(get().prompts), filters);
-        const sorted = sortMarketplacePrompts(filtered, filters.sortBy, !!filters.query);
+      searchPrompts: (filters?: MarketplaceSearchFilters) => {
+        const resolvedFilters = filters || deriveBrowseFilters(get().browseViewState);
+        const filtered = applyMarketplaceFilters(Object.values(get().prompts), resolvedFilters);
+        const sorted = sortMarketplacePrompts(
+          filtered,
+          resolvedFilters.sortBy,
+          !!resolvedFilters.query
+        );
         const facets = buildMarketplaceFacets(sorted);
+        const page = get().browseViewState.page;
+        const pageSize = get().browseViewState.pageSize;
 
         return {
           prompts: sorted,
           total: sorted.length,
-          page: 1,
-          pageSize: sorted.length,
-          hasMore: false,
-          filters,
+          page,
+          pageSize,
+          hasMore: page * pageSize < sorted.length,
+          filters: resolvedFilters,
           facets,
         };
       },
@@ -361,8 +450,11 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       },
 
       fetchPromptDetails: (id: string) => {
+        const operationKey = `detail:${id}`;
+        updateOperationState(operationKey, 'loading');
         const existing = get().prompts[id];
         if (existing) {
+          updateOperationState(operationKey, 'success');
           return existing;
         }
 
@@ -371,6 +463,11 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
             .getPromptById(id, { preferRemote: true })
             .then((remotePrompt) => {
               if (!remotePrompt) {
+                updateOperationState(operationKey, 'error', 'Prompt not found', {
+                  category: 'not_found',
+                  retryable: false,
+                  code: 'REMOTE_DETAIL_MISS',
+                });
                 return;
               }
 
@@ -382,10 +479,19 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
                 sourceState: 'remote',
                 sourceWarning: null,
               }));
+              updateOperationState(operationKey, 'success');
             })
             .catch((error) => {
-              set({ sourceWarning: asErrorMessage(error) });
+              const normalized = setOperationError(operationKey, error);
+              set({ sourceWarning: normalized.message });
             });
+        } else {
+          updateOperationState(
+            operationKey,
+            'error',
+            'Prompt detail unavailable in local catalog',
+            { category: 'not_found', retryable: false, code: 'LOCAL_DETAIL_MISS' }
+          );
         }
 
         return null;
@@ -394,10 +500,12 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       fetchPromptReviews: (promptId: string, _page = 1) => {
         const localReviews = get().reviews[promptId];
         if (localReviews) {
+          updateOperationState(`reviews:${promptId}`, 'success');
           return localReviews;
         }
 
         if (get().remoteFirstEnabled) {
+          updateOperationState(`reviews:${promptId}`, 'loading');
           void promptMarketplaceRepository
             .getPromptReviews(promptId, 1, { preferRemote: true })
             .then((remoteReviews) => {
@@ -407,32 +515,153 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
                   [promptId]: remoteReviews,
                 },
               }));
+              updateOperationState(`reviews:${promptId}`, 'success');
             })
             .catch((error) => {
-              set({ sourceWarning: asErrorMessage(error) });
+              const normalized = setOperationError(`reviews:${promptId}`, error);
+              set({ sourceWarning: normalized.message });
             });
         }
 
         return [];
       },
 
+      // Browse state actions
+      setBrowseQuery: (query: string) => {
+        set((state) => ({
+          browseViewState: {
+            ...state.browseViewState,
+            query,
+            page: 1,
+          },
+        }));
+      },
+
+      setBrowseCategory: (category: MarketplaceCategory | 'all') => {
+        set((state) => ({
+          browseViewState: {
+            ...state.browseViewState,
+            category,
+            page: 1,
+          },
+        }));
+      },
+
+      setBrowseSortBy: (sortBy: NonNullable<MarketplaceSearchFilters['sortBy']>) => {
+        set((state) => ({
+          browseViewState: {
+            ...state.browseViewState,
+            sortBy,
+            page: 1,
+          },
+        }));
+      },
+
+      setBrowseMinRating: (minRating: number) => {
+        set((state) => ({
+          browseViewState: {
+            ...state.browseViewState,
+            minRating,
+            page: 1,
+          },
+        }));
+      },
+
+      toggleBrowseQualityTier: (tier: PromptQualityTier) => {
+        set((state) => {
+          const selectedTiers = state.browseViewState.selectedTiers.includes(tier)
+            ? state.browseViewState.selectedTiers.filter((value) => value !== tier)
+            : [...state.browseViewState.selectedTiers, tier];
+          return {
+            browseViewState: {
+              ...state.browseViewState,
+              selectedTiers,
+              page: 1,
+            },
+          };
+        });
+      },
+
+      clearBrowseFilters: () => {
+        set((state) => ({
+          browseViewState: {
+            ...state.browseViewState,
+            query: '',
+            category: 'all',
+            sortBy: 'downloads',
+            minRating: 0,
+            selectedTiers: [],
+            page: 1,
+          },
+        }));
+      },
+
+      setBrowsePage: (page: number) => {
+        set((state) => ({
+          browseViewState: {
+            ...state.browseViewState,
+            page: Math.max(1, page),
+          },
+        }));
+      },
+
+      setBrowseScrollOffset: (offset: number) => {
+        set((state) => ({
+          browseViewState: {
+            ...state.browseViewState,
+            scrollOffset: Math.max(0, Math.round(offset)),
+          },
+        }));
+      },
+
+      setSelectedPrompt: (promptId: string | null) => {
+        set((state) => ({
+          browseViewState: {
+            ...state.browseViewState,
+            selectedPromptId: promptId,
+          },
+        }));
+      },
+
+      setDetailOpen: (open: boolean) => {
+        set((state) => ({
+          browseViewState: {
+            ...state.browseViewState,
+            detailOpen: open,
+          },
+        }));
+      },
+
       // Installation Actions
       installPrompt: async (prompt: MarketplacePrompt) => {
         const operationKey = `install:${prompt.id}`;
+        const operationState = get().operationStates[operationKey];
+        if (operationState?.status === 'loading') {
+          throw new Error('Prompt installation is already in progress');
+        }
+
         updateOperationState(operationKey, 'loading');
+        let localTemplateId: string | undefined;
 
         try {
           const existingInstallation = findInstallation(get().userActivity.installed, prompt.id);
           if (existingInstallation) {
+            set((state) => {
+              const nextContexts = { ...state.installRetryContexts };
+              delete nextContexts[prompt.id];
+              return { installRetryContexts: nextContexts };
+            });
             updateOperationState(operationKey, 'success');
             return existingInstallation.localTemplateId;
           }
 
-          const localTemplateId = createTemplateFromMarketplacePrompt(prompt);
+          localTemplateId = createTemplateFromMarketplacePrompt(prompt);
           const installation = createInstallationRecord(prompt.id, localTemplateId, prompt.version);
 
           set((state) => {
             const promptInStore = state.prompts[prompt.id] || prompt;
+            const nextContexts = { ...state.installRetryContexts };
+            delete nextContexts[prompt.id];
             return {
               prompts: {
                 ...state.prompts,
@@ -448,13 +677,28 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
                 ...state.userActivity,
                 installed: [...state.userActivity.installed, installation],
               },
+              installRetryContexts: nextContexts,
             };
           });
 
           updateOperationState(operationKey, 'success');
           return localTemplateId;
         } catch (error) {
-          updateOperationState(operationKey, 'error', asErrorMessage(error));
+          const normalized = setOperationError(operationKey, error);
+          set((state) => ({
+            installRetryContexts: {
+              ...state.installRetryContexts,
+              [prompt.id]: {
+                marketplaceId: prompt.id,
+                attemptCount: (state.installRetryContexts[prompt.id]?.attemptCount || 0) + 1,
+                stage: localTemplateId ? 'persist-installation' : 'create-template',
+                localTemplateId,
+                message: normalized.message,
+                category: normalized.category,
+                updatedAt: new Date(),
+              },
+            },
+          }));
           throw error;
         }
       },
@@ -471,7 +715,10 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
           }
 
           const templateStore = usePromptTemplateStore.getState();
-          templateStore.deleteTemplate(installation.localTemplateId);
+          const deleteResult = templateStore.deleteTemplate(installation.localTemplateId);
+          if (!deleteResult.ok) {
+            throw new Error(deleteResult.message || 'Failed to delete installed prompt template');
+          }
 
           set((state) => ({
             userActivity: {
@@ -480,11 +727,14 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
                 (item) => item.marketplaceId !== marketplaceId
               ),
             },
+            installRetryContexts: Object.fromEntries(
+              Object.entries(state.installRetryContexts).filter(([id]) => id !== marketplaceId)
+            ),
           }));
 
           updateOperationState(operationKey, 'success');
         } catch (error) {
-          updateOperationState(operationKey, 'error', asErrorMessage(error));
+          setOperationError(operationKey, error);
           throw error;
         }
       },
@@ -511,7 +761,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
           }
 
           const templateStore = usePromptTemplateStore.getState();
-          templateStore.updateTemplate(installation.localTemplateId, {
+          const updateResult = templateStore.updateTemplate(installation.localTemplateId, {
             name: latestPrompt.name,
             description: latestPrompt.description,
             content: latestPrompt.content,
@@ -524,6 +774,9 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
               color: latestPrompt.color,
             },
           });
+          if (!updateResult.ok) {
+            throw new Error(updateResult.message || 'Failed to update installed prompt template');
+          }
 
           set((state) => ({
             prompts: {
@@ -548,7 +801,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
 
           updateOperationState(operationKey, 'success');
         } catch (error) {
-          updateOperationState(operationKey, 'error', asErrorMessage(error));
+          setOperationError(operationKey, error);
           throw error;
         }
       },
@@ -600,7 +853,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
           updateOperationState(operationKey, 'success');
           return withUpdates;
         } catch (error) {
-          updateOperationState(operationKey, 'error', asErrorMessage(error));
+          setOperationError(operationKey, error);
           throw error;
         }
       },
@@ -764,7 +1017,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
 
           updateOperationState(operationKey, 'success');
         } catch (error) {
-          updateOperationState(operationKey, 'error', asErrorMessage(error));
+          setOperationError(operationKey, error);
           throw error;
         }
       },
@@ -792,7 +1045,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
 
           updateOperationState(operationKey, 'success');
         } catch (error) {
-          updateOperationState(operationKey, 'error', asErrorMessage(error));
+          setOperationError(operationKey, error);
           throw error;
         }
       },
@@ -868,7 +1121,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
           updateOperationState(operationKey, 'success');
           return normalizedPrompt.id;
         } catch (error) {
-          updateOperationState(operationKey, 'error', asErrorMessage(error));
+          setOperationError(operationKey, error);
           throw error;
         }
       },
@@ -893,7 +1146,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
           });
           updateOperationState(operationKey, 'success');
         } catch (error) {
-          updateOperationState(operationKey, 'error', asErrorMessage(error));
+          setOperationError(operationKey, error);
           throw error;
         }
       },
@@ -912,7 +1165,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
           updateOperationState(operationKey, 'success');
           return payload;
         } catch (error) {
-          updateOperationState(operationKey, 'error', asErrorMessage(error));
+          setOperationError(operationKey, error);
           throw error;
         }
       },
@@ -966,7 +1219,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
             }
 
             if (existingInstallation && strategy === 'overwrite') {
-              templateStore.updateTemplate(existingInstallation.localTemplateId, {
+              const overwriteResult = templateStore.updateTemplate(existingInstallation.localTemplateId, {
                 name: normalizedPrompt.name,
                 description: normalizedPrompt.description,
                 content: normalizedPrompt.content,
@@ -979,6 +1232,9 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
                   color: normalizedPrompt.color,
                 },
               });
+              if (!overwriteResult.ok) {
+                throw new Error(overwriteResult.message || 'Failed to overwrite installed prompt');
+              }
 
               set((state) => ({
                 prompts: {
@@ -1070,7 +1326,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
           } catch (error) {
             report.failed += 1;
             report.success = false;
-            const message = asErrorMessage(error);
+            const message = normalizePromptMarketplaceError(error).message;
             report.errors.push(`${promptName}: ${message}`);
             pushImportItem(
               report,
@@ -1136,6 +1392,8 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
           sourceState: 'unknown',
           sourceWarning: null,
           operationStates: {},
+          browseViewState: defaultBrowseViewState,
+          installRetryContexts: {},
         });
       },
 
@@ -1176,6 +1434,11 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         remoteFirstEnabled: state.remoteFirstEnabled,
+        browseViewState: {
+          ...state.browseViewState,
+          selectedPromptId: null,
+          detailOpen: false,
+        },
         userActivity: {
           ...state.userActivity,
           recentlyViewed: state.userActivity.recentlyViewed.map((v) => ({
@@ -1193,6 +1456,17 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
+          if (state.browseViewState) {
+            state.browseViewState = {
+              ...defaultBrowseViewState,
+              ...state.browseViewState,
+              selectedTiers: Array.isArray(state.browseViewState.selectedTiers)
+                ? state.browseViewState.selectedTiers
+                : [],
+              selectedPromptId: null,
+              detailOpen: false,
+            };
+          }
           if (state.userActivity.recentlyViewed) {
             state.userActivity.recentlyViewed = state.userActivity.recentlyViewed.map((v) => ({
               promptId: v.promptId,
@@ -1225,5 +1499,10 @@ export const selectFavoritePrompts = (state: PromptMarketplaceState) =>
   state.userActivity.favorites.map((id) => state.prompts[id]).filter(Boolean);
 export const selectIsLoading = (state: PromptMarketplaceState) => state.isLoading;
 export const selectError = (state: PromptMarketplaceState) => state.error;
+export const selectBrowseViewState = (state: PromptMarketplaceState) => state.browseViewState;
+export const selectPromptMarketplaceOperationState = (
+  state: PromptMarketplaceState,
+  operationKey: string
+) => state.operationStates[operationKey];
 
 export default usePromptMarketplaceStore;

@@ -5,12 +5,19 @@
  * form logic from UI rendering.
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { usePresetStore, usePromptTemplateStore } from '@/stores';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { usePresetStore, usePromptTemplateStore, useSettingsStore } from '@/stores';
 import { nanoid } from 'nanoid';
 import type { Preset, BuiltinPrompt, PresetCategory } from '@/types/content/preset';
 import type { ProviderName } from '@/types/provider';
 import type { PromptTemplate } from '@/types/content/prompt-template';
+import {
+  normalizePresetInput,
+  validatePresetDraft,
+  type PresetCompatibilityAdjustment,
+  type PresetValidationErrorCode,
+  type PresetValidationField,
+} from '@/lib/presets';
 
 export interface PresetFormState {
   name: string;
@@ -36,6 +43,17 @@ interface UsePresetFormOptions {
   onClose: () => void;
 }
 
+export type PresetFieldErrors = Partial<
+  Record<PresetValidationField, PresetValidationErrorCode>
+>;
+
+export interface PresetFormSubmitResult {
+  valid: boolean;
+  error?: PresetValidationErrorCode;
+  fieldErrors?: PresetFieldErrors;
+  adjustment?: PresetCompatibilityAdjustment;
+}
+
 const DEFAULT_FORM_STATE: PresetFormState = {
   name: '',
   description: '',
@@ -53,6 +71,32 @@ const DEFAULT_FORM_STATE: PresetFormState = {
   builtinPrompts: [],
 };
 
+const VALIDATION_FIELDS = new Set<PresetValidationField>([
+  'name',
+  'provider',
+  'model',
+  'maxTokens',
+]);
+
+function cloneFormState(state: PresetFormState): PresetFormState {
+  return {
+    ...state,
+    builtinPrompts: state.builtinPrompts.map((prompt) => ({ ...prompt })),
+  };
+}
+
+function serializeFormState(state: PresetFormState): string {
+  return JSON.stringify({
+    ...state,
+    builtinPrompts: state.builtinPrompts.map((prompt) => ({
+      id: prompt.id,
+      name: prompt.name,
+      content: prompt.content,
+      description: prompt.description || '',
+    })),
+  });
+}
+
 export function usePresetForm({
   editPreset,
   open,
@@ -61,11 +105,18 @@ export function usePresetForm({
 }: UsePresetFormOptions) {
   const createPreset = usePresetStore((state) => state.createPreset);
   const updatePreset = usePresetStore((state) => state.updatePreset);
+  const providerSettings = useSettingsStore((state) => state.providerSettings);
   const initializePromptTemplates = usePromptTemplateStore((state) => state.initializeDefaults);
   const recordTemplateUsage = usePromptTemplateStore((state) => state.recordUsage);
 
   // Form state
   const [form, setForm] = useState<PresetFormState>(DEFAULT_FORM_STATE);
+  const [initialFormSnapshot, setInitialFormSnapshot] =
+    useState<PresetFormState>(DEFAULT_FORM_STATE);
+  const [fieldErrors, setFieldErrors] = useState<PresetFieldErrors>({});
+  const [lastCompatibilityAdjustment, setLastCompatibilityAdjustment] = useState<
+    PresetCompatibilityAdjustment | undefined
+  >(undefined);
 
   // AI description input (only for new presets)
   const [aiDescription, setAiDescription] = useState('');
@@ -77,7 +128,7 @@ export function usePresetForm({
   useEffect(() => {
     queueMicrotask(() => {
       if (editPreset) {
-        setForm({
+        const nextState = {
           name: editPreset.name,
           description: editPreset.description || '',
           icon: editPreset.icon || '💬',
@@ -92,11 +143,17 @@ export function usePresetForm({
           thinkingEnabled: editPreset.thinkingEnabled || false,
           builtinPrompts: editPreset.builtinPrompts || [],
           category: editPreset.category,
-        });
+        } satisfies PresetFormState;
+        setForm(nextState);
+        setInitialFormSnapshot(cloneFormState(nextState));
       } else {
-        setForm(DEFAULT_FORM_STATE);
+        const nextState = cloneFormState(DEFAULT_FORM_STATE);
+        setForm(nextState);
+        setInitialFormSnapshot(cloneFormState(nextState));
         setAiDescription('');
       }
+      setFieldErrors({});
+      setLastCompatibilityAdjustment(undefined);
     });
   }, [editPreset, open]);
 
@@ -108,6 +165,14 @@ export function usePresetForm({
   const updateField = useCallback(
     <K extends keyof PresetFormState>(key: K, value: PresetFormState[K]) => {
       setForm((prev) => ({ ...prev, [key]: value }));
+      if (VALIDATION_FIELDS.has(key as PresetValidationField)) {
+        setFieldErrors((prev) => {
+          if (!prev[key as PresetValidationField]) return prev;
+          const next = { ...prev };
+          delete next[key as PresetValidationField];
+          return next;
+        });
+      }
     },
     [],
   );
@@ -216,54 +281,51 @@ export function usePresetForm({
   }, []);
 
   // Submit
-  const handleSubmit = useCallback((): { valid: boolean; error?: string } => {
-    if (!form.name.trim()) return { valid: false, error: 'nameRequired' };
-    if (!form.model.trim()) return { valid: false, error: 'modelRequired' };
+  const handleSubmit = useCallback((): PresetFormSubmitResult => {
+    const validation = validatePresetDraft(form);
+    if (!validation.valid) {
+      setFieldErrors(validation.fieldErrors);
+      setLastCompatibilityAdjustment(undefined);
+      return {
+        valid: false,
+        error: validation.firstError,
+        fieldErrors: validation.fieldErrors,
+      } satisfies PresetFormSubmitResult;
+    }
+
+    const { normalized, adjustment } = normalizePresetInput(form, providerSettings);
+    setFieldErrors({});
+    setLastCompatibilityAdjustment(adjustment);
 
     if (editPreset) {
       updatePreset(editPreset.id, {
-        name: form.name,
-        description: form.description || undefined,
-        icon: form.icon,
-        color: form.color,
-        provider: form.provider,
-        model: form.model,
-        mode: form.mode,
-        systemPrompt: form.systemPrompt || undefined,
-        builtinPrompts: form.builtinPrompts.length > 0 ? form.builtinPrompts : undefined,
-        temperature: form.temperature,
-        maxTokens: form.maxTokens,
-        webSearchEnabled: form.webSearchEnabled,
-        thinkingEnabled: form.thinkingEnabled,
-        category: form.category,
+        ...normalized,
       });
       onSuccess?.({
         ...editPreset,
-        ...form,
+        ...normalized,
       } as Preset);
     } else {
-      const newPreset = createPreset({
-        name: form.name,
-        description: form.description || undefined,
-        icon: form.icon,
-        color: form.color,
-        provider: form.provider,
-        model: form.model,
-        mode: form.mode,
-        systemPrompt: form.systemPrompt || undefined,
-        builtinPrompts: form.builtinPrompts.length > 0 ? form.builtinPrompts : undefined,
-        temperature: form.temperature,
-        maxTokens: form.maxTokens,
-        webSearchEnabled: form.webSearchEnabled,
-        thinkingEnabled: form.thinkingEnabled,
-        category: form.category,
-      });
+      const newPreset = createPreset(normalized);
       onSuccess?.(newPreset);
     }
 
     onClose();
-    return { valid: true };
-  }, [form, editPreset, createPreset, updatePreset, onSuccess, onClose]);
+    return {
+      valid: true,
+      adjustment,
+    } satisfies PresetFormSubmitResult;
+  }, [form, providerSettings, editPreset, createPreset, updatePreset, onSuccess, onClose]);
+
+  const clearValidationState = useCallback(() => {
+    setFieldErrors({});
+    setLastCompatibilityAdjustment(undefined);
+  }, []);
+
+  const isDirty = useMemo(
+    () => serializeFormState(form) !== serializeFormState(initialFormSnapshot),
+    [form, initialFormSnapshot],
+  );
 
   return {
     form,
@@ -279,6 +341,10 @@ export function usePresetForm({
     addBuiltinPrompt,
     updateBuiltinPrompt,
     removeBuiltinPrompt,
+    fieldErrors,
+    lastCompatibilityAdjustment,
+    clearValidationState,
+    isDirty,
     handleSubmit,
   };
 }

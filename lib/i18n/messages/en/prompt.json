@@ -254,6 +254,16 @@
       "remoteFirst": "Remote-first",
       "refresh": "Refresh"
     },
+    "errors": {
+      "auth": "Authentication required to access marketplace",
+      "network": "Marketplace connection is unstable",
+      "rateLimit": "Marketplace request rate is limited",
+      "validation": "Marketplace data could not be processed",
+      "notFound": "Requested prompt is no longer available",
+      "conflict": "Marketplace action conflicts with existing state",
+      "unknown": "Marketplace operation failed unexpectedly",
+      "retry": "Retry"
+    },
     "search": {
       "placeholder": "Search prompts...",
       "results": "Search Results",
@@ -342,6 +352,11 @@
     "view": {
       "gridView": "Grid view",
       "listView": "List view"
+    },
+    "inspector": {
+      "title": "Selection",
+      "empty": "Choose a prompt from the list to inspect details without leaving browse mode.",
+      "openDetail": "Open full detail"
     },
     "category": {
       "title": "Categories",
@@ -509,7 +524,21 @@
       "advancedEditor": "Advanced",
       "importTitle": "Import templates (JSON)",
       "importPlaceholder": "Paste template JSON here",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "importStrategySkip": "Skip conflicts",
+      "importStrategyOverwrite": "Overwrite conflicts",
+      "importStrategyDuplicate": "Create duplicates",
+      "importing": "Importing...",
+      "saveSuccess": "Template saved",
+      "saveFailed": "Failed to save template",
+      "sourceGuardedForked": "Protected template was forked into a custom copy",
+      "deleteFailed": "Failed to delete template",
+      "duplicateSuccess": "Template duplicated",
+      "duplicateFailed": "Failed to duplicate template",
+      "importFailed": "Template import failed",
+      "importSummary": "Imported {success}, skipped {skipped}, failed {failed}",
+      "exportFailed": "Failed to export templates",
+      "copyExportSuccess": "Copied {count} template(s) to clipboard"
     },
     "card": {
       "edit": "Edit",

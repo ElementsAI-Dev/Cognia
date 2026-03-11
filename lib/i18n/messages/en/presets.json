@@ -160,6 +160,12 @@
     "generatePromptsSuccess": "Quick prompts generated successfully!",
     "insertTemplate": "Insert template",
     "switchedTo": "Switched to {name}",
+    "unsavedChangesTitle": "Discard unsaved changes?",
+    "unsavedChangesDesc": "You have unsaved preset changes. If you close now, your edits will be lost.",
+    "discardChanges": "Discard changes",
+    "keepEditing": "Keep editing",
+    "importResultSummary": "Imported {imported}, skipped {skipped}",
+    "importAdjusted": "{count} adjusted",
     "removeFromFavoritesTitle": "Remove from favorites",
     "addToFavoritesTitle": "Add to favorites",
     "removePrompt": "Remove prompt",
@@ -185,9 +191,16 @@
       "generatePromptsFailed": "Failed to generate prompts",
       "generatePromptsFailedRetry": "Failed to generate prompts. Please try again.",
       "nameRequired": "Please enter a preset name",
+      "providerRequired": "Please select a provider",
       "modelRequired": "Please select a model",
+      "maxTokensInvalid": "Max tokens must be greater than 0",
       "invalidFileFormat": "Invalid preset file format",
-      "parseFileFailed": "Failed to parse preset file"
+      "parseFileFailed": "Failed to parse preset file",
+      "invalidEntry": "Invalid entries"
+    },
+    "compatibility": {
+      "providerFallback": "Provider is unavailable. Switched to auto with model {toModel}.",
+      "modelFallback": "Model {fromModel} is unavailable. Switched to {toModel}."
     }
   }
 }

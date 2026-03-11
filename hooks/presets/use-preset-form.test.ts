@@ -24,6 +24,14 @@ jest.mock('@/stores', () => ({
     };
     return selector(state);
   },
+  useSettingsStore: (selector: (state: unknown) => unknown) => {
+    const state = {
+      providerSettings: {
+        openai: { enabled: true, apiKey: 'sk-test' },
+      },
+    };
+    return selector(state);
+  },
   usePromptTemplateStore: (selector: (state: unknown) => unknown) => {
     const state = {
       initializeDefaults: mockInitializeDefaults,
@@ -187,7 +195,7 @@ describe('usePresetForm', () => {
     it('returns error when name is empty', () => {
       const { result } = renderHook(() => usePresetForm(defaultOptions));
 
-      let submitResult: { valid: boolean; error?: string };
+      let submitResult;
       act(() => {
         submitResult = result.current.handleSubmit();
       });
@@ -204,13 +212,56 @@ describe('usePresetForm', () => {
         result.current.updateField('model', '');
       });
 
-      let submitResult: { valid: boolean; error?: string };
+      let submitResult;
       act(() => {
         submitResult = result.current.handleSubmit();
       });
 
       expect(submitResult!.valid).toBe(false);
       expect(submitResult!.error).toBe('modelRequired');
+      expect(submitResult!.fieldErrors?.model).toBe('modelRequired');
+    });
+
+    it('returns error when maxTokens is invalid', () => {
+      const { result } = renderHook(() => usePresetForm(defaultOptions));
+
+      act(() => {
+        result.current.updateField('name', 'Test');
+        result.current.updateField('maxTokens', 0);
+      });
+
+      let submitResult;
+      act(() => {
+        submitResult = result.current.handleSubmit();
+      });
+
+      expect(submitResult!.valid).toBe(false);
+      expect(submitResult!.error).toBe('maxTokensInvalid');
+      expect(result.current.fieldErrors.maxTokens).toBe('maxTokensInvalid');
+    });
+
+    it('applies provider compatibility fallback on submit', () => {
+      const { result } = renderHook(() => usePresetForm(defaultOptions));
+
+      act(() => {
+        result.current.updateField('name', 'Needs fallback');
+        result.current.updateField('provider', 'anthropic');
+        result.current.updateField('model', 'claude-sonnet-4-20250514');
+      });
+
+      let submitResult;
+      act(() => {
+        submitResult = result.current.handleSubmit();
+      });
+
+      expect(submitResult!.valid).toBe(true);
+      expect(submitResult!.adjustment?.code).toBe('providerFallback');
+      expect(mockCreatePreset).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: 'auto',
+          model: 'gpt-4o',
+        }),
+      );
     });
 
     it('creates a new preset on submit (no editPreset)', () => {
@@ -224,7 +275,7 @@ describe('usePresetForm', () => {
         result.current.updateField('name', 'New Preset');
       });
 
-      let submitResult: { valid: boolean; error?: string };
+      let submitResult;
       act(() => {
         submitResult = result.current.handleSubmit();
       });

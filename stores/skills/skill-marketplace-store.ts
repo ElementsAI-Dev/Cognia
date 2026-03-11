@@ -5,11 +5,14 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { createLogger } from '@/lib/logger';
 import type {
   SkillsMarketplaceItem,
   SkillsMarketplaceFilters,
   SkillInstallStatus,
   SkillsMarketplaceDetail,
+  SkillsMarketplaceErrorCategory,
+  SkillsMarketplaceOperationDiagnostic,
 } from '@/types/skill/skill-marketplace';
 import { DEFAULT_SKILLS_MARKETPLACE_FILTERS } from '@/types/skill/skill-marketplace';
 import {
@@ -24,16 +27,190 @@ import {
 import { parseSkillMd, inferCategoryFromContent, extractTagsFromContent } from '@/lib/skills/parser';
 import { useSkillStore } from './skill-store';
 import type { Skill } from '@/types/system/skill';
+import { buildCanonicalSkillId, normalizeSkillName } from '@/lib/skills/reconciliation';
 import {
   buildNativeLinkedSkillUpdate,
   promoteSkillToNative,
 } from '@/lib/skills/skill-actions';
 import { isNativeSkillAvailable } from '@/lib/native/skill';
 
+const marketplaceStoreLogger = createLogger('skills:marketplace-store');
+
 interface InstallRetryMetadata {
   skillId: string;
   directory: string;
   reason: string;
+}
+
+interface MarketplaceMatchResult {
+  skill: Skill | null;
+  reason: 'marketplace-id' | 'canonical' | 'legacy-name' | 'none';
+}
+
+const DISCOVERY_RESET_KEYS: Array<keyof SkillsMarketplaceFilters> = [
+  'query',
+  'sortBy',
+  'useAiSearch',
+  'limit',
+  'category',
+  'tags',
+];
+
+function normalizeMarketplaceId(id: string): string {
+  return id.trim().toLowerCase();
+}
+
+function buildMarketplaceCanonicalId(itemId: string): string {
+  return buildCanonicalSkillId({
+    source: 'marketplace',
+    marketplaceSkillId: itemId,
+  });
+}
+
+function getMarketplaceNameCandidates(item: SkillsMarketplaceItem): string[] {
+  const candidates = new Set<string>();
+  const fromName = normalizeSkillName(item.name);
+  const fromDirectory = normalizeSkillName(item.directory.split('/').pop() || '');
+  const fromIdTail = normalizeSkillName(item.id.split('/').pop() || '');
+
+  if (fromName) candidates.add(fromName);
+  if (fromDirectory) candidates.add(fromDirectory);
+  if (fromIdTail) candidates.add(fromIdTail);
+
+  return Array.from(candidates);
+}
+
+function findSkillForMarketplaceItem(skills: Skill[], item: SkillsMarketplaceItem): MarketplaceMatchResult {
+  const normalizedId = normalizeMarketplaceId(item.id);
+  const canonicalTarget = buildMarketplaceCanonicalId(item.id);
+
+  const byMarketplaceId = skills.find(
+    (skill) => normalizeMarketplaceId(skill.marketplaceSkillId || '') === normalizedId
+  );
+  if (byMarketplaceId) {
+    return { skill: byMarketplaceId, reason: 'marketplace-id' };
+  }
+
+  const byCanonical = skills.find((skill) => skill.canonicalId === canonicalTarget);
+  if (byCanonical) {
+    return { skill: byCanonical, reason: 'canonical' };
+  }
+
+  const nameCandidates = getMarketplaceNameCandidates(item);
+  const byLegacyName = skills.find((skill) => {
+    const normalizedSkillName = normalizeSkillName(skill.metadata.name);
+    return nameCandidates.includes(normalizedSkillName);
+  });
+  if (byLegacyName) {
+    return { skill: byLegacyName, reason: 'legacy-name' };
+  }
+
+  return { skill: null, reason: 'none' };
+}
+
+function shouldResetPage(filters: Partial<SkillsMarketplaceFilters>): boolean {
+  return DISCOVERY_RESET_KEYS.some((key) => Object.prototype.hasOwnProperty.call(filters, key));
+}
+
+function classifyMarketplaceError(params: {
+  code?: string;
+  message?: string;
+  defaultCategory?: SkillsMarketplaceErrorCategory;
+}): SkillsMarketplaceErrorCategory {
+  const code = (params.code || '').toUpperCase();
+  const message = (params.message || '').toLowerCase();
+
+  if (
+    code === 'MISSING_API_KEY'
+    || code === 'INVALID_API_KEY'
+    || message.includes('api key')
+    || message.includes('unauthorized')
+    || message.includes('forbidden')
+  ) {
+    return 'auth';
+  }
+
+  if (
+    code === 'MISSING_QUERY'
+    || message.includes('missing query')
+    || message.includes('validation')
+    || message.includes('invalid query')
+  ) {
+    return 'validation';
+  }
+
+  if (
+    code === 'RATE_LIMIT'
+    || message.includes('429')
+    || message.includes('rate limit')
+  ) {
+    return 'rate-limit';
+  }
+
+  if (
+    message.includes('nativepromotionpartial')
+    || message.includes('partial sync')
+    || message.includes('partial')
+  ) {
+    return 'partial-sync';
+  }
+
+  if (
+    message.includes('network')
+    || message.includes('timeout')
+    || message.includes('aborted')
+    || message.includes('fetch')
+    || message.includes('connection')
+  ) {
+    return 'network';
+  }
+
+  return params.defaultCategory ?? 'unknown';
+}
+
+function errorCategoryToI18nKey(category: SkillsMarketplaceErrorCategory): string {
+  switch (category) {
+    case 'auth':
+      return 'i18n:marketplace.errors.auth';
+    case 'network':
+      return 'i18n:marketplace.errors.network';
+    case 'rate-limit':
+      return 'i18n:marketplace.errors.rateLimit';
+    case 'validation':
+      return 'i18n:marketplace.errors.validation';
+    case 'partial-sync':
+      return 'i18n:marketplace.errors.partialSync';
+    default:
+      return 'i18n:marketplace.errors.unknown';
+  }
+}
+
+function toLocalizedInstallError(error: string | undefined): { category: SkillsMarketplaceErrorCategory; key: string } {
+  if (!error) {
+    return {
+      category: 'unknown',
+      key: errorCategoryToI18nKey('unknown'),
+    };
+  }
+
+  if (error.startsWith('i18n:')) {
+    if (error.includes('nativePromotionPartial')) {
+      return { category: 'partial-sync', key: error };
+    }
+    if (error.includes('nativePromotionFailed')) {
+      return { category: 'partial-sync', key: error };
+    }
+    if (error.includes('nativeNotAvailable')) {
+      return { category: 'validation', key: error };
+    }
+    return {
+      category: classifyMarketplaceError({ message: error }),
+      key: error,
+    };
+  }
+
+  const category = classifyMarketplaceError({ message: error });
+  return { category, key: errorCategoryToI18nKey(category) };
 }
 
 interface SkillMarketplaceState {
@@ -42,7 +219,9 @@ interface SkillMarketplaceState {
   filters: SkillsMarketplaceFilters;
   isLoading: boolean;
   error: string | null;
+  errorCategory: SkillsMarketplaceErrorCategory | null;
   lastSearched: number | null;
+  lastDiagnostic: SkillsMarketplaceOperationDiagnostic | null;
 
   // Pagination
   currentPage: number;
@@ -104,8 +283,8 @@ interface SkillMarketplaceState {
   getPaginatedItems: () => SkillsMarketplaceItem[];
   getUniqueTags: () => string[];
   getUniqueCategories: () => string[];
-  isItemInstalled: (skillId: string) => boolean;
-  getInstallStatus: (skillId: string) => SkillInstallStatus;
+  isItemInstalled: (skillId: string, item?: SkillsMarketplaceItem) => boolean;
+  getInstallStatus: (skillId: string, item?: SkillsMarketplaceItem) => SkillInstallStatus;
   getFavoritesCount: () => number;
   hasApiKey: () => boolean;
 }
@@ -118,7 +297,9 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
       filters: DEFAULT_SKILLS_MARKETPLACE_FILTERS,
       isLoading: false,
       error: null,
+      errorCategory: null,
       lastSearched: null,
+      lastDiagnostic: null,
       currentPage: 1,
       totalPages: 1,
       totalItems: 0,
@@ -135,54 +316,129 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
       cacheDuration: 5 * 60 * 1000,
 
       searchSkills: async (query?: string) => {
+        if (query !== undefined) {
+          const resetPage = query.trim() !== get().filters.query.trim();
+          set((state) => ({
+            filters: {
+              ...state.filters,
+              query,
+              page: resetPage ? 1 : state.filters.page,
+            },
+            currentPage: resetPage ? 1 : state.currentPage,
+          }));
+        }
+
         const state = get();
-        const searchQuery = query ?? state.filters.query;
+        const searchQuery = state.filters.query;
 
         if (!searchQuery.trim()) {
-          set({ items: [], error: null });
+          set({
+            items: [],
+            error: null,
+            errorCategory: null,
+            selectedItem: null,
+            selectedDetail: null,
+          });
           return;
         }
 
         if (!state.apiKey) {
-          set({ error: 'API key is required. Configure it in settings.' });
+          const category: SkillsMarketplaceErrorCategory = 'auth';
+          set({
+            error: errorCategoryToI18nKey(category),
+            errorCategory: category,
+            lastDiagnostic: {
+              operation: 'search',
+              outcome: 'failure',
+              category,
+              reasonCode: 'MISSING_API_KEY',
+              retryable: false,
+              timestamp: Date.now(),
+            },
+          });
           return;
         }
 
-        set({ isLoading: true, error: null });
+        set({ isLoading: true, error: null, errorCategory: null });
 
         try {
-          const response = state.filters.useAiSearch
+          const requestFilters = get().filters;
+          const response = requestFilters.useAiSearch
             ? await aiSearchSkillsMarketplace(searchQuery, state.apiKey)
             : await searchSkillsMarketplace(searchQuery, {
-                page: state.filters.page,
-                limit: state.filters.limit,
-                sortBy: state.filters.sortBy,
-                apiKey: state.apiKey,
-              });
+              page: requestFilters.page,
+              limit: requestFilters.limit,
+              sortBy: requestFilters.sortBy,
+              apiKey: state.apiKey,
+            });
 
           if (!response.success) {
+            const category = classifyMarketplaceError({
+              code: response.error?.code,
+              message: response.error?.message,
+            });
+            const diagnostic: SkillsMarketplaceOperationDiagnostic = {
+              operation: 'search',
+              outcome: 'failure',
+              category,
+              reasonCode: response.error?.code,
+              retryable: category === 'network' || category === 'rate-limit',
+              timestamp: Date.now(),
+            };
+            marketplaceStoreLogger.warn('Skills marketplace search failed', { ...diagnostic });
             set({
-              error: response.error?.message || 'Search failed',
+              error: errorCategoryToI18nKey(category),
+              errorCategory: category,
+              lastDiagnostic: diagnostic,
               isLoading: false,
             });
             return;
           }
 
-          // Add to search history
-          get().addToSearchHistory(searchQuery);
+          const resolvedPage = response.pagination?.page || requestFilters.page;
+          const nextItems = response.data;
+          const selected = get().selectedItem;
+          const selectedStillExists = selected ? nextItems.some((item) => item.id === selected.id) : true;
 
           set({
-            items: response.data,
-            totalItems: response.pagination?.total || response.data.length,
+            items: nextItems,
+            totalItems: response.pagination?.total || nextItems.length,
             totalPages: response.pagination?.totalPages || 1,
-            currentPage: response.pagination?.page || 1,
+            currentPage: resolvedPage,
             lastSearched: Date.now(),
             isLoading: false,
-            filters: { ...state.filters, query: searchQuery },
+            error: null,
+            errorCategory: null,
+            lastDiagnostic: {
+              operation: 'search',
+              outcome: 'success',
+              timestamp: Date.now(),
+            },
+            selectedItem: selectedStillExists ? selected : null,
+            selectedDetail: selectedStillExists ? get().selectedDetail : null,
+            filters: {
+              ...requestFilters,
+              query: searchQuery,
+              page: resolvedPage,
+            },
           });
+          get().addToSearchHistory(searchQuery);
         } catch (error) {
+          const category = classifyMarketplaceError({
+            message: error instanceof Error ? error.message : String(error),
+          });
+          const diagnostic: SkillsMarketplaceOperationDiagnostic = {
+            operation: 'search',
+            outcome: 'failure',
+            category,
+            retryable: category === 'network' || category === 'rate-limit',
+            timestamp: Date.now(),
+          };
+          marketplaceStoreLogger.error('Skills marketplace search threw error', error, { ...diagnostic });
           set({
-            error: error instanceof Error ? error.message : 'Search failed',
+            error: errorCategoryToI18nKey(category),
+            errorCategory: category,
+            lastDiagnostic: diagnostic,
             isLoading: false,
           });
         }
@@ -190,15 +446,34 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
 
       aiSearch: async (query: string) => {
         set((state) => ({
-          filters: { ...state.filters, useAiSearch: true, query },
+          filters: { ...state.filters, useAiSearch: true, query, page: 1 },
+          currentPage: 1,
+          selectedItem: null,
+          selectedDetail: null,
         }));
-        await get().searchSkills(query);
+        await get().searchSkills();
       },
 
       setFilters: (newFilters) => {
         set((state) => ({
-          filters: { ...state.filters, ...newFilters },
-          currentPage: 1,
+          filters: (() => {
+            const next = { ...state.filters, ...newFilters };
+            if (shouldResetPage(newFilters)) {
+              next.page = 1;
+            }
+            return next;
+          })(),
+          currentPage: shouldResetPage(newFilters) ? 1 : ({ ...state.filters, ...newFilters }).page,
+          selectedItem: Object.keys(newFilters).some((key) =>
+            ['query', 'sortBy', 'useAiSearch', 'page', 'limit', 'category', 'tags'].includes(key)
+          )
+            ? null
+            : state.selectedItem,
+          selectedDetail: Object.keys(newFilters).some((key) =>
+            ['query', 'sortBy', 'useAiSearch', 'page', 'limit', 'category', 'tags'].includes(key)
+          )
+            ? null
+            : state.selectedDetail,
         }));
       },
 
@@ -206,6 +481,10 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
         set({
           filters: DEFAULT_SKILLS_MARKETPLACE_FILTERS,
           currentPage: 1,
+          selectedItem: null,
+          selectedDetail: null,
+          error: null,
+          errorCategory: null,
         });
       },
 
@@ -218,29 +497,139 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
 
         try {
           const detail = await fetchSkillDetail(skillId, get().apiKey || undefined);
-          set({ selectedDetail: detail, isLoadingDetail: false });
+          if (!detail) {
+            const category: SkillsMarketplaceErrorCategory = 'network';
+            const diagnostic: SkillsMarketplaceOperationDiagnostic = {
+              operation: 'detail',
+              outcome: 'failure',
+              category,
+              itemId: skillId,
+              retryable: true,
+              timestamp: Date.now(),
+            };
+            set({
+              selectedDetail: null,
+              isLoadingDetail: false,
+              error: errorCategoryToI18nKey(category),
+              errorCategory: category,
+              lastDiagnostic: diagnostic,
+            });
+            return null;
+          }
+          set({
+            selectedDetail: detail,
+            isLoadingDetail: false,
+            error: null,
+            errorCategory: null,
+            lastDiagnostic: {
+              operation: 'detail',
+              outcome: 'success',
+              itemId: skillId,
+              timestamp: Date.now(),
+            },
+          });
           return detail;
-        } catch (_error) {
-          set({ isLoadingDetail: false });
+        } catch (error) {
+          const category = classifyMarketplaceError({
+            message: error instanceof Error ? error.message : String(error),
+            defaultCategory: 'network',
+          });
+          const diagnostic: SkillsMarketplaceOperationDiagnostic = {
+            operation: 'detail',
+            outcome: 'failure',
+            category,
+            itemId: skillId,
+            retryable: true,
+            timestamp: Date.now(),
+          };
+          set({
+            selectedDetail: null,
+            isLoadingDetail: false,
+            error: errorCategoryToI18nKey(category),
+            errorCategory: category,
+            lastDiagnostic: diagnostic,
+          });
           return null;
         }
       },
 
       installSkill: async (item) => {
-        // Update status
-        set((s) => {
-          const newInstalling = new Map(s.installingItems);
-          newInstalling.set(item.id, 'installing');
-          return { installingItems: newInstalling };
+        const operation: 'install' | 'retry' = get().installRetryMetadata.has(item.id) ? 'retry' : 'install';
+        set((state) => {
+          const nextInstalling = new Map(state.installingItems);
+          nextInstalling.set(item.id, 'installing');
+          return { installingItems: nextInstalling };
         });
+
+        const setInstallResult = (
+          status: SkillInstallStatus,
+          options?: { error?: string; retry?: InstallRetryMetadata | null }
+        ): void => {
+          set((state) => {
+            const nextInstalling = new Map(state.installingItems);
+            const nextErrors = new Map(state.installErrors);
+            const nextRetry = new Map(state.installRetryMetadata);
+
+            nextInstalling.set(item.id, status);
+
+            if (options?.error) {
+              nextErrors.set(item.id, options.error);
+            } else {
+              nextErrors.delete(item.id);
+            }
+
+            if (options?.retry) {
+              nextRetry.set(item.id, options.retry);
+            } else if (options?.retry === null) {
+              nextRetry.delete(item.id);
+            }
+
+            return {
+              installingItems: nextInstalling,
+              installErrors: nextErrors,
+              installRetryMetadata: nextRetry,
+            };
+          });
+        };
+
+        const ensureMarketplaceLinkage = (): Skill | null => {
+          const skillStore = useSkillStore.getState();
+          const skills = skillStore.getAllSkills();
+          const match = findSkillForMarketplaceItem(skills, item);
+          if (!match.skill) {
+            return null;
+          }
+
+          if (
+            (match.reason === 'legacy-name' || match.reason === 'canonical')
+            && normalizeMarketplaceId(match.skill.marketplaceSkillId || '') !== normalizeMarketplaceId(item.id)
+          ) {
+            skillStore.updateSkill(match.skill.id, {
+              marketplaceSkillId: item.id,
+              canonicalId: buildCanonicalSkillId({
+                source: match.skill.source,
+                metadata: match.skill.metadata,
+                marketplaceSkillId: item.id,
+                nativeSkillId: match.skill.nativeSkillId,
+                nativeDirectory: match.skill.nativeDirectory,
+              }),
+            });
+            return useSkillStore.getState().skills[match.skill.id] || match.skill;
+          }
+
+          return match.skill;
+        };
 
         try {
           const retryMetadata = get().installRetryMetadata.get(item.id);
           const skillStore = useSkillStore.getState();
 
-          if (retryMetadata) {
-            const retrySkill = skillStore.getAllSkills().find((skill) => skill.id === retryMetadata.skillId);
-            if (retrySkill && isNativeSkillAvailable()) {
+          if (retryMetadata && isNativeSkillAvailable()) {
+            const retrySkill =
+              skillStore.getAllSkills().find((skill) => skill.id === retryMetadata.skillId)
+              || ensureMarketplaceLinkage();
+
+            if (retrySkill) {
               const retryPromotion = await promoteSkillToNative({
                 skill: retrySkill,
                 directory: retryMetadata.directory,
@@ -249,106 +638,141 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
               if (retryPromotion.data) {
                 skillStore.updateSkill(
                   retrySkill.id,
-                  buildNativeLinkedSkillUpdate(retrySkill, retryPromotion.data, retryPromotion.error ?? null)
+                  {
+                    ...buildNativeLinkedSkillUpdate(retrySkill, retryPromotion.data, retryPromotion.error ?? null),
+                    marketplaceSkillId: retrySkill.marketplaceSkillId ?? item.id,
+                  }
                 );
               }
 
               if (retryPromotion.outcome === 'success') {
-                set((s) => {
-                  const newInstalling = new Map(s.installingItems);
-                  const newErrors = new Map(s.installErrors);
-                  const newRetry = new Map(s.installRetryMetadata);
-                  newInstalling.set(item.id, 'installed');
-                  newErrors.delete(item.id);
-                  newRetry.delete(item.id);
-                  return {
-                    installingItems: newInstalling,
-                    installErrors: newErrors,
-                    installRetryMetadata: newRetry,
-                  };
+                setInstallResult('installed', { retry: null });
+                set({
+                  lastDiagnostic: {
+                    operation: 'retry',
+                    outcome: 'success',
+                    itemId: item.id,
+                    timestamp: Date.now(),
+                  },
                 });
                 return true;
               }
 
-              set((s) => {
-                const newInstalling = new Map(s.installingItems);
-                const newErrors = new Map(s.installErrors);
-                const newRetry = new Map(s.installRetryMetadata);
-                newInstalling.set(item.id, 'error');
-                newErrors.set(item.id, retryPromotion.error || 'i18n:nativePromotionPartial');
-                newRetry.set(item.id, {
+              const localized = toLocalizedInstallError(
+                retryPromotion.error || 'i18n:marketplace.errors.partialSync'
+              );
+              setInstallResult('error', {
+                error: localized.key,
+                retry: {
                   skillId: retrySkill.id,
                   directory: retryMetadata.directory,
-                  reason: retryPromotion.error || 'i18n:nativePromotionPartial',
-                });
-                return {
-                  installingItems: newInstalling,
-                  installErrors: newErrors,
-                  installRetryMetadata: newRetry,
-                };
+                  reason: localized.key,
+                },
+              });
+              set({
+                lastDiagnostic: {
+                  operation: 'retry',
+                  outcome: retryPromotion.outcome === 'partial' ? 'partial' : 'failure',
+                  category: localized.category,
+                  itemId: item.id,
+                  retryable: true,
+                  timestamp: Date.now(),
+                },
               });
               return false;
             }
+
+            setInstallResult('installing', { retry: null });
           }
 
-          // Download skill content with API key for resource fetching
           const apiKey = get().apiKey || undefined;
           const content = await downloadSkillContent(item.id, apiKey);
           if (!content) {
-            throw new Error('Failed to download skill content');
+            throw new Error('download-failed');
           }
 
-          // Use the parser for robust SKILL.md parsing
           const parseResult = parseSkillMd(content.skillmd);
           const name = parseResult.metadata?.name || item.name;
           const description = parseResult.metadata?.description || item.description;
           const contentBody = parseResult.content || content.skillmd.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, '');
-
-          // Auto-detect category from content
           const detectedCategory = parseResult.metadata
             ? inferCategoryFromContent(parseResult.metadata, contentBody)
             : 'custom';
 
-          // Auto-detect tags from content, merge with marketplace tags
           const detectedTags = extractTagsFromContent(contentBody);
           const mergedTags = [...new Set([...(item.tags || []), ...detectedTags])];
 
-          // Convert downloaded resources to skill resources
-          const resources = content.resources.map((r) => {
-            const isScript = r.path.startsWith('scripts/') || r.name.endsWith('.py') || r.name.endsWith('.sh') || r.name.endsWith('.js');
-            const isReference = r.path.startsWith('references/') || r.name.endsWith('.md') || r.name.endsWith('.txt');
+          const resources = content.resources.map((resource) => {
+            const isScript = resource.path.startsWith('scripts/')
+              || resource.name.endsWith('.py')
+              || resource.name.endsWith('.sh')
+              || resource.name.endsWith('.js');
+            const isReference = resource.path.startsWith('references/')
+              || resource.name.endsWith('.md')
+              || resource.name.endsWith('.txt');
             return {
-              name: r.name,
-              path: r.path,
+              name: resource.name,
+              path: resource.path,
               type: (isScript ? 'script' : isReference ? 'reference' : 'asset') as 'script' | 'reference' | 'asset',
-              content: r.content,
-              size: r.content.length,
+              content: resource.content,
+              size: resource.content.length,
               mimeType: 'text/plain',
             };
           });
 
-          // Create skill in local store
-          const skill = skillStore.importSkill({
-            metadata: { name, description },
-            content: contentBody,
-            rawContent: content.skillmd,
-            resources,
-            status: 'enabled',
-            source: 'marketplace',
-            category: detectedCategory,
-            tags: mergedTags,
-            version: item.version,
-            author: item.author,
-            license: item.license,
-          });
+          const linkedSkill = ensureMarketplaceLinkage();
+          let skill: Skill;
+          if (linkedSkill) {
+            skillStore.updateSkill(linkedSkill.id, {
+              metadata: { name, description },
+              content: contentBody,
+              resources,
+              status: 'enabled',
+              source: 'marketplace',
+              category: detectedCategory,
+              tags: mergedTags,
+              version: item.version,
+              author: item.author,
+              marketplaceSkillId: item.id,
+              canonicalId: buildCanonicalSkillId({
+                source: 'marketplace',
+                metadata: { name },
+                marketplaceSkillId: item.id,
+                nativeSkillId: linkedSkill.nativeSkillId,
+                nativeDirectory: linkedSkill.nativeDirectory,
+              }),
+            });
+            skill = useSkillStore.getState().skills[linkedSkill.id] || linkedSkill;
+          } else {
+            skill = skillStore.importSkill({
+              metadata: { name, description },
+              content: contentBody,
+              rawContent: content.skillmd,
+              resources,
+              status: 'enabled',
+              source: 'marketplace',
+              category: detectedCategory,
+              tags: mergedTags,
+              version: item.version,
+              author: item.author,
+              license: item.license,
+              marketplaceSkillId: item.id,
+              canonicalId: buildCanonicalSkillId({
+                source: 'marketplace',
+                metadata: { name },
+                marketplaceSkillId: item.id,
+              }),
+            });
+          }
 
           let installState: SkillInstallStatus = 'installed';
           let installError: string | null = null;
           let retryDirectory = name;
+          let outcome: 'success' | 'partial' | 'failure' = 'success';
 
           if (isNativeSkillAvailable()) {
             const promotion = await promoteSkillToNative({
-              skill: skill as Skill,
+              skill,
             });
 
             retryDirectory = promotion.directory;
@@ -356,58 +780,68 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
             if (promotion.data) {
               skillStore.updateSkill(
                 skill.id,
-                buildNativeLinkedSkillUpdate(skill as Skill, promotion.data, promotion.error ?? null)
+                {
+                  ...buildNativeLinkedSkillUpdate(skill, promotion.data, promotion.error ?? null),
+                  marketplaceSkillId: item.id,
+                }
               );
             } else if (promotion.outcome !== 'success') {
               skillStore.updateSkill(skill.id, {
+                marketplaceSkillId: item.id,
                 lastSyncError: promotion.error || 'i18n:nativePromotionPartial',
               });
             }
 
             if (promotion.outcome !== 'success') {
               installState = 'error';
-              installError = promotion.error || 'i18n:nativePromotionPartial';
+              installError = toLocalizedInstallError(
+                promotion.error || 'i18n:nativePromotionPartial'
+              ).key;
+              outcome = promotion.outcome === 'partial' ? 'partial' : 'failure';
             }
           }
 
-          // Update status to installed
-          set((s) => {
-            const newInstalling = new Map(s.installingItems);
-            const newErrors = new Map(s.installErrors);
-            const newRetry = new Map(s.installRetryMetadata);
-            newInstalling.set(item.id, installState);
-            if (installError) {
-              newErrors.set(item.id, installError);
-              newRetry.set(item.id, {
+          setInstallResult(installState, {
+            error: installError || undefined,
+            retry: installError
+              ? {
                 skillId: skill.id,
                 directory: retryDirectory,
                 reason: installError,
-              });
-            } else {
-              newErrors.delete(item.id);
-              newRetry.delete(item.id);
-            }
-            return {
-              installingItems: newInstalling,
-              installErrors: newErrors,
-              installRetryMetadata: newRetry,
-            };
+              }
+              : null,
+          });
+
+          const category = installError ? toLocalizedInstallError(installError).category : undefined;
+          set({
+            lastDiagnostic: {
+              operation,
+              outcome,
+              category,
+              itemId: item.id,
+              retryable: Boolean(installError),
+              timestamp: Date.now(),
+            },
           });
 
           return installState === 'installed';
         } catch (error) {
-          // Update status to error
-          set((s) => {
-            const newInstalling = new Map(s.installingItems);
-            const newErrors = new Map(s.installErrors);
-            newInstalling.set(item.id, 'error');
-            newErrors.set(item.id, error instanceof Error ? error.message : 'i18n:marketplace.installFailed');
-            return {
-              installingItems: newInstalling,
-              installErrors: newErrors,
-            };
+          const localized = toLocalizedInstallError(
+            error instanceof Error ? error.message : String(error)
+          );
+          setInstallResult('error', {
+            error: localized.key,
           });
-
+          set({
+            lastDiagnostic: {
+              operation,
+              outcome: 'failure',
+              category: localized.category,
+              itemId: item.id,
+              retryable: localized.category === 'network' || localized.category === 'partial-sync',
+              timestamp: Date.now(),
+            },
+          });
           return false;
         }
       },
@@ -417,7 +851,7 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
       },
 
       clearError: () => {
-        set({ error: null });
+        set({ error: null, errorCategory: null });
       },
 
       toggleFavorite: (skillId) => {
@@ -451,12 +885,17 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
       },
 
       setCurrentPage: (page) => {
-        set({ currentPage: page });
-        // Trigger new search with updated page
-        const state = get();
-        if (state.filters.query) {
-          set((s) => ({ filters: { ...s.filters, page } }));
-          get().searchSkills();
+        set((state) => ({
+          filters: {
+            ...state.filters,
+            page,
+          },
+          currentPage: page,
+          selectedItem: null,
+          selectedDetail: null,
+        }));
+        if (get().filters.query.trim()) {
+          void get().searchSkills();
         }
       },
 
@@ -482,23 +921,42 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
         return getUniqueSkillCategories(get().items);
       },
 
-      isItemInstalled: (skillId) => {
+      isItemInstalled: (skillId, item) => {
         const status = get().installingItems.get(skillId);
-        if (status === 'error') return false;
         if (status === 'installed') return true;
+        if (status === 'error' || status === 'installing') return false;
 
-        // Also check skill store
-        const skillStore = useSkillStore.getState();
-        const skills = skillStore.getAllSkills();
-        return skills.some(
-          (s) =>
-            // @ts-expect-error - marketplace fields
-            s.marketplaceId === skillId || s.metadata.name === skillId.split('/').pop()
+        const skills = useSkillStore.getState().getAllSkills();
+        const linkedMatch = item ? findSkillForMarketplaceItem(skills, item).skill : null;
+        if (item && linkedMatch) {
+          if (normalizeMarketplaceId(linkedMatch.marketplaceSkillId || '') !== normalizeMarketplaceId(item.id)) {
+            useSkillStore.getState().updateSkill(linkedMatch.id, {
+              marketplaceSkillId: item.id,
+              canonicalId: buildCanonicalSkillId({
+                source: linkedMatch.source,
+                metadata: linkedMatch.metadata,
+                marketplaceSkillId: item.id,
+                nativeSkillId: linkedMatch.nativeSkillId,
+                nativeDirectory: linkedMatch.nativeDirectory,
+              }),
+            });
+          }
+          return true;
+        }
+
+        const normalizedId = normalizeMarketplaceId(skillId);
+        const canonicalId = buildMarketplaceCanonicalId(skillId);
+        return skills.some((skill) =>
+          normalizeMarketplaceId(skill.marketplaceSkillId || '') === normalizedId
+          || skill.canonicalId === canonicalId
         );
       },
 
-      getInstallStatus: (skillId) => {
-        return get().installingItems.get(skillId) || 'not_installed';
+      getInstallStatus: (skillId, item) => {
+        const status = get().installingItems.get(skillId);
+        if (status) return status;
+        if (get().isItemInstalled(skillId, item)) return 'installed';
+        return 'not_installed';
       },
 
       getFavoritesCount: () => {

@@ -16,6 +16,9 @@ import type {
 } from '@/lib/prompts/marketplace-utils';
 import { usePromptMarketplaceStore } from './prompt-marketplace-store';
 
+jest.mock('zustand', () => jest.requireActual('zustand'));
+jest.mock('zustand/middleware', () => jest.requireActual('zustand/middleware'));
+
 const mockGetCatalog = jest.fn();
 const mockGetFallbackCatalog = jest.fn();
 const mockGetPromptById = jest.fn();
@@ -138,6 +141,19 @@ function resetStoreState(): void {
     sourceWarning: null,
     remoteFirstEnabled: false,
     operationStates: {},
+    browseViewState: {
+      query: '',
+      category: 'all',
+      sortBy: 'downloads',
+      minRating: 0,
+      selectedTiers: [],
+      page: 1,
+      pageSize: 20,
+      selectedPromptId: null,
+      detailOpen: false,
+      scrollOffset: 0,
+    },
+    installRetryContexts: {},
   });
 }
 
@@ -145,10 +161,25 @@ describe('usePromptMarketplaceStore (contract)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetStoreState();
-
-    mockCreateTemplate.mockReturnValue({ id: 'template-1' });
-    mockDeleteTemplate.mockReturnValue(undefined);
-    mockUpdateTemplate.mockReturnValue(undefined);
+    let templateCounter = 0;
+    mockCreateTemplate.mockImplementation(() => {
+      templateCounter += 1;
+      return {
+        ok: true,
+        code: 'OK',
+        data: { id: `template-${templateCounter}` },
+      };
+    });
+    mockDeleteTemplate.mockReturnValue({
+      ok: true,
+      code: 'OK',
+      data: { deletedId: 'template-1' },
+    });
+    mockUpdateTemplate.mockReturnValue({
+      ok: true,
+      code: 'OK',
+      data: { action: 'updated', template: { id: 'template-1' } },
+    });
     mockGetTemplate.mockReturnValue({
       id: 'template-1',
       name: 'Template One',
@@ -452,6 +483,48 @@ describe('usePromptMarketplaceStore (contract)', () => {
     expect(payload!.prompts).toHaveLength(1);
     expect(payload!.prompts[0].id).toBe('export-1');
     expect(usePromptMarketplaceStore.getState().operationStates.export?.status).toBe('success');
+  });
+
+  it('maintains canonical browse state transitions and resets paging on filter changes', () => {
+    const { result } = renderHook(() => usePromptMarketplaceStore());
+
+    act(() => {
+      result.current.setBrowsePage(3);
+      result.current.setBrowseQuery('workflow');
+      result.current.setBrowseCategory('writing');
+      result.current.setBrowseSortBy('newest');
+      result.current.setBrowseMinRating(4);
+      result.current.toggleBrowseQualityTier('official');
+    });
+
+    expect(result.current.browseViewState.query).toBe('workflow');
+    expect(result.current.browseViewState.category).toBe('writing');
+    expect(result.current.browseViewState.sortBy).toBe('newest');
+    expect(result.current.browseViewState.minRating).toBe(4);
+    expect(result.current.browseViewState.selectedTiers).toContain('official');
+    expect(result.current.browseViewState.page).toBe(1);
+  });
+
+  it('stores retry context when install fails after lifecycle transition starts', async () => {
+    const prompt = createMockPrompt('install-fail-1');
+    mockCreateTemplate.mockImplementation(() => {
+      throw new Error('template create failed');
+    });
+
+    const { result } = renderHook(() => usePromptMarketplaceStore());
+    act(() => {
+      usePromptMarketplaceStore.setState({
+        prompts: { [prompt.id]: prompt },
+      });
+    });
+
+    await act(async () => {
+      await expect(result.current.installPrompt(prompt)).rejects.toThrow('template create failed');
+    });
+
+    expect(result.current.installRetryContexts[prompt.id]).toBeDefined();
+    expect(result.current.installRetryContexts[prompt.id].stage).toBe('create-template');
+    expect(result.current.operationStates[`install:${prompt.id}`]?.status).toBe('error');
   });
 });
 

@@ -100,6 +100,14 @@ export function PromptMarketplaceCard({
     uninstallPrompt(prompt.id);
   };
 
+  const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    event.preventDefault();
+    handleViewDetail();
+  };
+
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
@@ -117,6 +125,10 @@ export function PromptMarketplaceCard({
           isInstalled && 'ring-1 ring-primary/40 bg-primary/5'
         )}
         onClick={handleViewDetail}
+        onKeyDown={handleCardKeyDown}
+        role="button"
+        tabIndex={0}
+        aria-label={`Open prompt details: ${prompt.name}`}
       >
         <div className="flex items-center gap-4 p-4">
           {/* Icon */}
@@ -270,6 +282,10 @@ export function PromptMarketplaceCard({
         isInstalled && 'ring-1 ring-primary/40 bg-primary/5'
       )}
       onClick={handleViewDetail}
+      onKeyDown={handleCardKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open prompt details: ${prompt.name}`}
     >
       {/* Gradient Overlays */}
       {prompt.qualityTier === 'official' && (

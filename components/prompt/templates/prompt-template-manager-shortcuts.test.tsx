@@ -19,19 +19,36 @@ jest.mock('next-intl', () => ({
   },
 }));
 
+jest.mock('@/components/ui/sonner', () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
 // Mock stores
 jest.mock('@/stores', () => ({
   usePromptTemplateStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       templates: [],
       categories: [],
+      operationStates: {},
       createTemplate: jest.fn(),
       updateTemplate: jest.fn(),
       deleteTemplate: jest.fn(),
       duplicateTemplate: jest.fn(),
       searchTemplates: jest.fn().mockReturnValue([]),
-      importTemplates: jest.fn().mockReturnValue(0),
-      exportTemplates: jest.fn().mockReturnValue('[]'),
+      importTemplates: jest.fn().mockReturnValue({
+        success: true,
+        strategy: 'skip',
+        imported: 0,
+        overwritten: 0,
+        duplicated: 0,
+        skipped: 0,
+        failed: 0,
+        items: [],
+      }),
+      exportTemplates: jest.fn().mockReturnValue({ ok: true, code: 'OK', data: { json: '[]', count: 0 } }),
       initializeDefaults: jest.fn(),
     };
     return selector(state);

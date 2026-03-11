@@ -446,7 +446,15 @@
       "noReadme": "No README available",
       "noSkillmd": "No SKILL.md available",
       "previous": "Previous",
-      "next": "Next"
+      "next": "Next",
+      "errors": {
+        "auth": "Authentication failed. Update your SkillsMP API key and try again.",
+        "network": "Network request failed. Check your connection and retry.",
+        "rateLimit": "Rate limit reached. Please wait a moment and retry.",
+        "validation": "Search request is invalid. Update your query and try again.",
+        "partialSync": "Skill content was imported, but native sync is incomplete. Retry to finish setup.",
+        "unknown": "Marketplace operation failed. Please retry."
+      }
     },
     "skillSeekers": {
       "title": "Skill Seekers",

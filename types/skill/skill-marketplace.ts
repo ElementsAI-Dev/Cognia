@@ -59,8 +59,28 @@ export interface SkillsMarketplacePagination {
 
 /** API error */
 export interface SkillsMarketplaceError {
-  code: 'MISSING_API_KEY' | 'INVALID_API_KEY' | 'MISSING_QUERY' | 'INTERNAL_ERROR' | string;
+  code: 'MISSING_API_KEY' | 'INVALID_API_KEY' | 'MISSING_QUERY' | 'RATE_LIMIT' | 'INTERNAL_ERROR' | string;
   message: string;
+}
+
+/** Normalized error categories used by UI and diagnostics */
+export type SkillsMarketplaceErrorCategory =
+  | 'auth'
+  | 'network'
+  | 'rate-limit'
+  | 'validation'
+  | 'partial-sync'
+  | 'unknown';
+
+/** Structured operation diagnostics for marketplace workflows */
+export interface SkillsMarketplaceOperationDiagnostic {
+  operation: 'search' | 'detail' | 'install' | 'retry';
+  outcome: 'success' | 'partial' | 'failure';
+  category?: SkillsMarketplaceErrorCategory;
+  itemId?: string;
+  reasonCode?: string;
+  retryable?: boolean;
+  timestamp: number;
 }
 
 /** Sort options for marketplace */

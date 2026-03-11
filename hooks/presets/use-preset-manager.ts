@@ -9,7 +9,12 @@ import { useState, useRef, useMemo, useCallback } from 'react';
 import { usePresetStore, useSettingsStore } from '@/stores';
 import { toast } from '@/components/ui/sonner';
 import { loggers } from '@/lib/logger';
-import { getPresetAIConfig, exportPresetsToFile, parsePresetImportFile } from '@/lib/presets';
+import {
+  getPresetAIConfig,
+  exportPresetsToFile,
+  parsePresetImportFile,
+  normalizePresetInput,
+} from '@/lib/presets';
 import { generatePresetFromDescription } from '@/lib/ai/presets';
 import { nanoid } from 'nanoid';
 import type { Preset, PresetCategory } from '@/types/content/preset';
@@ -102,23 +107,37 @@ export function usePresetManager({ onSelectPreset, t }: UsePresetManagerOptions)
       if (!file) return;
 
       try {
-        const { entries, skipped } = await parsePresetImportFile(file);
+        const { entries, skipped, skippedReasons } = await parsePresetImportFile(file);
         let imported = 0;
+        let adjusted = 0;
         for (const entry of entries) {
           const { isFavorite, ...presetInput } = entry;
-          const newPreset = createPreset(presetInput);
+          const { normalized, adjustment } = normalizePresetInput(
+            presetInput,
+            providerSettings,
+          );
+          if (adjustment) adjusted += 1;
+          const newPreset = createPreset(normalized);
           if (isFavorite && newPreset) {
             usePresetStore.getState().toggleFavorite(newPreset.id);
           }
           imported++;
         }
-        const msg =
-          skipped > 0
-            ? t('importSuccess', { count: imported }) + ` (${skipped} skipped)`
-            : t('importSuccess', { count: imported });
-        toast.success(msg);
+        const summary = t('importResultSummary', { imported, skipped });
+        const reasonSummary = Object.entries(skippedReasons)
+          .map(([reason, count]) => `${t(`errors.${reason}`)}: ${count}`)
+          .join(', ');
+        if (adjusted > 0) {
+          const adjustedMessage = `${summary} (${t('importAdjusted', { count: adjusted })})`;
+          toast.success(reasonSummary ? `${adjustedMessage}; ${reasonSummary}` : adjustedMessage);
+        } else {
+          toast.success(reasonSummary ? `${summary}; ${reasonSummary}` : summary);
+        }
       } catch (err) {
-        const errorKey = err instanceof Error ? err.message : 'parseFileFailed';
+        const errorKey =
+          err instanceof Error && err.message
+            ? err.message
+            : 'parseFileFailed';
         toast.error(t(`errors.${errorKey}`));
       }
 
@@ -126,7 +145,7 @@ export function usePresetManager({ onSelectPreset, t }: UsePresetManagerOptions)
         fileInputRef.current.value = '';
       }
     },
-    [createPreset, t],
+    [createPreset, providerSettings, t],
   );
 
   // AI Generate
@@ -145,7 +164,7 @@ export function usePresetManager({ onSelectPreset, t }: UsePresetManagerOptions)
 
       if (result.success && result.preset) {
         const preset = result.preset;
-        createPreset({
+        const { normalized, adjustment } = normalizePresetInput({
           name: preset.name || 'AI Generated Preset',
           description: preset.description,
           icon: preset.icon || '✨',
@@ -164,7 +183,18 @@ export function usePresetManager({ onSelectPreset, t }: UsePresetManagerOptions)
           webSearchEnabled: preset.webSearchEnabled,
           thinkingEnabled: preset.thinkingEnabled,
           category: preset.category as PresetCategory | undefined,
-        });
+        }, providerSettings);
+        createPreset(normalized);
+        if (adjustment) {
+          toast.warning(
+            t(`compatibility.${adjustment.code}`, {
+              fromProvider: adjustment.fromProvider,
+              toProvider: adjustment.toProvider,
+              fromModel: adjustment.fromModel,
+              toModel: adjustment.toModel,
+            }),
+          );
+        }
         setAiDescription('');
         toast.success(t('aiGenerateSuccess'));
       } else {
@@ -177,6 +207,18 @@ export function usePresetManager({ onSelectPreset, t }: UsePresetManagerOptions)
       setIsGenerating(false);
     }
   }, [aiDescription, providerSettings, createPreset, t]);
+
+  const handleSetDefaultPreset = useCallback(
+    (presetId: string) => {
+      setDefaultPreset(presetId);
+      selectPreset(presetId);
+      const preset = presets.find((item) => item.id === presetId);
+      if (preset) {
+        onSelectPreset?.(preset);
+      }
+    },
+    [setDefaultPreset, selectPreset, presets, onSelectPreset],
+  );
 
   return {
     // State
@@ -210,6 +252,6 @@ export function usePresetManager({ onSelectPreset, t }: UsePresetManagerOptions)
     handleExport,
     handleImport,
     handleAIGenerate,
-    setDefaultPreset,
+    setDefaultPreset: handleSetDefaultPreset,
   };
 }

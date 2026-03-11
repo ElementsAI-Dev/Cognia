@@ -65,6 +65,7 @@ jest.mock('@/stores', () => ({
   usePresetStore: (selector: (state: unknown) => unknown) => {
     const state = {
       presets: mockPresets,
+      selectedPresetId: 'p1',
       selectPreset: mockSelectPreset,
       usePreset: mockTrackUsage,
       toggleFavorite: mockToggleFavorite,
@@ -75,7 +76,7 @@ jest.mock('@/stores', () => ({
   useSessionStore: (selector: (state: unknown) => unknown) => {
     const state = {
       activeSessionId: 'session-1',
-      sessions: [{ id: 'session-1', presetId: 'p1' }],
+      sessions: [{ id: 'session-1' }],
       updateSession: mockUpdateSession,
     };
     return selector(state);

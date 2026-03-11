@@ -25,6 +25,7 @@ const mockSetViewMode = jest.fn();
 const mockGetUniqueTags = jest.fn(() => []);
 const mockGetUniqueCategories = jest.fn(() => []);
 const mockGetInstallStatus = jest.fn(() => 'not_installed');
+const mockIsItemInstalled = jest.fn(() => false);
 const mockGetFavoritesCount = jest.fn(() => 0);
 
 jest.mock('@/stores/skills/skill-marketplace-store', () => ({
@@ -33,6 +34,8 @@ jest.mock('@/stores/skills/skill-marketplace-store', () => ({
     filters: { query: '', sortBy: 'stars', page: 1, limit: 20, useAiSearch: false },
     isLoading: false,
     error: null,
+    errorCategory: null,
+    lastDiagnostic: null,
     currentPage: 1,
     totalPages: 1,
     totalItems: 0,
@@ -62,15 +65,14 @@ jest.mock('@/stores/skills/skill-marketplace-store', () => ({
     setViewMode: mockSetViewMode,
     getUniqueTags: mockGetUniqueTags,
     getUniqueCategories: mockGetUniqueCategories,
+    isItemInstalled: mockIsItemInstalled,
     getInstallStatus: mockGetInstallStatus,
     getFavoritesCount: mockGetFavoritesCount,
   }),
 }));
 
 jest.mock('@/stores/skills/skill-store', () => ({
-  useSkillStore: () => ({
-    getAllSkills: jest.fn(() => []),
-  }),
+  useSkillStore: () => ({}),
 }));
 
 describe('useSkillMarketplace Hook', () => {
@@ -153,6 +155,7 @@ describe('useSkillMarketplace Hook', () => {
       const isInstalled = result.current.isInstalled(mockItem);
 
       expect(isInstalled).toBe(false);
+      expect(mockIsItemInstalled).toHaveBeenCalledWith('test/skill', mockItem);
     });
 
     it('should get install status', () => {
@@ -172,6 +175,7 @@ describe('useSkillMarketplace Hook', () => {
       const status = result.current.getInstallStatus(mockItem);
 
       expect(status).toBe('not_installed');
+      expect(mockGetInstallStatus).toHaveBeenCalledWith('test/skill', mockItem);
     });
   });
 

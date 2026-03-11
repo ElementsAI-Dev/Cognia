@@ -254,6 +254,16 @@
       "remoteFirst": "远程优先",
       "refresh": "刷新"
     },
+    "errors": {
+      "auth": "访问市场需要身份验证",
+      "network": "市场连接不稳定",
+      "rateLimit": "市场请求过于频繁",
+      "validation": "市场数据无法解析",
+      "notFound": "请求的提示已不可用",
+      "conflict": "市场操作与当前状态冲突",
+      "unknown": "市场操作发生未知错误",
+      "retry": "重试"
+    },
     "search": {
       "placeholder": "搜索提示...",
       "results": "搜索结果",
@@ -341,6 +351,11 @@
     "view": {
       "gridView": "网格视图",
       "listView": "列表视图"
+    },
+    "inspector": {
+      "title": "当前选择",
+      "empty": "从列表中选择一个提示词，无需离开浏览即可查看详情。",
+      "openDetail": "打开完整详情"
     },
     "category": {
       "title": "分类",
@@ -508,7 +523,21 @@
       "advancedEditor": "高级",
       "importTitle": "导入模板 (JSON)",
       "importPlaceholder": "在此粘贴模板 JSON",
-      "cancel": "取消"
+      "cancel": "取消",
+      "importStrategySkip": "跳过冲突",
+      "importStrategyOverwrite": "覆盖冲突",
+      "importStrategyDuplicate": "创建副本",
+      "importing": "导入中...",
+      "saveSuccess": "模板已保存",
+      "saveFailed": "保存模板失败",
+      "sourceGuardedForked": "受保护模板已分叉为自定义副本",
+      "deleteFailed": "删除模板失败",
+      "duplicateSuccess": "模板已复制",
+      "duplicateFailed": "复制模板失败",
+      "importFailed": "模板导入失败",
+      "importSummary": "成功 {success}，跳过 {skipped}，失败 {failed}",
+      "exportFailed": "导出模板失败",
+      "copyExportSuccess": "已复制 {count} 个模板到剪贴板"
     },
     "card": {
       "edit": "编辑",

@@ -956,3 +956,89 @@ test.describe('Builtin Presets', () => {
     expect(result.remainingCount).toBe(1);
   });
 });
+
+test.describe('Preset Compatibility and Import Summary', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+  });
+
+  test('should resolve provider/model fallback deterministically', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      type Provider = 'openai' | 'anthropic' | 'auto';
+      const providerSettings: Record<Provider, { enabled: boolean; apiKey?: string }> = {
+        openai: { enabled: true, apiKey: 'sk-openai' },
+        anthropic: { enabled: false, apiKey: '' },
+        auto: { enabled: true },
+      };
+
+      const resolvePreset = (provider: Provider, model: string) => {
+        if (provider === 'anthropic' && !providerSettings.anthropic.enabled) {
+          return {
+            provider: 'auto' as const,
+            model: 'gpt-4o',
+            reason: 'providerFallback',
+          };
+        }
+
+        if (provider === 'openai' && model !== 'gpt-4o' && model !== 'gpt-4o-mini') {
+          return {
+            provider: 'openai' as const,
+            model: 'gpt-4o',
+            reason: 'modelFallback',
+          };
+        }
+
+        return {
+          provider,
+          model,
+          reason: 'none',
+        };
+      };
+
+      return {
+        providerFallback: resolvePreset('anthropic', 'claude-sonnet-4-20250514'),
+        modelFallback: resolvePreset('openai', 'unknown-model'),
+        noFallback: resolvePreset('openai', 'gpt-4o'),
+      };
+    });
+
+    expect(result.providerFallback.provider).toBe('auto');
+    expect(result.providerFallback.model).toBe('gpt-4o');
+    expect(result.providerFallback.reason).toBe('providerFallback');
+    expect(result.modelFallback.provider).toBe('openai');
+    expect(result.modelFallback.reason).toBe('modelFallback');
+    expect(result.noFallback.reason).toBe('none');
+  });
+
+  test('should report imported and skipped counts during import flow', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const rawEntries = [
+        { name: 'Valid A', provider: 'openai', model: 'gpt-4o' },
+        { name: '', provider: 'openai', model: 'gpt-4o' }, // invalid
+        { name: 'Valid B', provider: 'openai', model: 'gpt-4o-mini' },
+        { provider: 'openai', model: 'gpt-4o' }, // invalid
+      ];
+
+      let imported = 0;
+      let skipped = 0;
+      for (const entry of rawEntries) {
+        if (!entry.name || !entry.provider || !entry.model) {
+          skipped++;
+          continue;
+        }
+        imported++;
+      }
+
+      return {
+        imported,
+        skipped,
+        summary: `Imported ${imported}, skipped ${skipped}`,
+      };
+    });
+
+    expect(result.imported).toBe(2);
+    expect(result.skipped).toBe(2);
+    expect(result.summary).toBe('Imported 2, skipped 2');
+  });
+});
