@@ -42,6 +42,10 @@ import {
   Theater,
   File,
   BarChart3,
+  Wand2,
+  History,
+  RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 
 export interface EditorToolbarProps {
@@ -73,6 +77,14 @@ export interface EditorToolbarProps {
   onAutoArrange: () => void;
   onBringToFront: () => void;
   onSendToBack: () => void;
+  canvaExperienceEnabled: boolean;
+  onLayoutSwap: () => void;
+  onAutoFitContent: () => void;
+  onRebalanceHierarchy: () => void;
+  onRegenerateSection: () => void;
+  generationSnapshots: NonNullable<PPTPresentation['metadata']>['generationSnapshots'];
+  activeSnapshotId?: string;
+  onRestoreSnapshot: (snapshotId: string) => void;
 }
 
 export function EditorToolbar({
@@ -104,6 +116,14 @@ export function EditorToolbar({
   onAutoArrange,
   onBringToFront,
   onSendToBack,
+  canvaExperienceEnabled,
+  onLayoutSwap,
+  onAutoFitContent,
+  onRebalanceHierarchy,
+  onRegenerateSection,
+  generationSnapshots,
+  activeSnapshotId,
+  onRestoreSnapshot,
 }: EditorToolbarProps) {
   const t = useTranslations('pptEditor');
   const tGen = useTranslations('pptGenerator');
@@ -243,6 +263,71 @@ export function EditorToolbar({
             onSendToBack={onSendToBack}
             disabled={selectedElements.length < 2}
           />
+        )}
+
+        {canvaExperienceEnabled && (
+          <>
+            <Separator orientation="vertical" className="h-6" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" data-testid="ppt-canva-quick-actions">
+                  <Wand2 className="h-4 w-4 mr-1" />
+                  {t('canvaQuickActions') || 'Canva Actions'}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuItem onClick={onLayoutSwap}>
+                  <Layout className="h-4 w-4 mr-2" />
+                  {t('quickLayoutSwap') || 'Layout Swap'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onAutoFitContent}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  {t('quickAutoFit') || 'Auto-fit Content'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onRebalanceHierarchy}>
+                  <AlignLeft className="h-4 w-4 mr-2" />
+                  {t('quickRebalance') || 'Rebalance Hierarchy'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onRegenerateSection}>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  {t('quickRegenerateSection') || 'Regenerate Section'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" data-testid="ppt-snapshot-history">
+                  <History className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-72">
+                {(generationSnapshots || []).length === 0 ? (
+                  <DropdownMenuItem disabled>
+                    {t('snapshotEmpty') || 'No snapshots yet'}
+                  </DropdownMenuItem>
+                ) : (
+                  (generationSnapshots || [])
+                    .slice(-8)
+                    .reverse()
+                    .map((snapshot) => (
+                      <DropdownMenuItem
+                        key={snapshot.id}
+                        onClick={() => onRestoreSnapshot(snapshot.id)}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="truncate text-xs">
+                          {snapshot.actionType} · {new Date(snapshot.createdAt).toLocaleTimeString()}
+                        </span>
+                        {activeSnapshotId === snapshot.id ? (
+                          <RotateCcw className="h-3.5 w-3.5 text-primary" />
+                        ) : null}
+                      </DropdownMenuItem>
+                    ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
         )}
       </div>
 

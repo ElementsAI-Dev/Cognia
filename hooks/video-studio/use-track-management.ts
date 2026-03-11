@@ -34,6 +34,8 @@ export interface TrackState {
   duration: number;
   selectedClipIds: string[];
   selectedTrackId: string | null;
+  mutationRevision: number;
+  lastMutationAction: string | null;
 }
 
 export interface UseTrackManagementReturn {
@@ -43,7 +45,7 @@ export interface UseTrackManagementReturn {
 
   // Internal helpers (needed by composition hook)
   calculateDuration: (tracks: VideoTrack[]) => number;
-  updateTracks: (updater: (tracks: VideoTrack[]) => VideoTrack[]) => void;
+  updateTracks: (updater: (tracks: VideoTrack[]) => VideoTrack[], action?: string) => void;
 
   // Track operations
   addTrack: (type: VideoTrack['type'], name?: string) => string;
@@ -94,6 +96,8 @@ export function useTrackManagement(
     duration: 0,
     selectedClipIds: [],
     selectedTrackId: null,
+    mutationRevision: 0,
+    lastMutationAction: null,
   });
 
   // Calculate total duration
@@ -119,16 +123,32 @@ export function useTrackManagement(
 
   // Update tracks and recalculate duration
   const updateTracks = useCallback(
-    (updater: (tracks: VideoTrack[]) => VideoTrack[]) => {
+    (updater: (tracks: VideoTrack[]) => VideoTrack[], action = 'timeline:tracks') => {
       setTrackState((prev) => {
         const newTracks = updater(prev.tracks);
         const newDuration = calculateDuration(newTracks);
+        const clipIds = new Set(
+          newTracks.flatMap((track) => track.clips.map((clip) => clip.id))
+        );
+        const selectedClipIds = prev.selectedClipIds.filter((clipId) => clipIds.has(clipId));
+        const selectedTrackId =
+          prev.selectedTrackId && newTracks.some((track) => track.id === prev.selectedTrackId)
+            ? prev.selectedTrackId
+            : null;
 
         // Notify about clip changes
         const allClips = newTracks.flatMap((t) => t.clips);
         onClipChange?.(allClips);
 
-        return { ...prev, tracks: newTracks, duration: newDuration };
+        return {
+          ...prev,
+          tracks: newTracks,
+          duration: newDuration,
+          selectedClipIds,
+          selectedTrackId,
+          mutationRevision: prev.mutationRevision + 1,
+          lastMutationAction: action,
+        };
       });
     },
     [calculateDuration, onClipChange]
@@ -172,6 +192,8 @@ export function useTrackManagement(
           ...prev,
           tracks: newTracks,
           duration: calculateDuration(newTracks),
+          mutationRevision: prev.mutationRevision + 1,
+          lastMutationAction: 'track:add',
         };
       });
 
@@ -186,17 +208,17 @@ export function useTrackManagement(
 
   const removeTrack = useCallback(
     (trackId: string) => {
-      updateTracks((tracks) => tracks.filter((t) => t.id !== trackId));
-      if (trackState.selectedTrackId === trackId) {
-        setTrackState((prev) => ({ ...prev, selectedTrackId: null }));
-      }
+      updateTracks((tracks) => tracks.filter((t) => t.id !== trackId), 'track:remove');
     },
-    [trackState.selectedTrackId, updateTracks]
+    [updateTracks]
   );
 
   const updateTrack = useCallback(
     (trackId: string, updates: Partial<VideoTrack>) => {
-      updateTracks((tracks) => tracks.map((t) => (t.id === trackId ? { ...t, ...updates } : t)));
+      updateTracks(
+        (tracks) => tracks.map((t) => (t.id === trackId ? { ...t, ...updates } : t)),
+        'track:update'
+      );
     },
     [updateTracks]
   );
@@ -208,7 +230,7 @@ export function useTrackManagement(
         const [removed] = newTracks.splice(fromIndex, 1);
         newTracks.splice(toIndex, 0, removed);
         return newTracks;
-      });
+      }, 'track:reorder');
     },
     [updateTracks]
   );
@@ -252,7 +274,8 @@ export function useTrackManagement(
         };
 
         updateTracks((tracks) =>
-          tracks.map((t) => (t.id === trackId ? { ...t, clips: [...t.clips, clip] } : t))
+          tracks.map((t) => (t.id === trackId ? { ...t, clips: [...t.clips, clip] } : t)),
+          'clip:add'
         );
 
         setTrackState((prev) => ({ ...prev, isLoading: false }));
@@ -274,11 +297,7 @@ export function useTrackManagement(
           ...t,
           clips: t.clips.filter((c) => c.id !== clipId),
         }))
-      );
-      setTrackState((prev) => ({
-        ...prev,
-        selectedClipIds: prev.selectedClipIds.filter((id) => id !== clipId),
-      }));
+      , 'clip:remove');
     },
     [updateTracks]
   );
@@ -290,7 +309,7 @@ export function useTrackManagement(
           ...t,
           clips: t.clips.map((c) => (c.id === clipId ? { ...c, ...updates } : c)),
         }))
-      );
+      , 'clip:update');
     },
     [updateTracks]
   );
@@ -320,7 +339,7 @@ export function useTrackManagement(
           );
         }
         return newTracks;
-      });
+      }, 'clip:move');
     },
     [updateTracks]
   );
@@ -362,7 +381,7 @@ export function useTrackManagement(
 
           return { ...t, clips: newClips };
         })
-      );
+      , 'clip:split');
 
       return newClipIds;
     },
@@ -388,7 +407,7 @@ export function useTrackManagement(
 
           return { ...t, clips: [...t.clips, duplicatedClip] };
         })
-      );
+      , 'clip:duplicate');
 
       return newClipId;
     },
@@ -473,10 +492,18 @@ export function useTrackManagement(
 
   const setTracks = useCallback(
     (tracks: VideoTrack[], duration?: number) => {
+      const clipIds = new Set(tracks.flatMap((track) => track.clips.map((clip) => clip.id)));
       setTrackState((prev) => ({
         ...prev,
         tracks,
         duration: duration ?? calculateDuration(tracks),
+        selectedClipIds: prev.selectedClipIds.filter((clipId) => clipIds.has(clipId)),
+        selectedTrackId:
+          prev.selectedTrackId && tracks.some((track) => track.id === prev.selectedTrackId)
+            ? prev.selectedTrackId
+            : null,
+        mutationRevision: prev.mutationRevision + 1,
+        lastMutationAction: 'timeline:set-tracks',
       }));
       onClipChange?.(tracks.flatMap((t) => t.clips));
     },

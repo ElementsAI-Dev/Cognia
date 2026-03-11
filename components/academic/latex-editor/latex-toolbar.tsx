@@ -285,6 +285,7 @@ export function LaTeXToolbar({
                 className="h-8 w-8 p-0"
                 onClick={onFormat}
                 disabled={readOnly}
+                data-testid="latex-format-button"
               >
                 <AlignLeft className="h-4 w-4" />
               </Button>
@@ -327,6 +328,7 @@ export function LaTeXToolbar({
                 size="sm"
                 className="h-7 px-2"
                 onClick={() => onModeChange('source')}
+                data-testid="latex-mode-source"
               >
                 <FileCode className="h-4 w-4" />
               </Button>
@@ -343,6 +345,7 @@ export function LaTeXToolbar({
                 size="sm"
                 className="h-7 px-2"
                 onClick={() => onModeChange('split')}
+                data-testid="latex-mode-split"
               >
                 <SplitSquareHorizontal className="h-4 w-4" />
               </Button>
@@ -359,6 +362,7 @@ export function LaTeXToolbar({
                 size="sm"
                 className="h-7 px-2"
                 onClick={() => onModeChange('visual')}
+                data-testid="latex-mode-visual"
               >
                 <Eye className="h-4 w-4" />
               </Button>
@@ -374,7 +378,7 @@ export function LaTeXToolbar({
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onImport}>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onImport} data-testid="latex-import-button">
               <Upload className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -385,7 +389,7 @@ export function LaTeXToolbar({
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onExport}>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onExport} data-testid="latex-source-export-button">
               <Download className="h-4 w-4" />
             </Button>
           </TooltipTrigger>

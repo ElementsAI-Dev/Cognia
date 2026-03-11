@@ -6,6 +6,7 @@ import {
   ingestPPTMaterials,
   validatePPTMaterialQuality,
 } from '@/lib/ppt/material-ingestion';
+import { isPPTFeatureFlagEnabled } from '@/lib/ppt/feature-flags';
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -16,9 +17,16 @@ jest.mock('@/lib/ppt/material-ingestion', () => ({
   validatePPTMaterialQuality: jest.fn().mockReturnValue({ isValid: true, issues: [] }),
 }));
 
+jest.mock('@/lib/ppt/feature-flags', () => ({
+  isPPTFeatureFlagEnabled: jest.fn(() => true),
+}));
+
 describe('PPTCreationForm', () => {
   const mockIngestPPTMaterials = ingestPPTMaterials as jest.MockedFunction<typeof ingestPPTMaterials>;
   const mockValidatePPTMaterialQuality = validatePPTMaterialQuality as jest.MockedFunction<typeof validatePPTMaterialQuality>;
+  const mockIsPPTFeatureFlagEnabled = isPPTFeatureFlagEnabled as jest.MockedFunction<
+    typeof isPPTFeatureFlagEnabled
+  >;
 
   const defaultProps = {
     isGenerating: false,
@@ -30,8 +38,49 @@ describe('PPTCreationForm', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsPPTFeatureFlagEnabled.mockReturnValue(true);
     mockIngestPPTMaterials.mockResolvedValue({ materials: [], errors: [] });
     mockValidatePPTMaterialQuality.mockReturnValue({ isValid: true, issues: [] });
+  });
+
+  it('shows canva blueprint controls when feature flag is enabled', () => {
+    render(<PPTCreationForm {...defaultProps} />);
+
+    expect(screen.getByTestId('ppt-template-direction')).toBeInTheDocument();
+    expect(screen.getByTestId('ppt-audience-tone')).toBeInTheDocument();
+    expect(screen.getByTestId('ppt-content-density')).toBeInTheDocument();
+    expect(screen.getByTestId('ppt-style-kit')).toBeInTheDocument();
+  });
+
+  it('hides canva blueprint controls when feature flag is disabled', () => {
+    mockIsPPTFeatureFlagEnabled.mockReturnValue(false);
+    render(<PPTCreationForm {...defaultProps} />);
+
+    expect(screen.queryByTestId('ppt-template-direction')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('ppt-audience-tone')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('ppt-content-density')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('ppt-style-kit')).not.toBeInTheDocument();
+  });
+
+  it('threads generation blueprint into generate submit payload', async () => {
+    const user = userEvent.setup();
+    const onGenerate = jest.fn().mockResolvedValue({});
+    render(<PPTCreationForm {...defaultProps} onGenerate={onGenerate} />);
+
+    await user.type(screen.getByTestId('ppt-form-topic'), 'Canva style deck');
+    await user.click(screen.getByTestId('ppt-create-submit'));
+
+    expect(onGenerate).toHaveBeenCalledTimes(1);
+    expect(onGenerate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationBlueprint: expect.objectContaining({
+          templateDirection: 'storytelling',
+          audienceTone: 'professional',
+          contentDensity: 'balanced',
+          styleKitId: 'canva-clean',
+        }),
+      })
+    );
   });
 
   it('requires a valid URL in import mode', async () => {

@@ -10,6 +10,8 @@ import {
   FileSpreadsheet,
   FileType,
   Globe,
+  Presentation,
+  BookOpen,
 } from 'lucide-react';
 import type { KnowledgeFile } from '@/types';
 import { detectDocumentType } from '@/lib/document';
@@ -27,6 +29,9 @@ export const FILE_TYPE_ICONS: Record<string, React.ComponentType<{ className?: s
   excel: FileSpreadsheet,
   csv: FileSpreadsheet,
   html: Globe,
+  presentation: Presentation,
+  rtf: FileText,
+  epub: BookOpen,
 };
 
 /**
@@ -42,6 +47,9 @@ export const FILE_TYPE_COLORS: Record<string, string> = {
   excel: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
   csv: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
   html: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+  presentation: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+  rtf: 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200',
+  epub: 'bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200',
 };
 
 /**
@@ -61,6 +69,9 @@ export function detectFileType(filename: string, content?: string): KnowledgeFil
     excel: 'excel',
     csv: 'csv',
     html: 'html',
+    presentation: 'presentation',
+    rtf: 'rtf',
+    epub: 'epub',
     unknown: 'text',
   };
 

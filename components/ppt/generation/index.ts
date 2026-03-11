@@ -9,4 +9,5 @@ export { PPTOutlinePreview, type PPTOutlinePreviewProps, type PPTOutline, type O
 export { PPTCreationHub, type PPTCreationHubProps, type CreationMode } from './ppt-creation-hub';
 export { PPTCreationForm, type PPTCreationFormProps } from './ppt-creation-form';
 export { PPTGenerationLivePreview, type PPTGenerationLivePreviewProps } from './ppt-generation-live-preview';
+export { PPTGenerationReviewPanel, type PPTGenerationReviewPanelProps } from './ppt-generation-review-panel';
 export { PPTTemplateGallery, type PPTTemplateGalleryProps } from './ppt-template-gallery';

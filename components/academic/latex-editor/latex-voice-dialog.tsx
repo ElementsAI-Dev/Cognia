@@ -76,6 +76,7 @@ export function LatexVoiceDialog({
   });
   const [copied, setCopied] = useState(false);
   const [showVocabulary, setShowVocabulary] = useState(false);
+  const [conversionStatus, setConversionStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   const serviceRef = useRef<VoiceToLaTeXService | null>(null);
 
@@ -98,6 +99,7 @@ export function LatexVoiceDialog({
             latex: result.latex,
             isListening: false,
           }));
+          setConversionStatus('success');
         },
         onError: (error) => {
           setState((prev) => ({
@@ -105,6 +107,7 @@ export function LatexVoiceDialog({
             error,
             isListening: false,
           }));
+          setConversionStatus('error');
         },
         onInterim: (transcript, latex) => {
           setState((prev) => ({
@@ -112,9 +115,11 @@ export function LatexVoiceDialog({
             interimTranscript: transcript,
             latex,
           }));
+          setConversionStatus('loading');
         },
         onEnd: () => {
           setState((prev) => ({ ...prev, isListening: false }));
+          setConversionStatus((prev) => (prev === 'success' || prev === 'error' ? prev : 'idle'));
         },
       }
     );
@@ -129,6 +134,7 @@ export function LatexVoiceDialog({
       error: null,
       interimTranscript: '',
     }));
+    setConversionStatus('loading');
 
     serviceRef.current.start();
   }, []);
@@ -136,6 +142,7 @@ export function LatexVoiceDialog({
   const handleStopListening = useCallback(() => {
     serviceRef.current?.stop();
     setState((prev) => ({ ...prev, isListening: false }));
+    setConversionStatus((prev) => (prev === 'success' || prev === 'error' ? prev : 'idle'));
   }, []);
 
   const handleClear = useCallback(() => {
@@ -146,6 +153,7 @@ export function LatexVoiceDialog({
       latex: '',
       error: null,
     }));
+    setConversionStatus('idle');
   }, []);
 
   const handleCopyLatex = useCallback(async () => {
@@ -241,7 +249,11 @@ export function LatexVoiceDialog({
             <p className="text-sm text-muted-foreground">
               {state.isListening
                 ? t('listening', { defaultValue: 'Listening...' })
-                : t('clickToSpeak', { defaultValue: 'Click to start speaking' })}
+                : conversionStatus === 'success'
+                  ? t('voiceConversionComplete', { defaultValue: 'Conversion complete' })
+                  : conversionStatus === 'error'
+                    ? t('voiceRetryHint', { defaultValue: 'Recognition failed. Click to retry.' })
+                    : t('clickToSpeak', { defaultValue: 'Click to start speaking' })}
             </p>
           </div>
 

@@ -23,6 +23,7 @@ import {
   Eye,
   Download,
   Edit,
+  RotateCcw,
   SortAsc,
   Calendar,
   X,
@@ -78,6 +79,7 @@ import {
   SlideContent,
   PPTTemplateGallery,
   PPTCreationForm,
+  PPTGenerationReviewPanel,
 } from '@/components/ppt';
 import type { CreationMode } from '@/components/ppt';
 import { usePPTGeneration } from '@/hooks/ppt';
@@ -122,17 +124,22 @@ function PPTPageContent() {
   
   // PPT generation hook for inline creation flow
   const {
-    generate: inlineGenerate,
-    generateFromMaterials: inlineGenerateFromMaterials,
+    reviewSession: inlineReviewSession,
     isGenerating: inlineIsGenerating,
     progress: inlineProgress,
     error: inlineError,
     retry: inlineRetry,
     canRetry: inlineCanRetry,
+    prepareReview: inlinePrepareReview,
+    regenerateReviewOutline: inlineRegenerateReviewOutline,
+    updateReviewOutline: inlineUpdateReviewOutline,
+    finalizeReview: inlineFinalizeReview,
+    clearReviewSession: inlineClearReviewSession,
   } = usePPTGeneration();
 
   // Inline creation state
   const [showInlineCreation, setShowInlineCreation] = useState(false);
+  const [showInlineReview, setShowInlineReview] = useState(false);
   const [heroTopic, setHeroTopic] = useState('');
   
   // Get presentations from workflow store
@@ -258,33 +265,53 @@ function PPTPageContent() {
 
   // Inline generation handlers
   const handleInlineGenerate = useCallback(async (config: PPTGenerationConfig) => {
-    const result = await inlineGenerate(config);
-    if (result) {
-      setShowInlineCreation(false);
-      setHeroTopic('');
-      openPresentation(result.id);
+    const session = await inlinePrepareReview(config, 'generate');
+    if (session) {
+      setShowInlineReview(true);
     }
-  }, [inlineGenerate, openPresentation]);
+  }, [inlinePrepareReview]);
 
-  const handleInlineGenerateFromMaterials = useCallback(async (config: PPTMaterialGenerationConfig) => {
-    const result = await inlineGenerateFromMaterials(config);
+  const handleInlineGenerateFromMaterials = useCallback(async (
+    config: PPTMaterialGenerationConfig,
+    sourceMode: Extract<CreationMode, 'import' | 'paste'>
+  ) => {
+    const session = await inlinePrepareReview(config, sourceMode);
+    if (session) {
+      setShowInlineReview(true);
+    }
+  }, [inlinePrepareReview]);
+
+  const handleInlineFinalizeReview = useCallback(async () => {
+    const result = await inlineFinalizeReview();
     if (result) {
       setShowInlineCreation(false);
+      setShowInlineReview(false);
       setHeroTopic('');
       openPresentation(result.id);
     }
-  }, [inlineGenerateFromMaterials, openPresentation]);
+  }, [inlineFinalizeReview, openPresentation]);
+
+  const handleInlineBackToInputs = useCallback(() => {
+    setShowInlineReview(false);
+  }, []);
+
+  const handleInlineDiscardReview = useCallback(() => {
+    inlineClearReviewSession();
+    setShowInlineReview(false);
+  }, [inlineClearReviewSession]);
 
   // Handle hero quick generate
   const handleHeroGenerate = useCallback(() => {
     if (!heroTopic.trim()) return;
     setShowInlineCreation(true);
+    setShowInlineReview(false);
   }, [heroTopic]);
 
   // Handle suggestion chip click
   const handleSuggestionClick = useCallback((suggestion: string) => {
     setHeroTopic(suggestion);
     setShowInlineCreation(true);
+    setShowInlineReview(false);
   }, []);
   
   // Handle delete presentation with confirmation
@@ -578,19 +605,54 @@ function PPTPageContent() {
               {/* Inline creation form (shown when user triggers generation) */}
               {showInlineCreation && (
                 <div className="w-full max-w-2xl px-6 pb-8 animate-in fade-in-0 slide-in-from-bottom-3 duration-300">
-                  <Card className="p-6">
-                    <PPTCreationForm
-                      initialMode="generate"
-                      initialTopic={heroTopic}
+                  {inlineReviewSession && showInlineReview ? (
+                    <PPTGenerationReviewPanel
+                      reviewSession={inlineReviewSession}
                       isGenerating={inlineIsGenerating}
-                      progress={inlineProgress}
                       error={inlineError}
                       canRetry={inlineCanRetry}
                       onRetry={inlineRetry}
-                      onGenerate={handleInlineGenerate}
-                      onGenerateFromMaterials={handleInlineGenerateFromMaterials}
+                      onOutlineChange={inlineUpdateReviewOutline}
+                      onRegenerateOutline={inlineRegenerateReviewOutline}
+                      onStartGeneration={handleInlineFinalizeReview}
+                      onBack={handleInlineBackToInputs}
+                      cancelLabel={t('backToInputs')}
                     />
-                  </Card>
+                  ) : (
+                    <Card className="p-6">
+                      <div className="space-y-4">
+                        {inlineReviewSession ? (
+                          <Card data-testid="ppt-inline-review-session-resume">
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-sm">{t('reviewSessionReady')}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex flex-wrap items-center gap-2">
+                              <Button size="sm" variant="outline" onClick={() => setShowInlineReview(true)}>
+                                <RotateCcw className="mr-2 h-4 w-4" />
+                                {t('resumeReview')}
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={handleInlineDiscardReview}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                {t('discardReview')}
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        ) : null}
+
+                        <PPTCreationForm
+                          initialMode="generate"
+                          initialTopic={heroTopic}
+                          isGenerating={inlineIsGenerating}
+                          progress={inlineProgress}
+                          error={inlineError}
+                          canRetry={inlineCanRetry}
+                          onRetry={inlineRetry}
+                          onGenerate={handleInlineGenerate}
+                          onGenerateFromMaterials={handleInlineGenerateFromMaterials}
+                        />
+                      </div>
+                    </Card>
+                  )}
                 </div>
               )}
 

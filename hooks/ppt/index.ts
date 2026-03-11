@@ -9,4 +9,6 @@ export type {
   PPTGenerationProgress,
   PPTOutlineData,
   PPTMaterialGenerationConfig,
+  PPTGenerationReviewSession,
+  PPTOutlineSlideData,
 } from './use-ppt-generation';

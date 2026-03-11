@@ -70,6 +70,8 @@ describe('useLatexStore', () => {
         versionControlService: null,
         isLoading: false,
         error: null,
+        saveStatus: 'idle',
+        lastSavedAt: null,
       });
     });
   });
@@ -112,25 +114,47 @@ describe('useLatexStore', () => {
 
     it('should save document content', () => {
       let docId: string;
+      let saved = false;
 
       act(() => {
         const doc = useLatexStore.getState().createDocument('Test', 'initial');
         docId = doc.id;
-        useLatexStore.getState().saveDocument('updated content');
+        saved = useLatexStore.getState().saveDocument('updated content');
       });
 
+      expect(saved).toBe(true);
       expect(useLatexStore.getState().documents[docId!].content).toBe('updated content');
+      expect(useLatexStore.getState().saveStatus).toBe('saved');
+      expect(useLatexStore.getState().lastSavedAt).not.toBeNull();
     });
 
     it('should create new document when saving with no current document', () => {
+      let saved = false;
       act(() => {
         useLatexStore.setState({ currentDocumentId: null });
-        useLatexStore.getState().saveDocument('new content', 'New Doc');
+        saved = useLatexStore.getState().saveDocument('new content', 'New Doc');
       });
 
       const state = useLatexStore.getState();
+      expect(saved).toBe(true);
       expect(state.currentDocumentId).not.toBeNull();
       expect(Object.values(state.documents).some((d) => d.content === 'new content')).toBe(true);
+    });
+
+    it('should fail save when current document is missing', () => {
+      let saved = true;
+
+      act(() => {
+        useLatexStore.setState({
+          currentDocumentId: 'missing-doc-id',
+          documents: {},
+        });
+        saved = useLatexStore.getState().saveDocument('content');
+      });
+
+      expect(saved).toBe(false);
+      expect(useLatexStore.getState().saveStatus).toBe('error');
+      expect(useLatexStore.getState().error).toContain('Unable to save document');
     });
 
     it('should load an existing document', () => {
@@ -165,41 +189,64 @@ describe('useLatexStore', () => {
 
     it('should delete a document', () => {
       let docId: string;
+      let deleted = false;
 
       act(() => {
         const doc = useLatexStore.getState().createDocument('Test', 'content');
         docId = doc.id;
-        useLatexStore.getState().deleteDocument(docId);
+        deleted = useLatexStore.getState().deleteDocument(docId);
       });
 
       const state = useLatexStore.getState();
+      expect(deleted).toBe(true);
       expect(state.documents[docId!]).toBeUndefined();
       expect(state.currentDocumentId).toBeNull();
     });
 
     it('should not clear currentDocumentId when deleting different document', () => {
       let currentId: string;
+      let deleted = false;
 
       act(() => {
         const doc1 = useLatexStore.getState().createDocument('Doc1', 'content1');
         const doc2 = useLatexStore.getState().createDocument('Doc2', 'content2');
         currentId = doc2.id;
-        useLatexStore.getState().deleteDocument(doc1.id);
+        deleted = useLatexStore.getState().deleteDocument(doc1.id);
       });
 
+      expect(deleted).toBe(true);
       expect(useLatexStore.getState().currentDocumentId).toBe(currentId!);
+    });
+
+    it('should select another document when deleting current document', () => {
+      let doc1Id = '';
+      let doc2Id = '';
+
+      act(() => {
+        const doc1 = useLatexStore.getState().createDocument('Doc1', 'content1');
+        doc1Id = doc1.id;
+        const doc2 = useLatexStore.getState().createDocument('Doc2', 'content2');
+        doc2Id = doc2.id;
+        useLatexStore.getState().loadDocument(doc1Id);
+        useLatexStore.getState().deleteDocument(doc1Id);
+      });
+
+      expect(useLatexStore.getState().currentDocumentId).toBe(doc2Id);
     });
 
     it('should rename a document', () => {
       let docId: string;
+      let renamed = false;
 
       act(() => {
         const doc = useLatexStore.getState().createDocument('Original', 'content');
         docId = doc.id;
-        useLatexStore.getState().renameDocument(docId, 'Renamed');
+        renamed = useLatexStore.getState().renameDocument(docId, 'Renamed');
       });
 
+      expect(renamed).toBe(true);
       expect(useLatexStore.getState().documents[docId!].name).toBe('Renamed');
+      expect(useLatexStore.getState().documentHistory[0].name).toBe('Renamed');
     });
 
     it('should duplicate a document', () => {

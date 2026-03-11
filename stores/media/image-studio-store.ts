@@ -159,6 +159,51 @@ export interface ViewState {
   showRulers: boolean;
 }
 
+export type EditSessionStatus = 'idle' | 'active';
+
+export interface ImageEditSession {
+  sessionId: string | null;
+  status: EditSessionStatus;
+  sourceImageId: string | null;
+  sourceImageUrl: string | null;
+  activeMode: EditOperation['type'] | null;
+  pendingOperation: EditOperation['type'] | null;
+  draftImageUrl: string | null;
+  draftMetadata: Record<string, unknown> | null;
+  lastCommittedImageId: string | null;
+}
+
+export type ImageOperationKey =
+  | 'generate'
+  | 'edit'
+  | 'variation'
+  | 'inpaint'
+  | 'upscale'
+  | 'remove-bg'
+  | 'export';
+
+export type ImageOperationLifecycle = 'idle' | 'running' | 'success' | 'error';
+
+export interface ImageOperationState {
+  status: ImageOperationLifecycle;
+  error: string | null;
+  retryable: boolean;
+  context: Record<string, unknown> | null;
+  lastStartedAt: number | null;
+  lastCompletedAt: number | null;
+}
+
+export interface CommitEditOperationInput {
+  mode: EditOperation['type'];
+  description: string;
+  sourceImageId?: string | null;
+  metadata?: Record<string, unknown>;
+  imageId?: string;
+  resultImage?: Omit<StudioImage, 'id' | 'timestamp' | 'isFavorite' | 'tags' | 'version'> & {
+    version?: number;
+  };
+}
+
 interface ImageStudioState {
   // Current editing state
   activeTab: 'generate' | 'edit' | 'variations' | 'adjust' | 'upscale';
@@ -205,6 +250,13 @@ interface ImageStudioState {
   // History
   editHistory: EditOperation[];
   historyIndex: number;
+  layerSelectionByImageId: Record<string, string | null>;
+
+  // Edit session
+  editSession: ImageEditSession;
+
+  // Async operation lifecycle
+  operationStates: Record<ImageOperationKey, ImageOperationState>;
 
   // Prompt
   prompt: string;
@@ -230,7 +282,9 @@ interface ImageStudioState {
 
   // Actions - Images
   addImage: (
-    image: Omit<StudioImage, 'id' | 'timestamp' | 'isFavorite' | 'tags' | 'version'>
+    image: Omit<StudioImage, 'id' | 'timestamp' | 'isFavorite' | 'tags' | 'version'> & {
+      version?: number;
+    }
   ) => string;
   updateImage: (id: string, updates: Partial<StudioImage>) => void;
   deleteImage: (id: string) => void;
@@ -293,9 +347,36 @@ interface ImageStudioState {
   addToHistory: (operation: Omit<EditOperation, 'id' | 'timestamp'>) => void;
   undo: () => void;
   redo: () => void;
+  goToHistoryIndex: (index: number) => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
   clearHistory: () => void;
+
+  // Actions - Edit Session
+  startEditSession: (args: {
+    sourceImageId: string;
+    sourceImageUrl?: string | null;
+    mode?: EditOperation['type'] | null;
+  }) => void;
+  updateEditDraft: (args: {
+    draftImageUrl?: string | null;
+    pendingOperation?: EditOperation['type'] | null;
+    metadata?: Record<string, unknown> | null;
+  }) => void;
+  discardEditDraft: () => void;
+  commitEditOperation: (input: CommitEditOperationInput) => string | null;
+  endEditSession: () => void;
+
+  // Actions - Operation lifecycle
+  startOperation: (operation: ImageOperationKey, context?: Record<string, unknown>) => void;
+  finishOperation: (operation: ImageOperationKey, context?: Record<string, unknown>) => void;
+  failOperation: (
+    operation: ImageOperationKey,
+    error: string,
+    options?: { retryable?: boolean; context?: Record<string, unknown> }
+  ) => void;
+  resetOperation: (operation: ImageOperationKey) => void;
+  clearOperationErrors: () => void;
 
   // Actions - Prompt
   setPrompt: (prompt: string) => void;
@@ -365,6 +446,75 @@ const DEFAULT_VIEW_STATE: ViewState = {
   showRulers: false,
 };
 
+const DEFAULT_EDIT_SESSION: ImageEditSession = {
+  sessionId: null,
+  status: 'idle',
+  sourceImageId: null,
+  sourceImageUrl: null,
+  activeMode: null,
+  pendingOperation: null,
+  draftImageUrl: null,
+  draftMetadata: null,
+  lastCommittedImageId: null,
+};
+
+const createIdleOperationState = (): ImageOperationState => ({
+  status: 'idle',
+  error: null,
+  retryable: false,
+  context: null,
+  lastStartedAt: null,
+  lastCompletedAt: null,
+});
+
+const createDefaultOperationStates = (): Record<ImageOperationKey, ImageOperationState> => ({
+  generate: createIdleOperationState(),
+  edit: createIdleOperationState(),
+  variation: createIdleOperationState(),
+  inpaint: createIdleOperationState(),
+  upscale: createIdleOperationState(),
+  'remove-bg': createIdleOperationState(),
+  export: createIdleOperationState(),
+});
+
+const resolveLayerSelectionForImage = (
+  imageId: string | null,
+  layerSelectionByImageId: Record<string, string | null>,
+  layers: EditorLayer[]
+): string | null => {
+  if (!imageId) {
+    return null;
+  }
+
+  const mappedLayerId = layerSelectionByImageId[imageId];
+  if (!mappedLayerId) {
+    return null;
+  }
+
+  return layers.some((layer) => layer.id === mappedLayerId) ? mappedLayerId : null;
+};
+
+const calculateNextVersion = (images: StudioImage[], parentId: string | null): number => {
+  if (!parentId) {
+    return 1;
+  }
+
+  const parent = images.find((img) => img.id === parentId);
+  if (parent) {
+    return (parent.version ?? 1) + 1;
+  }
+
+  const siblingVersions = images
+    .filter((img) => img.parentId === parentId || img.id === parentId)
+    .map((img) => img.version ?? 1);
+
+  if (siblingVersions.length === 0) {
+    return 1;
+  }
+
+  return Math.max(...siblingVersions) + 1;
+};
+
 export const useImageStudioStore = create<ImageStudioState>()(
   persist(
     (set, get) => ({
@@ -401,6 +551,9 @@ export const useImageStudioStore = create<ImageStudioState>()(
 
       editHistory: [],
       historyIndex: -1,
+      layerSelectionByImageId: {},
+      editSession: { ...DEFAULT_EDIT_SESSION },
+      operationStates: createDefaultOperationStates(),
 
       prompt: '',
       negativePrompt: '',
@@ -424,18 +577,28 @@ export const useImageStudioStore = create<ImageStudioState>()(
       // Actions - Images
       addImage: (image) => {
         const id = nanoid();
-        const newImage: StudioImage = {
-          ...image,
-          id,
-          timestamp: Date.now(),
-          isFavorite: false,
-          tags: [],
-          version: 1,
-        };
-        set((state) => ({
-          images: [newImage, ...state.images],
-          selectedImageId: id,
-        }));
+        set((state) => {
+          const version = image.version ?? calculateNextVersion(state.images, image.parentId ?? null);
+          const newImage: StudioImage = {
+            ...image,
+            id,
+            timestamp: Date.now(),
+            isFavorite: false,
+            tags: [],
+            version,
+          };
+          const activeLayerId = resolveLayerSelectionForImage(
+            id,
+            state.layerSelectionByImageId,
+            state.layers
+          );
+
+          return {
+            images: [newImage, ...state.images],
+            selectedImageId: id,
+            activeLayerId,
+          };
+        });
         return id;
       },
 
@@ -446,13 +609,32 @@ export const useImageStudioStore = create<ImageStudioState>()(
       },
 
       deleteImage: (id) => {
-        set((state) => ({
-          images: state.images.filter((img) => img.id !== id),
-          selectedImageId: state.selectedImageId === id ? null : state.selectedImageId,
-        }));
+        set((state) => {
+          const images = state.images.filter((img) => img.id !== id);
+          const selectedImageId =
+            state.selectedImageId === id ? images[0]?.id ?? null : state.selectedImageId;
+          const layerSelectionByImageId = { ...state.layerSelectionByImageId };
+          delete layerSelectionByImageId[id];
+          const activeLayerId = resolveLayerSelectionForImage(
+            selectedImageId,
+            layerSelectionByImageId,
+            state.layers
+          );
+
+          return {
+            images,
+            selectedImageId,
+            activeLayerId,
+            layerSelectionByImageId,
+          };
+        });
       },
 
-      selectImage: (id) => set({ selectedImageId: id }),
+      selectImage: (id) =>
+        set((state) => ({
+          selectedImageId: id,
+          activeLayerId: resolveLayerSelectionForImage(id, state.layerSelectionByImageId, state.layers),
+        })),
 
       toggleFavorite: (id) => {
         set((state) => ({
@@ -525,9 +707,16 @@ export const useImageStudioStore = create<ImageStudioState>()(
         const id = nanoid();
         set((state) => {
           const order = state.layers.length;
+          const selectedImageId = state.selectedImageId;
+          const layerSelectionByImageId = { ...state.layerSelectionByImageId };
+          if (selectedImageId) {
+            layerSelectionByImageId[selectedImageId] = id;
+          }
+
           return {
             layers: [...state.layers, { ...layer, id, order }],
             activeLayerId: id,
+            layerSelectionByImageId,
           };
         });
         return id;
@@ -540,21 +729,67 @@ export const useImageStudioStore = create<ImageStudioState>()(
       },
 
       deleteLayer: (id) => {
-        set((state) => ({
-          layers: state.layers.filter((layer) => layer.id !== id),
-          activeLayerId: state.activeLayerId === id ? null : state.activeLayerId,
-        }));
+        set((state) => {
+          const layers = state.layers.filter((layer) => layer.id !== id);
+          const layerSelectionByImageId = Object.fromEntries(
+            Object.entries(state.layerSelectionByImageId).map(([imageId, layerId]) => [
+              imageId,
+              layerId === id ? null : layerId,
+            ])
+          );
+
+          const selectedImageId = state.selectedImageId;
+          const activeLayerId = resolveLayerSelectionForImage(
+            selectedImageId,
+            layerSelectionByImageId,
+            layers
+          );
+
+          return {
+            layers,
+            activeLayerId,
+            layerSelectionByImageId,
+          };
+        });
       },
 
-      setActiveLayer: (id) => set({ activeLayerId: id }),
+      setActiveLayer: (id) =>
+        set((state) => {
+          const layerSelectionByImageId = { ...state.layerSelectionByImageId };
+          if (state.selectedImageId) {
+            layerSelectionByImageId[state.selectedImageId] = id;
+          }
+
+          return {
+            activeLayerId: id,
+            layerSelectionByImageId,
+          };
+        }),
 
       reorderLayers: (fromIndex, toIndex) => {
         set((state) => {
           const newLayers = [...state.layers];
+          if (
+            fromIndex < 0 ||
+            toIndex < 0 ||
+            fromIndex >= newLayers.length ||
+            toIndex >= newLayers.length
+          ) {
+            return state;
+          }
+
           const [removed] = newLayers.splice(fromIndex, 1);
           newLayers.splice(toIndex, 0, removed);
+          const selectedImageId = state.selectedImageId;
+          const activeLayerId = resolveLayerSelectionForImage(
+            selectedImageId,
+            state.layerSelectionByImageId,
+            newLayers
+          );
+
           return {
             layers: newLayers.map((layer, index) => ({ ...layer, order: index })),
+            activeLayerId,
           };
         });
       },
@@ -705,28 +940,89 @@ export const useImageStudioStore = create<ImageStudioState>()(
         set((state) => {
           const newHistory = state.editHistory.slice(0, state.historyIndex + 1);
           newHistory.push(fullOperation);
+          const boundedHistory = newHistory.slice(-100);
+          const historyIndex = Math.min(newHistory.length - 1, 99);
+          const selectedImageId = fullOperation.imageId || state.selectedImageId;
+          const activeLayerId = resolveLayerSelectionForImage(
+            selectedImageId,
+            state.layerSelectionByImageId,
+            state.layers
+          );
+
           return {
-            editHistory: newHistory.slice(-100), // Keep last 100 operations
-            historyIndex: Math.min(newHistory.length - 1, 99),
+            editHistory: boundedHistory, // Keep last 100 operations
+            historyIndex,
+            selectedImageId,
+            activeLayerId,
           };
         });
       },
 
       undo: () => {
         set((state) => {
-          if (state.historyIndex > 0) {
-            return { historyIndex: state.historyIndex - 1 };
+          if (state.historyIndex <= 0) {
+            return state;
           }
-          return state;
+
+          const nextIndex = state.historyIndex - 1;
+          const operation = state.editHistory[nextIndex];
+          const selectedImageId = operation?.imageId ?? state.selectedImageId;
+          const activeLayerId = resolveLayerSelectionForImage(
+            selectedImageId,
+            state.layerSelectionByImageId,
+            state.layers
+          );
+
+          return {
+            historyIndex: nextIndex,
+            selectedImageId,
+            activeLayerId,
+          };
         });
       },
 
       redo: () => {
         set((state) => {
-          if (state.historyIndex < state.editHistory.length - 1) {
-            return { historyIndex: state.historyIndex + 1 };
+          if (state.historyIndex >= state.editHistory.length - 1) {
+            return state;
           }
-          return state;
+
+          const nextIndex = state.historyIndex + 1;
+          const operation = state.editHistory[nextIndex];
+          const selectedImageId = operation?.imageId ?? state.selectedImageId;
+          const activeLayerId = resolveLayerSelectionForImage(
+            selectedImageId,
+            state.layerSelectionByImageId,
+            state.layers
+          );
+
+          return {
+            historyIndex: nextIndex,
+            selectedImageId,
+            activeLayerId,
+          };
+        });
+      },
+
+      goToHistoryIndex: (index) => {
+        set((state) => {
+          if (index < 0 || index >= state.editHistory.length) {
+            return state;
+          }
+
+          const operation = state.editHistory[index];
+          const selectedImageId = operation?.imageId ?? state.selectedImageId;
+          const activeLayerId = resolveLayerSelectionForImage(
+            selectedImageId,
+            state.layerSelectionByImageId,
+            state.layers
+          );
+
+          return {
+            historyIndex: index,
+            selectedImageId,
+            activeLayerId,
+          };
         });
       },
 
@@ -734,6 +1030,204 @@ export const useImageStudioStore = create<ImageStudioState>()(
       canRedo: () => get().historyIndex < get().editHistory.length - 1,
 
       clearHistory: () => set({ editHistory: [], historyIndex: -1 }),
+
+      // Actions - Edit Session
+      startEditSession: ({ sourceImageId, sourceImageUrl = null, mode = null }) => {
+        set({
+          editSession: {
+            sessionId: nanoid(),
+            status: 'active',
+            sourceImageId,
+            sourceImageUrl,
+            activeMode: mode,
+            pendingOperation: null,
+            draftImageUrl: null,
+            draftMetadata: null,
+            lastCommittedImageId: null,
+          },
+        });
+      },
+
+      updateEditDraft: ({ draftImageUrl = null, pendingOperation = null, metadata = null }) => {
+        set((state) => ({
+          editSession: {
+            ...state.editSession,
+            pendingOperation,
+            draftImageUrl,
+            draftMetadata: metadata,
+          },
+        }));
+      },
+
+      discardEditDraft: () => {
+        set((state) => ({
+          editSession: {
+            ...state.editSession,
+            pendingOperation: null,
+            draftImageUrl: null,
+            draftMetadata: null,
+          },
+        }));
+      },
+
+      commitEditOperation: (input) => {
+        const state = get();
+        const sourceImageId = input.sourceImageId ?? state.editSession.sourceImageId ?? state.selectedImageId;
+        let targetImageId = input.imageId ?? null;
+
+        set((current) => {
+          let images = current.images;
+
+          if (!targetImageId && input.resultImage) {
+            const id = nanoid();
+            const version = calculateNextVersion(images, sourceImageId);
+            const committedImage: StudioImage = {
+              ...input.resultImage,
+              id,
+              timestamp: Date.now(),
+              isFavorite: false,
+              tags: [],
+              parentId: input.resultImage.parentId ?? sourceImageId ?? undefined,
+              version,
+            };
+            images = [committedImage, ...images];
+            targetImageId = id;
+          }
+
+          if (!targetImageId) {
+            return current;
+          }
+
+          const operation: EditOperation = {
+            id: nanoid(),
+            type: input.mode,
+            imageId: targetImageId,
+            timestamp: Date.now(),
+            description: input.description,
+            metadata: {
+              ...(input.metadata ?? {}),
+              sourceImageId,
+              sessionId: current.editSession.sessionId,
+            },
+          };
+
+          const newHistory = current.editHistory.slice(0, current.historyIndex + 1);
+          newHistory.push(operation);
+          const boundedHistory = newHistory.slice(-100);
+          const historyIndex = Math.min(newHistory.length - 1, 99);
+          const layerSelectionByImageId = { ...current.layerSelectionByImageId };
+          const inheritedLayerId = resolveLayerSelectionForImage(
+            sourceImageId ?? null,
+            current.layerSelectionByImageId,
+            current.layers
+          );
+          if (targetImageId && !layerSelectionByImageId[targetImageId]) {
+            layerSelectionByImageId[targetImageId] = inheritedLayerId;
+          }
+
+          return {
+            images,
+            selectedImageId: targetImageId,
+            editHistory: boundedHistory,
+            historyIndex,
+            layerSelectionByImageId,
+            activeLayerId: resolveLayerSelectionForImage(
+              targetImageId,
+              layerSelectionByImageId,
+              current.layers
+            ),
+            editSession: {
+              ...current.editSession,
+              pendingOperation: null,
+              draftImageUrl: null,
+              draftMetadata: null,
+              lastCommittedImageId: targetImageId,
+            },
+          };
+        });
+
+        return targetImageId;
+      },
+
+      endEditSession: () => {
+        set((state) => ({
+          editSession: {
+            ...DEFAULT_EDIT_SESSION,
+            lastCommittedImageId: state.editSession.lastCommittedImageId,
+          },
+        }));
+      },
+
+      // Actions - Operation lifecycle
+      startOperation: (operation, context) => {
+        set((state) => ({
+          operationStates: {
+            ...state.operationStates,
+            [operation]: {
+              status: 'running',
+              error: null,
+              retryable: false,
+              context: context ?? null,
+              lastStartedAt: Date.now(),
+              lastCompletedAt: state.operationStates[operation].lastCompletedAt,
+            },
+          },
+        }));
+      },
+
+      finishOperation: (operation, context) => {
+        set((state) => ({
+          operationStates: {
+            ...state.operationStates,
+            [operation]: {
+              ...state.operationStates[operation],
+              status: 'success',
+              error: null,
+              retryable: false,
+              context: context ?? state.operationStates[operation].context ?? null,
+              lastCompletedAt: Date.now(),
+            },
+          },
+        }));
+      },
+
+      failOperation: (operation, error, options = {}) => {
+        set((state) => ({
+          operationStates: {
+            ...state.operationStates,
+            [operation]: {
+              ...state.operationStates[operation],
+              status: 'error',
+              error,
+              retryable: options.retryable ?? true,
+              context: options.context ?? state.operationStates[operation].context,
+              lastCompletedAt: Date.now(),
+            },
+          },
+        }));
+      },
+
+      resetOperation: (operation) => {
+        set((state) => ({
+          operationStates: {
+            ...state.operationStates,
+            [operation]: createIdleOperationState(),
+          },
+        }));
+      },
+
+      clearOperationErrors: () => {
+        set((state) => ({
+          operationStates: Object.fromEntries(
+            (Object.keys(state.operationStates) as ImageOperationKey[]).map((key) => [
+              key,
+              state.operationStates[key].status === 'error'
+                ? createIdleOperationState()
+                : state.operationStates[key],
+            ])
+          ) as Record<ImageOperationKey, ImageOperationState>,
+        }));
+      },
 
       // Actions - Prompt
       setPrompt: (prompt) => set({ prompt }),
@@ -767,7 +1261,14 @@ export const useImageStudioStore = create<ImageStudioState>()(
       clearQueue: () => set({ generationQueue: [] }),
 
       // Bulk actions
-      deleteAllImages: () => set({ images: [], selectedImageId: null }),
+      deleteAllImages: () =>
+        set({
+          images: [],
+          selectedImageId: null,
+          activeLayerId: null,
+          layerSelectionByImageId: {},
+          editSession: { ...DEFAULT_EDIT_SESSION },
+        }),
 
       exportState: () => {
         const state = get();
@@ -783,6 +1284,8 @@ export const useImageStudioStore = create<ImageStudioState>()(
         set((state) => ({
           ...state,
           ...importedState,
+          editSession: { ...DEFAULT_EDIT_SESSION },
+          operationStates: createDefaultOperationStates(),
         }));
       },
     }),

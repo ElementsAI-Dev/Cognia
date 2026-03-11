@@ -14,7 +14,7 @@
  * work together with the useVideoEditor and useVideoTimeline hooks.
  */
 
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { loggers } from '@/lib/logger';
@@ -60,7 +60,6 @@ import { useVideoTimeline } from '@/hooks/video-studio/use-video-timeline';
 import { useVideoSubtitles } from '@/hooks/video-studio/use-video-subtitles';
 import type { SubtitleFormat } from '@/types/media/subtitle';
 import { useVideoEditorStore } from '@/stores/media';
-import type { ExportProgress } from '@/lib/plugin/api/media-api';
 import { Progress } from '@/components/ui/progress';
 
 export interface VideoEditorPanelProps {
@@ -138,21 +137,17 @@ export function VideoEditorPanel({
   const [speedSettings, setSpeedSettings] = useState<SpeedSettings>(DEFAULT_SPEED_SETTINGS);
   // Use the video editor store for history management
   const {
-    pushHistory,
     undo: storeUndo,
     redo: storeRedo,
     canUndo,
     canRedo,
   } = useVideoEditorStore();
 
-  // Track last action for history
-  const lastActionRef = useRef<string>('initial');
   const [shortcuts, setShortcuts] = useState<KeyboardShortcut[]>(DEFAULT_SHORTCUTS);
   const [projectSettings, setProjectSettings] = useState<ProjectSettings>(DEFAULT_PROJECT_SETTINGS);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [showProjectSettings, setShowProjectSettings] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
   const [masterVolume, setMasterVolume] = useState(1);
   const [masterMuted, setMasterMuted] = useState(false);
   const [layers, setLayers] = useState<VideoLayer[]>([]);
@@ -160,16 +155,6 @@ export function VideoEditorPanel({
 
   // Use the video editor hook
   const editor = useVideoEditor({
-    onClipChange: (_clips) => {
-      // Push to history when clips change (skip if this is from undo/redo)
-      if (lastActionRef.current !== 'undo' && lastActionRef.current !== 'redo') {
-        const tracks = editor?.state?.tracks;
-        if (tracks && tracks.length > 0) {
-          pushHistory(lastActionRef.current || 'edit', tracks, editor.state.duration);
-        }
-      }
-      lastActionRef.current = 'edit';
-    },
     onPlaybackChange: (isPlaying, time) => {
       timeline.setCurrentTime(time);
       timeline.setPlaying(isPlaying);
@@ -480,7 +465,6 @@ export function VideoEditorPanel({
     const exportResolution = settings.resolution === 'custom' ? '1080p' : settings.resolution;
     const exportQuality = settings.quality === 'ultra' ? 'maximum' : settings.quality;
     setShowExportDialog(false);
-    setExportProgress({ phase: 'preparing', percent: 0, message: 'Starting export...' });
 
     const subtitleMode: 'burn-in' | 'sidecar' | 'both' = 'both';
     const subtitleTracks = subtitles.tracks.map((track) => {
@@ -501,12 +485,6 @@ export function VideoEditorPanel({
       includeSubtitles: subtitleTracks.length > 0,
       subtitleMode,
       subtitleTracks,
-      onProgress: (progress) => {
-        setExportProgress(progress);
-        if (progress.phase === 'complete' || progress.phase === 'error') {
-          setTimeout(() => setExportProgress(null), 3000);
-        }
-      },
     });
 
     if (blob && onExport) {
@@ -575,18 +553,16 @@ export function VideoEditorPanel({
 
   // Handle history with store - actual track restoration
   const handleUndo = useCallback(() => {
-    lastActionRef.current = 'undo';
     const snapshot = storeUndo();
     if (snapshot) {
-      editor.setTracks(snapshot.tracks, snapshot.duration);
+      editor.applyHistorySnapshot(snapshot);
     }
   }, [storeUndo, editor]);
 
   const handleRedo = useCallback(() => {
-    lastActionRef.current = 'redo';
     const snapshot = storeRedo();
     if (snapshot) {
-      editor.setTracks(snapshot.tracks, snapshot.duration);
+      editor.applyHistorySnapshot(snapshot);
     }
   }, [storeRedo, editor]);
 
@@ -599,6 +575,8 @@ export function VideoEditorPanel({
       setShowSidePanel(true);
     }
   }, [showSidePanel, sidePanelTab]);
+
+  const exportProgress = editor.exportState.progress;
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
@@ -625,18 +603,49 @@ export function VideoEditorPanel({
       />
 
       {/* Export Progress Bar */}
-      {exportProgress && (
+      {exportProgress && editor.exportState.phase !== 'idle' && (
         <div className="px-3 py-2 border-b bg-muted/50 space-y-1">
-          <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center justify-between gap-2 text-xs">
             <span className="font-medium capitalize">
-              {exportProgress.phase === 'error' ? '❌ ' : ''}
+              {editor.exportState.phase === 'error' ? '❌ ' : ''}
               {exportProgress.message || exportProgress.phase}
             </span>
-            <span className="text-muted-foreground">{exportProgress.percent}%</span>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">{exportProgress.percent}%</span>
+              {editor.exportState.phase === 'running' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => {
+                    void editor.cancelExport();
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
+              {editor.exportState.phase === 'error' && editor.exportState.retryable && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => {
+                    void editor.retryExport();
+                  }}
+                >
+                  Retry
+                </Button>
+              )}
+            </div>
           </div>
           <Progress
             value={exportProgress.percent}
-            className={cn('h-1.5', exportProgress.phase === 'error' && '[&>div]:bg-destructive', exportProgress.phase === 'complete' && '[&>div]:bg-green-500')}
+            className={cn(
+              'h-1.5',
+              editor.exportState.phase === 'error' && '[&>div]:bg-destructive',
+              editor.exportState.phase === 'success' && '[&>div]:bg-green-500',
+              editor.exportState.phase === 'cancelled' && '[&>div]:bg-muted-foreground'
+            )}
           />
           {exportProgress.currentFrame !== undefined && exportProgress.totalFrames !== undefined && (
             <div className="text-xs text-muted-foreground">

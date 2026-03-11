@@ -16,8 +16,8 @@ import {
 import { LoadingSpinner } from '@/components/ui/loading-states';
 import { Presentation } from 'lucide-react';
 import { PPTGenerationDialog, type PPTGenerationConfig } from './ppt-generation-dialog';
-import { PPTOutlinePreview, type PPTOutline } from './ppt-outline-preview';
-import { usePPTGeneration, type PPTOutlineData } from '@/hooks/ppt';
+import { PPTGenerationReviewPanel } from './ppt-generation-review-panel';
+import { usePPTGeneration } from '@/hooks/ppt';
 import { useRouter } from 'next/navigation';
 
 export interface PPTQuickActionProps {
@@ -49,22 +49,24 @@ export function PPTQuickAction({
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [outlinePreviewOpen, setOutlinePreviewOpen] = useState(false);
-  const [currentConfig, setCurrentConfig] = useState<PPTGenerationConfig | null>(null);
-  const [currentOutline, setCurrentOutline] = useState<PPTOutlineData | null>(null);
   
   const {
+    reviewSession,
     isGenerating,
     progress,
     generate,
-    generateOutline,
-    generateFromOutline,
+    prepareReview,
+    regenerateReviewOutline,
+    updateReviewOutline,
+    finalizeReview,
     error,
+    retry,
+    canRetry,
   } = usePPTGeneration();
 
   // Single-stage generation (direct full generation)
   const handleDirectGenerate = useCallback(async (config: PPTGenerationConfig) => {
     onGenerationStart?.();
-    setCurrentConfig(config);
     
     const result = await generate(config);
     
@@ -80,64 +82,39 @@ export function PPTQuickAction({
   // Two-stage: Step 1 - Generate outline first
   const handleGenerateOutline = useCallback(async (config: PPTGenerationConfig) => {
     onGenerationStart?.();
-    setCurrentConfig(config);
-    
-    const outlineData = await generateOutline(config);
-    
-    if (outlineData) {
-      setCurrentOutline(outlineData);
+    const session = await prepareReview(config, 'quick-action');
+
+    if (session) {
       setDialogOpen(false);
       setOutlinePreviewOpen(true);
     } else {
       onGenerationError?.(error || 'Outline generation failed');
     }
-  }, [generateOutline, error, onGenerationStart, onGenerationError]);
+  }, [prepareReview, error, onGenerationStart, onGenerationError]);
 
   // Two-stage: Step 2 - Generate full content from outline
   const handleStartFullGeneration = useCallback(async () => {
-    if (!currentConfig || !currentOutline) return;
-    
-    const result = await generateFromOutline(currentConfig, currentOutline);
+    const result = await finalizeReview();
     
     if (result) {
       onGenerationComplete?.(result.id);
       setOutlinePreviewOpen(false);
-      setCurrentOutline(null);
-      setCurrentConfig(null);
       router.push(`/ppt?id=${result.id}`);
     } else {
       onGenerationError?.(error || 'Generation failed');
     }
-  }, [currentConfig, currentOutline, generateFromOutline, error, onGenerationComplete, onGenerationError, router]);
+  }, [finalizeReview, error, onGenerationComplete, onGenerationError, router]);
 
   // Regenerate outline
   const handleRegenerateOutline = useCallback(async () => {
-    if (!currentConfig) return;
-    
-    const outlineData = await generateOutline(currentConfig);
-    
-    if (outlineData) {
-      setCurrentOutline(outlineData);
-    }
-  }, [currentConfig, generateOutline]);
+    await regenerateReviewOutline();
+  }, [regenerateReviewOutline]);
 
   // Cancel and reset
   const handleCancel = useCallback(() => {
     setOutlinePreviewOpen(false);
-    setCurrentOutline(null);
-    setCurrentConfig(null);
+    setDialogOpen(true);
   }, []);
-
-  // Build outline for preview component
-  const outlineForPreview: PPTOutline | null = currentOutline && currentConfig ? {
-    title: currentOutline.title,
-    subtitle: currentOutline.subtitle,
-    topic: currentConfig.topic,
-    audience: currentConfig.audience,
-    slideCount: currentOutline.outline.length,
-    theme: currentConfig.theme,
-    outline: currentOutline.outline,
-  } : null;
 
   const renderButton = () => {
     switch (variant) {
@@ -226,13 +203,18 @@ export function PPTQuickAction({
       {/* Outline Preview Dialog */}
       <Dialog open={outlinePreviewOpen} onOpenChange={setOutlinePreviewOpen}>
         <DialogContent className="sm:max-w-[700px] p-0">
-          {outlineForPreview && (
-            <PPTOutlinePreview
-              outline={outlineForPreview}
-              isGenerating={isGenerating && progress.stage === 'content'}
-              onStartGeneration={handleStartFullGeneration}
+          {reviewSession && (
+            <PPTGenerationReviewPanel
+              reviewSession={reviewSession}
+              isGenerating={isGenerating && (progress.stage === 'content' || progress.stage === 'finalizing')}
+              error={error}
+              canRetry={canRetry}
+              onRetry={retry}
+              onOutlineChange={updateReviewOutline}
               onRegenerateOutline={handleRegenerateOutline}
-              onCancel={handleCancel}
+              onStartGeneration={handleStartFullGeneration}
+              onBack={handleCancel}
+              cancelLabel={t('backToInputs')}
             />
           )}
         </DialogContent>

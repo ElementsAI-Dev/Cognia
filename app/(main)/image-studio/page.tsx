@@ -43,17 +43,29 @@ export default function ImageStudioPage() {
     images: storeImages,
     selectedImageId,
     addImage,
+    getImageById,
     deleteImage,
     selectImage,
     toggleFavorite,
     editHistory,
     historyIndex,
-    addToHistory,
     clearHistory,
     undo: storeUndo,
     redo: storeRedo,
+    goToHistoryIndex,
     canUndo,
     canRedo,
+    editSession,
+    operationStates,
+    startEditSession,
+    updateEditDraft,
+    discardEditDraft,
+    commitEditOperation,
+    endEditSession,
+    startOperation,
+    finishOperation,
+    failOperation,
+    clearOperationErrors,
     prompt,
     negativePrompt,
     setPrompt,
@@ -96,9 +108,10 @@ export default function ImageStudioPage() {
     ? storeActiveTab : 'generate';
   const setActiveTab = useCallback((tab: 'generate' | 'edit' | 'variations') => setStoreActiveTab(tab), [setStoreActiveTab]);
 
-  // Generation state (transient, not persisted)
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [retryOperationKey, setRetryOperationKey] = useState<
+    'generate' | 'edit' | 'variation' | 'inpaint' | 'export' | null
+  >(null);
 
   // Derive generation settings from store
   const { provider, model, size, quality, style, numberOfImages, seed } = generationSettings;
@@ -169,6 +182,46 @@ export default function ImageStudioPage() {
 
   const estimatedCost = estimateImageCost(model, size, quality, model === 'dall-e-3' ? 1 : numberOfImages);
 
+  const currentOperationKey = useMemo<'generate' | 'edit' | 'variation'>(() => {
+    if (activeTab === 'edit') {
+      return 'edit';
+    }
+    if (activeTab === 'variations') {
+      return 'variation';
+    }
+    return 'generate';
+  }, [activeTab]);
+
+  const currentOperationState = operationStates[currentOperationKey];
+  const latestFailedOperation = useMemo(() => {
+    return (
+      (Object.entries(operationStates)
+        .filter(([, state]) => state.status === 'error')
+        .sort(
+          (a, b) =>
+            (b[1].lastCompletedAt ?? 0) -
+            (a[1].lastCompletedAt ?? 0)
+        )[0]?.[0] as 'generate' | 'edit' | 'variation' | 'inpaint' | 'export' | undefined) ??
+      null
+    );
+  }, [operationStates]);
+
+  const isGenerating =
+    operationStates.generate.status === 'running' ||
+    operationStates.edit.status === 'running' ||
+    operationStates.variation.status === 'running' ||
+    operationStates.inpaint.status === 'running';
+  const sidebarError =
+    currentOperationState.status === 'error'
+      ? currentOperationState.error
+      : localError ??
+        (latestFailedOperation
+          ? operationStates[latestFailedOperation]?.error
+          : null);
+  const canRetry =
+    (currentOperationState.status === 'error' && currentOperationState.retryable) ||
+    !!retryOperationKey;
+
   // ─── External Hooks ────────────────────────────────────────────────
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const openaiApiKey = providerSettings.openai?.apiKey;
@@ -234,96 +287,265 @@ export default function ImageStudioPage() {
   const handleGenerate = useCallback(async () => {
     const apiKey = getProviderApiKey();
     if (!prompt.trim() || !apiKey) {
-      if (!apiKey) setError(t('noApiKey'));
+      const message = !apiKey ? t('noApiKey') : 'Prompt is required';
+      setLocalError(message);
+      failOperation('generate', message, { retryable: false });
       return;
     }
+    clearOperationErrors();
+    setLocalError(null);
+    setRetryOperationKey(null);
+
     const fullPrompt = prompt.trim() + (negativePrompt ? ` Avoid: ${negativePrompt}` : '');
     const n = model === 'dall-e-3' ? 1 : numberOfImages;
 
     // Add job to queue
     const jobId = addToQueue({ prompt: fullPrompt, provider, model, size, quality, style, seed: seed ?? undefined });
-    setIsGenerating(true); setError(null);
     updateQueueJob(jobId, { status: 'generating' });
+    startOperation('generate', { prompt: fullPrompt, provider, model, size, quality, style, n });
 
     try {
-      const resultImageIds: string[] = [];
+      const results: Array<{
+        url: string;
+        base64?: string;
+        revisedPrompt?: string;
+      }> = [];
 
       if (provider === 'openai') {
         const result = await imageGen.generate(fullPrompt, {
           model: model as 'dall-e-3' | 'dall-e-2' | 'gpt-image-1',
           size, quality, style, n,
         });
-        if (!result?.length) { updateQueueJob(jobId, { status: 'failed', error: imageGen.error || 'Failed' }); setError(imageGen.error || 'Failed to generate image'); return; }
+        if (!result?.length) {
+          throw new Error(imageGen.error || 'Failed to generate image');
+        }
         for (const img of result) {
-          resultImageIds.push(addImage({ url: img.url, base64: img.base64, revisedPrompt: img.revisedPrompt, prompt: prompt.trim(), model, size, quality, style }));
+          const resolvedUrl = img.url ?? (img.base64 ? `data:image/png;base64,${img.base64}` : undefined);
+          if (!resolvedUrl) {
+            continue;
+          }
+          const normalizedUrl: string = resolvedUrl;
+          results.push({
+            url: normalizedUrl,
+            base64: img.base64,
+            revisedPrompt: img.revisedPrompt,
+          });
         }
       } else {
         const sdkResult = await generateImageWithSDK(
           { apiKey },
           { prompt: fullPrompt, provider, model, size: size as ImageSizeOption, quality: quality as ImageQualityOption, n, seed: seed ?? undefined }
         );
-        if (!sdkResult.images.length) { updateQueueJob(jobId, { status: 'failed', error: 'No images returned' }); setError('Failed to generate image'); return; }
-        for (const img of sdkResult.images) {
-          const base64DataUrl = `data:image/png;base64,${img.base64}`;
-          resultImageIds.push(addImage({ url: base64DataUrl, base64: img.base64, revisedPrompt: img.revisedPrompt, prompt: prompt.trim(), model, size, quality, style }));
+        if (!sdkResult.images.length) {
+          throw new Error('No images returned');
+        }
+        results.push(
+          ...sdkResult.images.map((img) => ({
+            url: `data:image/png;base64,${img.base64}`,
+            base64: img.base64,
+            revisedPrompt: img.revisedPrompt,
+          }))
+        );
+      }
+
+      if (results.length === 0) {
+        throw new Error('No images returned');
+      }
+
+      let committedId: string | null = null;
+      for (const [index, result] of results.entries()) {
+        if (index === 0) {
+          committedId = commitEditOperation({
+            mode: 'generate',
+            description: `Generated: ${prompt.trim().substring(0, 50)}...`,
+            resultImage: {
+              url: result.url,
+              base64: result.base64,
+              revisedPrompt: result.revisedPrompt,
+              prompt: prompt.trim(),
+              model,
+              size,
+              quality,
+              style,
+            },
+          });
+        } else {
+          addImage({
+            url: result.url,
+            base64: result.base64,
+            revisedPrompt: result.revisedPrompt,
+            prompt: prompt.trim(),
+            model,
+            size,
+            quality,
+            style,
+          });
         }
       }
 
-      if (resultImageIds.length > 0) {
-        updateQueueJob(jobId, { status: 'completed', completedAt: Date.now(), resultImageId: resultImageIds[0] });
-        selectImage(resultImageIds[0]);
-        addToHistory({ type: 'generate', imageId: resultImageIds[0], description: `Generated: ${prompt.trim().substring(0, 50)}...` });
+      if (committedId) {
+        selectImage(committedId);
+        updateQueueJob(jobId, { status: 'completed', completedAt: Date.now(), resultImageId: committedId });
+        finishOperation('generate', { resultImageId: committedId, count: results.length });
+        setRetryOperationKey(null);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to generate image';
       updateQueueJob(jobId, { status: 'failed', error: msg });
-      setError(msg);
-    } finally { setIsGenerating(false); }
-  }, [prompt, negativePrompt, provider, model, size, quality, style, numberOfImages, seed, getProviderApiKey, t, imageGen, addImage, selectImage, addToHistory, addToQueue, updateQueueJob]);
+      failOperation('generate', msg, {
+        retryable: true,
+        context: { prompt: fullPrompt, provider, model, size, quality, style, n },
+      });
+      setRetryOperationKey('generate');
+    }
+  }, [prompt, negativePrompt, provider, model, size, quality, style, numberOfImages, seed, getProviderApiKey, t, imageGen, addImage, selectImage, commitEditOperation, addToQueue, updateQueueJob, startOperation, finishOperation, failOperation, clearOperationErrors]);
 
   const handleEditImage = useCallback(async () => {
     if (!editImageFile || !prompt.trim() || !openaiApiKey) {
-      if (!openaiApiKey) setError(t('noApiKey'));
+      const message = !openaiApiKey ? t('noApiKey') : 'Image and prompt are required';
+      setLocalError(message);
+      failOperation('edit', message, { retryable: false });
       return;
     }
-    setIsGenerating(true); setError(null);
+    clearOperationErrors();
+    setLocalError(null);
+    setRetryOperationKey(null);
+    startOperation('edit', {
+      prompt: prompt.trim(),
+      size,
+      numberOfImages,
+      sourceImageId: selectedImageId,
+    });
+
     try {
       const result = await imageGen.edit(editImageFile, prompt.trim(), maskFile || undefined, { size: size as '256x256' | '512x512' | '1024x1024', n: numberOfImages });
-      if (!result?.length) { setError(imageGen.error || 'Failed to edit image'); return; }
-      const ids: string[] = [];
-      for (const img of result) {
-        ids.push(addImage({ url: img.url, base64: img.base64, revisedPrompt: img.revisedPrompt, prompt: prompt.trim(), model: 'dall-e-2', size: size as ImageSize, quality, style }));
+      if (!result?.length) {
+        throw new Error(imageGen.error || 'Failed to edit image');
       }
-      if (ids.length > 0) {
-        selectImage(ids[0]);
-        addToHistory({ type: 'edit', imageId: ids[0], description: `Edited: ${prompt.trim().substring(0, 50)}...` });
+
+      let committedId: string | null = null;
+      for (const [index, img] of result.entries()) {
+        if (index === 0) {
+          committedId = commitEditOperation({
+            mode: 'edit',
+            description: `Edited: ${prompt.trim().substring(0, 50)}...`,
+            sourceImageId: selectedImageId,
+            resultImage: {
+              url: img.url,
+              base64: img.base64,
+              revisedPrompt: img.revisedPrompt,
+              prompt: prompt.trim(),
+              model: 'dall-e-2',
+              size: size as ImageSize,
+              quality,
+              style,
+            },
+          });
+        } else {
+          addImage({
+            url: img.url,
+            base64: img.base64,
+            revisedPrompt: img.revisedPrompt,
+            prompt: prompt.trim(),
+            model: 'dall-e-2',
+            size: size as ImageSize,
+            quality,
+            style,
+            parentId: selectedImageId ?? undefined,
+          });
+        }
+      }
+
+      if (committedId) {
+        selectImage(committedId);
+        finishOperation('edit', { resultImageId: committedId, count: result.length });
+        setRetryOperationKey(null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to edit image');
-    } finally { setIsGenerating(false); }
-  }, [editImageFile, maskFile, prompt, size, numberOfImages, openaiApiKey, t, quality, style, addImage, addToHistory, selectImage, imageGen]);
+      const message = err instanceof Error ? err.message : 'Failed to edit image';
+      failOperation('edit', message, {
+        retryable: true,
+        context: {
+          prompt: prompt.trim(),
+          size,
+          numberOfImages,
+          sourceImageId: selectedImageId,
+        },
+      });
+      setRetryOperationKey('edit');
+    }
+  }, [editImageFile, maskFile, prompt, size, numberOfImages, openaiApiKey, t, quality, style, addImage, selectImage, imageGen, selectedImageId, commitEditOperation, startOperation, finishOperation, failOperation, clearOperationErrors]);
 
   const handleCreateVariations = useCallback(async () => {
     if (!variationImage || !openaiApiKey) {
-      if (!openaiApiKey) setError(t('noApiKey'));
+      const message = !openaiApiKey ? t('noApiKey') : 'Variation image is required';
+      setLocalError(message);
+      failOperation('variation', message, { retryable: false });
       return;
     }
-    setIsGenerating(true); setError(null);
+    clearOperationErrors();
+    setLocalError(null);
+    setRetryOperationKey(null);
+    startOperation('variation', {
+      size,
+      numberOfImages,
+      sourceImageId: selectedImageId,
+    });
+
     try {
       const result = await imageGen.createVariations(variationImage, { size: size as '256x256' | '512x512' | '1024x1024', n: numberOfImages });
-      if (!result?.length) { setError(imageGen.error || 'Failed to create variations'); return; }
-      const ids: string[] = [];
-      for (const img of result) {
-        ids.push(addImage({ url: img.url, base64: img.base64, revisedPrompt: img.revisedPrompt, prompt: 'Variation', model: 'dall-e-2', size: size as ImageSize, quality, style }));
+      if (!result?.length) {
+        throw new Error(imageGen.error || 'Failed to create variations');
       }
-      if (ids.length > 0) {
-        selectImage(ids[0]);
-        addToHistory({ type: 'variation', imageId: ids[0], description: 'Created variation' });
+
+      let committedId: string | null = null;
+      for (const [index, img] of result.entries()) {
+        if (index === 0) {
+          committedId = commitEditOperation({
+            mode: 'variation',
+            description: 'Created variation',
+            sourceImageId: selectedImageId,
+            resultImage: {
+              url: img.url,
+              base64: img.base64,
+              revisedPrompt: img.revisedPrompt,
+              prompt: 'Variation',
+              model: 'dall-e-2',
+              size: size as ImageSize,
+              quality,
+              style,
+              parentId: selectedImageId ?? undefined,
+            },
+          });
+        } else {
+          addImage({
+            url: img.url,
+            base64: img.base64,
+            revisedPrompt: img.revisedPrompt,
+            prompt: 'Variation',
+            model: 'dall-e-2',
+            size: size as ImageSize,
+            quality,
+            style,
+            parentId: selectedImageId ?? undefined,
+          });
+        }
+      }
+
+      if (committedId) {
+        selectImage(committedId);
+        finishOperation('variation', { resultImageId: committedId, count: result.length });
+        setRetryOperationKey(null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create variations');
-    } finally { setIsGenerating(false); }
-  }, [variationImage, size, numberOfImages, openaiApiKey, t, quality, style, addImage, addToHistory, selectImage, imageGen]);
+      const message = err instanceof Error ? err.message : 'Failed to create variations';
+      failOperation('variation', message, {
+        retryable: true,
+        context: { size, numberOfImages, sourceImageId: selectedImageId },
+      });
+      setRetryOperationKey('variation');
+    }
+  }, [variationImage, size, numberOfImages, openaiApiKey, t, quality, style, addImage, selectImage, imageGen, selectedImageId, commitEditOperation, startOperation, finishOperation, failOperation, clearOperationErrors]);
 
   const handleDownload = useCallback(async (image: GeneratedImageWithMeta) => {
     try {
@@ -345,7 +567,15 @@ export default function ImageStudioPage() {
     onZoomIn: () => setPreviewZoom((z) => Math.min(10, z * 1.2)),
     onZoomOut: () => setPreviewZoom((z) => Math.max(0.1, z / 1.2)),
     onZoomReset: () => { setPreviewZoom(1); setPreviewPan({ x: 0, y: 0 }); },
-    onCancel: () => { if (editingImage) { setEditingImage(null); setEditMode(null); } },
+    onCancel: () => {
+      if (editingImage) {
+        discardEditDraft();
+        endEditSession();
+        setEditingImage(null);
+        setEditMode(null);
+        setMaskDataUrl(null);
+      }
+    },
     onNavigateNext: () => {
       if (!generatedImages.length) return;
       const idx = generatedImages.findIndex((img) => img.id === selectedImageId);
@@ -395,62 +625,212 @@ export default function ImageStudioPage() {
         setEditMode('compare');
         break;
       default:
+        {
+        const sessionMode = (action === 'filter' ? 'filter' : action) as
+          | 'mask'
+          | 'crop'
+          | 'adjust'
+          | 'upscale'
+          | 'remove-bg'
+          | 'filter'
+          | 'text'
+          | 'draw';
+        startEditSession({
+          sourceImageId: image.id,
+          sourceImageUrl: image.url ?? null,
+          mode: sessionMode,
+        });
         setEditingImage(image);
         setEditMode(action);
         break;
+        }
     }
-  }, [handleUseForEdit, handleUseForVariation]);
+  }, [handleUseForEdit, handleUseForVariation, startEditSession]);
 
   const handleEditorSave = useCallback((result: EditorSaveResult) => {
     if (!editingImage) return;
-    if (result.mode === 'mask') { setMaskDataUrl(result.dataUrl); return; }
-    const newImageId = addImage({
-      url: result.dataUrl, prompt: editingImage.prompt, model: editingImage.model,
-      size: editingImage.settings.size, quality: editingImage.settings.quality, style: editingImage.settings.style,
-      parentId: editingImage.id,
-    });
-    selectImage(newImageId);
-    setEditingImage(null); setEditMode(null);
-    addToHistory({
-      type: toHistoryOperationType(result.mode),
-      imageId: newImageId,
+    if (result.mode === 'mask') {
+      updateEditDraft({
+        draftImageUrl: result.dataUrl,
+        pendingOperation: 'mask',
+        metadata: { sourceImageId: editingImage.id },
+      });
+      setMaskDataUrl(result.dataUrl);
+      return;
+    }
+
+    const mode = toHistoryOperationType(result.mode);
+    const operationKey =
+      result.mode === 'upscale' ? 'upscale' : result.mode === 'remove-bg' ? 'remove-bg' : null;
+    if (operationKey) {
+      startOperation(operationKey, { sourceImageId: editingImage.id });
+    }
+
+    const newImageId = commitEditOperation({
+      mode,
       description: `Applied ${result.mode} edit`,
+      sourceImageId: editingImage.id,
+      resultImage: {
+        url: result.dataUrl,
+        prompt: editingImage.prompt,
+        model: editingImage.model,
+        size: editingImage.settings.size,
+        quality: editingImage.settings.quality,
+        style: editingImage.settings.style,
+        parentId: editingImage.id,
+      },
+      metadata: { sessionId: editSession.sessionId, mode: result.mode },
     });
-  }, [editingImage, addImage, selectImage, addToHistory]);
+
+    if (!newImageId) {
+      if (operationKey) {
+        failOperation(operationKey, 'Failed to commit image edit', { retryable: false });
+      }
+      return;
+    }
+
+    const committedImage = getImageById(newImageId);
+    if (committedImage) {
+      setEditingImage({
+        id: committedImage.id,
+        url: committedImage.url,
+        base64: committedImage.base64,
+        revisedPrompt: committedImage.revisedPrompt,
+        prompt: committedImage.prompt,
+        model: committedImage.model,
+        timestamp: committedImage.timestamp,
+        settings: {
+          size: committedImage.size,
+          quality: committedImage.quality,
+          style: committedImage.style,
+        },
+        isFavorite: committedImage.isFavorite,
+        parentId: committedImage.parentId,
+        version: committedImage.version,
+      });
+    }
+    setMaskDataUrl(null);
+    if (operationKey) {
+      finishOperation(operationKey, { resultImageId: newImageId });
+    }
+    setRetryOperationKey(null);
+  }, [editingImage, updateEditDraft, commitEditOperation, editSession.sessionId, getImageById, startOperation, finishOperation, failOperation]);
 
   const handleApplyInpainting = useCallback(async () => {
-    if (!editingImage?.url || !maskDataUrl || !openaiApiKey) return;
+    if (!editingImage?.url || !maskDataUrl || !openaiApiKey) {
+      const message = !openaiApiKey ? t('noApiKey') : 'Mask and source image are required';
+      setLocalError(message);
+      failOperation('inpaint', message, { retryable: false });
+      return;
+    }
+
     const currentEditingImage = editingImage;
-    setEditingImage(null); setEditMode(null); setIsGenerating(true);
+    clearOperationErrors();
+    setLocalError(null);
+    setRetryOperationKey(null);
+    startOperation('inpaint', {
+      sourceImageId: currentEditingImage.id,
+      sourceImageUrl: currentEditingImage.url,
+      maskDataUrl,
+      prompt: prompt || 'Continue the image naturally',
+    });
+
     try {
       const imgBlob = await (await proxyFetch(currentEditingImage.url!)).blob();
       const imgFile = new File([imgBlob], 'image.png', { type: 'image/png' });
       const maskBlob = await (await fetch(maskDataUrl)).blob();
       const maskFileData = new File([maskBlob], 'mask.png', { type: 'image/png' });
       const result = await imageGen.edit(imgFile, prompt || 'Continue the image naturally', maskFileData, { size: '1024x1024' });
-      if (!result?.length) { setError(imageGen.error || 'Inpainting failed'); return; }
-      const ids: string[] = [];
-      for (const img of result) {
-        ids.push(addImage({
-          url: img.url, base64: img.base64, revisedPrompt: img.revisedPrompt,
-          prompt: prompt || 'Inpainted', model: 'dall-e-2', size: '1024x1024' as ImageSize, quality, style,
-          parentId: currentEditingImage.id,
-        }));
+      if (!result?.length) {
+        throw new Error(imageGen.error || 'Inpainting failed');
       }
-      if (ids.length > 0) {
-        selectImage(ids[0]);
-        addToHistory({ type: 'mask', imageId: ids[0], description: 'Inpainted image' });
+
+      let committedId: string | null = null;
+      for (const [index, img] of result.entries()) {
+        if (index === 0) {
+          committedId = commitEditOperation({
+            mode: 'mask',
+            description: 'Inpainted image',
+            sourceImageId: currentEditingImage.id,
+            resultImage: {
+              url: img.url,
+              base64: img.base64,
+              revisedPrompt: img.revisedPrompt,
+              prompt: prompt || 'Inpainted',
+              model: 'dall-e-2',
+              size: '1024x1024' as ImageSize,
+              quality,
+              style,
+              parentId: currentEditingImage.id,
+            },
+            metadata: {
+              maskDataUrl,
+              sessionId: editSession.sessionId,
+            },
+          });
+        } else {
+          addImage({
+            url: img.url,
+            base64: img.base64,
+            revisedPrompt: img.revisedPrompt,
+            prompt: prompt || 'Inpainted',
+            model: 'dall-e-2',
+            size: '1024x1024' as ImageSize,
+            quality,
+            style,
+            parentId: currentEditingImage.id,
+          });
+        }
+      }
+
+      if (committedId) {
+        selectImage(committedId);
+        finishOperation('inpaint', { resultImageId: committedId, count: result.length });
+        setRetryOperationKey(null);
       }
       setMaskDataUrl(null);
-    } catch (err) { setError(err instanceof Error ? err.message : 'Inpainting failed'); }
-    finally { setIsGenerating(false); }
-  }, [editingImage, maskDataUrl, openaiApiKey, prompt, quality, style, imageGen, addImage, selectImage, addToHistory]);
+      setEditingImage(null);
+      setEditMode(null);
+      endEditSession();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Inpainting failed';
+      failOperation('inpaint', message, {
+        retryable: true,
+        context: {
+          sourceImageId: currentEditingImage.id,
+          sourceImageUrl: currentEditingImage.url,
+          maskDataUrl,
+          prompt: prompt || 'Continue the image naturally',
+        },
+      });
+      setRetryOperationKey('inpaint');
+    }
+  }, [editingImage, maskDataUrl, openaiApiKey, prompt, quality, style, imageGen, addImage, selectImage, commitEditOperation, editSession.sessionId, startOperation, finishOperation, failOperation, clearOperationErrors, endEditSession, t]);
 
   const handleRegenerate = useCallback((image: GeneratedImageWithMeta) => {
     setPrompt(image.prompt);
     // Trigger generation after prompt is set
     setTimeout(() => handleGenerate(), 0);
   }, [handleGenerate, setPrompt]);
+
+  const handleRetryCurrentOperation = useCallback(() => {
+    const retryKey = retryOperationKey ?? latestFailedOperation;
+    if (!retryKey) {
+      return;
+    }
+
+    if (retryKey === 'generate') {
+      void handleGenerate();
+    } else if (retryKey === 'edit') {
+      void handleEditImage();
+    } else if (retryKey === 'variation') {
+      void handleCreateVariations();
+    } else if (retryKey === 'inpaint') {
+      void handleApplyInpainting();
+    } else if (retryKey === 'export') {
+      setShowExportDialog(true);
+    }
+  }, [retryOperationKey, latestFailedOperation, handleGenerate, handleEditImage, handleCreateVariations, handleApplyInpainting]);
 
   // ─── Render ────────────────────────────────────────────────────────
   return (
@@ -516,7 +896,9 @@ export default function ImageStudioPage() {
               maskInputRef={maskInputRef}
               variationInputRef={variationInputRef}
               isGenerating={isGenerating}
-              error={error}
+              error={sidebarError}
+              canRetry={canRetry}
+              onRetry={handleRetryCurrentOperation}
               onGenerate={handleGenerate}
               onEdit={handleEditImage}
               onCreateVariations={handleCreateVariations}
@@ -623,10 +1005,7 @@ export default function ImageStudioPage() {
                 thumbnail: storeImages.find((img) => img.id === entry.imageId)?.url,
               }))}
               currentIndex={historyIndex}
-              onNavigate={(index) => {
-                const targetEntry = editHistory[index];
-                if (targetEntry) selectImage(targetEntry.imageId);
-              }}
+              onNavigate={goToHistoryIndex}
               onUndo={handleUndo}
               onRedo={handleRedo}
               onClear={clearHistory}
@@ -651,16 +1030,50 @@ export default function ImageStudioPage() {
         advancedEditorOriginalImageData={advancedEditor.state.originalImageData}
         editingImage={editingImage}
         editMode={editMode}
-        onEditingClose={() => { setEditingImage(null); setEditMode(null); setMaskDataUrl(null); }}
+        onEditingClose={() => {
+          discardEditDraft();
+          endEditSession();
+          setEditingImage(null);
+          setEditMode(null);
+          setMaskDataUrl(null);
+        }}
         compareBeforeImage={compareBeforeImage}
         onCompareClose={() => { setEditingImage(null); setEditMode(null); setCompareBeforeImage(null); }}
         onEditorSave={handleEditorSave}
+        onEditorModeChange={(mode) => {
+          updateEditDraft({
+            pendingOperation: mode === 'filters' ? 'filter' : mode,
+            metadata: { sourceImageId: editingImage?.id ?? null },
+          });
+        }}
         maskDataUrl={maskDataUrl}
         onApplyInpainting={handleApplyInpainting}
-        onMaskCancel={() => { setEditingImage(null); setEditMode(null); setMaskDataUrl(null); }}
+        onMaskCancel={() => {
+          discardEditDraft();
+          setMaskDataUrl(null);
+          setEditingImage(null);
+          setEditMode(null);
+          endEditSession();
+        }}
         isGenerating={isGenerating}
         showExportDialog={showExportDialog}
         onExportDialogChange={setShowExportDialog}
+        onExportStart={() => {
+          clearOperationErrors();
+          setLocalError(null);
+          startOperation('export', { selectedImageId, sessionId: editSession.sessionId });
+        }}
+        onExportComplete={(count) => {
+          finishOperation('export', { count });
+          setRetryOperationKey(null);
+        }}
+        onExportError={(message) => {
+          failOperation('export', message, {
+            retryable: true,
+            context: { selectedImageId, sessionId: editSession.sessionId },
+          });
+          setRetryOperationKey('export');
+        }}
         allImages={generatedImages}
       />
     </div>

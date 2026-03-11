@@ -19,6 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Dialog,
   DialogContent,
@@ -49,7 +50,9 @@ export interface BatchExportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   images: ExportableImage[];
+  onExportStart?: () => void;
   onExport?: (count: number) => void;
+  onExportError?: (message: string) => void;
 }
 
 interface ExportOptions {
@@ -72,7 +75,9 @@ export function BatchExportDialog({
   open,
   onOpenChange,
   images,
+  onExportStart,
   onExport,
+  onExportError,
 }: BatchExportDialogProps) {
   const t = useTranslations('imageStudio.batchExport');
   const tc = useTranslations('imageStudio.common');
@@ -82,6 +87,7 @@ export function BatchExportDialog({
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [exportedCount, setExportedCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   // Toggle image selection
   const toggleSelection = useCallback((id: string) => {
@@ -172,9 +178,11 @@ export function BatchExportDialog({
   const handleExport = useCallback(async () => {
     if (selectedIds.size === 0) return;
 
+    setError(null);
     setIsExporting(true);
     setProgress(0);
     setExportedCount(0);
+    onExportStart?.();
 
     const selectedImages = images.filter((img) => selectedIds.has(img.id));
     const blobs: Array<{ blob: Blob; filename: string }> = [];
@@ -220,12 +228,15 @@ export function BatchExportDialog({
       onExport?.(selectedImages.length);
       onOpenChange(false);
     } catch (error) {
-      loggers.media.error('Export failed', error);
+      const message = error instanceof Error ? error.message : 'Export failed';
+      setError(message);
+      onExportError?.(message);
+      loggers.media.error('Export failed', error instanceof Error ? error : new Error(String(error)));
     } finally {
       setIsExporting(false);
       setProgress(0);
     }
-  }, [selectedIds, images, options, convertImage, downloadFile, onExport, onOpenChange]);
+  }, [selectedIds, images, options, convertImage, downloadFile, onExportStart, onExport, onExportError, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -354,6 +365,12 @@ export function BatchExportDialog({
               </div>
               <Progress value={progress} />
             </div>
+          )}
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription className="text-xs">{error}</AlertDescription>
+            </Alert>
           )}
         </div>
 

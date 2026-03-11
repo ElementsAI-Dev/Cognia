@@ -58,8 +58,10 @@ export function LatexSketchDialog({
   const [hint, setHint] = useState('');
   const [recognizedLatex, setRecognizedLatex] = useState('');
   const [alternatives, setAlternatives] = useState<{ latex: string; confidence: number }[]>([]);
-  const [isRecognizing, setIsRecognizing] = useState(false);
+  const [recognitionStatus, setRecognitionStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [recognitionError, setRecognitionError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const isRecognizing = recognitionStatus === 'loading';
 
   const service = useRef(new SketchToLaTeXService({ provider: 'local' }));
 
@@ -180,12 +182,15 @@ export function LatexSketchDialog({
     setCurrentStroke([]);
     setRecognizedLatex('');
     setAlternatives([]);
+    setRecognitionStatus('idle');
+    setRecognitionError(null);
   }, []);
 
   const handleRecognize = useCallback(async () => {
     if (strokes.length === 0) return;
 
-    setIsRecognizing(true);
+    setRecognitionStatus('loading');
+    setRecognitionError(null);
     try {
       const imageData = strokesToImageDataURL(strokes, 400, 300);
       const base64 = imageData.replace(/^data:image\/\w+;base64,/, '');
@@ -199,13 +204,20 @@ export function LatexSketchDialog({
       if (result.success) {
         setRecognizedLatex(result.latex);
         setAlternatives(result.alternatives || []);
+        setRecognitionStatus('success');
+      } else {
+        setRecognitionError(result.error || t('recognitionFailed', { defaultValue: 'Failed to recognize sketch' }));
+        setRecognitionStatus('error');
       }
     } catch (error) {
-      console.error('Recognition failed:', error);
-    } finally {
-      setIsRecognizing(false);
+      setRecognitionError(
+        error instanceof Error
+          ? error.message
+          : t('recognitionFailed', { defaultValue: 'Failed to recognize sketch' })
+      );
+      setRecognitionStatus('error');
     }
-  }, [strokes, hint]);
+  }, [strokes, hint, t]);
 
   const handleCopyLatex = useCallback(async () => {
     if (!recognizedLatex) return;
@@ -301,6 +313,12 @@ export function LatexSketchDialog({
 
           <Separator />
 
+          {recognitionError && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {recognitionError}
+            </div>
+          )}
+
           {/* Recognition Result */}
           {recognizedLatex && (
             <div className="space-y-2">
@@ -359,7 +377,9 @@ export function LatexSketchDialog({
             ) : (
               <Wand2 className="h-4 w-4" />
             )}
-            {t('recognize', { defaultValue: 'Recognize' })}
+            {recognitionStatus === 'error'
+              ? t('retry', { defaultValue: 'Retry' })
+              : t('recognize', { defaultValue: 'Recognize' })}
           </Button>
           <Button onClick={handleInsert} disabled={!recognizedLatex}>
             {t('insert', { defaultValue: 'Insert' })}

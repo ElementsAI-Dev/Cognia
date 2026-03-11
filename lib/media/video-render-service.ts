@@ -28,6 +28,19 @@ export interface VideoRenderProgress {
   message?: string;
 }
 
+export type VideoRenderErrorCode =
+  | 'cancelled'
+  | 'no-clips'
+  | 'output-exists'
+  | 'ffmpeg-unavailable'
+  | 'tauri-unavailable'
+  | 'unknown';
+
+export interface VideoRenderFailure {
+  code: VideoRenderErrorCode;
+  message: string;
+}
+
 export interface VideoRenderSubtitleTrack {
   id: string;
   format: 'srt' | 'vtt' | 'ass';
@@ -48,6 +61,7 @@ export interface VideoRenderExportOptions {
   subtitleTracks?: VideoRenderSubtitleTrack[];
   destinationPath?: string;
   overwrite?: boolean;
+  signal?: AbortSignal;
   onProgress?: (progress: VideoRenderProgress) => void;
 }
 
@@ -162,6 +176,42 @@ function toBlobPart(bytes: Uint8Array): ArrayBuffer {
   const copy = new Uint8Array(bytes.byteLength);
   copy.set(bytes);
   return copy.buffer;
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw new DOMException('Export cancelled', 'AbortError');
+  }
+}
+
+export function normalizeVideoRenderError(error: unknown): VideoRenderFailure {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return {
+      code: 'cancelled',
+      message: 'Export cancelled',
+    };
+  }
+
+  const message = error instanceof Error ? error.message : 'Export failed';
+  const normalizedMessage = message.toLowerCase();
+
+  if (normalizedMessage.includes('no clips')) {
+    return { code: 'no-clips', message };
+  }
+
+  if (normalizedMessage.includes('already exists')) {
+    return { code: 'output-exists', message };
+  }
+
+  if (normalizedMessage.includes('ffmpeg')) {
+    return { code: 'ffmpeg-unavailable', message };
+  }
+
+  if (normalizedMessage.includes('tauri')) {
+    return { code: 'tauri-unavailable', message };
+  }
+
+  return { code: 'unknown', message };
 }
 
 function getOutputPath(context: VideoRenderContext, options: VideoRenderExportOptions): string {
@@ -339,6 +389,7 @@ class DesktopNativeRenderer {
     context: VideoRenderContext,
     options: VideoRenderExportOptions
   ): Promise<Blob> {
+    throwIfAborted(options.signal);
     const plan = buildRenderPlan(context);
     const outputPath = getOutputPath(context, options);
     const nativeOptions: NativeTimelineRenderOptions = {
@@ -355,6 +406,14 @@ class DesktopNativeRenderer {
 
     const startedAt = Date.now();
     const unlistenFns: Array<() => void> = [];
+    const abortListener = () => {
+      void invokeTauri<boolean>('video_cancel_processing', {}).catch(() => undefined);
+    };
+
+    if (options.signal) {
+      options.signal.addEventListener('abort', abortListener);
+    }
+
     try {
       if (options.onProgress) {
         const { listen } = await import('@tauri-apps/api/event');
@@ -426,10 +485,12 @@ class DesktopNativeRenderer {
         unlistenFns.push(unlistenStarted, unlistenProgress, unlistenCompleted, unlistenError);
       }
 
+      throwIfAborted(options.signal);
       const result = await invokeTauri<NativeRenderResult>('video_render_timeline_with_progress', {
         plan,
         options: nativeOptions,
       });
+      throwIfAborted(options.signal);
 
       if (!result.success) {
         throw new Error(result.error || 'Timeline render failed');
@@ -459,6 +520,9 @@ class DesktopNativeRenderer {
 
       return blob;
     } finally {
+      if (options.signal) {
+        options.signal.removeEventListener('abort', abortListener);
+      }
       for (const unlisten of unlistenFns) {
         unlisten();
       }
@@ -503,6 +567,7 @@ class WebRenderer {
     context: VideoRenderContext,
     options: VideoRenderExportOptions
   ): Promise<Blob> {
+    throwIfAborted(options.signal);
     const { FFmpeg, fetchFile } = await this.loadFfmpegModule();
     const ffmpeg = new FFmpeg();
     await ffmpeg.load();
@@ -514,6 +579,7 @@ class WebRenderer {
     const segmentNames: string[] = [];
 
     for (let index = 0; index < allClips.length; index++) {
+      throwIfAborted(options.signal);
       const clip = allClips[index];
       const inputName = `input_${index}.mp4`;
       const outputName = `segment_${index}.mp4`;
@@ -582,6 +648,7 @@ class WebRenderer {
     }
 
     if (segmentNames.length > 1) {
+      throwIfAborted(options.signal);
       const concatContent = segmentNames.map((name) => `file '${name}'`).join('\n');
       await ffmpeg.writeFile('concat.txt', new TextEncoder().encode(concatContent));
       await ffmpeg.exec([
@@ -599,9 +666,11 @@ class WebRenderer {
         'output.mp4',
       ]);
     } else {
+      throwIfAborted(options.signal);
       await ffmpeg.exec(['-y', '-i', segmentNames[0], '-c', 'copy', 'output.mp4']);
     }
 
+    throwIfAborted(options.signal);
     const output = await ffmpeg.readFile('output.mp4');
     const bytes = output instanceof Uint8Array ? output : new Uint8Array(output);
     return new Blob([toBlobPart(bytes)], { type: `video/${options.format}` });
@@ -611,6 +680,7 @@ class WebRenderer {
     context: VideoRenderContext,
     options: VideoRenderExportOptions
   ): Promise<Blob> {
+    throwIfAborted(options.signal);
     const allClips = context.tracks.flatMap((track) => track.clips);
     if (allClips.length === 0) {
       throw new Error('No clips to export');
@@ -636,6 +706,7 @@ class WebRenderer {
 
     try {
       if (allClips.length > 1 || hasComplexGraph) {
+        throwIfAborted(options.signal);
         options.onProgress?.({
           phase: 'rendering',
           percent: 10,
@@ -653,6 +724,7 @@ class WebRenderer {
       // Fallback to direct clip blob.
     }
 
+    throwIfAborted(options.signal);
     const firstClip = allClips[0];
     const response = await fetch(firstClip.sourceUrl);
     const blob = await response.blob();

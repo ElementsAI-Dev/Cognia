@@ -10,7 +10,11 @@ import { persist } from 'zustand/middleware';
 import { loggers } from '@/lib/logger';
 import { videoProjectRepository } from '@/lib/db/repositories/video-project-repository';
 import type {
+  AudioMixTrack,
   MediaProjectTimelineV2,
+  SubtitleTrackBinding,
+  TimelineLayer,
+  TimelineMarker,
   VideoTrack,
 } from '@/types/video-studio/types';
 import { normalizeClipEffects } from '@/types/video-studio/types';
@@ -61,8 +65,50 @@ export interface HistorySnapshot {
   id: string;
   timestamp: number;
   action: string;
+  revision: number;
   tracks: VideoTrack[];
   duration: number;
+  selectedClipIds: string[];
+  selectedTrackId: string | null;
+  currentTime: number;
+  markers: TimelineMarker[];
+  layers: TimelineLayer[];
+  subtitleBindings: SubtitleTrackBinding[];
+  audioMix: AudioMixTrack[];
+}
+
+export type VideoEditSessionSourceType = 'recording' | 'ai-generation' | 'import' | 'unknown';
+
+export interface VideoEditSession {
+  sessionId: string;
+  sourceType: VideoEditSessionSourceType;
+  sourceRef: string;
+  sourceMetadata?: Record<string, unknown>;
+  workingProjectId: string | null;
+  lastCommittedRevision: number;
+  pendingOperation: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TimelineMutationInput {
+  action: string;
+  tracks: VideoTrack[];
+  duration: number;
+  selectedClipIds?: string[];
+  selectedTrackId?: string | null;
+  currentTime?: number;
+  markers?: TimelineMarker[];
+  layers?: TimelineLayer[];
+  subtitleBindings?: SubtitleTrackBinding[];
+  audioMix?: AudioMixTrack[];
+}
+
+export interface StartEditSessionInput {
+  sourceType: VideoEditSessionSourceType;
+  sourceRef: string;
+  sourceMetadata?: Record<string, unknown>;
+  workingProjectId?: string | null;
 }
 
 interface VideoEditorState {
@@ -79,6 +125,13 @@ interface VideoEditorState {
   history: HistorySnapshot[];
   historyIndex: number;
   maxHistorySize: number;
+  timelineRevision: number;
+  selectedClipIds: string[];
+  selectedTrackId: string | null;
+  currentTime: number;
+
+  // Editor session
+  editSession: VideoEditSession | null;
 
   // UI state
   isLoading: boolean;
@@ -108,12 +161,42 @@ interface VideoEditorActions {
   resetPreferences: () => void;
 
   // History (undo/redo)
-  pushHistory: (action: string, tracks: VideoTrack[], duration: number) => void;
+  pushHistory: (
+    action: string,
+    tracks: VideoTrack[],
+    duration: number,
+    snapshot?: Partial<
+      Pick<
+        HistorySnapshot,
+        | 'selectedClipIds'
+        | 'selectedTrackId'
+        | 'currentTime'
+        | 'markers'
+        | 'layers'
+        | 'subtitleBindings'
+        | 'audioMix'
+      >
+    >
+  ) => HistorySnapshot;
+  commitTimelineMutation: (input: TimelineMutationInput) => HistorySnapshot;
   undo: () => HistorySnapshot | null;
   redo: () => HistorySnapshot | null;
+  jumpToHistory: (index: number) => HistorySnapshot | null;
   clearHistory: () => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
+
+  // Session
+  startEditSession: (input: StartEditSessionInput) => VideoEditSession;
+  resumeEditSession: (
+    input?: Partial<Omit<StartEditSessionInput, 'sourceType' | 'sourceRef'>> & {
+      sessionId?: string;
+      sourceType?: VideoEditSessionSourceType;
+      sourceRef?: string;
+    }
+  ) => VideoEditSession | null;
+  updatePendingOperation: (operation: string | null) => void;
+  endEditSession: () => void;
 
   // State management
   setLoading: (isLoading: boolean) => void;
@@ -140,6 +223,13 @@ const DEFAULT_FRAME_RATE = 30;
 const MAX_RECENT_PROJECTS = 10;
 const MAX_HISTORY_SIZE = 50;
 
+interface TimelineExtras {
+  markers?: TimelineMarker[];
+  layers?: TimelineLayer[];
+  subtitleBindings?: SubtitleTrackBinding[];
+  audioMix?: AudioMixTrack[];
+}
+
 function normalizeTracks(tracks: VideoTrack[]): VideoTrack[] {
   return tracks.map((track) => ({
     ...track,
@@ -150,7 +240,11 @@ function normalizeTracks(tracks: VideoTrack[]): VideoTrack[] {
   }));
 }
 
-function buildTimelineV2(tracks: VideoTrack[], duration: number): MediaProjectTimelineV2 {
+function buildTimelineV2(
+  tracks: VideoTrack[],
+  duration: number,
+  extras: TimelineExtras = {}
+): MediaProjectTimelineV2 {
   const normalizedTracks = normalizeTracks(tracks);
   const transitions = normalizedTracks.flatMap((track) => {
     const orderedClips = [...track.clips].sort((left, right) => left.startTime - right.startTime);
@@ -186,10 +280,10 @@ function buildTimelineV2(tracks: VideoTrack[], duration: number): MediaProjectTi
     duration,
     tracks: normalizedTracks,
     transitions,
-    markers: [],
-    layers: [],
-    subtitleBindings: [],
-    audioMix: [],
+    markers: structuredClone(extras.markers ?? []),
+    layers: structuredClone(extras.layers ?? []),
+    subtitleBindings: structuredClone(extras.subtitleBindings ?? []),
+    audioMix: structuredClone(extras.audioMix ?? []),
     exportDefaults: {
       format: 'mp4',
       resolution: '1080p',
@@ -203,6 +297,53 @@ function generateId(): string {
   return nanoid();
 }
 
+function getClipIds(tracks: VideoTrack[]): Set<string> {
+  const ids = new Set<string>();
+  for (const track of tracks) {
+    for (const clip of track.clips) {
+      ids.add(clip.id);
+    }
+  }
+  return ids;
+}
+
+function sanitizeSnapshotSelection(
+  tracks: VideoTrack[],
+  duration: number,
+  selection: {
+    selectedClipIds?: string[];
+    selectedTrackId?: string | null;
+    currentTime?: number;
+  }
+): Pick<HistorySnapshot, 'selectedClipIds' | 'selectedTrackId' | 'currentTime'> {
+  const clipIds = getClipIds(tracks);
+  const trackIds = new Set(tracks.map((track) => track.id));
+
+  const selectedClipIds = (selection.selectedClipIds ?? []).filter((id) => clipIds.has(id));
+  const selectedTrackId =
+    selection.selectedTrackId && trackIds.has(selection.selectedTrackId)
+      ? selection.selectedTrackId
+      : null;
+  const currentTime = Math.max(0, Math.min(selection.currentTime ?? 0, duration));
+
+  return {
+    selectedClipIds,
+    selectedTrackId,
+    currentTime,
+  };
+}
+
+function snapshotTimeline(
+  timeline?: TimelineExtras
+): Pick<HistorySnapshot, 'markers' | 'layers' | 'subtitleBindings' | 'audioMix'> {
+  return {
+    markers: structuredClone(timeline?.markers ?? []),
+    layers: structuredClone(timeline?.layers ?? []),
+    subtitleBindings: structuredClone(timeline?.subtitleBindings ?? []),
+    audioMix: structuredClone(timeline?.audioMix ?? []),
+  };
+}
+
 export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>()(
   persist(
     (set, get) => ({
@@ -213,6 +354,11 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
       history: [],
       historyIndex: -1,
       maxHistorySize: MAX_HISTORY_SIZE,
+      timelineRevision: 0,
+      selectedClipIds: [],
+      selectedTrackId: null,
+      currentTime: 0,
+      editSession: null,
       isLoading: false,
       error: null,
 
@@ -233,7 +379,15 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
           timeline: buildTimelineV2([], 0),
         };
 
-        set({ currentProject: project, history: [], historyIndex: -1 });
+        set({
+          currentProject: project,
+          history: [],
+          historyIndex: -1,
+          timelineRevision: 0,
+          selectedClipIds: [],
+          selectedTrackId: null,
+          currentTime: 0,
+        });
 
         // Add to recent projects
         get().addRecentProject({
@@ -268,6 +422,10 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
               isLoading: false,
               history: [],
               historyIndex: -1,
+              timelineRevision: 0,
+              selectedClipIds: [],
+              selectedTrackId: null,
+              currentTime: 0,
             });
           } else {
             loggers.media.warn('Video project not found', { projectId });
@@ -329,7 +487,16 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
       deleteProject: async (projectId) => {
         const { currentProject } = get();
         if (currentProject?.id === projectId) {
-          set({ currentProject: null, history: [], historyIndex: -1 });
+          set({
+            currentProject: null,
+            history: [],
+            historyIndex: -1,
+            timelineRevision: 0,
+            selectedClipIds: [],
+            selectedTrackId: null,
+            currentTime: 0,
+            editSession: null,
+          });
         }
         get().removeRecentProject(projectId);
         try {
@@ -366,7 +533,12 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
           currentProject: {
             ...currentProject,
             tracks,
-            timeline: buildTimelineV2(tracks, currentProject.duration),
+            timeline: buildTimelineV2(tracks, currentProject.duration, {
+              markers: currentProject.timeline.markers,
+              layers: currentProject.timeline.layers,
+              subtitleBindings: currentProject.timeline.subtitleBindings,
+              audioMix: currentProject.timeline.audioMix,
+            }),
             updatedAt: Date.now(),
           },
         });
@@ -380,7 +552,12 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
           currentProject: {
             ...currentProject,
             duration,
-            timeline: buildTimelineV2(currentProject.tracks, duration),
+            timeline: buildTimelineV2(currentProject.tracks, duration, {
+              markers: currentProject.timeline.markers,
+              layers: currentProject.timeline.layers,
+              subtitleBindings: currentProject.timeline.subtitleBindings,
+              audioMix: currentProject.timeline.audioMix,
+            }),
             updatedAt: Date.now(),
           },
         });
@@ -417,20 +594,47 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
       },
 
       // History (undo/redo)
-      pushHistory: (action, tracks, duration) => {
-        const { history, historyIndex, maxHistorySize } = get();
+      pushHistory: (action, tracks, duration, snapshot = {}) => {
+        const {
+          history,
+          historyIndex,
+          maxHistorySize,
+          timelineRevision,
+          selectedClipIds,
+          selectedTrackId,
+          currentTime,
+          currentProject,
+          editSession,
+        } = get();
 
-        const snapshot: HistorySnapshot = {
+        const selection = sanitizeSnapshotSelection(tracks, duration, {
+          selectedClipIds: snapshot.selectedClipIds ?? selectedClipIds,
+          selectedTrackId: snapshot.selectedTrackId ?? selectedTrackId,
+          currentTime: snapshot.currentTime ?? currentTime,
+        });
+
+        const timeline = snapshotTimeline({
+          markers: snapshot.markers ?? currentProject?.timeline.markers,
+          layers: snapshot.layers ?? currentProject?.timeline.layers,
+          subtitleBindings: snapshot.subtitleBindings ?? currentProject?.timeline.subtitleBindings,
+          audioMix: snapshot.audioMix ?? currentProject?.timeline.audioMix,
+        });
+
+        const nextRevision = timelineRevision + 1;
+        const historySnapshot: HistorySnapshot = {
           id: generateId(),
           timestamp: Date.now(),
           action,
+          revision: nextRevision,
           tracks: structuredClone(tracks),
           duration,
+          ...selection,
+          ...timeline,
         };
 
         // Remove any redo history
         const newHistory = history.slice(0, historyIndex + 1);
-        newHistory.push(snapshot);
+        newHistory.push(historySnapshot);
 
         // Limit history size
         if (newHistory.length > maxHistorySize) {
@@ -438,30 +642,149 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
         }
 
         set({
+          currentProject: currentProject
+            ? {
+                ...currentProject,
+                tracks: structuredClone(tracks),
+                duration,
+                timeline: buildTimelineV2(tracks, duration, timeline),
+                updatedAt: Date.now(),
+              }
+            : null,
           history: newHistory,
           historyIndex: newHistory.length - 1,
+          timelineRevision: nextRevision,
+          selectedClipIds: historySnapshot.selectedClipIds,
+          selectedTrackId: historySnapshot.selectedTrackId,
+          currentTime: historySnapshot.currentTime,
+          editSession: editSession
+            ? {
+                ...editSession,
+                lastCommittedRevision: nextRevision,
+                pendingOperation: null,
+                updatedAt: Date.now(),
+              }
+            : null,
+        });
+
+        return historySnapshot;
+      },
+
+      commitTimelineMutation: (input) => {
+        return get().pushHistory(input.action, input.tracks, input.duration, {
+          selectedClipIds: input.selectedClipIds,
+          selectedTrackId: input.selectedTrackId,
+          currentTime: input.currentTime,
+          markers: input.markers,
+          layers: input.layers,
+          subtitleBindings: input.subtitleBindings,
+          audioMix: input.audioMix,
         });
       },
 
       undo: () => {
-        const { history, historyIndex } = get();
+        const { history, historyIndex, currentProject, editSession } = get();
         if (historyIndex <= 0) return null;
 
         const newIndex = historyIndex - 1;
         const snapshot = history[newIndex];
+        const selection = sanitizeSnapshotSelection(snapshot.tracks, snapshot.duration, snapshot);
+        const timeline = snapshotTimeline(snapshot);
 
-        set({ historyIndex: newIndex });
+        set({
+          historyIndex: newIndex,
+          selectedClipIds: selection.selectedClipIds,
+          selectedTrackId: selection.selectedTrackId,
+          currentTime: selection.currentTime,
+          currentProject: currentProject
+            ? {
+                ...currentProject,
+                tracks: structuredClone(snapshot.tracks),
+                duration: snapshot.duration,
+                timeline: buildTimelineV2(snapshot.tracks, snapshot.duration, timeline),
+                updatedAt: Date.now(),
+              }
+            : null,
+          editSession: editSession
+            ? {
+                ...editSession,
+                lastCommittedRevision: snapshot.revision,
+                pendingOperation: 'undo',
+                updatedAt: Date.now(),
+              }
+            : null,
+        });
         return snapshot;
       },
 
       redo: () => {
-        const { history, historyIndex } = get();
+        const { history, historyIndex, currentProject, editSession } = get();
         if (historyIndex >= history.length - 1) return null;
 
         const newIndex = historyIndex + 1;
         const snapshot = history[newIndex];
+        const selection = sanitizeSnapshotSelection(snapshot.tracks, snapshot.duration, snapshot);
+        const timeline = snapshotTimeline(snapshot);
 
-        set({ historyIndex: newIndex });
+        set({
+          historyIndex: newIndex,
+          selectedClipIds: selection.selectedClipIds,
+          selectedTrackId: selection.selectedTrackId,
+          currentTime: selection.currentTime,
+          currentProject: currentProject
+            ? {
+                ...currentProject,
+                tracks: structuredClone(snapshot.tracks),
+                duration: snapshot.duration,
+                timeline: buildTimelineV2(snapshot.tracks, snapshot.duration, timeline),
+                updatedAt: Date.now(),
+              }
+            : null,
+          editSession: editSession
+            ? {
+                ...editSession,
+                lastCommittedRevision: snapshot.revision,
+                pendingOperation: 'redo',
+                updatedAt: Date.now(),
+              }
+            : null,
+        });
+        return snapshot;
+      },
+
+      jumpToHistory: (index) => {
+        const { history, currentProject, editSession } = get();
+        if (index < 0 || index >= history.length) {
+          return null;
+        }
+
+        const snapshot = history[index];
+        const selection = sanitizeSnapshotSelection(snapshot.tracks, snapshot.duration, snapshot);
+        const timeline = snapshotTimeline(snapshot);
+
+        set({
+          historyIndex: index,
+          selectedClipIds: selection.selectedClipIds,
+          selectedTrackId: selection.selectedTrackId,
+          currentTime: selection.currentTime,
+          currentProject: currentProject
+            ? {
+                ...currentProject,
+                tracks: structuredClone(snapshot.tracks),
+                duration: snapshot.duration,
+                timeline: buildTimelineV2(snapshot.tracks, snapshot.duration, timeline),
+                updatedAt: Date.now(),
+              }
+            : null,
+          editSession: editSession
+            ? {
+                ...editSession,
+                lastCommittedRevision: snapshot.revision,
+                pendingOperation: 'history-jump',
+                updatedAt: Date.now(),
+              }
+            : null,
+        });
         return snapshot;
       },
 
@@ -479,6 +802,80 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
         return historyIndex < history.length - 1;
       },
 
+      // Session
+      startEditSession: (input) => {
+        const now = Date.now();
+        const { timelineRevision } = get();
+        const session: VideoEditSession = {
+          sessionId: generateId(),
+          sourceType: input.sourceType,
+          sourceRef: input.sourceRef,
+          sourceMetadata: input.sourceMetadata,
+          workingProjectId: input.workingProjectId ?? get().currentProject?.id ?? null,
+          lastCommittedRevision: timelineRevision,
+          pendingOperation: null,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        set({ editSession: session });
+        return session;
+      },
+
+      resumeEditSession: (input) => {
+        const { editSession, currentProject, timelineRevision } = get();
+        const now = Date.now();
+
+        if (editSession && (!input?.sessionId || input.sessionId === editSession.sessionId)) {
+          const resumed: VideoEditSession = {
+            ...editSession,
+            sourceType: input?.sourceType ?? editSession.sourceType,
+            sourceRef: input?.sourceRef ?? editSession.sourceRef,
+            sourceMetadata: input?.sourceMetadata ?? editSession.sourceMetadata,
+            workingProjectId: input?.workingProjectId ?? editSession.workingProjectId,
+            updatedAt: now,
+          };
+          set({ editSession: resumed });
+          return resumed;
+        }
+
+        if (!editSession) {
+          const resumed: VideoEditSession = {
+            sessionId: input?.sessionId ?? generateId(),
+            sourceType: input?.sourceType ?? 'unknown',
+            sourceRef: input?.sourceRef ?? currentProject?.id ?? 'unknown-source',
+            sourceMetadata: input?.sourceMetadata,
+            workingProjectId: input?.workingProjectId ?? currentProject?.id ?? null,
+            lastCommittedRevision: timelineRevision,
+            pendingOperation: null,
+            createdAt: now,
+            updatedAt: now,
+          };
+          set({ editSession: resumed });
+          return resumed;
+        }
+
+        return null;
+      },
+
+      updatePendingOperation: (operation) => {
+        const { editSession } = get();
+        if (!editSession) {
+          return;
+        }
+        set({
+          editSession: {
+            ...editSession,
+            pendingOperation: operation,
+            updatedAt: Date.now(),
+          },
+        });
+      },
+
+      endEditSession: () => {
+        set({ editSession: null });
+      },
+
       // State management
       setLoading: (isLoading) => set({ isLoading }),
       setError: (error) => set({ error }),
@@ -488,6 +885,11 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
           currentProject: null,
           history: [],
           historyIndex: -1,
+          timelineRevision: 0,
+          selectedClipIds: [],
+          selectedTrackId: null,
+          currentTime: 0,
+          editSession: null,
           isLoading: false,
           error: null,
         });
@@ -507,5 +909,6 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
 export const selectCurrentProject = (state: VideoEditorState) => state.currentProject;
 export const selectRecentProjects = (state: VideoEditorState) => state.recentProjects;
 export const selectPreferences = (state: VideoEditorState) => state.preferences;
+export const selectEditSession = (state: VideoEditorState) => state.editSession;
 export const selectCanUndo = (state: VideoEditorState & VideoEditorActions) => state.canUndo();
 export const selectCanRedo = (state: VideoEditorState & VideoEditorActions) => state.canRedo();

@@ -58,6 +58,8 @@ export interface LaTeXState {
   documents: Record<string, LaTeXDocument>;
   currentDocumentId: string | null;
   documentHistory: LaTeXDocument[];
+  saveStatus: 'idle' | 'saving' | 'saved' | 'error';
+  lastSavedAt: number | null;
 
   // Version control
   versionControlService: LaTeXVersionControlService | null;
@@ -74,10 +76,10 @@ export interface LaTeXState {
 
   // Document actions
   createDocument: (name?: string, content?: string, templateId?: string) => LaTeXDocument;
-  saveDocument: (content: string, name?: string) => void;
+  saveDocument: (content: string, name?: string) => boolean;
   loadDocument: (documentId: string) => LaTeXDocument | null;
-  deleteDocument: (documentId: string) => void;
-  renameDocument: (documentId: string, newName: string) => void;
+  deleteDocument: (documentId: string) => boolean;
+  renameDocument: (documentId: string, newName: string) => boolean;
   duplicateDocument: (documentId: string) => LaTeXDocument | null;
 
   // Version control actions
@@ -132,6 +134,8 @@ export const useLatexStore = create<LaTeXState>()(
       documents: {},
       currentDocumentId: null,
       documentHistory: [],
+      saveStatus: 'idle',
+      lastSavedAt: null,
       versionControlService: null,
       citationLibrary: createCitationLibrary(),
       settings: DEFAULT_SETTINGS,
@@ -155,6 +159,9 @@ export const useLatexStore = create<LaTeXState>()(
           documents: { ...state.documents, [id]: doc },
           currentDocumentId: id,
           documentHistory: [doc, ...state.documentHistory].slice(0, 50),
+          saveStatus: 'saved',
+          lastSavedAt: now,
+          error: null,
         }));
 
         return doc;
@@ -162,21 +169,30 @@ export const useLatexStore = create<LaTeXState>()(
 
       saveDocument: (content, name) => {
         const { currentDocumentId, documents } = get();
+        set({ saveStatus: 'saving', error: null });
 
         if (!currentDocumentId) {
           // Create new document if none exists
           get().createDocument(name, content);
-          return;
+          return true;
         }
 
         const doc = documents[currentDocumentId];
-        if (!doc) return;
+        if (!doc) {
+          set({
+            saveStatus: 'error',
+            error: 'Unable to save document: active document no longer exists.',
+          });
+          return false;
+        }
+
+        const updatedAt = Date.now();
 
         const updatedDoc: LaTeXDocument = {
           ...doc,
           content,
           name: name || doc.name,
-          updatedAt: Date.now(),
+          updatedAt,
         };
 
         set((state) => ({
@@ -185,56 +201,98 @@ export const useLatexStore = create<LaTeXState>()(
             updatedDoc,
             ...state.documentHistory.filter((d) => d.id !== currentDocumentId),
           ].slice(0, 50),
+          saveStatus: 'saved',
+          lastSavedAt: updatedAt,
+          error: null,
         }));
+        return true;
       },
 
       loadDocument: (documentId) => {
         const doc = get().documents[documentId];
-        if (!doc) return null;
+        if (!doc) {
+          set({ error: `Unable to load document "${documentId}".` });
+          return null;
+        }
 
-        set({ currentDocumentId: documentId });
+        set({ currentDocumentId: documentId, error: null });
         return doc;
       },
 
       deleteDocument: (documentId) => {
+        const existing = get().documents[documentId];
+        if (!existing) {
+          set({ error: `Unable to delete document "${documentId}".` });
+          return false;
+        }
+
         set((state) => {
           const { [documentId]: _, ...remainingDocs } = state.documents;
+          const nextHistory = state.documentHistory.filter((d) => d.id !== documentId);
+          const nextCurrent =
+            state.currentDocumentId === documentId
+              ? nextHistory[0]?.id ?? Object.keys(remainingDocs)[0] ?? null
+              : state.currentDocumentId;
           return {
             documents: remainingDocs,
-            currentDocumentId:
-              state.currentDocumentId === documentId ? null : state.currentDocumentId,
-            documentHistory: state.documentHistory.filter((d) => d.id !== documentId),
+            currentDocumentId: nextCurrent,
+            documentHistory: nextHistory,
+            error: null,
           };
         });
+        return true;
       },
 
       renameDocument: (documentId, newName) => {
+        const normalizedName = newName.trim();
+        if (!normalizedName) {
+          set({ error: 'Document name cannot be empty.' });
+          return false;
+        }
+
         set((state) => {
           const doc = state.documents[documentId];
-          if (!doc) return state;
+          if (!doc) {
+            return {
+              ...state,
+              error: `Unable to rename document "${documentId}".`,
+            };
+          }
 
-          const updatedDoc = { ...doc, name: newName, updatedAt: Date.now() };
+          const updatedDoc = { ...doc, name: normalizedName, updatedAt: Date.now() };
           return {
             documents: { ...state.documents, [documentId]: updatedDoc },
+            documentHistory: state.documentHistory.map((entry) =>
+              entry.id === documentId ? updatedDoc : entry
+            ),
+            error: null,
           };
         });
+        return true;
       },
 
       duplicateDocument: (documentId) => {
         const doc = get().documents[documentId];
-        if (!doc) return null;
+        if (!doc) {
+          set({ error: `Unable to duplicate document "${documentId}".` });
+          return null;
+        }
 
+        set({ error: null });
         return get().createDocument(`${doc.name} (Copy)`, doc.content, doc.templateId);
       },
 
       // Version control actions
       initVersionControl: (documentId) => {
         const doc = get().documents[documentId];
-        if (!doc) return;
+        if (!doc) {
+          set({ error: `Unable to initialize version control for "${documentId}".` });
+          return;
+        }
 
         const service = new LaTeXVersionControlService();
         service.initDocument(documentId, doc.content);
-        set({ versionControlService: service });
+        set({ versionControlService: service, error: null });
       },
 
       createVersion: (message) => {
@@ -250,19 +308,32 @@ export const useLatexStore = create<LaTeXState>()(
 
       restoreVersion: (versionId) => {
         const { versionControlService, currentDocumentId } = get();
-        if (!versionControlService || !currentDocumentId) return false;
+        if (!versionControlService || !currentDocumentId) {
+          set({ error: 'Unable to restore version: version service is unavailable.' });
+          return false;
+        }
 
         // Find version number from versionId
         const history = versionControlService.getHistory(currentDocumentId);
-        if (!history) return false;
+        if (!history) {
+          set({ error: 'Unable to restore version: history not found.' });
+          return false;
+        }
 
         const versionEntry = history.versions.find((v: LaTeXVersionEntry) => v.id === versionId);
-        if (!versionEntry) return false;
+        if (!versionEntry) {
+          set({ error: `Unable to restore version "${versionId}".` });
+          return false;
+        }
 
         const restoredVersion = versionControlService.restoreVersion(currentDocumentId, versionEntry.version);
-        if (!restoredVersion) return false;
+        if (!restoredVersion) {
+          set({ error: `Failed to restore version "${versionId}".` });
+          return false;
+        }
 
         get().saveDocument(restoredVersion.content);
+        set({ error: null });
         return true;
       },
 
@@ -323,7 +394,7 @@ export const useLatexStore = create<LaTeXState>()(
       },
 
       // Utility actions
-      clearError: () => set({ error: null }),
+      clearError: () => set((state) => ({ error: null, saveStatus: state.saveStatus === 'error' ? 'idle' : state.saveStatus })),
       setLoading: (loading) => set({ isLoading: loading }),
     }),
     {
@@ -332,7 +403,10 @@ export const useLatexStore = create<LaTeXState>()(
       partialize: (state) => ({
         documents: state.documents,
         documentHistory: state.documentHistory,
+        currentDocumentId: state.currentDocumentId,
         settings: state.settings,
+        saveStatus: state.saveStatus,
+        lastSavedAt: state.lastSavedAt,
         // Note: citationLibrary entries are Maps, need special handling
         citationLibraryData: {
           entries: Array.from(state.citationLibrary.entries.entries()),

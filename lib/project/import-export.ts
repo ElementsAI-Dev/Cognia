@@ -311,6 +311,9 @@ function getFileExtension(type: KnowledgeFile['type']): string {
     excel: '.txt',
     csv: '.csv',
     html: '.html',
+    presentation: '.txt',
+    rtf: '.txt',
+    epub: '.txt',
   };
   return extensions[type] || '.txt';
 }

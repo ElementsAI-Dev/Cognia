@@ -23,6 +23,8 @@ import type {
 const MAX_PERSISTED_CONTENT_SIZE = 100 * 1024;
 /** Maximum total artifacts to persist (LRU eviction beyond this) */
 const MAX_PERSISTED_ARTIFACTS = 200;
+/** Maximum number of auto-save canvas versions retained per document */
+const MAX_CANVAS_AUTOSAVE_VERSIONS = 30;
 
 /**
  * Helper to ensure Date objects are properly parsed from storage
@@ -65,6 +67,30 @@ function rehydrateAnalysisResult(result: AnalysisResult): AnalysisResult {
     ...result,
     createdAt: ensureDate(result.createdAt),
   };
+}
+
+/**
+ * Keep manual versions intact while pruning oldest auto-save checkpoints.
+ */
+function applyCanvasVersionRetention(
+  versions: CanvasDocumentVersion[],
+  maxAutoSaveVersions = MAX_CANVAS_AUTOSAVE_VERSIONS
+): CanvasDocumentVersion[] {
+  const autoSaveVersions = versions
+    .filter((v) => v.isAutoSave)
+    .sort((a, b) => ensureDate(a.createdAt).getTime() - ensureDate(b.createdAt).getTime());
+
+  if (autoSaveVersions.length <= maxAutoSaveVersions) {
+    return versions;
+  }
+
+  const removeIds = new Set(
+    autoSaveVersions
+      .slice(0, autoSaveVersions.length - maxAutoSaveVersions)
+      .map((v) => v.id)
+  );
+
+  return versions.filter((v) => !removeIds.has(v.id));
 }
 
 interface ArtifactState {
@@ -573,7 +599,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
             ...state.canvasDocuments,
             [documentId]: {
               ...doc,
-              versions: [...(doc.versions || []), version],
+              versions: applyCanvasVersionRetention([...(doc.versions || []), version]),
               currentVersionId: version.id,
             },
           },
@@ -612,7 +638,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
                 content: version.content,
                 title: version.title,
                 updatedAt: new Date(),
-                versions: [...doc.versions, currentVersion],
+                versions: applyCanvasVersionRetention([...doc.versions, currentVersion]),
                 currentVersionId: versionId,
               },
             },

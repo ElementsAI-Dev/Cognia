@@ -131,7 +131,12 @@ describe('data-export v3', () => {
 
     expect(backup.version).toBe('3.0');
     expect(backup.manifest.version).toBe('3.0');
+    expect(backup.manifest.schemaVersion).toBe(3);
+    expect(backup.manifest.traceId).toBeTruthy();
+    expect(backup.manifest.exportedAt).toEqual(expect.any(String));
+    expect(backup.manifest.backend).toBe('web-dexie');
     expect(backup.manifest.integrity.algorithm).toBe('SHA-256');
+    expect(backup.manifest.integrity.checksum).toBe('payload-checksum');
     expect(backup.payload.sessions).toHaveLength(1);
   });
 
@@ -140,6 +145,18 @@ describe('data-export v3', () => {
     const parsed = JSON.parse(json);
     expect(parsed.version).toBe('enc-v1');
     expect(parsed.algorithm).toBe('AES-GCM');
+  });
+
+  it('preserves canonical payload checksum on encrypted envelope output', async () => {
+    const json = await exportToJSON();
+    const parsed = JSON.parse(json);
+    expect(parsed.checksum).toBe('payload-checksum');
+  });
+
+  it('keeps encrypted checksum metadata aligned when checksum export is disabled', async () => {
+    const json = await exportToJSON({ includeChecksum: false });
+    const parsed = JSON.parse(json);
+    expect(parsed.checksum).toBe('');
   });
 
   it('uses manual passphrase when provided', async () => {

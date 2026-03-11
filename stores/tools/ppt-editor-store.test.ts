@@ -13,26 +13,40 @@ import {
 import type { PPTPresentation } from '@/types/workflow';
 
 // Mock workflow types
-jest.mock('@/types/workflow', () => ({
-  createEmptySlide: jest.fn((layout: string, index: number) => ({
-    id: `slide-${index}`,
-    order: index,
-    layout,
-    title: '',
-    elements: [],
-    backgroundColor: '#ffffff',
-  })),
-  getDefaultPPTTheme: jest.fn((id: string) => ({
-    id,
-    name: 'Default',
-    primaryColor: '#3b82f6',
-    secondaryColor: '#64748b',
-    accentColor: '#f59e0b',
-    backgroundColor: '#ffffff',
-    textColor: '#1e293b',
-    fontFamily: 'Inter',
-  })),
-}));
+jest.mock('@/types/workflow', () => {
+  const actual = jest.requireActual('@/types/workflow');
+  return {
+    ...actual,
+    createEmptySlide: jest.fn((layout: string, index: number) => ({
+      id: `slide-${index}`,
+      order: index,
+      layout,
+      title: '',
+      elements: [],
+      backgroundColor: '#ffffff',
+    })),
+    getDefaultPPTTheme: jest.fn((id: string) => ({
+      id,
+      name: 'Default',
+      primaryColor: '#3b82f6',
+      secondaryColor: '#64748b',
+      accentColor: '#f59e0b',
+      backgroundColor: '#ffffff',
+      textColor: '#1e293b',
+      fontFamily: 'Inter',
+    })),
+    normalizePPTGenerationBlueprint: jest.fn(
+      (blueprint: Parameters<typeof actual.normalizePPTGenerationBlueprint>[0]) =>
+      actual.normalizePPTGenerationBlueprint(blueprint)
+    ),
+    createPPTGenerationSnapshot: jest.fn(
+      (data: Parameters<typeof actual.createPPTGenerationSnapshot>[0]) => ({
+        id: `snapshot-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        ...(data as Record<string, unknown>),
+      })
+    ),
+  };
+});
 
 const createMockPresentation = (): PPTPresentation => ({
   id: 'pres-1',
@@ -235,6 +249,114 @@ describe('usePPTEditorStore', () => {
       });
 
       expect(usePPTEditorStore.getState().presentation?.slides[1].elements.length).toBe(4);
+    });
+  });
+
+  describe('canva generation actions', () => {
+    beforeEach(() => {
+      const presentation = createMockPresentation();
+      presentation.slides[0] = {
+        ...presentation.slides[0],
+        content: 'A'.repeat(600),
+        bullets: [
+          'First bullet that is intentionally verbose to trigger auto-fit shortening behavior in balanced density mode.',
+          'Second bullet',
+          'Third bullet',
+          'Fourth bullet',
+          'Fifth bullet',
+          'Sixth bullet',
+          'Seventh bullet',
+        ],
+        elements: [
+          {
+            id: 'image-1',
+            type: 'image',
+            content: 'https://example.com/original.png',
+            position: { x: 99, y: 98, width: 50, height: 40 },
+          },
+        ],
+      };
+
+      act(() => {
+        usePPTEditorStore.getState().loadPresentation(presentation);
+      });
+    });
+
+    it('should apply layout swap while preserving slide identity', () => {
+      act(() => {
+        usePPTEditorStore.getState().applyLayoutSwap('slide-1', 'two-column');
+      });
+
+      const slide = usePPTEditorStore.getState().presentation?.slides[0];
+      expect(slide?.id).toBe('slide-1');
+      expect(slide?.layout).toBe('two-column');
+      expect(slide?.title).toBe('Slide 1');
+    });
+
+    it('should auto-fit and rebalance content with snapshot recording', () => {
+      act(() => {
+        usePPTEditorStore.getState().autoFitSlideContent('slide-1');
+        usePPTEditorStore.getState().rebalanceSlideHierarchy('slide-1');
+      });
+
+      const slide = usePPTEditorStore.getState().presentation?.slides[0];
+      const snapshots = usePPTEditorStore.getState().presentation?.metadata?.generationSnapshots || [];
+
+      expect((slide?.content || '').length).toBeLessThanOrEqual(360);
+      expect((slide?.bullets || []).length).toBeLessThanOrEqual(6);
+      expect(snapshots.map((snapshot) => snapshot.actionType)).toEqual(
+        expect.arrayContaining(['content-auto-fit', 'hierarchy-rebalance'])
+      );
+    });
+
+    it('should replace media in layout-safe bounds and provide style-aligned suggestions', () => {
+      act(() => {
+        usePPTEditorStore.getState().setGenerationBlueprint({ styleKitId: 'canva-bold' });
+        usePPTEditorStore
+          .getState()
+          .replaceSlideMedia('slide-1', 'https://example.com/replaced.png', 'image-1');
+      });
+
+      const slide = usePPTEditorStore.getState().presentation?.slides[0];
+      const image = slide?.elements.find((element) => element.id === 'image-1');
+      const suggestions = usePPTEditorStore.getState().getStyleAlignedVisualSuggestions('slide-1');
+
+      expect(image?.type).toBe('image');
+      expect(image?.content).toBe('https://example.com/replaced.png');
+      expect((image?.position?.x || 0) + (image?.position?.width || 0)).toBeLessThanOrEqual(100);
+      expect((image?.position?.y || 0) + (image?.position?.height || 0)).toBeLessThanOrEqual(100);
+      expect(suggestions).toContain('rocket');
+    });
+
+    it('should create snapshot lineage and restore previous state', () => {
+      let baseSnapshotId: string | null = null;
+      let derivedSnapshotId: string | null = null;
+
+      act(() => {
+        baseSnapshotId = usePPTEditorStore.getState().createGenerationSnapshot('manual-checkpoint');
+        usePPTEditorStore.getState().updateSlide('slide-1', { title: 'Mutated Title' });
+        derivedSnapshotId = usePPTEditorStore
+          .getState()
+          .createGenerationSnapshot('restore', baseSnapshotId || undefined, ['slide-1']);
+      });
+
+      const beforeRestore = usePPTEditorStore.getState().presentation?.slides[0];
+      expect(beforeRestore?.title).toBe('Mutated Title');
+
+      act(() => {
+        if (baseSnapshotId) {
+          usePPTEditorStore.getState().restoreGenerationSnapshot(baseSnapshotId);
+        }
+      });
+
+      const restoredState = usePPTEditorStore.getState().presentation;
+      const snapshots = restoredState?.metadata?.generationSnapshots || [];
+      const derived = snapshots.find((snapshot) => snapshot.id === derivedSnapshotId);
+
+      expect(restoredState?.slides[0].id).toBe('slide-1');
+      expect(restoredState?.slides[0].title).toBe('Slide 1');
+      expect(restoredState?.metadata?.activeSnapshotId).toBe(baseSnapshotId);
+      expect(derived?.sourceSnapshotId).toBe(baseSnapshotId || undefined);
     });
   });
 

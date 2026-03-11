@@ -62,6 +62,7 @@ export interface PPTOutlinePreviewProps {
   onRegenerateOutline?: () => void;
   onOutlineChange?: (outline: PPTOutline) => void;
   onCancel?: () => void;
+  cancelLabel?: string;
   className?: string;
 }
 
@@ -94,6 +95,7 @@ export function PPTOutlinePreview({
   onRegenerateOutline,
   onOutlineChange,
   onCancel,
+  cancelLabel,
   className,
 }: PPTOutlinePreviewProps) {
   const t = useTranslations('pptGenerator');
@@ -422,7 +424,7 @@ export function PPTOutlinePreview({
           )}
           {onCancel && (
             <Button variant="ghost" onClick={onCancel} disabled={isGenerating}>
-              {t('cancel')}
+              {cancelLabel || t('cancel')}
             </Button>
           )}
         </div>

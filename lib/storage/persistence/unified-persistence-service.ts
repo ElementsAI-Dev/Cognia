@@ -24,15 +24,23 @@ import { isTauri } from '@/lib/utils';
 import { invokeWithTrace } from '@/lib/native/invoke-with-trace';
 import { loggers } from '@/lib/logger';
 import { storageFeatureFlags } from './feature-flags';
+import { BACKUP_PACKAGE_SCHEMA_VERSION } from './types';
 import type {
   BackupAssetV3,
+  BackupImportIntegrityReport,
+  BackupImportMetadata,
+  BackupImportWarning,
   BackupPayloadV3,
   ExportSelectionOptions,
   ImportConflictResolution,
   PersistenceBackend,
+  PersistenceDiagnostic,
+  PersistenceDiagnosticCode,
+  PersistenceRuntimeMode,
+  PersistenceRuntimeStatus,
   PersistedChatMessage,
 } from './types';
-import type { Project, Session, UIMessage } from '@/types';
+import type { Artifact, Project, Session, UIMessage } from '@/types';
 import type { StoredSummary } from '@/types/learning/summary';
 
 // Adapter: convert PersistedChatMessage to DBMessage using the canonical toDBMessage
@@ -49,9 +57,75 @@ function fromDbMessage(message: DBMessage): PersistedChatMessage {
 const log = loggers.store;
 
 const CHAT_DB_SCHEMA_VERSION = 1;
+const DESKTOP_RECONCILIATION_BATCH_SIZE = 200;
+const DESKTOP_MESSAGE_PAGE_SIZE = 500;
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
 const STORAGE_SNAPSHOT_KEYS = ['selection-toolbar-storage', 'app-cache'] as const;
+
+interface DesktopSchemaInfo {
+  compatible: boolean;
+  expectedSchemaVersion?: number;
+  actualSchemaVersion?: number;
+  reasonCode?: string;
+  reason?: string;
+}
+
+const persistenceRuntimeState: {
+  mode: PersistenceRuntimeMode;
+  preflightChecked: boolean;
+  reconciliationCompleted: boolean;
+  expectedSchemaVersion: number;
+  actualSchemaVersion?: number;
+  lastTransitionAt: string;
+  diagnostic?: PersistenceDiagnostic;
+} = {
+  mode: isTauri() && storageFeatureFlags.desktopSqliteEnabled ? 'degraded-dexie-fallback' : 'web-dexie-only',
+  preflightChecked: false,
+  reconciliationCompleted: false,
+  expectedSchemaVersion: CHAT_DB_SCHEMA_VERSION,
+  lastTransitionAt: new Date().toISOString(),
+};
+
+function isDesktopRuntimeConfigured(): boolean {
+  return isTauri() && storageFeatureFlags.desktopSqliteEnabled;
+}
+
+function createDiagnostic(
+  code: PersistenceDiagnosticCode,
+  message: string,
+  fields: Partial<Omit<PersistenceDiagnostic, 'code' | 'message' | 'at'>> = {}
+): PersistenceDiagnostic {
+  return {
+    code,
+    message,
+    at: new Date().toISOString(),
+    ...fields,
+  };
+}
+
+function transitionRuntimeMode(
+  mode: PersistenceRuntimeMode,
+  diagnostic?: PersistenceDiagnostic,
+  actualSchemaVersion?: number
+): void {
+  persistenceRuntimeState.mode = mode;
+  persistenceRuntimeState.lastTransitionAt = new Date().toISOString();
+  persistenceRuntimeState.diagnostic = diagnostic;
+  persistenceRuntimeState.actualSchemaVersion = actualSchemaVersion;
+}
+
+function getRuntimeStatus(): PersistenceRuntimeStatus {
+  return {
+    mode: persistenceRuntimeState.mode,
+    expectedSchemaVersion: persistenceRuntimeState.expectedSchemaVersion,
+    actualSchemaVersion: persistenceRuntimeState.actualSchemaVersion,
+    preflightChecked: persistenceRuntimeState.preflightChecked,
+    reconciliationCompleted: persistenceRuntimeState.reconciliationCompleted,
+    lastTransitionAt: persistenceRuntimeState.lastTransitionAt,
+    diagnostic: persistenceRuntimeState.diagnostic,
+  };
+}
 
 function createTraceId(): string {
   if (globalThis.crypto?.randomUUID) {
@@ -197,26 +271,297 @@ function fromDbSummary(summary: DBSummary): StoredSummary {
   };
 }
 
+async function invokeDesktopCommandRaw<TResult>(
+  command: string,
+  payload: Record<string, unknown>
+): Promise<TResult> {
+  const traceId = createTraceId();
+  return invokeWithTrace<TResult>(command, {
+    schemaVersion: CHAT_DB_SCHEMA_VERSION,
+    traceId,
+    ...payload,
+  });
+}
 
+function toEpoch(value: unknown): number {
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+}
 
+function recordFreshness(record: { updatedAt?: unknown; createdAt?: unknown }): number {
+  const updatedAt = toEpoch(record.updatedAt);
+  if (updatedAt > 0) {
+    return updatedAt;
+  }
+  return toEpoch(record.createdAt);
+}
+
+function mergeRecordsByFreshness<T extends { id: string; updatedAt?: unknown; createdAt?: unknown }>(
+  dexieRecords: T[],
+  desktopRecords: T[]
+): T[] {
+  const merged = new Map<string, T>();
+  for (const record of dexieRecords) {
+    merged.set(record.id, record);
+  }
+  for (const record of desktopRecords) {
+    const existing = merged.get(record.id);
+    if (!existing) {
+      merged.set(record.id, record);
+      continue;
+    }
+    if (recordFreshness(record) > recordFreshness(existing)) {
+      merged.set(record.id, record);
+    }
+  }
+  return Array.from(merged.values());
+}
+
+function chunkArray<T>(records: T[], chunkSize = DESKTOP_RECONCILIATION_BATCH_SIZE): T[][] {
+  if (records.length === 0) {
+    return [];
+  }
+  const chunks: T[][] = [];
+  for (let index = 0; index < records.length; index += chunkSize) {
+    chunks.push(records.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
+
+interface DesktopMessagesPage {
+  items: PersistedChatMessage[];
+  limit: number;
+  offset: number;
+  total: number;
+  hasMore: boolean;
+}
+
+async function listDesktopMessagesPagedRaw(): Promise<PersistedChatMessage[]> {
+  const records: PersistedChatMessage[] = [];
+  let offset = 0;
+  while (true) {
+    const page = await invokeDesktopCommandRaw<DesktopMessagesPage>('chat_db_get_messages_page', {
+      limit: DESKTOP_MESSAGE_PAGE_SIZE,
+      offset,
+    });
+    if (!Array.isArray(page.items) || page.items.length === 0) {
+      if (!page.hasMore) {
+        break;
+      }
+      offset += DESKTOP_MESSAGE_PAGE_SIZE;
+      continue;
+    }
+    records.push(...page.items);
+    if (!page.hasMore) {
+      break;
+    }
+    offset += page.items.length;
+  }
+  return records;
+}
+
+async function mirrorSessionsToDesktopRaw(sessions: Session[]): Promise<void> {
+  for (const chunk of chunkArray(sessions)) {
+    await invokeDesktopCommandRaw('chat_db_upsert_sessions_batch', {
+      sessions: serializeDesktopPayload(chunk),
+    });
+  }
+}
+
+async function mirrorMessagesToDesktopRaw(messages: PersistedChatMessage[]): Promise<void> {
+  for (const chunk of chunkArray(messages)) {
+    await invokeDesktopCommandRaw('chat_db_upsert_messages_batch', {
+      messages: serializeDesktopPayload(chunk),
+    });
+  }
+}
+
+async function mirrorKnowledgeFilesToDesktopRaw(knowledgeFiles: DBKnowledgeFile[]): Promise<void> {
+  for (const chunk of chunkArray(knowledgeFiles)) {
+    await invokeDesktopCommandRaw('chat_db_upsert_knowledge_files_batch', {
+      knowledgeFiles: serializeDesktopPayload(chunk),
+    });
+  }
+}
+
+async function mirrorProjectsToDesktopRaw(projects: Project[]): Promise<void> {
+  for (const project of projects) {
+    await invokeDesktopCommandRaw('chat_db_upsert_project', {
+      project: serializeDesktopPayload(project),
+    });
+  }
+}
+
+async function mirrorSummariesToDesktopRaw(summaries: StoredSummary[]): Promise<void> {
+  for (const summary of summaries) {
+    await invokeDesktopCommandRaw('chat_db_upsert_summary', {
+      summary: serializeDesktopPayload(summary),
+    });
+  }
+}
+
+async function reconcileMirroredStoresWithDesktop(): Promise<void> {
+  const [desktopSessionsRaw, desktopProjectsRaw, desktopKnowledgeFilesRaw, desktopSummariesRaw] =
+    await Promise.all([
+      invokeDesktopCommandRaw<Session[]>('chat_db_list_sessions', {}),
+      invokeDesktopCommandRaw<Project[]>('chat_db_list_projects', {}),
+      invokeDesktopCommandRaw<DBKnowledgeFile[]>('chat_db_list_knowledge_files', {}),
+      invokeDesktopCommandRaw<StoredSummary[]>('chat_db_list_summaries', {}),
+    ]);
+  const desktopMessagesRaw = await listDesktopMessagesPagedRaw();
+
+  const desktopSessions = desktopSessionsRaw.map((session) => maybeDate(session) as Session);
+  const desktopProjects = desktopProjectsRaw.map((project) => maybeDate(project) as Project);
+  const desktopKnowledgeFiles = desktopKnowledgeFilesRaw.map(
+    (knowledgeFile) => maybeDate(knowledgeFile) as DBKnowledgeFile
+  );
+  const desktopSummaries = desktopSummariesRaw.map((summary) => maybeDate(summary) as StoredSummary);
+  const desktopMessages = desktopMessagesRaw.map((message) => maybeDate(message) as PersistedChatMessage);
+
+  const dexieSessions = await sessionRepository.getAll();
+  const dexieMessages = (await db.messages.toArray()).map(fromDbMessage);
+  const dexieProjects = await projectRepository.getAll();
+  const dexieKnowledgeFiles = await db.knowledgeFiles.toArray();
+  const dexieSummaries = (await db.summaries.toArray()).map(fromDbSummary);
+
+  const mergedSessions = mergeRecordsByFreshness(dexieSessions, desktopSessions);
+  const mergedMessages = mergeRecordsByFreshness(dexieMessages, desktopMessages);
+  const mergedProjects = mergeRecordsByFreshness(dexieProjects, desktopProjects);
+  const mergedKnowledgeFiles = mergeRecordsByFreshness(dexieKnowledgeFiles, desktopKnowledgeFiles);
+  const mergedSummaries = mergeRecordsByFreshness(dexieSummaries, desktopSummaries);
+
+  await db.transaction('rw', [db.sessions, db.messages, db.projects, db.summaries, db.knowledgeFiles], async () => {
+    await db.sessions.bulkPut(mergedSessions.map((session) => sessionToDbSession(session)));
+    await db.messages.bulkPut(mergedMessages.map((message) => persistedToDbMessage(message)));
+    await db.projects.bulkPut(mergedProjects.map((project) => toDbProject(project)));
+    await db.summaries.bulkPut(mergedSummaries.map((summary) => toDbSummary(summary)));
+    await db.knowledgeFiles.bulkPut(mergedKnowledgeFiles);
+  });
+
+  await mirrorSessionsToDesktopRaw(mergedSessions);
+  await mirrorMessagesToDesktopRaw(mergedMessages);
+  await mirrorProjectsToDesktopRaw(mergedProjects);
+  await mirrorKnowledgeFilesToDesktopRaw(mergedKnowledgeFiles);
+  await mirrorSummariesToDesktopRaw(mergedSummaries);
+}
+
+async function runDesktopPreflight(): Promise<boolean> {
+  try {
+    const schemaInfo = await invokeDesktopCommandRaw<DesktopSchemaInfo>('chat_db_get_schema_info', {});
+    persistenceRuntimeState.preflightChecked = true;
+
+    const actualSchemaVersion = schemaInfo.actualSchemaVersion;
+    if (!schemaInfo.compatible || actualSchemaVersion !== CHAT_DB_SCHEMA_VERSION) {
+      transitionRuntimeMode(
+        'degraded-dexie-fallback',
+        createDiagnostic(
+          'schema-mismatch',
+          schemaInfo.reason || 'Desktop SQLite schema mismatch detected.',
+          {
+            expectedSchemaVersion: CHAT_DB_SCHEMA_VERSION,
+            actualSchemaVersion,
+          }
+        ),
+        actualSchemaVersion
+      );
+      return false;
+    }
+
+    transitionRuntimeMode('desktop-primary', undefined, actualSchemaVersion);
+    return true;
+  } catch (error) {
+    persistenceRuntimeState.preflightChecked = true;
+    transitionRuntimeMode(
+      'degraded-dexie-fallback',
+      createDiagnostic(
+        'schema-check-failed',
+        error instanceof Error ? error.message : String(error),
+        {
+          expectedSchemaVersion: CHAT_DB_SCHEMA_VERSION,
+        }
+      )
+    );
+    return false;
+  }
+}
+
+async function ensureDesktopReady(): Promise<boolean> {
+  if (!isDesktopRuntimeConfigured()) {
+    transitionRuntimeMode(
+      'web-dexie-only',
+      createDiagnostic(
+        isTauri() ? 'desktop-disabled' : 'desktop-not-available',
+        isTauri()
+          ? 'Desktop SQLite feature flag is disabled.'
+          : 'Desktop SQLite is unavailable outside Tauri runtime.'
+      )
+    );
+    return false;
+  }
+
+  if (!persistenceRuntimeState.preflightChecked) {
+    const preflightOk = await runDesktopPreflight();
+    if (!preflightOk) {
+      return false;
+    }
+  }
+
+  if (persistenceRuntimeState.mode !== 'desktop-primary') {
+    return false;
+  }
+
+  if (!persistenceRuntimeState.reconciliationCompleted) {
+    try {
+      await reconcileMirroredStoresWithDesktop();
+      persistenceRuntimeState.reconciliationCompleted = true;
+    } catch (error) {
+      transitionRuntimeMode(
+        'degraded-dexie-fallback',
+        createDiagnostic(
+          'reconciliation-failed',
+          error instanceof Error ? error.message : String(error)
+        ),
+        persistenceRuntimeState.actualSchemaVersion
+      );
+      return false;
+    }
+  }
+
+  return true;
+}
 
 async function invokeDesktopCommand<TResult>(
   command: string,
   payload: Record<string, unknown>
 ): Promise<TResult | null> {
-  if (!isTauri() || !storageFeatureFlags.desktopSqliteEnabled) {
+  if (!(await ensureDesktopReady())) {
     return null;
   }
 
-  const traceId = createTraceId();
   try {
-    const result = await invokeWithTrace<TResult>(command, {
-      schemaVersion: CHAT_DB_SCHEMA_VERSION,
-      traceId,
-      ...payload,
-    });
+    const result = await invokeDesktopCommandRaw<TResult>(command, payload);
+    transitionRuntimeMode('desktop-primary', undefined, persistenceRuntimeState.actualSchemaVersion);
     return result;
   } catch (error) {
+    transitionRuntimeMode(
+      'degraded-dexie-fallback',
+      createDiagnostic(
+        'desktop-command-failed',
+        error instanceof Error ? error.message : String(error),
+        {
+          command,
+          expectedSchemaVersion: CHAT_DB_SCHEMA_VERSION,
+          actualSchemaVersion: persistenceRuntimeState.actualSchemaVersion,
+        }
+      ),
+      persistenceRuntimeState.actualSchemaVersion
+    );
     log.warn('Desktop SQLite command failed, fallback to Dexie', {
       command,
       error: error instanceof Error ? error.message : String(error),
@@ -226,7 +571,7 @@ async function invokeDesktopCommand<TResult>(
 }
 
 function getBackend(): PersistenceBackend {
-  if (isTauri() && storageFeatureFlags.desktopSqliteEnabled) {
+  if (persistenceRuntimeState.mode === 'desktop-primary') {
     return 'desktop-sqlite';
   }
   return 'web-dexie';
@@ -283,48 +628,9 @@ function serializeDesktopPayload<T>(value: T): T {
   })) as T;
 }
 
-async function rebuildDexieFromDesktop(): Promise<void> {
-  const desktopSessions = await invokeDesktopCommand<Session[]>('chat_db_list_sessions', {});
-  const desktopProjects = await invokeDesktopCommand<Project[]>('chat_db_list_projects', {});
-  const desktopKnowledgeFiles = await invokeDesktopCommand<DBKnowledgeFile[]>('chat_db_list_knowledge_files', {});
-  const desktopSummaries = await invokeDesktopCommand<StoredSummary[]>('chat_db_list_summaries', {});
-  const desktopMessages = await invokeDesktopCommand<PersistedChatMessage[]>('chat_db_list_messages', {});
-
-  if (!desktopSessions && !desktopProjects && !desktopKnowledgeFiles && !desktopSummaries && !desktopMessages) {
-    return;
-  }
-
-  await db.transaction(
-    'rw',
-    [db.sessions, db.messages, db.projects, db.summaries, db.knowledgeFiles],
-    async () => {
-      if (desktopSessions) {
-        await db.sessions.bulkPut(desktopSessions.map((session) => sessionToDbSession(maybeDate(session) as Session)));
-      }
-      if (desktopMessages) {
-        await db.messages.bulkPut(
-          desktopMessages.map((message) => persistedToDbMessage(maybeDate(message) as PersistedChatMessage))
-        );
-      }
-      if (desktopProjects) {
-        await db.projects.bulkPut(
-          desktopProjects.map((project) => toDbProject(maybeDate(project) as Project))
-        );
-      }
-      if (desktopSummaries) {
-        await db.summaries.bulkPut(desktopSummaries.map((summary) => toDbSummary(maybeDate(summary) as StoredSummary)));
-      }
-      if (desktopKnowledgeFiles) {
-        await db.knowledgeFiles.bulkPut(
-          desktopKnowledgeFiles.map((knowledgeFile) => maybeDate(knowledgeFile) as DBKnowledgeFile)
-        );
-      }
-    }
-  );
-}
-
 export const unifiedPersistenceService = {
   getBackend,
+  getRuntimeStatus,
 
   async clearDomainData(): Promise<void> {
     await Promise.all([
@@ -350,10 +656,13 @@ export const unifiedPersistenceService = {
   sessions: {
     async list(): Promise<Session[]> {
       const sessions = await sessionRepository.getAll();
-      if (sessions.length > 0 || getBackend() !== 'desktop-sqlite') {
+      if (sessions.length > 0) {
         return sessions;
       }
-      await rebuildDexieFromDesktop();
+      await ensureDesktopReady();
+      if (persistenceRuntimeState.mode !== 'desktop-primary') {
+        return sessions;
+      }
       return sessionRepository.getAll();
     },
 
@@ -404,10 +713,13 @@ export const unifiedPersistenceService = {
   projects: {
     async list() {
       const projects = await projectRepository.getAll();
-      if (projects.length > 0 || getBackend() !== 'desktop-sqlite') {
+      if (projects.length > 0) {
         return projects;
       }
-      await rebuildDexieFromDesktop();
+      await ensureDesktopReady();
+      if (persistenceRuntimeState.mode !== 'desktop-primary') {
+        return projects;
+      }
       return projectRepository.getAll();
     },
 
@@ -563,27 +875,110 @@ export const unifiedPersistenceService = {
       return payload;
     },
 
-    async importPayload(payload: BackupPayloadV3, strategy: ImportConflictResolution): Promise<{
+    async importPayload(
+      payload: BackupPayloadV3,
+      strategy: ImportConflictResolution,
+      metadata: BackupImportMetadata = {}
+    ): Promise<{
       importedSessions: number;
       importedMessages: number;
       importedProjects: number;
       importedSummaries: number;
       warnings: string[];
+      warningDetails: BackupImportWarning[];
+      integrity: BackupImportIntegrityReport;
     }> {
       const warnings: string[] = [];
+      const warningDetails: BackupImportWarning[] = [];
+      const rejectedSegments: string[] = [];
+      const importPayload = payload as Partial<Record<keyof BackupPayloadV3, unknown>>;
+      let sessionRemaps = 0;
+      let messageRemaps = 0;
+
+      const appendWarning = (warning: BackupImportWarning): void => {
+        warningDetails.push(warning);
+        warnings.push(warning.message);
+      };
+
+      const readArraySegment = <T>(
+        segment: keyof BackupPayloadV3,
+        entity: BackupImportWarning['entity']
+      ): T[] => {
+        const value = importPayload[segment];
+        if (value === undefined || value === null) {
+          return [];
+        }
+        if (Array.isArray(value)) {
+          return value as T[];
+        }
+        const message = `Skipped incompatible payload segment "${String(segment)}"`;
+        appendWarning({
+          code: 'incompatible-segment',
+          message,
+          entity,
+          id: String(segment),
+        });
+        rejectedSegments.push(String(segment));
+        return [];
+      };
+
+      if (
+        typeof metadata.schemaVersion === 'number'
+        && metadata.schemaVersion > BACKUP_PACKAGE_SCHEMA_VERSION
+      ) {
+        const message = `Backup schema version ${metadata.schemaVersion} is newer than supported version ${BACKUP_PACKAGE_SCHEMA_VERSION}`;
+        appendWarning({
+          code: 'schema-version-unsupported',
+          message,
+          entity: 'manifest',
+        });
+        throw new Error(message);
+      }
+
+      const sessionsSegment = readArraySegment<Session>('sessions', 'session');
+      const messagesSegment = readArraySegment<PersistedChatMessage>('messages', 'message');
+      const projectsSegment = readArraySegment<Project>('projects', 'project');
+      const knowledgeFilesSegment = readArraySegment<DBKnowledgeFile>('knowledgeFiles', 'knowledge-file');
+      const summariesSegment = readArraySegment<StoredSummary>('summaries', 'summary');
+      const documentsSegment = readArraySegment<DBDocument>('documents', 'payload');
+      const workflowsSegment = readArraySegment<DBWorkflow>('workflows', 'payload');
+      const workflowExecutionsSegment = readArraySegment<DBWorkflowExecution>('workflowExecutions', 'payload');
+      const agentTracesSegment = readArraySegment<DBAgentTrace>('agentTraces', 'payload');
+      const checkpointsSegment = readArraySegment<DBCheckpoint>('checkpoints', 'payload');
+      const contextFilesSegment = readArraySegment<DBContextFile>('contextFiles', 'payload');
+      const videoProjectsSegment = readArraySegment<DBVideoProject>('videoProjects', 'payload');
+      const assetsSegment = readArraySegment<BackupAssetV3>('assets', 'payload');
+      const foldersSegment = readArraySegment<DBFolder>('folders', 'payload');
+      const mcpServersSegment = readArraySegment<DBMCPServer>('mcpServers', 'payload');
+
       const existingSessionIds = new Set((await db.sessions.toCollection().primaryKeys()) as string[]);
       const sessionIdMap = new Map<string, string>();
 
       let importedSessions = 0;
-      for (let index = 0; index < payload.sessions.length; index++) {
-        const session = maybeDate(payload.sessions[index]) as Session;
+      for (let index = 0; index < sessionsSegment.length; index++) {
+        const session = maybeDate(sessionsSegment[index]) as Session;
         const alreadyExists = existingSessionIds.has(session.id);
         if (alreadyExists && strategy === 'skip') {
-          warnings.push(`Skipped session ${session.title}`);
+          appendWarning({
+            code: 'session-skipped',
+            message: `Skipped session ${session.title}`,
+            entity: 'session',
+            id: session.id,
+          });
           continue;
         }
 
         const prepared = alreadyExists ? remapImportedSession(session, strategy, index) : session;
+        if (alreadyExists && prepared.id !== session.id) {
+          sessionRemaps++;
+          appendWarning({
+            code: 'session-renamed',
+            message: `Renamed session ${session.title} to avoid id conflict`,
+            entity: 'session',
+            id: session.id,
+          });
+        }
+
         sessionIdMap.set(session.id, prepared.id);
         await unifiedPersistenceService.sessions.upsert(prepared);
         importedSessions++;
@@ -591,24 +986,41 @@ export const unifiedPersistenceService = {
 
       const existingMessageIds = new Set((await db.messages.toCollection().primaryKeys()) as string[]);
       const remappedMessages: PersistedChatMessage[] = [];
-      for (let index = 0; index < payload.messages.length; index++) {
-        const message = maybeDate(payload.messages[index]) as PersistedChatMessage;
+      for (let index = 0; index < messagesSegment.length; index++) {
+        const message = maybeDate(messagesSegment[index]) as PersistedChatMessage;
         const mappedSessionId = sessionIdMap.get(message.sessionId) || message.sessionId;
         const exists = existingMessageIds.has(message.id);
         if (exists && strategy === 'skip') {
+          appendWarning({
+            code: 'message-skipped',
+            message: `Skipped message ${message.id}`,
+            entity: 'message',
+            id: message.id,
+          });
           continue;
         }
-        const mappedMessage: PersistedChatMessage = {
+        const remappedId = exists && strategy === 'merge-rename'
+          ? `${message.id}-import-${index + 1}`
+          : message.id;
+        if (remappedId !== message.id) {
+          messageRemaps++;
+          appendWarning({
+            code: 'message-renamed',
+            message: `Renamed message ${message.id} to avoid id conflict`,
+            entity: 'message',
+            id: message.id,
+          });
+        }
+        remappedMessages.push({
           ...message,
-          id: exists && strategy === 'merge-rename' ? `${message.id}-import-${index + 1}` : message.id,
+          id: remappedId,
           sessionId: mappedSessionId,
-        };
-        remappedMessages.push(mappedMessage);
+        });
       }
       await unifiedPersistenceService.messages.upsertBatch(remappedMessages);
 
       let importedProjects = 0;
-      for (const project of payload.projects) {
+      for (const project of projectsSegment) {
         const preparedProject = maybeDate(project) as Project;
         const remappedProject: Project = {
           ...preparedProject,
@@ -620,15 +1032,15 @@ export const unifiedPersistenceService = {
         importedProjects++;
       }
 
-      if (payload.knowledgeFiles.length > 0) {
-        const normalizedKnowledgeFiles = payload.knowledgeFiles.map(
+      if (knowledgeFilesSegment.length > 0) {
+        const normalizedKnowledgeFiles = knowledgeFilesSegment.map(
           (file) => maybeDate(file) as DBKnowledgeFile
         );
         await unifiedPersistenceService.projects.upsertKnowledgeFiles(normalizedKnowledgeFiles);
       }
 
       let importedSummaries = 0;
-      for (const summary of payload.summaries) {
+      for (const summary of summariesSegment) {
         const normalized = maybeDate(summary) as StoredSummary;
         const mappedSessionId = sessionIdMap.get(normalized.sessionId) || normalized.sessionId;
         await unifiedPersistenceService.summaries.upsert({
@@ -638,18 +1050,35 @@ export const unifiedPersistenceService = {
         importedSummaries++;
       }
 
-      if (payload.settings) {
+      if (
+        importPayload.settings
+        && typeof importPayload.settings === 'object'
+        && !Array.isArray(importPayload.settings)
+      ) {
         const { useSettingsStore } = await import('@/stores');
         const settingsStore = useSettingsStore.getState();
-        if (typeof payload.settings.theme === 'string') {
-          settingsStore.setTheme(payload.settings.theme as 'light' | 'dark' | 'system');
+        const settings = importPayload.settings as Record<string, unknown>;
+        if (typeof settings.theme === 'string') {
+          settingsStore.setTheme(settings.theme as 'light' | 'dark' | 'system');
         }
+      } else if (importPayload.settings !== undefined) {
+        appendWarning({
+          code: 'incompatible-segment',
+          message: 'Skipped incompatible payload segment "settings"',
+          entity: 'payload',
+          id: 'settings',
+        });
+        rejectedSegments.push('settings');
       }
 
-      if (payload.artifacts) {
+      if (
+        importPayload.artifacts
+        && typeof importPayload.artifacts === 'object'
+        && !Array.isArray(importPayload.artifacts)
+      ) {
         const { useArtifactStore } = await import('@/stores');
         const artifactStore = useArtifactStore.getState();
-        for (const artifact of Object.values(payload.artifacts)) {
+        for (const artifact of Object.values(importPayload.artifacts as Record<string, Artifact>)) {
           artifactStore.createArtifact({
             sessionId: artifact.sessionId || '',
             messageId: artifact.messageId || '',
@@ -659,45 +1088,42 @@ export const unifiedPersistenceService = {
             language: artifact.language,
           });
         }
+      } else if (importPayload.artifacts !== undefined) {
+        appendWarning({
+          code: 'incompatible-segment',
+          message: 'Skipped incompatible payload segment "artifacts"',
+          entity: 'payload',
+          id: 'artifacts',
+        });
+        rejectedSegments.push('artifacts');
       }
 
-      if (payload.documents) {
-        await db.documents.bulkPut(payload.documents.map((document) => maybeDate(document) as DBDocument));
-      }
-      if (payload.workflows) {
-        await db.workflows.bulkPut(payload.workflows.map((workflow) => maybeDate(workflow) as DBWorkflow));
-      }
-      if (payload.workflowExecutions) {
-        await db.workflowExecutions.bulkPut(
-          payload.workflowExecutions.map((execution) => maybeDate(execution) as DBWorkflowExecution)
-        );
-      }
-      if (payload.agentTraces) {
-        await db.agentTraces.bulkPut(payload.agentTraces.map((trace) => maybeDate(trace) as DBAgentTrace));
-      }
-      if (payload.checkpoints) {
-        await db.checkpoints.bulkPut(payload.checkpoints.map((checkpoint) => maybeDate(checkpoint) as DBCheckpoint));
-      }
-      if (payload.contextFiles) {
-        await db.contextFiles.bulkPut(payload.contextFiles.map((contextFile) => maybeDate(contextFile) as DBContextFile));
-      }
-      if (payload.videoProjects) {
-        await db.videoProjects.bulkPut(payload.videoProjects.map((project) => maybeDate(project) as DBVideoProject));
-      }
-      if (payload.assets) {
-        await db.assets.bulkPut(payload.assets.map((asset) => toDbAsset(maybeDate(asset) as BackupAssetV3)));
-      }
-      if (payload.folders) {
-        await db.folders.bulkPut(payload.folders.map((folder) => maybeDate(folder) as DBFolder));
-      }
-      if (payload.mcpServers) {
-        await db.mcpServers.bulkPut(payload.mcpServers.map((server) => maybeDate(server) as DBMCPServer));
-      }
-      if (typeof window !== 'undefined' && payload.storageSnapshot) {
-        for (const [key, value] of Object.entries(payload.storageSnapshot.localStorage || {})) {
+      await db.documents.bulkPut(documentsSegment.map((document) => maybeDate(document) as DBDocument));
+      await db.workflows.bulkPut(workflowsSegment.map((workflow) => maybeDate(workflow) as DBWorkflow));
+      await db.workflowExecutions.bulkPut(
+        workflowExecutionsSegment.map((execution) => maybeDate(execution) as DBWorkflowExecution)
+      );
+      await db.agentTraces.bulkPut(agentTracesSegment.map((trace) => maybeDate(trace) as DBAgentTrace));
+      await db.checkpoints.bulkPut(checkpointsSegment.map((checkpoint) => maybeDate(checkpoint) as DBCheckpoint));
+      await db.contextFiles.bulkPut(contextFilesSegment.map((contextFile) => maybeDate(contextFile) as DBContextFile));
+      await db.videoProjects.bulkPut(videoProjectsSegment.map((project) => maybeDate(project) as DBVideoProject));
+      await db.assets.bulkPut(assetsSegment.map((asset) => toDbAsset(maybeDate(asset) as BackupAssetV3)));
+      await db.folders.bulkPut(foldersSegment.map((folder) => maybeDate(folder) as DBFolder));
+      await db.mcpServers.bulkPut(mcpServersSegment.map((server) => maybeDate(server) as DBMCPServer));
+
+      if (
+        typeof window !== 'undefined'
+        && importPayload.storageSnapshot
+        && typeof importPayload.storageSnapshot === 'object'
+      ) {
+        const storageSnapshot = importPayload.storageSnapshot as {
+          localStorage?: Record<string, string>;
+          sessionStorage?: Record<string, string>;
+        };
+        for (const [key, value] of Object.entries(storageSnapshot.localStorage || {})) {
           localStorage.setItem(key, value);
         }
-        for (const [key, value] of Object.entries(payload.storageSnapshot.sessionStorage || {})) {
+        for (const [key, value] of Object.entries(storageSnapshot.sessionStorage || {})) {
           sessionStorage.setItem(key, value);
         }
       }
@@ -708,6 +1134,18 @@ export const unifiedPersistenceService = {
         importedProjects,
         importedSummaries,
         warnings,
+        warningDetails,
+        integrity: {
+          requestedSchemaVersion: metadata.schemaVersion,
+          sourceBackend: metadata.backend,
+          traceId: metadata.traceId,
+          accepted: rejectedSegments.length === 0,
+          rejectedSegments,
+          reconciliation: {
+            sessionRemaps,
+            messageRemaps,
+          },
+        },
       };
     },
   },
@@ -796,3 +1234,20 @@ export const unifiedPersistenceService = {
 };
 
 export type UnifiedPersistenceService = typeof unifiedPersistenceService;
+
+function resetRuntimeStateForTest(): void {
+  persistenceRuntimeState.mode = isTauri() && storageFeatureFlags.desktopSqliteEnabled
+    ? 'degraded-dexie-fallback'
+    : 'web-dexie-only';
+  persistenceRuntimeState.preflightChecked = false;
+  persistenceRuntimeState.reconciliationCompleted = false;
+  persistenceRuntimeState.expectedSchemaVersion = CHAT_DB_SCHEMA_VERSION;
+  persistenceRuntimeState.actualSchemaVersion = undefined;
+  persistenceRuntimeState.lastTransitionAt = new Date().toISOString();
+  persistenceRuntimeState.diagnostic = undefined;
+}
+
+export const __testOnly = {
+  mergeRecordsByFreshness,
+  resetRuntimeStateForTest,
+};

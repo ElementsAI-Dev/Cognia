@@ -23,6 +23,7 @@ import {
   Check,
   X,
   ChevronDown,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { usePPTAI } from '@/hooks/designer/use-ppt-ai';
 import { buildImprovementPrompt, generateSpeakerNotesPrompt, suggestLayoutFromContent } from '../utils';
@@ -32,6 +33,8 @@ interface AIToolbarProps {
   slide: PPTSlide;
   presentation: PPTPresentation;
   onSlideUpdate: (updates: Partial<PPTSlide>) => void;
+  onReplaceMedia?: (mediaUrl: string, elementId?: string) => void;
+  styleAlignedSuggestions?: string[];
   className?: string;
 }
 
@@ -46,6 +49,8 @@ export function AIToolbar({
   slide,
   presentation,
   onSlideUpdate,
+  onReplaceMedia,
+  styleAlignedSuggestions = [],
   className,
 }: AIToolbarProps) {
   const t = useTranslations('pptEditor');
@@ -56,6 +61,7 @@ export function AIToolbar({
     action?: string;
   }>>([]);
   const [pendingUpdate, setPendingUpdate] = useState<Partial<PPTSlide> | null>(null);
+  const [mediaUrl, setMediaUrl] = useState('');
 
   const {
     isProcessing,
@@ -183,6 +189,28 @@ export function AIToolbar({
   const handleRejectUpdate = useCallback(() => {
     setPendingUpdate(null);
   }, []);
+
+  const handleReplaceMedia = useCallback(() => {
+    if (!mediaUrl.trim() || !onReplaceMedia) return;
+    onReplaceMedia(mediaUrl.trim());
+    setMediaUrl('');
+  }, [mediaUrl, onReplaceMedia]);
+
+  const handleApplyVisualSuggestion = useCallback(
+    (suggestion: string) => {
+      const existing = Array.isArray(slide.metadata?.styleAlignedSuggestions)
+        ? (slide.metadata?.styleAlignedSuggestions as string[])
+        : [];
+      const deduped = Array.from(new Set([...existing, suggestion]));
+      onSlideUpdate({
+        metadata: {
+          ...(slide.metadata || {}),
+          styleAlignedSuggestions: deduped,
+        },
+      });
+    },
+    [slide.metadata, onSlideUpdate]
+  );
 
   return (
     <div className={cn('flex items-center gap-1 flex-wrap', className)}>
@@ -368,6 +396,48 @@ export function AIToolbar({
           </div>
         </PopoverContent>
       </Popover>
+
+      {onReplaceMedia && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1">
+              <ImageIcon className="h-3.5 w-3.5" />
+              {t('replaceMedia') || 'Media'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 space-y-3" align="start">
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium">{t('replaceMedia') || 'Replace media'}</p>
+              <input
+                className="w-full rounded-md border px-2 py-1.5 text-xs"
+                placeholder={t('imageUrlPlaceholder') || 'https://...'}
+                value={mediaUrl}
+                onChange={(e) => setMediaUrl(e.target.value)}
+              />
+              <Button size="sm" className="h-7 text-xs" onClick={handleReplaceMedia} disabled={!mediaUrl.trim()}>
+                {t('apply') || 'Apply'}
+              </Button>
+            </div>
+            {styleAlignedSuggestions.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium">{t('styleAlignedSuggestions') || 'Style-aligned suggestions'}</p>
+                <div className="flex flex-wrap gap-1">
+                  {styleAlignedSuggestions.map((suggestion) => (
+                    <Badge
+                      key={suggestion}
+                      variant="outline"
+                      className="cursor-pointer text-[10px]"
+                      onClick={() => handleApplyVisualSuggestion(suggestion)}
+                    >
+                      {suggestion}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
+      )}
 
       {/* Processing indicator */}
       {isProcessing && (

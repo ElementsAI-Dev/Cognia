@@ -99,6 +99,14 @@ const defaultProps: EditorToolbarProps = {
   onAutoArrange: jest.fn(),
   onBringToFront: jest.fn(),
   onSendToBack: jest.fn(),
+  canvaExperienceEnabled: false,
+  onLayoutSwap: jest.fn(),
+  onAutoFitContent: jest.fn(),
+  onRebalanceHierarchy: jest.fn(),
+  onRegenerateSection: jest.fn(),
+  generationSnapshots: [],
+  activeSnapshotId: undefined,
+  onRestoreSnapshot: jest.fn(),
 };
 
 describe('EditorToolbar', () => {

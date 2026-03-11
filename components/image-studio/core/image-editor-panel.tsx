@@ -4,7 +4,7 @@
  * ImageEditorPanel - Main editing panel that switches between different editing modes
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,7 @@ export interface ImageEditorPanelProps {
   imageUrl: string;
   initialMode?: EditorMode;
   onSave?: (result: { dataUrl: string; mode: EditorMode }) => void;
+  onModeChange?: (mode: EditorMode) => void;
   onCancel?: () => void;
   className?: string;
 }
@@ -64,12 +65,17 @@ export function ImageEditorPanel({
   imageUrl,
   initialMode = 'crop',
   onSave,
+  onModeChange,
   onCancel,
   className,
 }: ImageEditorPanelProps) {
   const t = useTranslations('imageStudio.editorPanel');
   const [activeMode, setActiveMode] = useState<EditorMode>(initialMode);
   const [maskBase64, setMaskBase64] = useState<string | null>(null);
+
+  useEffect(() => {
+    onModeChange?.(activeMode);
+  }, [activeMode, onModeChange]);
 
   const handleMaskSave = (dataUrl: string) => {
     setMaskBase64(dataUrl);

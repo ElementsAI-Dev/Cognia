@@ -34,6 +34,11 @@ export {
   type BrushSettings,
   type ExportSettings,
   type ViewState,
+  type ImageEditSession,
+  type ImageOperationKey,
+  type ImageOperationState,
+  type ImageOperationLifecycle,
+  type CommitEditOperationInput,
 } from './image-studio-store';
 
 // Re-export types used by image studio from canonical source
@@ -91,10 +96,15 @@ export {
   selectCurrentProject,
   selectRecentProjects,
   selectPreferences,
+  selectEditSession,
   selectCanUndo,
   selectCanRedo,
   type VideoProject,
   type RecentProject,
   type EditorPreferences,
   type HistorySnapshot,
+  type VideoEditSession,
+  type VideoEditSessionSourceType,
+  type TimelineMutationInput,
+  type StartEditSessionInput,
 } from './video-editor-store';

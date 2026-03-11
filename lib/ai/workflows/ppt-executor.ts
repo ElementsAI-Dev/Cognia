@@ -62,6 +62,14 @@ export interface ExecutorState {
   endTime?: Date;
 }
 
+export interface PPTPreparedGenerationResult {
+  extractedMaterials: PPTMaterial[];
+  materialAnalysis: PPTMaterialAnalysis[];
+  contentSummary: Record<string, unknown>;
+  analysis: Record<string, unknown>;
+  outline: PPTEnhancedOutlineItem[];
+}
+
 interface CodedError extends Error {
   code?: string;
 }
@@ -327,6 +335,261 @@ export class PPTWorkflowExecutor {
    */
   getState(): ExecutorState {
     return { ...this.state };
+  }
+
+  async prepareGeneration(
+    options: PPTEnhancedGenerationOptions
+  ): Promise<PPTPreparedGenerationResult> {
+    this.state = this.createInitialState();
+    this.state.status = 'running';
+    this.state.startTime = new Date();
+    this.abortController = new AbortController();
+
+    let completedSteps = 0;
+    const totalSteps = (options.materials && options.materials.length > 0) ? 5 : 2;
+
+    const updateProgress = (stepName: string, stepProgress?: number) => {
+      const progress: PPTWorkflowProgress = {
+        currentStep: this.state.currentStep,
+        currentStepName: stepName,
+        completedSteps,
+        totalSteps,
+        percentage: Math.round((completedSteps / totalSteps) * 100),
+        currentStepProgress: stepProgress,
+      };
+      this.config.onProgress?.(progress);
+    };
+
+    try {
+      if (options.materials && options.materials.length > 0) {
+        const materialContractError = validateMaterialContract(options.materials);
+        if (materialContractError) {
+          throw materialContractError;
+        }
+      }
+
+      let extractedMaterials: PPTMaterial[] = [];
+      let materialAnalysis: PPTMaterialAnalysis[] = [];
+      let contentSummary: Record<string, unknown> = {};
+
+      if (options.materials && options.materials.length > 0) {
+        this.state.currentStep = 'process-materials';
+        updateProgress('Processing materials');
+
+        extractedMaterials = await this.processMaterials(options.materials);
+        completedSteps++;
+        this.state.completedSteps.push('process-materials');
+        this.config.onStepComplete?.('process-materials', extractedMaterials);
+
+        this.state.currentStep = 'analyze-materials';
+        updateProgress('Analyzing materials');
+
+        materialAnalysis = await this.analyzeMaterials(extractedMaterials, options);
+        completedSteps++;
+        this.state.completedSteps.push('analyze-materials');
+        this.config.onStepComplete?.('analyze-materials', materialAnalysis);
+
+        this.state.currentStep = 'summarize-content';
+        updateProgress('Summarizing content');
+
+        contentSummary = await this.summarizeContent(materialAnalysis, options);
+        completedSteps++;
+        this.state.completedSteps.push('summarize-content');
+        this.config.onStepComplete?.('summarize-content', contentSummary);
+      }
+
+      if (this.abortController.signal.aborted) {
+        throw createWorkflowError('Workflow cancelled by user', 'generation_error');
+      }
+
+      this.state.currentStep = 'analyze-requirements';
+      updateProgress('Analyzing requirements');
+
+      const analysis = await this.analyzeRequirements(options, contentSummary);
+      completedSteps++;
+      this.state.completedSteps.push('analyze-requirements');
+      this.config.onStepComplete?.('analyze-requirements', analysis);
+
+      this.state.currentStep = 'generate-outline';
+      updateProgress('Generating outline');
+
+      const outline = await this.generateEnhancedOutline(options, analysis, contentSummary);
+      completedSteps++;
+      this.state.completedSteps.push('generate-outline');
+      this.config.onStepComplete?.('generate-outline', outline);
+
+      return {
+        extractedMaterials,
+        materialAnalysis,
+        contentSummary,
+        analysis,
+        outline,
+      };
+    } catch (error) {
+      this.state.status = 'failed';
+      const err = error instanceof Error ? error : new Error('Unknown error');
+      this.state.errors.push(err.message);
+      this.config.onError?.(err, this.state.currentStep);
+      throw err;
+    }
+  }
+
+  async regeneratePreparedOutline(
+    options: PPTEnhancedGenerationOptions,
+    prepared: PPTPreparedGenerationResult
+  ): Promise<PPTEnhancedOutlineItem[]> {
+    this.state = this.createInitialState();
+    this.state.status = 'running';
+    this.state.startTime = new Date();
+    this.abortController = new AbortController();
+
+    try {
+      this.state.currentStep = 'generate-outline';
+      this.config.onProgress?.({
+        currentStep: this.state.currentStep,
+        currentStepName: 'Generating outline',
+        completedSteps: 0,
+        totalSteps: 1,
+        percentage: 0,
+      });
+
+      const outline = await this.generateEnhancedOutline(
+        options,
+        prepared.analysis,
+        prepared.contentSummary
+      );
+      this.config.onStepComplete?.('generate-outline', outline);
+      return outline;
+    } catch (error) {
+      this.state.status = 'failed';
+      const err = error instanceof Error ? error : new Error('Unknown error');
+      this.state.errors.push(err.message);
+      this.config.onError?.(err, this.state.currentStep);
+      throw err;
+    }
+  }
+
+  async finalizeGeneration(
+    options: PPTEnhancedGenerationOptions,
+    prepared: PPTPreparedGenerationResult,
+    outlineOverride?: PPTEnhancedOutlineItem[]
+  ): Promise<PPTWorkflowResult> {
+    this.state = this.createInitialState();
+    this.state.status = 'running';
+    this.state.startTime = new Date();
+    this.abortController = new AbortController();
+
+    let completedSteps = 0;
+    const totalSteps = options.generateImages !== false ? 5 : 4;
+
+    const updateProgress = (stepName: string, stepProgress?: number) => {
+      const progress: PPTWorkflowProgress = {
+        currentStep: this.state.currentStep,
+        currentStepName: stepName,
+        completedSteps,
+        totalSteps,
+        percentage: Math.round((completedSteps / totalSteps) * 100),
+        currentStepProgress: stepProgress,
+      };
+      this.config.onProgress?.(progress);
+    };
+
+    try {
+      const outline = outlineOverride || prepared.outline;
+
+      this.state.currentStep = 'generate-slides';
+      updateProgress('Generating slide content');
+
+      let slides = await this.generateSlideContent(options, outline, prepared.contentSummary);
+      completedSteps++;
+      this.state.completedSteps.push('generate-slides');
+      this.config.onStepComplete?.('generate-slides', slides);
+
+      let generatedImages: PPTSlideImageResult[] = [];
+      if (options.generateImages !== false) {
+        this.state.currentStep = 'generate-images';
+        updateProgress('Generating images');
+
+        const imageResult = await this.generateSlideImages(slides, options, (completed, total) => {
+          updateProgress('Generating images', Math.round((completed / total) * 100));
+        });
+
+        slides = imageResult.slides;
+        generatedImages = imageResult.generatedImages;
+        completedSteps++;
+        this.state.completedSteps.push('generate-images');
+        this.config.onStepComplete?.('generate-images', generatedImages);
+      }
+
+      this.state.currentStep = 'apply-design';
+      updateProgress('Applying design');
+
+      const designedSlides = await this.applyDesign(slides, options);
+      completedSteps++;
+      this.state.completedSteps.push('apply-design');
+      this.config.onStepComplete?.('apply-design', designedSlides);
+
+      this.state.currentStep = 'build-presentation';
+      updateProgress('Building presentation');
+
+      const theme = this.getTheme(options);
+      const presentation = buildEnhancedPresentation(
+        options,
+        outline,
+        designedSlides,
+        prepared.materialAnalysis,
+        theme as unknown as Record<string, unknown>
+      );
+      completedSteps++;
+      this.state.completedSteps.push('build-presentation');
+
+      this.state.currentStep = 'generate-marp';
+      updateProgress('Generating export formats');
+
+      const marpContent = generateMarpMarkdown(presentation);
+      completedSteps++;
+      this.state.completedSteps.push('generate-marp');
+
+      this.state.status = 'completed';
+      this.state.endTime = new Date();
+
+      return {
+        success: true,
+        presentation,
+        outline,
+        materialAnalysis: prepared.materialAnalysis,
+        generatedImages,
+        marpContent,
+        statistics: {
+          totalDuration: this.state.endTime.getTime() - this.state.startTime!.getTime(),
+          tokensUsed: 0,
+          imagesGenerated: generatedImages.filter((item) => item.success).length,
+          slidesCreated: designedSlides.length,
+          materialsProcessed: prepared.extractedMaterials.length,
+        },
+        warnings: this.state.warnings,
+      };
+    } catch (error) {
+      this.state.status = 'failed';
+      this.state.endTime = new Date();
+
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.state.errors.push(errorMessage);
+      this.config.onError?.(error as Error, this.state.currentStep);
+
+      return {
+        success: false,
+        statistics: {
+          totalDuration: this.state.endTime.getTime() - (this.state.startTime?.getTime() || 0),
+          tokensUsed: 0,
+          imagesGenerated: 0,
+          slidesCreated: 0,
+          materialsProcessed: prepared.extractedMaterials.length,
+        },
+        errors: this.state.errors,
+        warnings: this.state.warnings,
+      };
+    }
   }
   
   // =====================

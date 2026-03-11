@@ -333,6 +333,119 @@ export interface PPTTheme {
 }
 
 /**
+ * Canva-inspired generation controls
+ */
+export type PPTTemplateDirection =
+  | 'storytelling'
+  | 'pitch-deck'
+  | 'reporting'
+  | 'educational'
+  | 'product-showcase'
+  | 'portfolio';
+
+export type PPTAudienceTone = 'executive' | 'professional' | 'friendly' | 'academic' | 'creative';
+
+export type PPTContentDensity = 'light' | 'balanced' | 'dense';
+
+export type PPTStyleKitId = 'canva-clean' | 'canva-bold' | 'canva-elegant' | 'canva-playful';
+
+export interface PPTStyleKitTokens {
+  palette: [string, string, string, string];
+  typographyPair: [string, string];
+  spacingRhythm: 'airy' | 'balanced' | 'compact';
+  visualWeight: 'soft' | 'balanced' | 'strong';
+  cornerRadius: 'sharp' | 'rounded' | 'pill';
+}
+
+export interface PPTGenerationBlueprint {
+  templateDirection: PPTTemplateDirection;
+  audienceTone: PPTAudienceTone;
+  contentDensity: PPTContentDensity;
+  styleKitId: PPTStyleKitId;
+  styleTokens: PPTStyleKitTokens;
+}
+
+export type PPTGenerationActionType =
+  | 'initial-generate'
+  | 'layout-swap'
+  | 'content-auto-fit'
+  | 'hierarchy-rebalance'
+  | 'section-regenerate'
+  | 'media-replace'
+  | 'manual-checkpoint'
+  | 'restore';
+
+export interface PPTGenerationSnapshot {
+  id: string;
+  sourceSnapshotId?: string;
+  actionType: PPTGenerationActionType;
+  affectedSlideIds: string[];
+  createdAt: Date;
+  presentation: PPTPresentation;
+}
+
+export interface PPTSlideMetadata extends Record<string, unknown> {
+  styleKitId?: PPTStyleKitId;
+}
+
+export type PPTGenerationReviewSourceMode = 'generate' | 'import' | 'paste' | 'quick-action';
+
+export interface PPTApprovedOutlineItem extends Record<string, unknown> {
+  id?: string;
+  slideNumber: number;
+  title: string;
+  layout: string;
+  keyPoints?: string[];
+  notes?: string;
+  suggestedVisual?: string;
+}
+
+export interface PPTApprovedOutline {
+  title: string;
+  subtitle?: string;
+  topic: string;
+  audience?: string;
+  slideCount: number;
+  sourceMode: PPTGenerationReviewSourceMode;
+  confirmedAt: Date;
+  outline: PPTApprovedOutlineItem[];
+}
+
+export interface PPTGenerationSourceSummaryMaterial extends Record<string, unknown> {
+  materialId: string;
+  name?: string;
+  summary: string;
+  keyTopics: string[];
+  keyPoints: string[];
+  suggestedSlideCount: number;
+}
+
+export interface PPTGenerationSourceSummary {
+  materialCount: number;
+  suggestedSlideCount: number;
+  keyTopics: string[];
+  highlights: string[];
+  synthesizedSummary?: string;
+  materials: PPTGenerationSourceSummaryMaterial[];
+}
+
+export interface PPTGenerationReviewMetadata {
+  sourceMode: PPTGenerationReviewSourceMode;
+  confirmedAt: Date;
+  sourceSummary?: PPTGenerationSourceSummary;
+  blueprintSnapshot?: PPTGenerationBlueprint;
+}
+
+export interface PPTPresentationMetadata extends Record<string, unknown> {
+  sessionId?: string;
+  generationBlueprint?: PPTGenerationBlueprint;
+  generationSnapshots?: PPTGenerationSnapshot[];
+  activeSnapshotId?: string;
+  approvedOutline?: PPTApprovedOutline;
+  generationReview?: PPTGenerationReviewMetadata;
+}
+
+/**
  * Animation effect types for PPT elements
  */
 export type PPTAnimationEffect =
@@ -472,7 +585,7 @@ export interface PPTSlide {
   transition?: PPTSlideTransition;
   /** Legacy transition string (deprecated) */
   transitionLegacy?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: PPTSlideMetadata;
 }
 
 /**
@@ -503,7 +616,7 @@ export interface PPTPresentation {
   aspectRatio: '16:9' | '4:3' | '16:10';
   createdAt: Date;
   updatedAt: Date;
-  metadata?: Record<string, unknown>;
+  metadata?: PPTPresentationMetadata;
 }
 
 /**
@@ -515,6 +628,11 @@ export interface PPTGenerationOptions {
   targetAudience?: string;
   slideCount?: number;
   style?: 'professional' | 'creative' | 'minimal' | 'academic' | 'casual';
+  templateDirection?: PPTTemplateDirection;
+  audienceTone?: PPTAudienceTone;
+  contentDensity?: PPTContentDensity;
+  styleKitId?: PPTStyleKitId;
+  generationBlueprint?: Partial<PPTGenerationBlueprint>;
   includeImages?: boolean;
   includeCharts?: boolean;
   includeNotes?: boolean;
@@ -806,6 +924,126 @@ export const DEFAULT_PPT_THEMES: PPTTheme[] = [
   },
 ];
 
+const PPT_TEMPLATE_DIRECTIONS: PPTTemplateDirection[] = [
+  'storytelling',
+  'pitch-deck',
+  'reporting',
+  'educational',
+  'product-showcase',
+  'portfolio',
+];
+
+const PPT_AUDIENCE_TONES: PPTAudienceTone[] = [
+  'executive',
+  'professional',
+  'friendly',
+  'academic',
+  'creative',
+];
+
+const PPT_CONTENT_DENSITIES: PPTContentDensity[] = ['light', 'balanced', 'dense'];
+
+/**
+ * Canva-inspired style-kit defaults used by generation and editor quick actions.
+ */
+export const DEFAULT_PPT_STYLE_KITS: Record<PPTStyleKitId, PPTStyleKitTokens> = {
+  'canva-clean': {
+    palette: ['#2563EB', '#1D4ED8', '#3B82F6', '#F8FAFC'],
+    typographyPair: ['Inter', 'Inter'],
+    spacingRhythm: 'balanced',
+    visualWeight: 'balanced',
+    cornerRadius: 'rounded',
+  },
+  'canva-bold': {
+    palette: ['#DC2626', '#B91C1C', '#F97316', '#FFF7ED'],
+    typographyPair: ['Montserrat', 'Open Sans'],
+    spacingRhythm: 'compact',
+    visualWeight: 'strong',
+    cornerRadius: 'sharp',
+  },
+  'canva-elegant': {
+    palette: ['#7C3AED', '#5B21B6', '#A78BFA', '#FAF5FF'],
+    typographyPair: ['Playfair Display', 'Lato'],
+    spacingRhythm: 'airy',
+    visualWeight: 'soft',
+    cornerRadius: 'rounded',
+  },
+  'canva-playful': {
+    palette: ['#0EA5E9', '#0284C7', '#22D3EE', '#F0F9FF'],
+    typographyPair: ['Nunito', 'Nunito Sans'],
+    spacingRhythm: 'balanced',
+    visualWeight: 'balanced',
+    cornerRadius: 'pill',
+  },
+};
+
+export function getPPTStyleKitTokens(styleKitId?: string): PPTStyleKitTokens {
+  if (styleKitId && styleKitId in DEFAULT_PPT_STYLE_KITS) {
+    return DEFAULT_PPT_STYLE_KITS[styleKitId as PPTStyleKitId];
+  }
+  return DEFAULT_PPT_STYLE_KITS['canva-clean'];
+}
+
+export function createDefaultPPTGenerationBlueprint(
+  overrides: Partial<PPTGenerationBlueprint> = {}
+): PPTGenerationBlueprint {
+  const styleKitId = (overrides.styleKitId || 'canva-clean') as PPTStyleKitId;
+  const fallbackTokens = getPPTStyleKitTokens(styleKitId);
+  return {
+    templateDirection: overrides.templateDirection || 'storytelling',
+    audienceTone: overrides.audienceTone || 'professional',
+    contentDensity: overrides.contentDensity || 'balanced',
+    styleKitId,
+    styleTokens: {
+      palette: overrides.styleTokens?.palette || fallbackTokens.palette,
+      typographyPair: overrides.styleTokens?.typographyPair || fallbackTokens.typographyPair,
+      spacingRhythm: overrides.styleTokens?.spacingRhythm || fallbackTokens.spacingRhythm,
+      visualWeight: overrides.styleTokens?.visualWeight || fallbackTokens.visualWeight,
+      cornerRadius: overrides.styleTokens?.cornerRadius || fallbackTokens.cornerRadius,
+    },
+  };
+}
+
+/**
+ * Runtime-safe blueprint normalization used before persistence and generation.
+ */
+export function normalizePPTGenerationBlueprint(
+  blueprint: Partial<PPTGenerationBlueprint> | null | undefined
+): PPTGenerationBlueprint {
+  if (!blueprint) {
+    return createDefaultPPTGenerationBlueprint();
+  }
+
+  const templateDirection = PPT_TEMPLATE_DIRECTIONS.includes(
+    blueprint.templateDirection as PPTTemplateDirection
+  )
+    ? (blueprint.templateDirection as PPTTemplateDirection)
+    : 'storytelling';
+
+  const audienceTone = PPT_AUDIENCE_TONES.includes(blueprint.audienceTone as PPTAudienceTone)
+    ? (blueprint.audienceTone as PPTAudienceTone)
+    : 'professional';
+
+  const contentDensity = PPT_CONTENT_DENSITIES.includes(
+    blueprint.contentDensity as PPTContentDensity
+  )
+    ? (blueprint.contentDensity as PPTContentDensity)
+    : 'balanced';
+
+  const styleKitId =
+    blueprint.styleKitId && blueprint.styleKitId in DEFAULT_PPT_STYLE_KITS
+      ? (blueprint.styleKitId as PPTStyleKitId)
+      : 'canva-clean';
+
+  return createDefaultPPTGenerationBlueprint({
+    templateDirection,
+    audienceTone,
+    contentDensity,
+    styleKitId,
+    styleTokens: blueprint.styleTokens,
+  });
+}
+
 /**
  * Get default theme by ID
  */
@@ -876,6 +1114,10 @@ export function createEmptyPresentation(title: string, theme?: PPTTheme): PPTPre
     aspectRatio: '16:9',
     createdAt: now,
     updatedAt: now,
+    metadata: {
+      generationBlueprint: createDefaultPPTGenerationBlueprint(),
+      generationSnapshots: [],
+    },
   };
 }
 
@@ -891,6 +1133,23 @@ export function createEmptySlide(
     order,
     layout,
     elements: [],
+  };
+}
+
+export function createPPTGenerationSnapshot(params: {
+  presentation: PPTPresentation;
+  actionType: PPTGenerationActionType;
+  sourceSnapshotId?: string;
+  affectedSlideIds?: string[];
+}): PPTGenerationSnapshot {
+  const affectedSlideIds = params.affectedSlideIds || params.presentation.slides.map((slide) => slide.id);
+  return {
+    id: `ppt-snapshot-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    sourceSnapshotId: params.sourceSnapshotId,
+    actionType: params.actionType,
+    affectedSlideIds,
+    createdAt: new Date(),
+    presentation: structuredClone(params.presentation),
   };
 }
 

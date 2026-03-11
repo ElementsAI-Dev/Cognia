@@ -100,6 +100,8 @@ export interface ImageGenerationSidebarProps {
   // Generation
   isGenerating: boolean;
   error: string | null;
+  canRetry?: boolean;
+  onRetry?: () => void;
   onGenerate: () => void;
   onEdit: () => void;
   onCreateVariations: () => void;
@@ -145,6 +147,8 @@ export function ImageGenerationSidebar({
   variationInputRef,
   isGenerating,
   error,
+  canRetry = false,
+  onRetry,
   onGenerate,
   onEdit,
   onCreateVariations,
@@ -707,7 +711,14 @@ export function ImageGenerationSidebar({
             {/* Error */}
             {error && (
               <Alert variant="destructive">
-                <AlertDescription className="text-xs">{error}</AlertDescription>
+                <AlertDescription className="text-xs flex items-center justify-between gap-2">
+                  <span>{error}</span>
+                  {canRetry && onRetry && (
+                    <Button variant="outline" size="sm" className="h-6 text-[10px]" onClick={onRetry}>
+                      {t('retry') ?? 'Retry'}
+                    </Button>
+                  )}
+                </AlertDescription>
               </Alert>
             )}
 

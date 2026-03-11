@@ -71,6 +71,7 @@ import { useLatexStore } from '@/stores/latex';
 import { cn } from '@/lib/utils';
 import type { LatexAITextAction } from '@/hooks/latex/use-latex-ai';
 import type { LaTeXEditorConfig } from '@/types/latex';
+import { toast } from 'sonner';
 
 type LaTeXTab = 'editor' | 'templates' | 'history';
 
@@ -91,7 +92,13 @@ export default function LaTeXPage() {
 
   const editorRef = useRef<LaTeXEditorHandle | null>(null);
 
-  const { generateEquation, runTextAction, isLoading: aiLoading } = useLatexAI();
+  const {
+    generateEquation,
+    runTextAction,
+    retryLastAction,
+    isLoading: aiLoading,
+    error: aiError,
+  } = useLatexAI();
 
   const {
     content,
@@ -110,14 +117,16 @@ export default function LaTeXPage() {
     duplicateDocument,
     deleteDocument,
     settings,
+    saveStatus,
+    lastSavedAt,
+    error: latexStoreError,
+    clearError,
     initVersionControl,
     createVersion,
     restoreVersion,
     getVersionHistory,
     documents,
   } = useLatexStore();
-
-  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
   // Initialize version control when current document changes
   useEffect(() => {
@@ -133,10 +142,25 @@ export default function LaTeXPage() {
     [setContent]
   );
 
+  const persistDocument = useCallback(
+    (nextContent: string, source: 'manual' | 'autosave') => {
+      const saved = saveDocument(nextContent);
+      if (!saved && source === 'manual') {
+        toast.error(t('saveFailed', { defaultValue: 'Failed to save document' }), {
+          description: latexStoreError || t('saveRetryHint', { defaultValue: 'Please retry saving.' }),
+        });
+      }
+      return saved;
+    },
+    [latexStoreError, saveDocument, t]
+  );
+
   const handleSave = useCallback(() => {
-    saveDocument(content);
-    setLastSavedAt(new Date());
-  }, [content, saveDocument]);
+    const saved = persistDocument(content, 'manual');
+    if (saved) {
+      toast.success(t('saveSuccess', { defaultValue: 'Document saved' }));
+    }
+  }, [content, persistDocument, t]);
 
   // Auto-save timer — use ref so the interval doesn't reset on every keystroke
   const contentRef = useRef(content);
@@ -145,13 +169,18 @@ export default function LaTeXPage() {
   useEffect(() => {
     if (!settings.autoSave) return;
     const timer = setInterval(() => {
-      if (contentRef.current) {
-        saveDocument(contentRef.current);
-        setLastSavedAt(new Date());
-      }
+      persistDocument(contentRef.current, 'autosave');
     }, settings.autoSaveIntervalMs);
     return () => clearInterval(timer);
-  }, [settings.autoSave, settings.autoSaveIntervalMs, saveDocument]);
+  }, [persistDocument, settings.autoSave, settings.autoSaveIntervalMs]);
+
+  useEffect(() => {
+    if (!latexStoreError) return;
+    toast.error(t('operationFailed', { defaultValue: 'Operation failed' }), {
+      description: latexStoreError,
+    });
+    clearError();
+  }, [clearError, latexStoreError, t]);
 
   // Convert store settings to editor config (memoized to avoid CM6 editor recreation)
   const editorConfig = useMemo<Partial<LaTeXEditorConfig>>(() => ({
@@ -193,10 +222,27 @@ export default function LaTeXPage() {
     if (!renameDocId) return;
     const next = renameValue.trim();
     if (!next) return;
-    renameDocument(renameDocId, next);
+    const renamed = renameDocument(renameDocId, next);
+    if (!renamed) {
+      toast.error(t('historyActions.renameFailed', { defaultValue: 'Failed to rename document' }));
+      return;
+    }
     setRenameOpen(false);
     setRenameDocId(null);
-  }, [renameDocId, renameDocument, renameValue]);
+    toast.success(t('historyActions.renameSuccess', { defaultValue: 'Document renamed' }));
+  }, [renameDocId, renameDocument, renameValue, t]);
+
+  const handleLoadDocument = useCallback(
+    (docId: string) => {
+      const loaded = loadDocument(docId);
+      if (!loaded) {
+        toast.error(t('historyActions.loadFailed', { defaultValue: 'Failed to load document' }));
+        return;
+      }
+      setContent(loaded.content);
+    },
+    [loadDocument, setContent, t]
+  );
 
   const handleToolbarAITextAction = useCallback(
     async (action: LatexAITextAction) => {
@@ -214,10 +260,24 @@ export default function LaTeXPage() {
 
       if (result) {
         editorRef.current?.replaceSelection(result);
+      } else {
+        toast.error(t('aiActionFailed', { defaultValue: 'AI action failed' }), {
+          description: aiError || t('aiRetryHint', { defaultValue: 'Please retry the action.' }),
+        });
       }
     },
-    [runTextAction]
+    [aiError, runTextAction, t]
   );
+
+  const insertAtSelectionOrCursor = useCallback((latex: string) => {
+    const selected = editorRef.current?.getSelectedText()?.trim() || '';
+    if (selected) {
+      editorRef.current?.replaceSelection(latex);
+    } else {
+      editorRef.current?.insertText(latex);
+    }
+    editorRef.current?.focus();
+  }, []);
 
   return (
     <div className="h-full flex flex-col">
@@ -237,7 +297,7 @@ export default function LaTeXPage() {
           {/* Template Button */}
           <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
+              <Button variant="outline" size="sm" className="gap-2" data-testid="latex-template-button">
                 <BookOpen className="h-4 w-4" />
                 {t('templates', { defaultValue: 'Templates' })}
               </Button>
@@ -261,8 +321,18 @@ export default function LaTeXPage() {
           {/* Export Button */}
           <LaTeXExportDialog
             content={content}
+            onExportComplete={(format) => {
+              toast.success(t('exportSuccess', { defaultValue: 'Document exported' }), {
+                description: `${format.toUpperCase()} ${t('exportReady', { defaultValue: 'file is ready' })}`,
+              });
+            }}
+            onExportError={(_format, message) => {
+              toast.error(t('exportFailed', { defaultValue: 'Failed to export document' }), {
+                description: message,
+              });
+            }}
             trigger={
-              <Button variant="outline" size="sm" className="gap-2">
+              <Button variant="outline" size="sm" className="gap-2" data-testid="latex-export-button">
                 <Download className="h-4 w-4" />
                 {t('export', { defaultValue: 'Export' })}
               </Button>
@@ -275,6 +345,7 @@ export default function LaTeXPage() {
             size="sm"
             className="gap-2"
             onClick={() => setSketchDialogOpen(true)}
+            data-testid="latex-sketch-button"
           >
             <PenTool className="h-4 w-4" />
             {t('sketch', { defaultValue: 'Sketch' })}
@@ -286,6 +357,7 @@ export default function LaTeXPage() {
             size="sm"
             className="gap-2"
             onClick={() => setVoiceDialogOpen(true)}
+            data-testid="latex-voice-button"
           >
             <Mic className="h-4 w-4" />
             {t('voice', { defaultValue: 'Voice' })}
@@ -297,20 +369,28 @@ export default function LaTeXPage() {
           <Separator orientation="vertical" className="h-6" />
 
           {/* Auto-save indicator */}
-          {lastSavedAt && (
+          {(saveStatus === 'saving' || saveStatus === 'error' || lastSavedAt) && (
             <span className="text-xs text-muted-foreground">
-              {t('autoSave.lastSaved', { defaultValue: 'Saved' })}{' '}
-              {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {saveStatus === 'saving' &&
+                t('autoSave.saving', { defaultValue: 'Saving...' })}
+              {saveStatus === 'error' &&
+                t('autoSave.failed', { defaultValue: 'Save failed' })}
+              {saveStatus !== 'saving' && saveStatus !== 'error' && lastSavedAt && (
+                <>
+                  {t('autoSave.lastSaved', { defaultValue: 'Saved' })}{' '}
+                  {new Date(lastSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </>
+              )}
             </span>
           )}
 
           {/* Copy Button */}
-          <Button variant="ghost" size="sm" onClick={handleCopyContent} className="gap-2">
+          <Button variant="ghost" size="sm" onClick={handleCopyContent} className="gap-2" data-testid="latex-copy-button">
             {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
           </Button>
 
           {/* Save Button */}
-          <Button size="sm" onClick={handleSave} className="gap-2">
+          <Button size="sm" onClick={handleSave} className="gap-2" data-testid="latex-save-button">
             <Save className="h-4 w-4" />
             {t('save', { defaultValue: 'Save' })}
           </Button>
@@ -325,15 +405,15 @@ export default function LaTeXPage() {
       >
         <div className="border-b px-4">
           <TabsList className="h-11">
-            <TabsTrigger value="editor" className="gap-2 text-sm">
+            <TabsTrigger value="editor" className="gap-2 text-sm" data-testid="latex-tab-editor">
               <FileCode className="h-4 w-4" />
               {t('tabs.editor', { defaultValue: 'Editor' })}
             </TabsTrigger>
-            <TabsTrigger value="templates" className="gap-2 text-sm">
+            <TabsTrigger value="templates" className="gap-2 text-sm" data-testid="latex-tab-templates">
               <BookOpen className="h-4 w-4" />
               {t('tabs.templates', { defaultValue: 'Templates' })}
             </TabsTrigger>
-            <TabsTrigger value="history" className="gap-2 text-sm">
+            <TabsTrigger value="history" className="gap-2 text-sm" data-testid="latex-tab-history">
               <History className="h-4 w-4" />
               {t('tabs.history', { defaultValue: 'History' })}
             </TabsTrigger>
@@ -351,6 +431,33 @@ export default function LaTeXPage() {
             onOpenEquationDialog={() => setEquationDialogOpen(true)}
             onOpenAISettings={() => router.push('/settings')}
             onAITextAction={(action) => void handleToolbarAITextAction(action)}
+            onImportResult={(result) => {
+              if (result.success) {
+                toast.success(t('importSuccess', { defaultValue: 'Document imported' }), {
+                  description: result.fileName,
+                });
+              } else {
+                toast.error(t('importFailed', { defaultValue: 'Failed to import file' }), {
+                  description: result.message,
+                });
+              }
+            }}
+            onExportResult={(result) => {
+              if (!result.success) {
+                toast.error(t('exportFailed', { defaultValue: 'Failed to export source' }), {
+                  description: result.message,
+                });
+              }
+            }}
+            onFormatResult={(result) => {
+              if (result.success) {
+                toast.success(t('formatSuccess', { defaultValue: 'Document formatted' }));
+              } else {
+                toast.error(t('formatFailed', { defaultValue: 'Failed to format document' }), {
+                  description: result.message,
+                });
+              }
+            }}
             showAIPanel={aiPanelOpen}
             onAIPanelToggle={setAiPanelOpen}
             className="flex-1"
@@ -379,9 +486,17 @@ export default function LaTeXPage() {
               onCreateVersion={(msg) => createVersion(msg)}
               onRestoreVersion={(id) => {
                 const success = restoreVersion(id);
-                if (success && currentDocumentId) {
+                if (!success) {
+                  toast.error(t('version.restoreFailed', { defaultValue: 'Failed to restore version' }));
+                  return;
+                }
+
+                if (currentDocumentId) {
                   const doc = documents[currentDocumentId];
-                  if (doc) setContent(doc.content);
+                  if (doc) {
+                    setContent(doc.content);
+                    toast.success(t('version.restoreSuccess', { defaultValue: 'Version restored' }));
+                  }
                 }
               }}
               className="max-h-[40vh]"
@@ -409,11 +524,11 @@ export default function LaTeXPage() {
                     key={doc.id}
                     role="button"
                     tabIndex={0}
-                    onClick={() => loadDocument(doc.id)}
+                    onClick={() => handleLoadDocument(doc.id)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        loadDocument(doc.id);
+                        handleLoadDocument(doc.id);
                       }
                     }}
                     className={cn(
@@ -457,7 +572,13 @@ export default function LaTeXPage() {
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
-                                duplicateDocument(doc.id);
+                                const duplicated = duplicateDocument(doc.id);
+                                if (!duplicated) {
+                                  toast.error(t('historyActions.duplicateFailed', { defaultValue: 'Failed to duplicate document' }));
+                                  return;
+                                }
+                                setContent(duplicated.content);
+                                toast.success(t('historyActions.duplicateSuccess', { defaultValue: 'Document duplicated' }));
                               }}
                             >
                               <CopyIcon className="h-4 w-4" />
@@ -486,7 +607,18 @@ export default function LaTeXPage() {
                                   <AlertDialogCancel>{t('historyActions.cancel')}</AlertDialogCancel>
                                   <AlertDialogAction
                                     onClick={() => {
-                                      deleteDocument(doc.id);
+                                      const deleted = deleteDocument(doc.id);
+                                      if (!deleted) {
+                                        toast.error(t('historyActions.deleteFailed', { defaultValue: 'Failed to delete document' }));
+                                        return;
+                                      }
+                                      const nextId = useLatexStore.getState().currentDocumentId;
+                                      if (nextId && useLatexStore.getState().documents[nextId]) {
+                                        setContent(useLatexStore.getState().documents[nextId].content);
+                                      } else {
+                                        setContent('');
+                                      }
+                                      toast.success(t('historyActions.deleteSuccess', { defaultValue: 'Document deleted' }));
                                     }}
                                   >
                                     {t('historyActions.delete')}
@@ -546,8 +678,10 @@ export default function LaTeXPage() {
         onOpenChange={setEquationDialogOpen}
         onGenerate={generateEquation}
         isLoading={aiLoading}
+        error={equationDialogOpen ? aiError : null}
+        onRetry={() => void retryLastAction()}
         onInsert={(latex) => {
-          editorRef.current?.insertText(latex);
+          insertAtSelectionOrCursor(latex);
           setEquationDialogOpen(false);
         }}
       />
@@ -557,7 +691,7 @@ export default function LaTeXPage() {
         open={sketchDialogOpen}
         onOpenChange={setSketchDialogOpen}
         onInsert={(latex) => {
-          editorRef.current?.insertText(latex);
+          insertAtSelectionOrCursor(latex);
         }}
       />
 
@@ -566,7 +700,7 @@ export default function LaTeXPage() {
         open={voiceDialogOpen}
         onOpenChange={setVoiceDialogOpen}
         onInsert={(latex) => {
-          editorRef.current?.insertText(latex);
+          insertAtSelectionOrCursor(latex);
         }}
       />
 

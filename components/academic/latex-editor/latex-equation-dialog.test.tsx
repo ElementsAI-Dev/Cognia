@@ -64,8 +64,8 @@ describe('LaTeXEquationDialog', () => {
 
   it('renders input and textarea', () => {
     render(<LaTeXEquationDialog {...defaultProps} />);
-    expect(screen.getByTestId('input')).toBeInTheDocument();
-    expect(screen.getByTestId('textarea')).toBeInTheDocument();
+    expect(screen.getByTestId('latex-equation-prompt')).toBeInTheDocument();
+    expect(screen.getByTestId('latex-equation-result')).toBeInTheDocument();
   });
 
   it('renders separator', () => {
@@ -98,5 +98,32 @@ describe('LaTeXEquationDialog', () => {
     const buttons = screen.getAllByRole('button');
     const generateBtn = buttons.find(btn => btn.textContent?.toLowerCase().includes('generate'));
     expect(generateBtn).toBeDefined();
+  });
+
+  it('renders error message and calls retry handler', async () => {
+    const onRetry = jest.fn();
+    render(
+      <LaTeXEquationDialog
+        {...defaultProps}
+        error="Generation failed"
+        onRetry={onRetry}
+      />
+    );
+
+    expect(screen.getByText('Generation failed')).toBeInTheDocument();
+
+    const input = screen.getByTestId('latex-equation-prompt');
+    await userEvent.type(input, 'quadratic formula');
+
+    const retryButton = screen.getAllByRole('button').find(
+      (btn) => btn.textContent?.toLowerCase().includes('retry')
+    );
+
+    expect(retryButton).toBeDefined();
+    if (retryButton) {
+      await userEvent.click(retryButton);
+    }
+
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

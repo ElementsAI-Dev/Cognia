@@ -52,6 +52,7 @@ export interface ImageStudioDialogsProps {
   compareBeforeImage: string | null;
   onCompareClose: () => void;
   onEditorSave: (result: EditorSaveResult) => void;
+  onEditorModeChange?: (mode: EditorMode) => void;
   // Mask inpainting
   maskDataUrl: string | null;
   onApplyInpainting: () => void;
@@ -60,6 +61,9 @@ export interface ImageStudioDialogsProps {
   // Batch export
   showExportDialog: boolean;
   onExportDialogChange: (show: boolean) => void;
+  onExportStart?: () => void;
+  onExportComplete?: (count: number) => void;
+  onExportError?: (message: string) => void;
   allImages: GeneratedImageWithMeta[];
 }
 
@@ -80,12 +84,16 @@ export function ImageStudioDialogs({
   compareBeforeImage,
   onCompareClose,
   onEditorSave,
+  onEditorModeChange,
   maskDataUrl,
   onApplyInpainting,
   onMaskCancel,
   isGenerating,
   showExportDialog,
   onExportDialogChange,
+  onExportStart,
+  onExportComplete,
+  onExportError,
   allImages,
 }: ImageStudioDialogsProps) {
   return (
@@ -163,6 +171,7 @@ export function ImageStudioDialogs({
                   imageUrl={editingImage.url}
                   initialMode={editMode === 'filter' ? 'filters' : (editMode as EditorMode) || 'crop'}
                   onSave={onEditorSave}
+                  onModeChange={onEditorModeChange}
                   onCancel={onEditingClose}
                   className="h-full"
                 />
@@ -200,9 +209,12 @@ export function ImageStudioDialogs({
           prompt: img.prompt,
           timestamp: img.timestamp,
         }))}
+        onExportStart={onExportStart}
         onExport={(count) => {
+          onExportComplete?.(count);
           loggers.media.info(`Exported ${count} images`);
         }}
+        onExportError={onExportError}
       />
     </>
   );

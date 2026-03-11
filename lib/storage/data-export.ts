@@ -41,6 +41,12 @@ const DEFAULT_EXPORT_OPTIONS: ExportOptions = {
   encrypt: storageFeatureFlags.encryptedBackupV3Enabled,
 };
 
+/**
+ * Backup export contract entry points:
+ * - createFullBackup: canonical BackupPackage v3 with manifest/integrity.
+ * - exportToJSON/exportToBlob/downloadExport: serialization and delivery wrappers.
+ */
+
 export async function createFullBackup(
   options: Partial<ExportOptions> = {}
 ): Promise<BackupPackageV3> {
@@ -89,9 +95,8 @@ async function serializeBackupForExport(
     },
   });
 
-  if (integrity.checksum) {
-    envelope.checksum = integrity.checksum;
-  }
+  // Preserve canonical payload checksum metadata on encrypted envelope output.
+  envelope.checksum = integrity.checksum;
   return envelope;
 }
 

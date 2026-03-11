@@ -284,6 +284,24 @@ describe('useArtifactStore', () => {
 
       expect(useArtifactStore.getState().getCanvasVersions(docId)).toHaveLength(1);
     });
+
+    it('should retain manual versions while pruning oldest auto-save versions', () => {
+      act(() => {
+        useArtifactStore.getState().saveCanvasVersion(docId, 'Manual anchor', false);
+        for (let i = 0; i < 40; i++) {
+          useArtifactStore
+            .getState()
+            .saveCanvasVersion(docId, `Auto ${i + 1}`, true);
+        }
+      });
+
+      const versions = useArtifactStore.getState().getCanvasVersions(docId);
+      const manualVersions = versions.filter((v) => !v.isAutoSave);
+      const autoSaveVersions = versions.filter((v) => v.isAutoSave);
+
+      expect(manualVersions.some((v) => v.description === 'Manual anchor')).toBe(true);
+      expect(autoSaveVersions.length).toBeLessThanOrEqual(30);
+    });
   });
 
   describe('analysis results', () => {

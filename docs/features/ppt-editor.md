@@ -32,6 +32,46 @@ Describe your presentation topic and the AI generates:
 - Summary/conclusion slides
 - Speaker notes
 
+### Canva-Like Generation Contract
+
+When `ppt.canvaExperience.v1` is enabled, generation requests carry a typed `generationBlueprint`:
+
+- `templateDirection`: storytelling, pitch-deck, reporting, educational, product-showcase, portfolio
+- `audienceTone`: executive, professional, friendly, academic, creative
+- `contentDensity`: light, balanced, dense
+- `styleKitId`: canva-clean, canva-bold, canva-elegant, canva-playful
+- `styleTokens`: normalized palette, typography pair, spacing rhythm, visual weight, corner radius
+
+The blueprint is normalized before generation and persisted in presentation metadata to keep regenerate behavior deterministic.
+
+### Feature Flag
+
+- Flag: `ppt.canvaExperience.v1`
+- Default: `false`
+- Env override: `NEXT_PUBLIC_PPT_CANVA_EXPERIENCE_V1=true|false|1|0`
+- Local override key: `cognia-ppt-feature-flags-v1`
+
+Creation and editor surfaces automatically fall back to the legacy flow when the flag is disabled.
+
+### Quick Actions and Snapshot Recovery
+
+In Canva-like mode, the editor exposes bounded quick actions:
+
+- Layout swap
+- Auto-fit content
+- Rebalance hierarchy
+- Section regenerate
+- Layout-safe media replace
+
+Each action records a semantic generation snapshot (action type, source snapshot id, affected slide ids, timestamp, captured presentation state). Snapshot restore keeps slide identifiers stable so selection, preview/slideshow, and export flows remain continuous.
+
+### Guardrails
+
+- Generation and regenerate paths enforce active style-kit normalization before persistence.
+- Quick actions operate on existing slide IDs instead of replacing slides wholesale.
+- Snapshot restore adds a recovery checkpoint so users can move backward/forward safely.
+- Export/present flows are expected to remain functional across quick-action and restore transitions.
+
 ## Architecture
 
 ```text

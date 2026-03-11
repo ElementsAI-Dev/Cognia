@@ -7,6 +7,23 @@ export type PPTCreationMode = 'generate' | 'import' | 'paste' | 'template';
 
 export type PPTOperationStatus = 'idle' | 'running' | 'succeeded' | 'failed';
 
+export type PPTProgressStage =
+  | 'idle'
+  | 'outline'
+  | 'review'
+  | 'content'
+  | 'finalizing'
+  | 'complete'
+  | 'error';
+
+export type PPTReviewSessionAction =
+  | 'retry'
+  | 'back'
+  | 'cancel'
+  | 'discard'
+  | 'regenerate-outline'
+  | 'edit-outline';
+
 export type PPTErrorCode =
   | 'unknown'
   | 'invalid_presentation'
@@ -241,5 +258,41 @@ export function classifyPPTError(
 
 export function isRetryablePPTErrorCode(code: PPTErrorCode): boolean {
   return code !== 'ingestion_error' && code !== 'validation_error';
+}
+
+export function mapPPTWorkflowStepNameToStage(stepName?: string | null): PPTProgressStage {
+  const normalized = (stepName || '').toLowerCase();
+  if (!normalized) return 'idle';
+  if (normalized.includes('outline')) return 'outline';
+  if (normalized.includes('slide')) return 'content';
+  if (
+    normalized.includes('material') ||
+    normalized.includes('design') ||
+    normalized.includes('build') ||
+    normalized.includes('marp') ||
+    normalized.includes('image')
+  ) {
+    return 'finalizing';
+  }
+  return 'finalizing';
+}
+
+export function shouldPreservePPTReviewSession(
+  action: PPTReviewSessionAction,
+  errorCode?: PPTErrorCode | null
+): boolean {
+  if (action === 'discard') {
+    return false;
+  }
+
+  if (action === 'retry' || action === 'back' || action === 'regenerate-outline' || action === 'edit-outline') {
+    return true;
+  }
+
+  if (action === 'cancel') {
+    return errorCode !== 'ingestion_error' && errorCode !== 'validation_error';
+  }
+
+  return true;
 }
 

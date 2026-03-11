@@ -712,6 +712,43 @@ describe('useVideoEditor', () => {
 
       expect(result.current.state.zoom).toBeLessThan(zoomBefore);
     });
+
+    it('should preserve earlier timeline fields across batched timeline mutations', () => {
+      const { result } = renderHook(() => useVideoEditor());
+      const subtitleBindings = [
+        {
+          id: 'subtitle-1',
+          trackId: 'subtitle-track-1',
+          source: 'captions.srt',
+          format: 'srt' as const,
+          burnIn: true,
+          offsetMs: 0,
+        },
+      ];
+      const layers = [
+        {
+          id: 'layer-1',
+          name: 'Overlay',
+          type: 'overlay' as const,
+          visible: true,
+          locked: false,
+          opacity: 1,
+          startTime: 0,
+          duration: 5,
+          zIndex: 1,
+        },
+      ];
+
+      act(() => {
+        result.current.setSubtitleBindings(subtitleBindings);
+        result.current.setTimelineLayers(layers);
+      });
+
+      expect(result.current.timeline.subtitleBindings).toEqual(subtitleBindings);
+      expect(result.current.timeline.layers).toEqual(layers);
+      expect(result.current.timeline.markers).toEqual([]);
+      expect(result.current.timeline.audioMix).toEqual([]);
+    });
   });
 
   describe('utilities', () => {

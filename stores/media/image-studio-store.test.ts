@@ -663,4 +663,244 @@ describe('useImageStudioStore', () => {
       expect(result.current.activeLayerId).toBeNull();
     });
   });
+
+  describe('Edit Session and Commit Pipeline', () => {
+    it('should start and end edit sessions with draft lifecycle', () => {
+      const { result } = renderHook(() => useImageStudioStore());
+
+      let sourceId = '';
+      act(() => {
+        sourceId = result.current.addImage({
+          url: 'https://example.com/source.png',
+          prompt: 'Source',
+          model: 'dall-e-3',
+          size: '1024x1024',
+          quality: 'standard',
+          style: 'vivid',
+        });
+      });
+
+      act(() => {
+        result.current.startEditSession({
+          sourceImageId: sourceId,
+          sourceImageUrl: 'https://example.com/source.png',
+          mode: 'crop',
+        });
+      });
+
+      expect(result.current.editSession.status).toBe('active');
+      expect(result.current.editSession.sourceImageId).toBe(sourceId);
+      expect(result.current.editSession.activeMode).toBe('crop');
+
+      act(() => {
+        result.current.updateEditDraft({
+          draftImageUrl: 'data:image/png;base64,draft',
+          pendingOperation: 'crop',
+          metadata: { reason: 'preview' },
+        });
+      });
+
+      expect(result.current.editSession.draftImageUrl).toContain('data:image/png;base64,');
+      expect(result.current.editSession.pendingOperation).toBe('crop');
+
+      act(() => {
+        result.current.discardEditDraft();
+      });
+
+      expect(result.current.editSession.draftImageUrl).toBeNull();
+      expect(result.current.editSession.pendingOperation).toBeNull();
+
+      act(() => {
+        result.current.endEditSession();
+      });
+
+      expect(result.current.editSession.status).toBe('idle');
+      expect(result.current.editSession.sourceImageId).toBeNull();
+    });
+
+    it('should commit edits through unified pipeline and preserve version links', () => {
+      const { result } = renderHook(() => useImageStudioStore());
+
+      let sourceId = '';
+      act(() => {
+        sourceId = result.current.addImage({
+          url: 'https://example.com/source.png',
+          prompt: 'Source',
+          model: 'dall-e-3',
+          size: '1024x1024',
+          quality: 'standard',
+          style: 'vivid',
+        });
+      });
+
+      act(() => {
+        result.current.startEditSession({
+          sourceImageId: sourceId,
+          mode: 'adjust',
+        });
+      });
+
+      let firstCommitId: string | null = null;
+      act(() => {
+        firstCommitId = result.current.commitEditOperation({
+          mode: 'adjust',
+          description: 'Applied adjust',
+          sourceImageId: sourceId,
+          resultImage: {
+            url: 'https://example.com/adjusted.png',
+            prompt: 'Adjusted',
+            model: 'dall-e-3',
+            size: '1024x1024',
+            quality: 'standard',
+            style: 'vivid',
+            parentId: sourceId,
+          },
+        });
+      });
+
+      expect(firstCommitId).toBeTruthy();
+      expect(result.current.selectedImageId).toBe(firstCommitId);
+      const committed = result.current.images.find((img) => img.id === firstCommitId);
+      expect(committed?.parentId).toBe(sourceId);
+      expect((committed?.version ?? 0)).toBeGreaterThanOrEqual(2);
+      expect(result.current.editHistory[result.current.editHistory.length - 1]?.type).toBe('adjust');
+    });
+  });
+
+  describe('History and Layer Synchronization', () => {
+    it('should synchronize selected image when navigating history', () => {
+      const { result } = renderHook(() => useImageStudioStore());
+
+      let id1 = '';
+      let id2 = '';
+      act(() => {
+        id1 = result.current.addImage({
+          url: 'https://example.com/1.png',
+          prompt: 'One',
+          model: 'dall-e-3',
+          size: '1024x1024',
+          quality: 'standard',
+          style: 'vivid',
+        });
+        id2 = result.current.addImage({
+          url: 'https://example.com/2.png',
+          prompt: 'Two',
+          model: 'dall-e-3',
+          size: '1024x1024',
+          quality: 'standard',
+          style: 'vivid',
+          parentId: id1,
+        });
+        result.current.addToHistory({ type: 'generate', imageId: id1, description: 'Generated 1' });
+        result.current.addToHistory({ type: 'edit', imageId: id2, description: 'Edited 2' });
+      });
+
+      expect(result.current.historyIndex).toBe(1);
+      expect(result.current.selectedImageId).toBe(id2);
+
+      act(() => {
+        result.current.undo();
+      });
+      expect(result.current.historyIndex).toBe(0);
+      expect(result.current.selectedImageId).toBe(id1);
+
+      act(() => {
+        result.current.redo();
+      });
+      expect(result.current.historyIndex).toBe(1);
+      expect(result.current.selectedImageId).toBe(id2);
+
+      act(() => {
+        result.current.goToHistoryIndex(0);
+      });
+      expect(result.current.selectedImageId).toBe(id1);
+    });
+
+    it('should keep active layer selection mapped per image after history jumps', () => {
+      const { result } = renderHook(() => useImageStudioStore());
+
+      let id1 = '';
+      let id2 = '';
+      let layerA = '';
+      let layerB = '';
+      act(() => {
+        id1 = result.current.addImage({
+          url: 'https://example.com/1.png',
+          prompt: 'One',
+          model: 'dall-e-3',
+          size: '1024x1024',
+          quality: 'standard',
+          style: 'vivid',
+        });
+        layerA = result.current.addLayer({
+          name: 'Layer A',
+          type: 'image',
+          visible: true,
+          opacity: 1,
+          locked: false,
+        } as unknown as Parameters<typeof result.current.addLayer>[0]);
+        result.current.setActiveLayer(layerA);
+
+        id2 = result.current.addImage({
+          url: 'https://example.com/2.png',
+          prompt: 'Two',
+          model: 'dall-e-3',
+          size: '1024x1024',
+          quality: 'standard',
+          style: 'vivid',
+          parentId: id1,
+        });
+        layerB = result.current.addLayer({
+          name: 'Layer B',
+          type: 'image',
+          visible: true,
+          opacity: 1,
+          locked: false,
+        } as unknown as Parameters<typeof result.current.addLayer>[0]);
+        result.current.setActiveLayer(layerB);
+
+        result.current.addToHistory({ type: 'generate', imageId: id1, description: 'H1' });
+        result.current.addToHistory({ type: 'edit', imageId: id2, description: 'H2' });
+      });
+
+      expect(result.current.activeLayerId).toBe(layerB);
+      act(() => {
+        result.current.goToHistoryIndex(0);
+      });
+      expect(result.current.selectedImageId).toBe(id1);
+      expect(result.current.activeLayerId).toBe(layerA);
+    });
+  });
+
+  describe('Operation Lifecycle', () => {
+    it('should track operation states and recoverable failures', () => {
+      const { result } = renderHook(() => useImageStudioStore());
+
+      act(() => {
+        result.current.startOperation('edit', { sourceImageId: 'img-1' });
+      });
+      expect(result.current.operationStates.edit.status).toBe('running');
+
+      act(() => {
+        result.current.failOperation('edit', 'Network failed', {
+          retryable: true,
+          context: { sourceImageId: 'img-1' },
+        });
+      });
+      expect(result.current.operationStates.edit.status).toBe('error');
+      expect(result.current.operationStates.edit.error).toBe('Network failed');
+      expect(result.current.operationStates.edit.retryable).toBe(true);
+
+      act(() => {
+        result.current.finishOperation('edit', { sourceImageId: 'img-1', retried: true });
+      });
+      expect(result.current.operationStates.edit.status).toBe('success');
+      expect(result.current.operationStates.edit.error).toBeNull();
+
+      act(() => {
+        result.current.clearOperationErrors();
+      });
+      expect(result.current.operationStates.edit.status).toBe('success');
+    });
+  });
 });

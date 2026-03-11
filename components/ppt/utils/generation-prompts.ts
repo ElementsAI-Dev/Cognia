@@ -11,6 +11,16 @@ export interface GenerationContext {
   audience?: string;
   purpose?: 'informative' | 'persuasive' | 'educational' | 'pitch' | 'report';
   tone?: 'formal' | 'casual' | 'professional' | 'creative';
+  templateDirection?:
+    | 'storytelling'
+    | 'pitch-deck'
+    | 'reporting'
+    | 'educational'
+    | 'product-showcase'
+    | 'portfolio';
+  audienceTone?: 'executive' | 'professional' | 'friendly' | 'academic' | 'creative';
+  contentDensity?: 'light' | 'balanced' | 'dense';
+  styleKitId?: 'canva-clean' | 'canva-bold' | 'canva-elegant' | 'canva-playful';
   slideCount?: number;
   language?: string;
   includeImages?: boolean;
@@ -19,7 +29,7 @@ export interface GenerationContext {
 
 // Build system prompt for PPT generation
 export function buildSystemPrompt(context: GenerationContext): string {
-  const { audience, purpose, tone } = context;
+  const { audience, purpose, tone, templateDirection, audienceTone, contentDensity, styleKitId } = context;
   
   let systemPrompt = `You are an expert presentation designer and content strategist. 
 You create compelling, well-structured presentations that engage audiences and communicate ideas effectively.
@@ -65,12 +75,30 @@ ${purposeGuidance[purpose]}`;
 ${toneGuidance[tone]}`;
   }
 
+  if (templateDirection || audienceTone || contentDensity || styleKitId) {
+    systemPrompt += `\n\n## Canva-Like Blueprint
+Template direction: ${templateDirection || 'storytelling'}
+Audience tone: ${audienceTone || 'professional'}
+Content density: ${contentDensity || 'balanced'}
+Style kit: ${styleKitId || 'canva-clean'}
+
+Keep slides visually consistent with this blueprint across the deck and regenerate operations.`;
+  }
+
   return systemPrompt;
 }
 
 // Build prompt for outline generation
 export function buildOutlinePrompt(context: GenerationContext): string {
-  const { topic, slideCount = 10, language = 'en' } = context;
+  const {
+    topic,
+    slideCount = 10,
+    language = 'en',
+    templateDirection = 'storytelling',
+    audienceTone = 'professional',
+    contentDensity = 'balanced',
+    styleKitId = 'canva-clean',
+  } = context;
   
   return `Create an outline for a presentation about: "${topic}"
 
@@ -82,6 +110,7 @@ export function buildOutlinePrompt(context: GenerationContext): string {
 - Each slide should have a clear purpose and flow logically
 - Vary the layout types — avoid using the same layout for 3+ consecutive slides
 - keyPoints MUST contain real, specific information about the topic — never use generic placeholders like "Key point 1"
+- Blueprint: templateDirection=${templateDirection}, audienceTone=${audienceTone}, contentDensity=${contentDensity}, styleKit=${styleKitId}
 
 ## Output Format (JSON):
 \`\`\`json
@@ -149,12 +178,17 @@ ${outlineContext}
 - Topic: ${presentationContext.topic}
 - Audience: ${presentationContext.audience || 'General'}
 - Tone: ${presentationContext.tone || 'Professional'}
+- Template direction: ${presentationContext.templateDirection || 'storytelling'}
+- Audience tone: ${presentationContext.audienceTone || 'professional'}
+- Content density: ${presentationContext.contentDensity || 'balanced'}
+- Style kit: ${presentationContext.styleKitId || 'canva-clean'}
 
 ## Critical Rules:
 - Every bullet point MUST contain specific, factual information — never write generic placeholders
 - Content should be directly relevant to "${slideOutline.title}" within the context of "${presentationContext.topic}"
 - If the layout is "chart", include a "chartData" field with {type, labels, datasets} for visualization
 - If the layout is "table", include a "tableData" field as a 2D string array
+- Honor style-kit consistency (palette/typography intent) and avoid visual-token drift
 
 ## Output Format (JSON):
 \`\`\`json

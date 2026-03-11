@@ -4,6 +4,13 @@
  */
 
 import type { Paper } from './paper';
+import type {
+  PPTAudienceTone,
+  PPTContentDensity,
+  PPTGenerationBlueprint,
+  PPTStyleKitId,
+  PPTTemplateDirection,
+} from '@/types/workflow';
 
 // ============================================================================
 // PPT Conversion Types
@@ -30,6 +37,21 @@ export interface PaperToPPTOptions {
   
   /** Include specific sections */
   includeSections?: PaperPPTSection[];
+
+  /** Template-first direction for Canva-like generation */
+  templateDirection?: PPTTemplateDirection;
+
+  /** Audience tone control used by generation prompts */
+  audienceTone?: PPTAudienceTone;
+
+  /** Content density for slide brevity/detail tradeoff */
+  contentDensity?: PPTContentDensity;
+
+  /** Style kit identifier for palette/typography consistency */
+  styleKitId?: PPTStyleKitId;
+
+  /** Optional explicit generation blueprint override */
+  generationBlueprint?: Partial<PPTGenerationBlueprint>;
   
   /** Include AI-generated images */
   generateImages?: boolean;

@@ -101,7 +101,8 @@ describe('PPT Workflow Executor', () => {
           id: 'mat-1',
           type: 'text',
           name: 'AI Document',
-          content: 'Content about artificial intelligence and its applications.',
+          content:
+            'Artificial intelligence is transforming healthcare, finance, education, and manufacturing through predictive models, automation, and decision-support systems. This material includes practical examples, adoption risks, governance concerns, and measurable outcomes from enterprise deployments.',
         },
       ];
 

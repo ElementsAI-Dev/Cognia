@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 import {
@@ -34,6 +34,7 @@ import { alignElements, distributeElements, autoArrangeElements } from '../utils
 import type { PPTEditorProps } from '../types';
 import { PPTPreviewErrorBoundary } from '../rendering/error-boundary';
 import { FileText } from 'lucide-react';
+import { isPPTFeatureFlagEnabled } from '@/lib/ppt/feature-flags';
 
 /**
  * PPTEditor - Full-featured presentation editor
@@ -79,6 +80,13 @@ export function PPTEditor({
     bringToFront,
     sendToBack,
     setTheme,
+    applyLayoutSwap,
+    autoFitSlideContent,
+    rebalanceSlideHierarchy,
+    regenerateSection,
+    restoreGenerationSnapshot,
+    replaceSlideMedia,
+    getStyleAlignedVisualSuggestions,
   } = usePPTEditorStore(
     useShallow((state) => ({
       presentation: state.presentation,
@@ -111,6 +119,13 @@ export function PPTEditor({
       bringToFront: state.bringToFront,
       sendToBack: state.sendToBack,
       setTheme: state.setTheme,
+      applyLayoutSwap: state.applyLayoutSwap,
+      autoFitSlideContent: state.autoFitSlideContent,
+      rebalanceSlideHierarchy: state.rebalanceSlideHierarchy,
+      regenerateSection: state.regenerateSection,
+      restoreGenerationSnapshot: state.restoreGenerationSnapshot,
+      replaceSlideMedia: state.replaceSlideMedia,
+      getStyleAlignedVisualSuggestions: state.getStyleAlignedVisualSuggestions,
     }))
   );
 
@@ -123,6 +138,10 @@ export function PPTEditor({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSlidePanel, setShowSlidePanel] = useState(true);
   const [showThemeCustomizer, setShowThemeCustomizer] = useState(false);
+  const canvaExperienceEnabled = useMemo(
+    () => isPPTFeatureFlagEnabled('ppt.canvaExperience.v1'),
+    []
+  );
 
   // Native window controls for Tauri
   const {
@@ -182,6 +201,33 @@ export function PPTEditor({
   const handleThemeChange = useCallback((newTheme: NonNullable<typeof presentation>['theme']) => {
     if (newTheme) setTheme(newTheme);
   }, [setTheme]);
+
+  const handleLayoutSwap = useCallback(() => {
+    if (!currentSlide) return;
+    applyLayoutSwap(currentSlide.id);
+  }, [currentSlide, applyLayoutSwap]);
+
+  const handleAutoFitContent = useCallback(() => {
+    if (!currentSlide) return;
+    autoFitSlideContent(currentSlide.id);
+  }, [currentSlide, autoFitSlideContent]);
+
+  const handleRebalanceHierarchy = useCallback(() => {
+    if (!currentSlide) return;
+    rebalanceSlideHierarchy(currentSlide.id);
+  }, [currentSlide, rebalanceSlideHierarchy]);
+
+  const handleRegenerateSection = useCallback(() => {
+    if (!currentSlide) return;
+    void regenerateSection(currentSlide.id, 3);
+  }, [currentSlide, regenerateSection]);
+
+  const handleRestoreSnapshot = useCallback(
+    (snapshotId: string) => {
+      restoreGenerationSnapshot(snapshotId);
+    },
+    [restoreGenerationSnapshot]
+  );
 
   // Handle save - defined before useEffect that uses it
   const handleSave = useCallback(() => {
@@ -443,6 +489,14 @@ export function PPTEditor({
           onAutoArrange={handleAutoArrange}
           onBringToFront={handleBringToFront}
           onSendToBack={handleSendToBack}
+          canvaExperienceEnabled={canvaExperienceEnabled}
+          onLayoutSwap={handleLayoutSwap}
+          onAutoFitContent={handleAutoFitContent}
+          onRebalanceHierarchy={handleRebalanceHierarchy}
+          onRegenerateSection={handleRegenerateSection}
+          generationSnapshots={presentation.metadata?.generationSnapshots || []}
+          activeSnapshotId={presentation.metadata?.activeSnapshotId}
+          onRestoreSnapshot={handleRestoreSnapshot}
         />
       )}
 
@@ -518,6 +572,10 @@ export function PPTEditor({
                 onSlideUpdate={(updates) => {
                   usePPTEditorStore.getState().updateSlide(currentSlide.id, updates);
                 }}
+                onReplaceMedia={(mediaUrl, elementId) => {
+                  replaceSlideMedia(currentSlide.id, mediaUrl, elementId);
+                }}
+                styleAlignedSuggestions={getStyleAlignedVisualSuggestions(currentSlide.id)}
               />
             </div>
           )}

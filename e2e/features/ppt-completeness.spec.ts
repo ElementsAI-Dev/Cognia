@@ -119,6 +119,52 @@ test.describe('PPT completeness scenarios', () => {
     await expect(submitButton).toBeEnabled();
   });
 
+  test('canva-like creation intent controls render when feature flag is enabled', async ({ page }) => {
+    await page.addInitScript((presentation) => {
+      localStorage.setItem(
+        'cognia-ppt-feature-flags-v1',
+        JSON.stringify({ 'ppt.canvaExperience.v1': true })
+      );
+      const persisted = {
+        state: {
+          history: [],
+          maxHistorySize: 50,
+          presentations: {
+            [presentation.id]: presentation,
+          },
+        },
+        version: 1,
+      };
+      window.localStorage.setItem('cognia-workflows', JSON.stringify(persisted));
+    }, seededPresentation);
+
+    await page.goto('/ppt', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await waitForAppReady(page);
+    await dismissStartupOverlays(page);
+    await page.evaluate(() => {
+      localStorage.setItem(
+        'cognia-ppt-feature-flags-v1',
+        JSON.stringify({ 'ppt.canvaExperience.v1': true })
+      );
+    });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForAppReady(page);
+    await dismissStartupOverlays(page);
+
+    await expect(page.getByTestId(PPT_TEST_IDS.page.newPresentationButton)).toBeVisible({ timeout: 15000 });
+    await page.getByTestId(PPT_TEST_IDS.page.newPresentationButton).click({ force: true });
+
+    await expect(page.getByTestId('ppt-template-direction')).toBeVisible();
+    await expect(page.getByTestId('ppt-audience-tone')).toBeVisible();
+    await expect(page.getByTestId('ppt-content-density')).toBeVisible();
+    await expect(page.getByTestId('ppt-style-kit')).toBeVisible();
+
+    await page.getByTestId('ppt-form-topic').fill('Canva Journey Deck');
+    await expect(page.getByTestId(PPT_TEST_IDS.creation.submitButton)).toBeEnabled();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId(PPT_TEST_IDS.page.newPresentationButton)).toBeVisible();
+  });
+
   test('import extraction failure shows actionable feedback and recovers without reload', async ({ page }) => {
     await page.goto('/ppt', { waitUntil: 'domcontentloaded', timeout: 60000 });
     await waitForAppReady(page);

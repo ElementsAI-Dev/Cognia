@@ -67,6 +67,7 @@ interface CodeMirrorEditorProps {
   onSave?: () => void;
   onCursorChange?: (pos: { line: number; column: number }) => void;
   onSelectionChange?: (text: string) => void;
+  onScroll?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
   config: LaTeXEditorConfig;
   readOnly?: boolean;
   placeholder?: string;
@@ -174,7 +175,18 @@ function createEditorTheme(config: LaTeXEditorConfig) {
 
 export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEditorProps>(
   function CodeMirrorEditor(
-    { value, onChange, onSave, onCursorChange, onSelectionChange, config, readOnly = false, placeholder = 'Enter LaTeX code here...', className },
+    {
+      value,
+      onChange,
+      onSave,
+      onCursorChange,
+      onSelectionChange,
+      onScroll,
+      config,
+      readOnly = false,
+      placeholder = 'Enter LaTeX code here...',
+      className,
+    },
     ref
   ) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -183,12 +195,14 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     const onSaveRef = useRef(onSave);
     const onCursorRef = useRef(onCursorChange);
     const onSelectionRef = useRef(onSelectionChange);
+    const onScrollRef = useRef(onScroll);
 
     // Keep refs updated
     useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
     useEffect(() => { onSaveRef.current = onSave; }, [onSave]);
     useEffect(() => { onCursorRef.current = onCursorChange; }, [onCursorChange]);
     useEffect(() => { onSelectionRef.current = onSelectionChange; }, [onSelectionChange]);
+    useEffect(() => { onScrollRef.current = onScroll; }, [onScroll]);
 
     // Detect dark mode
     const isDark = useMemo(() => {
@@ -281,6 +295,24 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
         });
       }
     }, [value]);
+
+    // Emit scroll events from the editor scroller for split-view synchronization
+    useEffect(() => {
+      const view = viewRef.current;
+      if (!view) return;
+
+      const scroller = view.scrollDOM as HTMLElement | null;
+      if (!scroller) return;
+
+      const handleScroll = () => {
+        onScrollRef.current?.(scroller.scrollTop, scroller.scrollHeight, scroller.clientHeight);
+      };
+
+      scroller.addEventListener('scroll', handleScroll, { passive: true });
+      return () => {
+        scroller.removeEventListener('scroll', handleScroll);
+      };
+    }, []);
 
     // Imperative handle
     useImperativeHandle(ref, () => ({

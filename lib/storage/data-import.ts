@@ -20,6 +20,8 @@ import type {
 import { toUIMessage } from '@/lib/db/repositories/message-repository';
 import type { StoredSummary } from '@/types/learning/summary';
 import type {
+  BackupImportIntegrityReport,
+  BackupImportWarning,
   BackupPayloadV3,
   BackupPackageV3,
   EncryptedEnvelopeV1,
@@ -90,11 +92,23 @@ export interface ImportResult {
   };
   errors: ImportError[];
   warnings: string[];
+  warningDetails: BackupImportWarning[];
+  integrity?: BackupImportIntegrityReport;
   duration: number;
 }
 
+export type ImportErrorCategory =
+  | 'global'
+  | 'parse'
+  | 'validation'
+  | 'schema-invalid'
+  | 'checksum-mismatch'
+  | 'passphrase-required'
+  | 'decrypt-failed'
+  | 'unknown';
+
 export interface ImportError {
-  category: string;
+  category: ImportErrorCategory | string;
   id?: string;
   message: string;
 }
@@ -105,6 +119,23 @@ const DEFAULT_IMPORT_OPTIONS: ImportOptions = {
   validateData: true,
 };
 const STORAGE_SNAPSHOT_KEYS = ['selection-toolbar-storage', 'app-cache'] as const;
+
+/**
+ * Backup import contract entry points:
+ * - normalizeAndValidateBackupInput: shared normalization + validation pipeline.
+ * - parseImportFile: file IO wrapper around the shared pipeline (UI-facing).
+ * - importFullBackup: persistence apply path reusing the same shared pipeline.
+ */
+
+export interface NormalizeAndValidateOptions {
+  passphrase?: string;
+  validateData?: boolean;
+}
+
+export interface NormalizeAndValidateResult {
+  data: BackupPackageV3 | null;
+  errors: ImportError[];
+}
 
 type JsonSchemaType = 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array' | 'null';
 
@@ -535,6 +566,61 @@ async function normalizeImportData(
   return mapLegacyToBackupV3(input as LegacyExportData);
 }
 
+function classifyValidationErrors(errors: string[]): ImportError[] {
+  return errors.map((message) => ({
+    category: message.toLowerCase().includes('checksum')
+      ? 'checksum-mismatch'
+      : 'schema-invalid',
+    message,
+  }));
+}
+
+function classifyNormalizationError(error: unknown): ImportError {
+  const message = error instanceof Error ? error.message : String(error);
+  const lower = message.toLowerCase();
+
+  if (lower.includes('passphrase') && lower.includes('require')) {
+    return { category: 'passphrase-required', message };
+  }
+
+  if (
+    lower.includes('decrypt') ||
+    lower.includes('cipher') ||
+    lower.includes('auth tag') ||
+    lower.includes('invalid key')
+  ) {
+    return { category: 'decrypt-failed', message };
+  }
+
+  return { category: 'global', message };
+}
+
+export async function normalizeAndValidateBackupInput(
+  input: ExportData,
+  options: NormalizeAndValidateOptions = {}
+): Promise<NormalizeAndValidateResult> {
+  try {
+    const normalized = await normalizeImportData(input, options.passphrase);
+
+    if (options.validateData !== false) {
+      const validation = await validateExportData(normalized);
+      if (!validation.valid) {
+        return {
+          data: null,
+          errors: classifyValidationErrors(validation.errors),
+        };
+      }
+    }
+
+    return { data: normalized, errors: [] };
+  } catch (error) {
+    return {
+      data: null,
+      errors: [classifyNormalizationError(error)],
+    };
+  }
+}
+
 function resolveConflictStrategy(options: ImportOptions): ImportConflictResolution {
   if (options.mergeStrategy === 'replace') return 'replace';
   if (options.mergeStrategy === 'skip') return 'skip';
@@ -762,20 +848,22 @@ export async function importFullBackup(
     },
     errors: [],
     warnings: [],
+    warningDetails: [],
     duration: 0,
   };
 
   try {
-    const normalized = await normalizeImportData(data, opts.passphrase);
+    const normalizedResult = await normalizeAndValidateBackupInput(data, {
+      passphrase: opts.passphrase,
+      validateData: opts.validateData,
+    });
 
-    if (opts.validateData) {
-      const validation = await validateExportData(normalized);
-      if (!validation.valid) {
-        result.errors.push(...validation.errors.map((message) => ({ category: 'validation', message })));
-        result.duration = Date.now() - startedAt;
-        return result;
-      }
+    if (!normalizedResult.data || normalizedResult.errors.length > 0) {
+      result.errors.push(...normalizedResult.errors);
+      result.duration = Date.now() - startedAt;
+      return result;
     }
+    const normalized = normalizedResult.data;
 
     const scopedPayload = filterPayloadByCategories(normalized.payload, opts.categories);
     const importPayload = opts.generateNewIds ? remapPayloadIds(scopedPayload) : scopedPayload;
@@ -786,7 +874,12 @@ export async function importFullBackup(
 
     const importResponse = await unifiedPersistenceService.backup.importPayload(
       importPayload,
-      resolveConflictStrategy(opts)
+      resolveConflictStrategy(opts),
+      {
+        schemaVersion: normalized.manifest.schemaVersion,
+        backend: normalized.manifest.backend,
+        traceId: normalized.manifest.traceId,
+      }
     );
 
     result.imported.sessions = importResponse.importedSessions;
@@ -798,6 +891,8 @@ export async function importFullBackup(
     result.imported.documents = importPayload.documents?.length || 0;
     result.imported.settings = !!importPayload.settings;
     result.warnings.push(...importResponse.warnings);
+    result.warningDetails.push(...importResponse.warningDetails);
+    result.integrity = importResponse.integrity;
     result.skipped.sessions = importResponse.warnings.filter((warning) => warning.startsWith('Skipped session')).length;
     result.success = true;
   } catch (error) {
@@ -820,20 +915,31 @@ export async function parseImportFile(
 ): Promise<{
   data: BackupPackageV3 | null;
   errors: string[];
+  classifiedErrors: ImportError[];
 }> {
   const errors: string[] = [];
   try {
     const text = await file.text();
     const parsed = JSON.parse(text) as ExportData;
-    const normalized = await normalizeImportData(parsed, passphrase);
-    const validation = await validateExportData(normalized);
-    if (!validation.valid) {
-      errors.push(...validation.errors);
-      return { data: null, errors };
+    const normalized = await normalizeAndValidateBackupInput(parsed, {
+      passphrase,
+      validateData: true,
+    });
+    if (!normalized.data || normalized.errors.length > 0) {
+      errors.push(...normalized.errors.map((entry) => entry.message));
+      return { data: null, errors, classifiedErrors: normalized.errors };
     }
-    return { data: normalized, errors };
+    return { data: normalized.data, errors, classifiedErrors: [] };
   } catch (error) {
-    errors.push(error instanceof Error ? error.message : 'Failed to parse backup file');
-    return { data: null, errors };
+    const classifiedError: ImportError = {
+      category: 'parse',
+      message: error instanceof Error ? error.message : 'Failed to parse backup file',
+    };
+    errors.push(classifiedError.message);
+    return {
+      data: null,
+      errors,
+      classifiedErrors: [classifiedError],
+    };
   }
 }

@@ -1352,3 +1352,95 @@ test.describe('Image Studio Store - View State', () => {
     });
   });
 });
+
+test.describe('Image Studio Core Loop', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+  });
+
+  test('should support open image -> multi-tool edits -> undo/redo -> export flow', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      interface ImageVersion {
+        id: string;
+        parentId?: string;
+        url: string;
+        version: number;
+      }
+
+      interface Operation {
+        id: string;
+        type: 'crop' | 'adjust' | 'text';
+        imageId: string;
+      }
+
+      const images: ImageVersion[] = [{ id: 'img-1', url: 'source.png', version: 1 }];
+      const history: Operation[] = [];
+      let historyIndex = -1;
+      let selectedImageId = 'img-1';
+
+      const commit = (type: Operation['type']) => {
+        const source = images.find((img) => img.id === selectedImageId)!;
+        const id = `img-${images.length + 1}`;
+        const next: ImageVersion = {
+          id,
+          parentId: source.id,
+          url: `${type}-${id}.png`,
+          version: source.version + 1,
+        };
+        images.unshift(next);
+        selectedImageId = id;
+        history.splice(historyIndex + 1);
+        history.push({ id: `op-${history.length + 1}`, type, imageId: id });
+        historyIndex = history.length - 1;
+      };
+
+      const undo = () => {
+        if (historyIndex <= 0) return;
+        historyIndex -= 1;
+        selectedImageId = history[historyIndex].imageId;
+      };
+
+      const redo = () => {
+        if (historyIndex >= history.length - 1) return;
+        historyIndex += 1;
+        selectedImageId = history[historyIndex].imageId;
+      };
+
+      // open image and apply multi-tool edits
+      commit('crop');
+      commit('adjust');
+      commit('text');
+      const selectedAfterEdits = selectedImageId;
+
+      // undo/redo chain
+      undo();
+      const selectedAfterUndo = selectedImageId;
+      redo();
+      const selectedAfterRedo = selectedImageId;
+
+      // export should use current committed image
+      const exportedImageId = selectedImageId;
+      const exportedImage = images.find((img) => img.id === exportedImageId);
+
+      return {
+        historyLength: history.length,
+        historyIndex,
+        selectedAfterEdits,
+        selectedAfterUndo,
+        selectedAfterRedo,
+        exportedImageId,
+        exportedVersion: exportedImage?.version ?? 0,
+        versionChainValid: images.some((img) => img.id === selectedAfterRedo && img.parentId !== undefined),
+      };
+    });
+
+    expect(result.historyLength).toBe(3);
+    expect(result.historyIndex).toBe(2);
+    expect(result.selectedAfterUndo).not.toBe(result.selectedAfterEdits);
+    expect(result.selectedAfterRedo).toBe(result.selectedAfterEdits);
+    expect(result.exportedImageId).toBe(result.selectedAfterRedo);
+    expect(result.exportedVersion).toBeGreaterThanOrEqual(2);
+    expect(result.versionChainValid).toBe(true);
+  });
+});

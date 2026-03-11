@@ -3,7 +3,7 @@
  * Smart layout algorithms for automatic content arrangement
  */
 
-import type { PPTSlideElement, PPTSlideLayout } from '@/types/workflow';
+import type { PPTSlide, PPTSlideElement, PPTSlideLayout, PPTStyleKitId } from '@/types/workflow';
 
 // Layout zones for different slide types
 export interface LayoutZone {
@@ -87,6 +87,15 @@ export const LAYOUT_TEMPLATES: Record<PPTSlideLayout, LayoutZone[]> = {
     { id: 'contact', name: 'Contact Info', x: 10, y: 60, width: 80, height: 20, contentType: 'content', priority: 2 },
   ],
 };
+
+const LAYOUT_SWAP_SEQUENCE: PPTSlideLayout[] = [
+  'title-content',
+  'two-column',
+  'bullets',
+  'image-right',
+  'image-left',
+  'comparison',
+];
 
 // Calculate optimal font size based on content length and container
 export function calculateOptimalFontSize(
@@ -395,6 +404,110 @@ export function alignElements(
   }
 }
 
+export function getNextLayoutVariant(currentLayout: PPTSlideLayout): PPTSlideLayout {
+  const currentIndex = LAYOUT_SWAP_SEQUENCE.indexOf(currentLayout);
+  if (currentIndex === -1) {
+    return LAYOUT_SWAP_SEQUENCE[0];
+  }
+  return LAYOUT_SWAP_SEQUENCE[(currentIndex + 1) % LAYOUT_SWAP_SEQUENCE.length];
+}
+
+export function swapSlideLayoutPreservingContent(
+  slide: PPTSlide,
+  targetLayout?: PPTSlideLayout
+): PPTSlide {
+  return {
+    ...slide,
+    layout: targetLayout || getNextLayoutVariant(slide.layout),
+  };
+}
+
+export function autoFitSlideTextContent(
+  slide: PPTSlide,
+  density: 'light' | 'balanced' | 'dense' = 'balanced'
+): PPTSlide {
+  const maxBullets = density === 'light' ? 4 : density === 'dense' ? 8 : 6;
+  const maxContentChars = density === 'light' ? 220 : density === 'dense' ? 520 : 360;
+
+  const fittedBullets = slide.bullets
+    ? slide.bullets
+        .slice(0, maxBullets)
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((item) => (item.length > 96 ? `${item.slice(0, 95).trim()}…` : item))
+    : slide.bullets;
+
+  const fittedContent = slide.content
+    ? slide.content.length > maxContentChars
+      ? `${slide.content.slice(0, maxContentChars - 1).trim()}…`
+      : slide.content
+    : slide.content;
+
+  return {
+    ...slide,
+    bullets: fittedBullets,
+    content: fittedContent,
+  };
+}
+
+export function rebalanceSlideVisualHierarchy(slide: PPTSlide): PPTSlide {
+  let subtitle = slide.subtitle;
+  let bullets = slide.bullets ? [...slide.bullets] : undefined;
+  let content = slide.content;
+
+  if (!subtitle && bullets && bullets.length > 0) {
+    subtitle = bullets[0];
+    bullets = bullets.slice(1);
+  }
+
+  if (!content && bullets && bullets.length > 0) {
+    content = bullets[0];
+  }
+
+  return {
+    ...slide,
+    subtitle,
+    bullets,
+    content,
+  };
+}
+
+export function clampMediaPosition(position?: PPTSlideElement['position']): Required<PPTSlideElement>['position'] {
+  const minSize = 8;
+  const x = Math.max(0, Math.min(100 - minSize, position?.x ?? 10));
+  const y = Math.max(0, Math.min(100 - minSize, position?.y ?? 20));
+  const width = Math.max(minSize, Math.min(100 - x, position?.width ?? 45));
+  const height = Math.max(minSize, Math.min(100 - y, position?.height ?? 45));
+  return { x, y, width, height };
+}
+
+export function buildLayoutSafeImageElement(
+  id: string,
+  mediaUrl: string,
+  position?: PPTSlideElement['position']
+): PPTSlideElement {
+  return {
+    id,
+    type: 'image',
+    content: mediaUrl,
+    position: clampMediaPosition(position),
+    metadata: {
+      source: 'canva-media-replace',
+    },
+  };
+}
+
+const STYLE_KIT_ICON_SUGGESTIONS: Record<PPTStyleKitId, string[]> = {
+  'canva-clean': ['layout', 'grid', 'sparkles', 'target', 'bar-chart'],
+  'canva-bold': ['megaphone', 'rocket', 'trending-up', 'flame', 'bolt'],
+  'canva-elegant': ['feather', 'gem', 'leaf', 'star', 'shield'],
+  'canva-playful': ['palette', 'smile', 'zap', 'circle', 'compass'],
+};
+
+export function getStyleAlignedIconSuggestions(styleKitId: PPTStyleKitId): string[] {
+  return STYLE_KIT_ICON_SUGGESTIONS[styleKitId] || STYLE_KIT_ICON_SUGGESTIONS['canva-clean'];
+}
+
 const layoutEngine = {
   LAYOUT_TEMPLATES,
   calculateOptimalFontSize,
@@ -404,6 +517,13 @@ const layoutEngine = {
   autoArrangeElements,
   distributeElements,
   alignElements,
+  getNextLayoutVariant,
+  swapSlideLayoutPreservingContent,
+  autoFitSlideTextContent,
+  rebalanceSlideVisualHierarchy,
+  clampMediaPosition,
+  buildLayoutSafeImageElement,
+  getStyleAlignedIconSuggestions,
 };
 
 export default layoutEngine;

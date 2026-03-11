@@ -10,18 +10,19 @@
  * - Multiple export formats
  */
 
-import type {
-  WorkflowDefinition,
-  WorkflowTemplate,
-  PPTPresentation,
-  PPTSlide,
-  PPTOutlineItem,
-  PPTGenerationOptions,
-  PPTEnhancedOutlineItem,
-  PPTEnhancedSlide,
-  PPTMaterialAnalysis,
-  PPTEnhancedGenerationOptions,
-  PPTImageStyle,
+import {
+  normalizePPTGenerationBlueprint,
+  type WorkflowDefinition,
+  type WorkflowTemplate,
+  type PPTPresentation,
+  type PPTSlide,
+  type PPTOutlineItem,
+  type PPTGenerationOptions,
+  type PPTEnhancedOutlineItem,
+  type PPTEnhancedSlide,
+  type PPTMaterialAnalysis,
+  type PPTEnhancedGenerationOptions,
+  type PPTImageStyle,
 } from '@/types/workflow';
 import { getGlobalWorkflowRegistry } from './registry';
 import { loggers } from '@/lib/logger';
@@ -62,6 +63,30 @@ export const PPT_GENERATION_WORKFLOW: WorkflowDefinition = {
       description: 'Presentation style (professional, creative, minimal, academic, casual)',
       required: false,
       default: 'professional',
+    },
+    templateDirection: {
+      type: 'string',
+      description: 'Template-first generation direction for Canva-like flows',
+      required: false,
+      default: 'storytelling',
+    },
+    audienceTone: {
+      type: 'string',
+      description: 'Audience tone preset (executive/professional/friendly/academic/creative)',
+      required: false,
+      default: 'professional',
+    },
+    contentDensity: {
+      type: 'string',
+      description: 'Slide content density (light/balanced/dense)',
+      required: false,
+      default: 'balanced',
+    },
+    styleKitId: {
+      type: 'string',
+      description: 'Style-kit id for palette/typography consistency',
+      required: false,
+      default: 'canva-clean',
     },
     targetAudience: {
       type: 'string',
@@ -472,6 +497,13 @@ export function buildPresentation(
       targetAudience: options.targetAudience,
       style: options.style,
       language: options.language,
+      templateDirection: options.templateDirection,
+      audienceTone: options.audienceTone,
+      contentDensity: options.contentDensity,
+      styleKitId: options.styleKitId,
+      generationBlueprint: options.generationBlueprint
+        ? normalizePPTGenerationBlueprint(options.generationBlueprint)
+        : undefined,
     },
   };
 }
@@ -519,6 +551,30 @@ export const PPT_ENHANCED_WORKFLOW: WorkflowDefinition = {
       description: 'Presentation style (professional, creative, minimal, academic, casual)',
       required: false,
       default: 'professional',
+    },
+    templateDirection: {
+      type: 'string',
+      description: 'Template-first generation direction for Canva-like flows',
+      required: false,
+      default: 'storytelling',
+    },
+    audienceTone: {
+      type: 'string',
+      description: 'Audience tone preset (executive/professional/friendly/academic/creative)',
+      required: false,
+      default: 'professional',
+    },
+    contentDensity: {
+      type: 'string',
+      description: 'Slide content density (light/balanced/dense)',
+      required: false,
+      default: 'balanced',
+    },
+    styleKitId: {
+      type: 'string',
+      description: 'Style-kit id for palette/typography consistency',
+      required: false,
+      default: 'canva-clean',
     },
     targetAudience: {
       type: 'string',
@@ -1066,6 +1122,13 @@ export function buildEnhancedPresentation(
       materialsProcessed: materialAnalysis?.length || 0,
       imageStyle: options.imageStyle,
       enhancedGeneration: true,
+      templateDirection: options.templateDirection,
+      audienceTone: options.audienceTone,
+      contentDensity: options.contentDensity,
+      styleKitId: options.styleKitId,
+      generationBlueprint: options.generationBlueprint
+        ? normalizePPTGenerationBlueprint(options.generationBlueprint)
+        : undefined,
     },
   };
 }

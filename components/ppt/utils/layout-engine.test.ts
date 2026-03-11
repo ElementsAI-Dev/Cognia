@@ -11,10 +11,15 @@ import {
   autoArrangeElements,
   distributeElements,
   alignElements,
+  autoFitSlideTextContent,
+  buildLayoutSafeImageElement,
+  getStyleAlignedIconSuggestions,
+  rebalanceSlideVisualHierarchy,
+  swapSlideLayoutPreservingContent,
   type LayoutZone,
   type SnapGuide,
 } from './layout-engine';
-import type { PPTSlideElement } from '@/types/workflow';
+import type { PPTSlide, PPTSlideElement } from '@/types/workflow';
 
 describe('Layout Engine', () => {
   describe('LAYOUT_TEMPLATES', () => {
@@ -556,6 +561,77 @@ describe('Layout Engine', () => {
       centers.forEach(center => {
         expect(center).toBeCloseTo(firstCenter, 1);
       });
+    });
+  });
+
+  describe('canva quick-action helpers', () => {
+    const baseSlide: PPTSlide = {
+      id: 'slide-1',
+      order: 0,
+      layout: 'title-content',
+      title: 'Quarterly Update',
+      subtitle: '',
+      content: 'A'.repeat(500),
+      bullets: [
+        'This bullet is intentionally very long to verify truncation behavior and ensure that the auto-fit routine safely trims content without breaking layout constraints.',
+        'Second bullet',
+        'Third bullet',
+        'Fourth bullet',
+        'Fifth bullet',
+        'Sixth bullet',
+        'Seventh bullet',
+      ],
+      elements: [],
+    };
+
+    it('swapSlideLayoutPreservingContent keeps identity and semantic fields', () => {
+      const swapped = swapSlideLayoutPreservingContent(baseSlide, 'two-column');
+      expect(swapped.id).toBe(baseSlide.id);
+      expect(swapped.layout).toBe('two-column');
+      expect(swapped.title).toBe(baseSlide.title);
+      expect(swapped.content).toBe(baseSlide.content);
+    });
+
+    it('autoFitSlideTextContent trims bullets/content for balanced density', () => {
+      const fitted = autoFitSlideTextContent(baseSlide, 'balanced');
+      expect((fitted.bullets || []).length).toBeLessThanOrEqual(6);
+      expect((fitted.content || '').length).toBeLessThanOrEqual(360);
+      expect(fitted.bullets?.[0]).toContain('…');
+    });
+
+    it('rebalanceSlideVisualHierarchy promotes bullets to subtitle/content when missing', () => {
+      const rebalanced = rebalanceSlideVisualHierarchy({
+        ...baseSlide,
+        subtitle: undefined,
+        content: undefined,
+        bullets: ['Lead point', 'Detail point', 'Third point'],
+      });
+      expect(rebalanced.subtitle).toBe('Lead point');
+      expect(rebalanced.content).toBe('Detail point');
+      expect(rebalanced.bullets).toEqual(['Detail point', 'Third point']);
+    });
+
+    it('buildLayoutSafeImageElement clamps media position into slide bounds', () => {
+      const image = buildLayoutSafeImageElement('img-1', 'https://example.com/image.png', {
+        x: 99,
+        y: 98,
+        width: 50,
+        height: 50,
+      });
+      expect(image.type).toBe('image');
+      expect(image.metadata?.source).toBe('canva-media-replace');
+      expect(image.position?.x).toBeLessThanOrEqual(92);
+      expect(image.position?.y).toBeLessThanOrEqual(92);
+      expect((image.position?.x || 0) + (image.position?.width || 0)).toBeLessThanOrEqual(100);
+      expect((image.position?.y || 0) + (image.position?.height || 0)).toBeLessThanOrEqual(100);
+    });
+
+    it('getStyleAlignedIconSuggestions returns style-specific suggestions', () => {
+      const bold = getStyleAlignedIconSuggestions('canva-bold');
+      const playful = getStyleAlignedIconSuggestions('canva-playful');
+      expect(bold).toContain('rocket');
+      expect(playful).toContain('palette');
+      expect(bold).not.toEqual(playful);
     });
   });
 });

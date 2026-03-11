@@ -62,6 +62,53 @@ import { StorageBreakdown } from './storage-breakdown';
 import { StorageHealthDisplay } from './storage-health';
 import { StorageCleanupDialog } from './storage-cleanup-dialog';
 
+type ImportFeedbackCode =
+  | 'passphrase-required'
+  | 'decrypt-failed'
+  | 'schema-invalid'
+  | 'checksum-mismatch'
+  | 'global';
+
+interface ImportFlowFailure {
+  code: ImportFeedbackCode;
+  message: string;
+}
+
+function toImportFeedbackCode(category?: string): ImportFeedbackCode {
+  if (category === 'passphrase-required') return 'passphrase-required';
+  if (category === 'decrypt-failed') return 'decrypt-failed';
+  if (category === 'checksum-mismatch') return 'checksum-mismatch';
+  if (category === 'schema-invalid' || category === 'validation' || category === 'parse') return 'schema-invalid';
+  return 'global';
+}
+
+function toImportFlowFailure(error: unknown): ImportFlowFailure {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    'message' in error &&
+    typeof (error as { code?: unknown }).code === 'string' &&
+    typeof (error as { message?: unknown }).message === 'string'
+  ) {
+    return {
+      code: toImportFeedbackCode((error as { code: string }).code),
+      message: (error as { message: string }).message,
+    };
+  }
+
+  if (error instanceof Error) {
+    return {
+      code: 'global',
+      message: error.message,
+    };
+  }
+
+  return {
+    code: 'global',
+    message: 'Unknown error',
+  };
+}
 
 export function DataSettings() {
   const t = useTranslations('dataSettings');
@@ -184,10 +231,14 @@ export function DataSettings() {
 
   const runImportFlow = useCallback(
     async (file: File, passphrase?: string) => {
-      const { data, errors: parseErrors } = await parseImportFile(file, passphrase);
+      const { data, errors: parseErrors, classifiedErrors } = await parseImportFile(file, passphrase);
 
       if (!data || parseErrors.length > 0) {
-        throw new Error(parseErrors.join(', ') || 'Invalid export file');
+        const firstError = classifiedErrors[0];
+        throw {
+          code: toImportFeedbackCode(firstError?.category),
+          message: parseErrors.join(', ') || firstError?.message || 'Invalid export file',
+        } satisfies ImportFlowFailure;
       }
 
       const result = await importFullBackup(data, {
@@ -198,7 +249,10 @@ export function DataSettings() {
 
       if (!result.success) {
         const errorMsg = result.errors.map((entry) => entry.message).join(', ');
-        throw new Error(errorMsg || 'Import failed');
+        throw {
+          code: toImportFeedbackCode(result.errors[0]?.category),
+          message: errorMsg || 'Import failed',
+        } satisfies ImportFlowFailure;
       }
 
       await refreshStoresAfterImport();
@@ -216,15 +270,6 @@ export function DataSettings() {
     [refreshStats, refreshStoresAfterImport, t]
   );
 
-  const isEncryptedBackupFile = useCallback(async (file: File): Promise<boolean> => {
-    try {
-      const raw = JSON.parse(await file.text()) as { version?: string };
-      return raw.version === 'enc-v1';
-    } catch {
-      return false;
-    }
-  }, []);
-
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -233,15 +278,17 @@ export function DataSettings() {
     try {
       await runImportFlow(file);
     } catch (error) {
-      const encryptedBackup = await isEncryptedBackupFile(file);
-      if (encryptedBackup) {
+      const failure = toImportFlowFailure(error);
+      if (failure.code === 'passphrase-required' || failure.code === 'decrypt-failed') {
         setPendingImportFile(file);
         setImportPassphrase('');
         setImportPassphraseDialogOpen(true);
         toast.error(t('importPassphraseRequired') || 'Encrypted backup detected. Enter your backup passphrase to continue.');
+      } else if (failure.code === 'checksum-mismatch') {
+        toast.error(t('importFailed') || 'Import failed: backup integrity check failed');
       } else {
         console.error('Import failed:', error);
-        toast.error(t('importFailed') || `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        toast.error(t('importFailed') || `Import failed: ${failure.message}`);
       }
     } finally {
       setIsImporting(false);
@@ -268,8 +315,15 @@ export function DataSettings() {
       setPendingImportFile(null);
       setImportPassphrase('');
     } catch (error) {
+      const failure = toImportFlowFailure(error);
       console.error('Import with passphrase failed:', error);
-      toast.error(t('importPassphraseRetryFailed') || 'Passphrase invalid or backup file is corrupted');
+      if (failure.code === 'passphrase-required' || failure.code === 'decrypt-failed') {
+        toast.error(t('importPassphraseRetryFailed') || 'Passphrase invalid or backup file is corrupted');
+      } else if (failure.code === 'checksum-mismatch') {
+        toast.error(t('importFailed') || 'Import failed: backup integrity check failed');
+      } else {
+        toast.error(t('importFailed') || `Import failed: ${failure.message}`);
+      }
     } finally {
       setIsImporting(false);
     }

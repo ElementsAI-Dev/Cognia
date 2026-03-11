@@ -45,6 +45,9 @@ interface LaTeXEditorProps {
   onChange?: (content: string) => void;
   onSave?: (content: string) => void;
   onError?: (errors: LaTeXError[]) => void;
+  onImportResult?: (result: { success: boolean; message: string; fileName?: string }) => void;
+  onExportResult?: (result: { success: boolean; message: string; fileName?: string }) => void;
+  onFormatResult?: (result: { success: boolean; message: string }) => void;
   onOpenAIChat?: () => void;
   onOpenEquationDialog?: () => void;
   onOpenAISettings?: () => void;
@@ -73,6 +76,9 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
     onChange,
     onSave,
     onError,
+    onImportResult,
+    onExportResult,
+    onFormatResult,
     onOpenAIChat,
     onOpenEquationDialog,
     onOpenAISettings,
@@ -108,6 +114,16 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
   const containerRef = useRef<HTMLDivElement>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const isSyncingScroll = useRef(false);
+
+  const resolveScrollRatio = (scrollTop: number, scrollHeight: number, clientHeight: number) => {
+    const maxScrollable = Math.max(0, scrollHeight - clientHeight);
+    return maxScrollable === 0 ? 0 : scrollTop / maxScrollable;
+  };
+
+  const applyScrollRatio = (target: HTMLElement, ratio: number) => {
+    const maxScrollable = Math.max(0, target.scrollHeight - target.clientHeight);
+    target.scrollTop = maxScrollable === 0 ? 0 : ratio * maxScrollable;
+  };
 
   // Config with defaults - memoized to prevent useCallback dependency changes
   const config: LaTeXEditorConfig = useMemo(() => ({
@@ -179,6 +195,15 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
     setSelectedText(text);
   }, []);
 
+  // Keep editing context focused when user exits visual-only mode
+  useEffect(() => {
+    if (mode !== 'visual') {
+      requestAnimationFrame(() => {
+        cmEditorRef.current?.focus();
+      });
+    }
+  }, [mode]);
+
   // Insert text via CodeMirror handle
   const insertAtCursor = useCallback(
     (text: string) => {
@@ -224,37 +249,92 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
     input.accept = '.tex,.latex,.txt';
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const text = event.target?.result as string;
-          handleContentChange(text);
-        };
-        reader.readAsText(file);
+      if (!file) return;
+
+      const isSupported = /\.(tex|latex|txt)$/i.test(file.name);
+      if (!isSupported) {
+        onImportResult?.({
+          success: false,
+          message: 'Unsupported file type. Please import .tex, .latex, or .txt files.',
+          fileName: file.name,
+        });
+        return;
       }
+
+      const reader = new FileReader();
+      reader.onerror = () => {
+        onImportResult?.({
+          success: false,
+          message: 'Failed to read selected file.',
+          fileName: file.name,
+        });
+      };
+      reader.onload = (event) => {
+        const text = event.target?.result;
+        if (typeof text !== 'string') {
+          onImportResult?.({
+            success: false,
+            message: 'Imported file content is invalid.',
+            fileName: file.name,
+          });
+          return;
+        }
+
+        handleContentChange(text);
+        onImportResult?.({
+          success: true,
+          message: 'File imported successfully.',
+          fileName: file.name,
+        });
+      };
+      reader.readAsText(file);
     };
     input.click();
-  }, [handleContentChange]);
+  }, [handleContentChange, onImportResult]);
 
   // Handle file export
   const handleExport = useCallback(() => {
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'document.tex';
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [content]);
+    try {
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const fileName = 'document.tex';
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+      onExportResult?.({
+        success: true,
+        message: 'Source exported successfully.',
+        fileName,
+      });
+    } catch (error) {
+      onExportResult?.({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to export source file.',
+      });
+    }
+  }, [content, onExportResult]);
 
   // Handle format document
   const handleFormat = useCallback(() => {
-    const formatted = format(content, {
-      indentSize: config.tabSize,
-      insertSpaces: config.insertSpaces,
-    });
-    handleContentChange(formatted);
-  }, [content, config.tabSize, config.insertSpaces, handleContentChange]);
+    try {
+      const formatted = format(content, {
+        indentSize: config.tabSize,
+        insertSpaces: config.insertSpaces,
+      });
+      handleContentChange(formatted);
+      onFormatResult?.({
+        success: true,
+        message: 'Document formatted successfully.',
+      });
+    } catch (error) {
+      onFormatResult?.({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to format document.',
+      });
+    }
+  }, [content, config.tabSize, config.insertSpaces, handleContentChange, onFormatResult]);
 
   // Sync scroll between editor and preview
   const handleEditorScroll = useCallback(() => {
@@ -264,39 +344,76 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
     const editor = editorContainerRef.current;
     const preview = previewRef.current;
     
-    const scrollRatio = editor.scrollTop / (editor.scrollHeight - editor.clientHeight);
-    preview.scrollTop = scrollRatio * (preview.scrollHeight - preview.clientHeight);
+    const scrollRatio = resolveScrollRatio(editor.scrollTop, editor.scrollHeight, editor.clientHeight);
+    applyScrollRatio(preview, scrollRatio);
     
     requestAnimationFrame(() => {
       isSyncingScroll.current = false;
     });
   }, [config.syncScroll]);
+
+  const handleEditorContentScroll = useCallback(
+    (scrollTop: number, scrollHeight: number, clientHeight: number) => {
+      if (!config.syncScroll || isSyncingScroll.current || !previewRef.current) return;
+
+      isSyncingScroll.current = true;
+      const preview = previewRef.current;
+      const scrollRatio = resolveScrollRatio(scrollTop, scrollHeight, clientHeight);
+      applyScrollRatio(preview, scrollRatio);
+
+      requestAnimationFrame(() => {
+        isSyncingScroll.current = false;
+      });
+    },
+    [config.syncScroll]
+  );
 
   const handlePreviewScroll = useCallback(() => {
     if (!config.syncScroll || isSyncingScroll.current || !editorContainerRef.current || !previewRef.current) return;
     
     isSyncingScroll.current = true;
-    const editor = editorContainerRef.current;
+    const editorHost = editorContainerRef.current;
+    const editorScroller = editorHost.querySelector('.cm-scroller') as HTMLElement | null;
+    const editor = editorScroller ?? editorHost;
     const preview = previewRef.current;
     
-    const scrollRatio = preview.scrollTop / (preview.scrollHeight - preview.clientHeight);
-    editor.scrollTop = scrollRatio * (editor.scrollHeight - editor.clientHeight);
+    const scrollRatio = resolveScrollRatio(preview.scrollTop, preview.scrollHeight, preview.clientHeight);
+    applyScrollRatio(editor, scrollRatio);
     
     requestAnimationFrame(() => {
       isSyncingScroll.current = false;
     });
   }, [config.syncScroll]);
 
+  const focusEditorLine = useCallback(
+    (line: number, column: number = 1) => {
+      const navigate = () => {
+        cmEditorRef.current?.scrollToLine(line);
+        setCursorPosition({ line, column });
+      };
+
+      if (mode === 'visual') {
+        setMode('source');
+        requestAnimationFrame(() => {
+          requestAnimationFrame(navigate);
+        });
+        return;
+      }
+
+      navigate();
+    },
+    [mode]
+  );
+
   // Handle outline navigation
   const handleOutlineNavigate = useCallback((line: number) => {
-    cmEditorRef.current?.scrollToLine(line);
-  }, []);
+    focusEditorLine(line);
+  }, [focusEditorLine]);
 
   // Handle error click - navigate to error location via CodeMirror
   const handleErrorClick = useCallback((error: LaTeXError) => {
-    cmEditorRef.current?.scrollToLine(error.line);
-    setCursorPosition({ line: error.line, column: error.column });
-  }, []);
+    focusEditorLine(error.line, error.column);
+  }, [focusEditorLine]);
 
   // Get metadata
   const metadata = extractMetadata(content);
@@ -304,6 +421,7 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
   return (
     <div
       ref={containerRef}
+      data-testid="latex-editor-root"
       className={cn(
         'flex flex-col flex-1 min-h-0 border rounded-lg bg-background',
         isFullscreen && 'fixed inset-0 z-50',
@@ -367,6 +485,7 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
                       onSave={handleSave}
                       onCursorChange={handleCursorChange}
                       onSelectionChange={handleSelectionChange}
+                      onScroll={handleEditorContentScroll}
                       config={config}
                       readOnly={readOnly}
                     />
@@ -375,7 +494,7 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
               )}
 
               {mode === 'visual' && (
-                <div ref={previewRef} className="h-full overflow-auto p-4">
+                <div ref={previewRef} className="h-full overflow-auto p-4" data-testid="latex-preview-pane">
                   <LaTeXPreview content={content} scale={config.previewScale} />
                 </div>
               )}
@@ -400,6 +519,7 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
                             onSave={handleSave}
                             onCursorChange={handleCursorChange}
                             onSelectionChange={handleSelectionChange}
+                            onScroll={handleEditorContentScroll}
                             config={config}
                             readOnly={readOnly}
                           />
@@ -412,6 +532,7 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
                     <div
                       ref={previewRef}
                       className="h-full overflow-auto p-4 bg-white dark:bg-gray-900"
+                      data-testid="latex-preview-pane"
                       onScroll={handlePreviewScroll}
                     >
                       <LaTeXPreview content={content} scale={config.previewScale} />

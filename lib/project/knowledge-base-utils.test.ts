@@ -12,6 +12,7 @@ jest.mock('@/lib/document', () => ({
       md: 'markdown', py: 'code', ts: 'code', js: 'code',
       json: 'json', pdf: 'pdf', docx: 'word', xlsx: 'excel',
       csv: 'csv', html: 'html', txt: 'text',
+      pptx: 'presentation', ppt: 'presentation', rtf: 'rtf', epub: 'epub',
     };
     return map[ext] || 'unknown';
   },
@@ -19,7 +20,10 @@ jest.mock('@/lib/document', () => ({
 
 describe('FILE_TYPE_ICONS', () => {
   it('should have icons for all expected file types', () => {
-    const expectedTypes = ['text', 'pdf', 'code', 'markdown', 'json', 'word', 'excel', 'csv', 'html'];
+    const expectedTypes = [
+      'text', 'pdf', 'code', 'markdown', 'json', 'word', 'excel', 'csv', 'html',
+      'presentation', 'rtf', 'epub',
+    ];
     for (const type of expectedTypes) {
       expect(FILE_TYPE_ICONS[type]).toBeDefined();
     }
@@ -36,7 +40,10 @@ describe('FILE_TYPE_ICONS', () => {
 
 describe('FILE_TYPE_COLORS', () => {
   it('should have colors for all expected file types', () => {
-    const expectedTypes = ['text', 'pdf', 'code', 'markdown', 'json', 'word', 'excel', 'csv', 'html'];
+    const expectedTypes = [
+      'text', 'pdf', 'code', 'markdown', 'json', 'word', 'excel', 'csv', 'html',
+      'presentation', 'rtf', 'epub',
+    ];
     for (const type of expectedTypes) {
       expect(FILE_TYPE_COLORS[type]).toBeDefined();
       expect(typeof FILE_TYPE_COLORS[type]).toBe('string');
@@ -85,6 +92,19 @@ describe('detectFileType', () => {
 
   it('should detect HTML files', () => {
     expect(detectFileType('page.html')).toBe('html');
+  });
+
+  it('should detect presentation files', () => {
+    expect(detectFileType('deck.pptx')).toBe('presentation');
+    expect(detectFileType('legacy.ppt')).toBe('presentation');
+  });
+
+  it('should detect RTF files', () => {
+    expect(detectFileType('notes.rtf')).toBe('rtf');
+  });
+
+  it('should detect EPUB files', () => {
+    expect(detectFileType('book.epub')).toBe('epub');
   });
 
   it('should detect plain text files', () => {

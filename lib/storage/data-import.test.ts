@@ -5,6 +5,7 @@
 import {
   generateChecksum,
   importFullBackup,
+  parseImportFile,
   verifyChecksum,
   validateExportData,
   type ExportData,
@@ -13,6 +14,9 @@ import type { BackupPayloadV3 } from './persistence/types';
 
 const mockImportPayload = jest.fn();
 const mockClearDomainData = jest.fn();
+const mockDecryptBackupPackage = jest.fn();
+const mockSha256Hex = jest.fn();
+const mockGetDefaultBackupPassphrase = jest.fn();
 
 jest.mock('./persistence/unified-persistence-service', () => ({
   unifiedPersistenceService: {
@@ -24,15 +28,61 @@ jest.mock('./persistence/unified-persistence-service', () => ({
   },
 }));
 
+jest.mock('./persistence/crypto', () => ({
+  decryptBackupPackage: (...args: unknown[]) => mockDecryptBackupPackage(...args),
+  sha256Hex: (...args: unknown[]) => mockSha256Hex(...args),
+}));
+
+jest.mock('./persistence/backup-key', () => ({
+  getDefaultBackupPassphrase: (...args: unknown[]) => mockGetDefaultBackupPassphrase(...args),
+}));
+
 describe('Data Import Utilities', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSha256Hex.mockResolvedValue('payload-checksum');
+    mockGetDefaultBackupPassphrase.mockResolvedValue('auto-passphrase');
+    mockDecryptBackupPackage.mockResolvedValue(
+      JSON.stringify({
+        version: '3.0',
+        manifest: {
+          version: '3.0',
+          schemaVersion: 3,
+          traceId: 'trace-id',
+          exportedAt: new Date().toISOString(),
+          backend: 'web-dexie',
+          integrity: {
+            algorithm: 'SHA-256',
+            checksum: '',
+          },
+        },
+        payload: {
+          sessions: [],
+          messages: [],
+          projects: [],
+          knowledgeFiles: [],
+          summaries: [],
+        },
+      })
+    );
     mockImportPayload.mockResolvedValue({
       importedSessions: 1,
       importedMessages: 1,
       importedProjects: 1,
       importedSummaries: 0,
       warnings: [],
+      warningDetails: [],
+      integrity: {
+        requestedSchemaVersion: 3,
+        sourceBackend: 'web-dexie',
+        traceId: 'trace-id',
+        accepted: true,
+        rejectedSegments: [],
+        reconciliation: {
+          sessionRemaps: 0,
+          messageRemaps: 0,
+        },
+      },
     });
     mockClearDomainData.mockResolvedValue(undefined);
   });
@@ -107,6 +157,33 @@ describe('Data Import Utilities', () => {
         },
       });
       expect(result.valid).toBe(true);
+    });
+
+    it('rejects checksum mismatch when manifest checksum is invalid', async () => {
+      const result = await validateExportData({
+        version: '3.0',
+        manifest: {
+          version: '3.0',
+          schemaVersion: 3,
+          traceId: 'trace-id',
+          exportedAt: new Date().toISOString(),
+          backend: 'web-dexie',
+          integrity: {
+            algorithm: 'SHA-256',
+            checksum: 'wrong-checksum',
+          },
+        },
+        payload: {
+          sessions: [],
+          messages: [],
+          projects: [],
+          knowledgeFiles: [],
+          summaries: [],
+        },
+      });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual(expect.arrayContaining(['Backup checksum verification failed']));
     });
   });
 
@@ -229,7 +306,12 @@ describe('Data Import Utilities', () => {
           settings: { theme: 'dark' },
           artifacts: undefined,
         }),
-        'merge-rename'
+        'merge-rename',
+        expect.objectContaining({
+          schemaVersion: 3,
+          backend: 'web-dexie',
+          traceId: 'trace-id',
+        })
       );
     });
 
@@ -255,6 +337,157 @@ describe('Data Import Utilities', () => {
       });
 
       expect(mockClearDomainData).toHaveBeenCalledTimes(1);
+    });
+
+    it('fails closed with checksum-mismatch category when payload integrity check fails', async () => {
+      const result = await importFullBackup(
+        {
+          ...packageData,
+          manifest: {
+            ...packageData.manifest,
+            integrity: {
+              algorithm: 'SHA-256',
+              checksum: 'bad-checksum',
+            },
+          },
+        },
+        { validateData: true }
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.errors[0]?.category).toBe('checksum-mismatch');
+      expect(mockImportPayload).not.toHaveBeenCalled();
+    });
+
+    it('returns passphrase-required category when encrypted backup has no available passphrase', async () => {
+      mockGetDefaultBackupPassphrase.mockResolvedValueOnce(null);
+
+      const result = await importFullBackup({
+        version: 'enc-v1',
+        algorithm: 'AES-GCM',
+        kdf: {
+          algorithm: 'PBKDF2',
+          hash: 'SHA-256',
+          iterations: 1,
+          salt: 'salt',
+        },
+        iv: 'iv',
+        ciphertext: 'ciphertext',
+        manifest: {
+          version: '3.0',
+          schemaVersion: 3,
+          traceId: 'trace-id',
+          exportedAt: new Date().toISOString(),
+          backend: 'web-dexie',
+          encryption: {
+            enabled: true,
+            format: 'encrypted-envelope-v1',
+          },
+        },
+        checksum: 'checksum',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.errors[0]?.category).toBe('passphrase-required');
+    });
+
+    it('returns decrypt-failed category when encrypted backup cannot be decrypted', async () => {
+      mockDecryptBackupPackage.mockRejectedValueOnce(new Error('Failed to decrypt backup package'));
+
+      const result = await importFullBackup(
+        {
+          version: 'enc-v1',
+          algorithm: 'AES-GCM',
+          kdf: {
+            algorithm: 'PBKDF2',
+            hash: 'SHA-256',
+            iterations: 1,
+            salt: 'salt',
+          },
+          iv: 'iv',
+          ciphertext: 'ciphertext',
+          manifest: {
+            version: '3.0',
+            schemaVersion: 3,
+            traceId: 'trace-id',
+            exportedAt: new Date().toISOString(),
+            backend: 'web-dexie',
+            encryption: {
+              enabled: true,
+              format: 'encrypted-envelope-v1',
+            },
+          },
+          checksum: 'checksum',
+        },
+        { passphrase: 'wrong-passphrase' }
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.errors[0]?.category).toBe('decrypt-failed');
+    });
+
+    it('imports legacy backup payload through v3 normalization', async () => {
+      const result = await importFullBackup({
+        version: '2.0',
+        exportedAt: new Date().toISOString(),
+        sessions: [],
+        indexedDB: {
+          messages: [],
+          projects: [],
+          summaries: [],
+          knowledgeFiles: [],
+        },
+      } as ExportData);
+
+      expect(result.success).toBe(true);
+      expect(mockImportPayload).toHaveBeenCalled();
+    });
+  });
+
+  describe('parseImportFile', () => {
+    const makeEncryptedFile = () =>
+      ({
+        text: async () =>
+          JSON.stringify({
+            version: 'enc-v1',
+            algorithm: 'AES-GCM',
+            kdf: {
+              algorithm: 'PBKDF2',
+              hash: 'SHA-256',
+              iterations: 1,
+              salt: 'salt',
+            },
+            iv: 'iv',
+            ciphertext: 'ciphertext',
+            manifest: {
+              version: '3.0',
+              schemaVersion: 3,
+              traceId: 'trace-id',
+              exportedAt: new Date().toISOString(),
+              backend: 'web-dexie',
+              encryption: {
+                enabled: true,
+                format: 'encrypted-envelope-v1',
+              },
+            },
+            checksum: 'checksum',
+          }),
+      } as unknown as File);
+
+    it('reports passphrase-required classification for encrypted file with no available passphrase', async () => {
+      mockGetDefaultBackupPassphrase.mockResolvedValueOnce(null);
+      const result = await parseImportFile(makeEncryptedFile());
+
+      expect(result.data).toBeNull();
+      expect(result.classifiedErrors[0]?.category).toBe('passphrase-required');
+    });
+
+    it('reports decrypt-failed classification for encrypted file with invalid passphrase', async () => {
+      mockDecryptBackupPackage.mockRejectedValueOnce(new Error('Failed to decrypt backup package'));
+      const result = await parseImportFile(makeEncryptedFile(), 'invalid-passphrase');
+
+      expect(result.data).toBeNull();
+      expect(result.classifiedErrors[0]?.category).toBe('decrypt-failed');
     });
   });
 });

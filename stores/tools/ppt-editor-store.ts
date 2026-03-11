@@ -10,11 +10,26 @@ import type {
   PPTSlideElement,
   PPTTheme,
   PPTSlideLayout,
+  PPTGenerationActionType,
+  PPTGenerationBlueprint,
+  PPTStyleKitId,
 } from '@/types/workflow';
-import { createEmptySlide, getDefaultPPTTheme } from '@/types/workflow';
+import {
+  createEmptySlide,
+  createPPTGenerationSnapshot,
+  getDefaultPPTTheme,
+  normalizePPTGenerationBlueprint,
+} from '@/types/workflow';
 import { regenerateSlideContent } from '@/lib/ai/utils/regenerate-slide';
 import { loggers } from '@/lib/logger';
 import type { SlideshowSettings } from '@/components/ppt/types';
+import {
+  autoFitSlideTextContent,
+  buildLayoutSafeImageElement,
+  getStyleAlignedIconSuggestions,
+  rebalanceSlideVisualHierarchy,
+  swapSlideLayoutPreservingContent,
+} from '@/components/ppt/utils/layout-engine';
 
 // Debounce timer for history pushes during rapid operations (e.g. dragging)
 let historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -159,6 +174,24 @@ interface PPTEditorActions {
   // AI generation
   setGenerating: (isGenerating: boolean, slideId?: string | null) => void;
   regenerateSlide: (slideId: string) => Promise<void>;
+  regenerateSection: (startSlideId: string, sectionSize?: number) => Promise<void>;
+
+  // Canva-like quick actions
+  applyLayoutSwap: (slideId: string, targetLayout?: PPTSlideLayout) => void;
+  autoFitSlideContent: (slideId: string) => void;
+  rebalanceSlideHierarchy: (slideId: string) => void;
+  replaceSlideMedia: (slideId: string, mediaUrl: string, elementId?: string) => void;
+  getStyleAlignedVisualSuggestions: (slideId: string) => string[];
+
+  // Generation blueprint and snapshots
+  setGenerationBlueprint: (blueprint: Partial<PPTGenerationBlueprint>) => void;
+  createGenerationSnapshot: (
+    actionType: PPTGenerationActionType,
+    sourceSnapshotId?: string,
+    affectedSlideIds?: string[]
+  ) => string | null;
+  restoreGenerationSnapshot: (snapshotId: string) => void;
+  getGenerationSnapshots: () => NonNullable<PPTPresentation['metadata']>['generationSnapshots'];
 
   // Slideshow settings
   updateSlideshowSettings: (settings: Partial<SlideshowSettings>) => void;
@@ -182,6 +215,81 @@ const DEFAULT_SLIDESHOW_SETTINGS: SlideshowSettings = {
   transitionType: 'fade',
   transitionDuration: 300,
 };
+
+function normalizePresentationForCanvaExperience(presentation: PPTPresentation): PPTPresentation {
+  const metadata = presentation.metadata || {};
+  const normalizedBlueprint = normalizePPTGenerationBlueprint(
+    (metadata as { generationBlueprint?: Partial<PPTGenerationBlueprint> }).generationBlueprint
+  );
+  const rawSnapshots = Array.isArray(metadata.generationSnapshots)
+    ? metadata.generationSnapshots
+    : [];
+  const normalizedSnapshots = rawSnapshots
+    .filter((snapshot): snapshot is NonNullable<typeof metadata.generationSnapshots>[number] => {
+      return Boolean(snapshot && typeof snapshot === 'object' && 'id' in snapshot);
+    })
+    .map((snapshot) => ({
+      ...snapshot,
+      createdAt: snapshot.createdAt instanceof Date ? snapshot.createdAt : new Date(snapshot.createdAt),
+      presentation: {
+        ...snapshot.presentation,
+        createdAt:
+          snapshot.presentation.createdAt instanceof Date
+            ? snapshot.presentation.createdAt
+            : new Date(snapshot.presentation.createdAt),
+        updatedAt:
+          snapshot.presentation.updatedAt instanceof Date
+            ? snapshot.presentation.updatedAt
+            : new Date(snapshot.presentation.updatedAt),
+      },
+    }));
+  const approvedOutline = metadata.approvedOutline
+    ? {
+        ...metadata.approvedOutline,
+        confirmedAt:
+          metadata.approvedOutline.confirmedAt instanceof Date
+            ? metadata.approvedOutline.confirmedAt
+            : new Date(metadata.approvedOutline.confirmedAt),
+      }
+    : undefined;
+  const generationReview = metadata.generationReview
+    ? {
+        ...metadata.generationReview,
+        confirmedAt:
+          metadata.generationReview.confirmedAt instanceof Date
+            ? metadata.generationReview.confirmedAt
+            : new Date(metadata.generationReview.confirmedAt),
+        blueprintSnapshot: metadata.generationReview.blueprintSnapshot
+          ? normalizePPTGenerationBlueprint(metadata.generationReview.blueprintSnapshot)
+          : undefined,
+      }
+    : undefined;
+
+  return {
+    ...presentation,
+    metadata: {
+      ...metadata,
+      generationBlueprint: normalizedBlueprint,
+      generationSnapshots: normalizedSnapshots,
+      ...(approvedOutline ? { approvedOutline } : {}),
+      ...(generationReview ? { generationReview } : {}),
+    },
+  };
+}
+
+function createPresentationSnapshot(
+  presentation: PPTPresentation,
+  actionType: PPTGenerationActionType,
+  sourceSnapshotId?: string,
+  affectedSlideIds?: string[]
+) {
+  return createPPTGenerationSnapshot({
+    presentation,
+    actionType,
+    sourceSnapshotId,
+    affectedSlideIds,
+  });
+}
 
 const initialState: PPTEditorState = {
   presentation: null,
@@ -259,13 +367,14 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           historyDebounceTimer = null;
           pendingHistoryDescription = null;
         }
+        const normalizedPresentation = normalizePresentationForCanvaExperience(presentation);
         set({
-          presentation,
+          presentation: normalizedPresentation,
           currentSlideIndex: 0,
-          selection: { slideId: presentation.slides[0]?.id || null, elementIds: [] },
+          selection: { slideId: normalizedPresentation.slides[0]?.id || null, elementIds: [] },
           history: [
             {
-              presentation: JSON.parse(JSON.stringify(presentation)),
+              presentation: JSON.parse(JSON.stringify(normalizedPresentation)),
               timestamp: Date.now(),
               description: 'Load presentation',
             },
@@ -278,7 +387,9 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
       savePresentation: () => {
         const { presentation } = get();
         if (presentation) {
+          const normalized = normalizePresentationForCanvaExperience(presentation);
           set({ isDirty: false });
+          return normalized;
         }
         return presentation;
       },
@@ -1059,12 +1170,13 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
       },
 
       regenerateSlide: async (slideId) => {
-        const { presentation, updateSlide } = get();
+        const { presentation, updateSlide, createGenerationSnapshot } = get();
         if (!presentation) return;
 
         const slide = presentation.slides.find((s) => s.id === slideId);
         if (!slide) return;
 
+        createGenerationSnapshot('section-regenerate', undefined, [slideId]);
         set({ isGenerating: true, generatingSlideId: slideId });
 
         try {
@@ -1083,6 +1195,325 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         } finally {
           set({ isGenerating: false, generatingSlideId: null });
         }
+      },
+
+      regenerateSection: async (startSlideId, sectionSize = 3) => {
+        const { presentation, createGenerationSnapshot, pushHistory } = get();
+        if (!presentation) return;
+
+        const startIndex = presentation.slides.findIndex((slide) => slide.id === startSlideId);
+        if (startIndex === -1) return;
+
+        const affectedSlides = presentation.slides.slice(startIndex, startIndex + sectionSize);
+        if (affectedSlides.length === 0) return;
+
+        createGenerationSnapshot(
+          'section-regenerate',
+          undefined,
+          affectedSlides.map((slide) => slide.id)
+        );
+        const snapshotPresentation = get().presentation;
+        if (!snapshotPresentation) return;
+        set({ isGenerating: true, generatingSlideId: startSlideId });
+
+        try {
+          const regeneratedById = new Map<string, Awaited<ReturnType<typeof regenerateSlideContent>>>();
+          const snapshotAffectedSlides = snapshotPresentation.slides.slice(
+            startIndex,
+            startIndex + sectionSize
+          );
+
+          for (const slide of snapshotAffectedSlides) {
+            const regenerated = await regenerateSlideContent(slide, snapshotPresentation);
+            regeneratedById.set(slide.id, regenerated);
+          }
+
+          const newSlides = snapshotPresentation.slides.map((slide) => {
+            const regenerated = regeneratedById.get(slide.id);
+            if (!regenerated) {
+              return slide;
+            }
+            return {
+              ...slide,
+              title: regenerated.title || slide.title,
+              subtitle: regenerated.subtitle || slide.subtitle,
+              content: regenerated.content,
+              bullets: regenerated.bullets || slide.bullets,
+              notes: regenerated.notes || slide.notes,
+            };
+          });
+
+          set({
+            presentation: {
+              ...snapshotPresentation,
+              slides: newSlides,
+              updatedAt: new Date(),
+            },
+            isDirty: true,
+          });
+          pushHistory('Regenerate section');
+        } catch (err) {
+          loggers.ai.error('Failed to regenerate section:', err instanceof Error ? err : undefined);
+        } finally {
+          set({ isGenerating: false, generatingSlideId: null });
+        }
+      },
+
+      applyLayoutSwap: (slideId, targetLayout) => {
+        const { presentation, pushHistory, createGenerationSnapshot } = get();
+        if (!presentation) return;
+
+        const slide = presentation.slides.find((item) => item.id === slideId);
+        if (!slide) return;
+
+        createGenerationSnapshot('layout-swap', undefined, [slideId]);
+        const snapshotPresentation = get().presentation;
+        if (!snapshotPresentation) return;
+
+        const snapshotSlide = snapshotPresentation.slides.find((item) => item.id === slideId);
+        if (!snapshotSlide) return;
+
+        const swapped = swapSlideLayoutPreservingContent(snapshotSlide, targetLayout);
+        const newSlides = snapshotPresentation.slides.map((item) =>
+          item.id === slideId ? swapped : item
+        );
+
+        set({
+          presentation: {
+            ...snapshotPresentation,
+            slides: newSlides,
+            updatedAt: new Date(),
+          },
+          isDirty: true,
+        });
+        pushHistory('Layout swap');
+      },
+
+      autoFitSlideContent: (slideId) => {
+        const { presentation, pushHistory, createGenerationSnapshot } = get();
+        if (!presentation) return;
+
+        const slide = presentation.slides.find((item) => item.id === slideId);
+        if (!slide) return;
+
+        const density = presentation.metadata?.generationBlueprint?.contentDensity || 'balanced';
+        createGenerationSnapshot('content-auto-fit', undefined, [slideId]);
+        const snapshotPresentation = get().presentation;
+        if (!snapshotPresentation) return;
+        const snapshotSlide = snapshotPresentation.slides.find((item) => item.id === slideId);
+        if (!snapshotSlide) return;
+        const fittedSlide = autoFitSlideTextContent(snapshotSlide, density);
+        const newSlides = snapshotPresentation.slides.map((item) =>
+          item.id === slideId ? fittedSlide : item
+        );
+
+        set({
+          presentation: {
+            ...snapshotPresentation,
+            slides: newSlides,
+            updatedAt: new Date(),
+          },
+          isDirty: true,
+        });
+        pushHistory('Auto-fit content');
+      },
+
+      rebalanceSlideHierarchy: (slideId) => {
+        const { presentation, pushHistory, createGenerationSnapshot } = get();
+        if (!presentation) return;
+
+        const slide = presentation.slides.find((item) => item.id === slideId);
+        if (!slide) return;
+
+        createGenerationSnapshot('hierarchy-rebalance', undefined, [slideId]);
+        const snapshotPresentation = get().presentation;
+        if (!snapshotPresentation) return;
+        const snapshotSlide = snapshotPresentation.slides.find((item) => item.id === slideId);
+        if (!snapshotSlide) return;
+        const rebalancedSlide = rebalanceSlideVisualHierarchy(snapshotSlide);
+        const newSlides = snapshotPresentation.slides.map((item) =>
+          item.id === slideId ? rebalancedSlide : item
+        );
+
+        set({
+          presentation: {
+            ...snapshotPresentation,
+            slides: newSlides,
+            updatedAt: new Date(),
+          },
+          isDirty: true,
+        });
+        pushHistory('Rebalance hierarchy');
+      },
+
+      replaceSlideMedia: (slideId, mediaUrl, elementId) => {
+        const { presentation, pushHistory, createGenerationSnapshot } = get();
+        if (!presentation || !mediaUrl.trim()) return;
+
+        const targetSlide = presentation.slides.find((slide) => slide.id === slideId);
+        if (!targetSlide) return;
+
+        createGenerationSnapshot('media-replace', undefined, [slideId]);
+        const snapshotPresentation = get().presentation;
+        if (!snapshotPresentation) return;
+
+        const imageElementId =
+          elementId ||
+          targetSlide.elements.find((element) => element.type === 'image')?.id ||
+          null;
+
+        const updatedSlides = snapshotPresentation.slides.map((slide) => {
+          if (slide.id !== slideId) {
+            return slide;
+          }
+
+          if (imageElementId) {
+            const existing = slide.elements.find((element) => element.id === imageElementId);
+            if (existing && existing.type === 'image') {
+              return {
+                ...slide,
+                elements: slide.elements.map((element) =>
+                  element.id === imageElementId
+                    ? buildLayoutSafeImageElement(imageElementId, mediaUrl.trim(), element.position)
+                    : element
+                ),
+              };
+            }
+          }
+
+          return {
+            ...slide,
+            elements: [
+              ...slide.elements,
+              buildLayoutSafeImageElement(`element-${generateId()}`, mediaUrl.trim(), {
+                x: 10,
+                y: 25,
+                width: 38,
+                height: 58,
+              }),
+            ],
+          };
+        });
+
+        set({
+          presentation: {
+            ...snapshotPresentation,
+            slides: updatedSlides,
+            updatedAt: new Date(),
+          },
+          isDirty: true,
+        });
+        pushHistory('Replace media');
+      },
+
+      getStyleAlignedVisualSuggestions: (slideId) => {
+        const { presentation } = get();
+        if (!presentation) return [];
+
+        const slide = presentation.slides.find((item) => item.id === slideId);
+        if (!slide) return [];
+
+        const styleKitId =
+          (presentation.metadata?.generationBlueprint?.styleKitId as PPTStyleKitId | undefined) ||
+          'canva-clean';
+        return getStyleAlignedIconSuggestions(styleKitId);
+      },
+
+      setGenerationBlueprint: (blueprint) => {
+        const { presentation } = get();
+        if (!presentation) return;
+
+        const current = presentation.metadata?.generationBlueprint;
+        const merged = normalizePPTGenerationBlueprint({
+          ...current,
+          ...blueprint,
+          styleTokens: {
+            ...(current?.styleTokens || {}),
+            ...(blueprint.styleTokens || {}),
+          } as PPTGenerationBlueprint['styleTokens'],
+        });
+
+        set({
+          presentation: {
+            ...presentation,
+            metadata: {
+              ...(presentation.metadata || {}),
+              generationBlueprint: merged,
+            },
+            updatedAt: new Date(),
+          },
+          isDirty: true,
+        });
+      },
+
+      createGenerationSnapshot: (actionType, sourceSnapshotId, affectedSlideIds) => {
+        const { presentation } = get();
+        if (!presentation) return null;
+
+        const normalized = normalizePresentationForCanvaExperience(presentation);
+        const snapshot = createPresentationSnapshot(
+          normalized,
+          actionType,
+          sourceSnapshotId,
+          affectedSlideIds
+        );
+        const existingSnapshots = normalized.metadata?.generationSnapshots || [];
+
+        set({
+          presentation: {
+            ...normalized,
+            metadata: {
+              ...(normalized.metadata || {}),
+              generationSnapshots: [...existingSnapshots, snapshot],
+              activeSnapshotId: snapshot.id,
+            },
+            updatedAt: new Date(),
+          },
+        });
+
+        return snapshot.id;
+      },
+
+      restoreGenerationSnapshot: (snapshotId) => {
+        const { presentation, pushHistory } = get();
+        if (!presentation) return;
+
+        const snapshots = presentation.metadata?.generationSnapshots || [];
+        const targetSnapshot = snapshots.find((snapshot) => snapshot.id === snapshotId);
+        if (!targetSnapshot) return;
+
+        const currentSlideId = presentation.slides[get().currentSlideIndex]?.id || null;
+        const restored = normalizePresentationForCanvaExperience(targetSnapshot.presentation);
+        const restoredSlides = restored.slides;
+        const restoredIndex = currentSlideId
+          ? Math.max(
+              0,
+              restoredSlides.findIndex((slide) => slide.id === currentSlideId)
+            )
+          : 0;
+
+        set({
+          presentation: {
+            ...restored,
+            metadata: {
+              ...(restored.metadata || {}),
+              generationSnapshots: snapshots,
+              activeSnapshotId: snapshotId,
+            },
+            updatedAt: new Date(),
+          },
+          currentSlideIndex: restoredIndex,
+          selection: {
+            slideId: restoredSlides[restoredIndex]?.id || null,
+            elementIds: [],
+          },
+          isDirty: true,
+        });
+        pushHistory('Restore generation snapshot');
+      },
+
+      getGenerationSnapshots: () => {
+        return get().presentation?.metadata?.generationSnapshots || [];
       },
 
       // Slideshow settings

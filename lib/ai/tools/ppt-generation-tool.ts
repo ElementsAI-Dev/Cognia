@@ -19,6 +19,26 @@ export const pptGenerationInputSchema = z.object({
     .optional()
     .default('professional')
     .describe('The tone/style of the presentation'),
+  templateDirection: z
+    .enum(['storytelling', 'pitch-deck', 'reporting', 'educational', 'product-showcase', 'portfolio'])
+    .optional()
+    .default('storytelling')
+    .describe('Template-first direction used for Canva-like generation'),
+  audienceTone: z
+    .enum(['executive', 'professional', 'friendly', 'academic', 'creative'])
+    .optional()
+    .default('professional')
+    .describe('Audience tone used to shape writing and visual hierarchy'),
+  contentDensity: z
+    .enum(['light', 'balanced', 'dense'])
+    .optional()
+    .default('balanced')
+    .describe('Controls concise vs detail-heavy slide content'),
+  styleKitId: z
+    .enum(['canva-clean', 'canva-bold', 'canva-elegant', 'canva-playful'])
+    .optional()
+    .default('canva-clean')
+    .describe('Style-kit id used to keep colors and typography consistent'),
   slideCount: z.number().min(3).max(50).optional().default(10)
     .describe('Number of slides to generate'),
   language: z.string().optional().default('zh-CN')

@@ -18,11 +18,24 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { PPTGenerationConfig, PPTMaterialGenerationConfig } from '@/hooks/ppt/use-ppt-generation';
-import type { PPTMaterial } from '@/types/workflow';
-import { DEFAULT_PPT_THEMES } from '@/types/workflow';
+import type {
+  PPTAudienceTone,
+  PPTContentDensity,
+  PPTMaterial,
+  PPTStyleKitId,
+  PPTTemplateDirection,
+} from '@/types/workflow';
+import { DEFAULT_PPT_STYLE_KITS, DEFAULT_PPT_THEMES } from '@/types/workflow';
 import { loggers } from '@/lib/logger';
 import {
   validatePPTCreationInput,
@@ -34,6 +47,8 @@ import {
   type PPTMaterialIngestionError,
   type PPTMaterialQualityIssue,
 } from '@/lib/ppt/material-ingestion';
+import { isPPTFeatureFlagEnabled } from '@/lib/ppt/feature-flags';
+import { parseGenerationBlueprint } from '@/components/ppt/types';
 
 export type CreationMode = 'generate' | 'import' | 'paste';
 
@@ -46,7 +61,10 @@ export interface PPTCreationFormProps {
   canRetry?: boolean;
   onRetry?: () => Promise<unknown>;
   onGenerate: (config: PPTGenerationConfig) => Promise<unknown>;
-  onGenerateFromMaterials: (config: PPTMaterialGenerationConfig) => Promise<unknown>;
+  onGenerateFromMaterials: (
+    config: PPTMaterialGenerationConfig,
+    sourceMode: Extract<CreationMode, 'import' | 'paste'>
+  ) => Promise<unknown>;
   className?: string;
 }
 
@@ -68,6 +86,14 @@ export function PPTCreationForm({
   const [mode, setMode] = useState<CreationMode>(initialMode);
   const [topic, setTopic] = useState(initialTopic);
   const [description, setDescription] = useState('');
+  const [templateDirection, setTemplateDirection] = useState<PPTTemplateDirection>('storytelling');
+  const [audienceTone, setAudienceTone] = useState<PPTAudienceTone>('professional');
+  const [contentDensity, setContentDensity] = useState<PPTContentDensity>('balanced');
+  const [styleKitId, setStyleKitId] = useState<PPTStyleKitId>('canva-clean');
+  const canvaExperienceEnabled = useMemo(
+    () => isPPTFeatureFlagEnabled('ppt.canvaExperience.v1'),
+    []
+  );
 
   // Import mode state
   const [importedFile, setImportedFile] = useState<File | null>(null);
@@ -87,6 +113,18 @@ export function PPTCreationForm({
     purpose: 'informative',
     tone: 'professional',
   }), []);
+
+  const generationBlueprint = useMemo(
+    () =>
+      parseGenerationBlueprint({
+        templateDirection,
+        audienceTone,
+        contentDensity,
+        styleKitId,
+        styleTokens: DEFAULT_PPT_STYLE_KITS[styleKitId],
+      }),
+    [templateDirection, audienceTone, contentDensity, styleKitId]
+  );
 
   const currentValidation = useMemo(
     () =>
@@ -150,11 +188,21 @@ export function PPTCreationForm({
       ...defaultConfig,
       topic: validation.normalizedTopic,
       description: description.trim() || undefined,
+      generationBlueprint: canvaExperienceEnabled ? generationBlueprint : undefined,
     };
 
     clearMaterialIssues();
     await onGenerate(config);
-  }, [topic, description, defaultConfig, onGenerate, issueToMessage, clearMaterialIssues]);
+  }, [
+    topic,
+    description,
+    defaultConfig,
+    onGenerate,
+    issueToMessage,
+    clearMaterialIssues,
+    canvaExperienceEnabled,
+    generationBlueprint,
+  ]);
 
   // --- Import Mode: File ---
   const handleFileSelect = useCallback((file: File) => {
@@ -257,10 +305,11 @@ export function PPTCreationForm({
       topic: validation.normalizedTopic || ingestion.materials[0].name,
       description: description.trim() || undefined,
       materials: ingestion.materials as PPTMaterial[],
+      generationBlueprint: canvaExperienceEnabled ? generationBlueprint : undefined,
     };
 
     try {
-      await onGenerateFromMaterials(config);
+      await onGenerateFromMaterials(config, 'import');
     } catch (err) {
       loggers.ui.error('Import generation failed:', err instanceof Error ? err : undefined);
     }
@@ -275,6 +324,8 @@ export function PPTCreationForm({
     ingestionErrorToMessage,
     t,
     clearMaterialIssues,
+    canvaExperienceEnabled,
+    generationBlueprint,
   ]);
 
   // --- Paste Mode ---
@@ -315,10 +366,11 @@ export function PPTCreationForm({
       topic: validation.normalizedTopic || 'Presentation',
       description: description.trim() || undefined,
       materials: ingestion.materials as PPTMaterial[],
+      generationBlueprint: canvaExperienceEnabled ? generationBlueprint : undefined,
     };
 
     try {
-      await onGenerateFromMaterials(config);
+      await onGenerateFromMaterials(config, 'paste');
     } catch (err) {
       loggers.ui.error('Paste generation failed:', err instanceof Error ? err : undefined);
     }
@@ -332,6 +384,8 @@ export function PPTCreationForm({
     ingestionErrorToMessage,
     t,
     clearMaterialIssues,
+    canvaExperienceEnabled,
+    generationBlueprint,
   ]);
 
   const canSubmit = !isGenerating && currentValidation.isValid;
@@ -397,6 +451,80 @@ export function PPTCreationForm({
               rows={2}
             />
           </div>
+
+          {canvaExperienceEnabled && (
+            <div
+              className="grid gap-3 rounded-md border border-border/60 p-3"
+              data-testid="ppt-canva-blueprint-controls"
+            >
+              <div className="text-xs font-medium text-muted-foreground">
+                {t('canvaBlueprint')}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ppt-template-direction">{t('templateDirection')}</Label>
+                  <Select
+                    value={templateDirection}
+                    onValueChange={(value) => setTemplateDirection(value as PPTTemplateDirection)}
+                  >
+                    <SelectTrigger id="ppt-template-direction" data-testid="ppt-template-direction">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="storytelling">{t('template_storytelling')}</SelectItem>
+                      <SelectItem value="pitch-deck">{t('template_pitch_deck')}</SelectItem>
+                      <SelectItem value="reporting">{t('template_reporting')}</SelectItem>
+                      <SelectItem value="educational">{t('template_educational')}</SelectItem>
+                      <SelectItem value="product-showcase">{t('template_product_showcase')}</SelectItem>
+                      <SelectItem value="portfolio">{t('template_portfolio')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ppt-audience-tone">{t('audienceTone')}</Label>
+                  <Select value={audienceTone} onValueChange={(value) => setAudienceTone(value as PPTAudienceTone)}>
+                    <SelectTrigger id="ppt-audience-tone" data-testid="ppt-audience-tone">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="executive">{t('tone_executive')}</SelectItem>
+                      <SelectItem value="professional">{t('tone_professional')}</SelectItem>
+                      <SelectItem value="friendly">{t('tone_friendly')}</SelectItem>
+                      <SelectItem value="academic">{t('tone_academic')}</SelectItem>
+                      <SelectItem value="creative">{t('tone_creative')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ppt-content-density">{t('contentDensity')}</Label>
+                  <Select value={contentDensity} onValueChange={(value) => setContentDensity(value as PPTContentDensity)}>
+                    <SelectTrigger id="ppt-content-density" data-testid="ppt-content-density">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="light">{t('density_light')}</SelectItem>
+                      <SelectItem value="balanced">{t('density_balanced')}</SelectItem>
+                      <SelectItem value="dense">{t('density_dense')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ppt-style-kit">{t('styleKit')}</Label>
+                  <Select value={styleKitId} onValueChange={(value) => setStyleKitId(value as PPTStyleKitId)}>
+                    <SelectTrigger id="ppt-style-kit" data-testid="ppt-style-kit">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="canva-clean">{t('stylekit_clean')}</SelectItem>
+                      <SelectItem value="canva-bold">{t('stylekit_bold')}</SelectItem>
+                      <SelectItem value="canva-elegant">{t('stylekit_elegant')}</SelectItem>
+                      <SelectItem value="canva-playful">{t('stylekit_playful')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <Separator className="my-4" />

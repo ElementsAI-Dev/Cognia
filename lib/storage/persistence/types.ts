@@ -15,6 +15,35 @@ import type {
 
 export type PersistenceBackend = 'web-dexie' | 'desktop-sqlite';
 
+export type PersistenceRuntimeMode = 'desktop-primary' | 'degraded-dexie-fallback' | 'web-dexie-only';
+
+export type PersistenceDiagnosticCode =
+  | 'desktop-not-available'
+  | 'desktop-disabled'
+  | 'schema-mismatch'
+  | 'schema-check-failed'
+  | 'desktop-command-failed'
+  | 'reconciliation-failed';
+
+export interface PersistenceDiagnostic {
+  code: PersistenceDiagnosticCode;
+  message: string;
+  command?: string;
+  expectedSchemaVersion?: number;
+  actualSchemaVersion?: number;
+  at: string;
+}
+
+export interface PersistenceRuntimeStatus {
+  mode: PersistenceRuntimeMode;
+  expectedSchemaVersion: number;
+  actualSchemaVersion?: number;
+  preflightChecked: boolean;
+  reconciliationCompleted: boolean;
+  lastTransitionAt: string;
+  diagnostic?: PersistenceDiagnostic;
+}
+
 export type ImportConflictResolution = 'merge-rename' | 'replace' | 'skip';
 
 export const BACKUP_PACKAGE_SCHEMA_VERSION = 3 as const;
@@ -101,4 +130,44 @@ export interface ExportSelectionOptions {
   includeArtifacts?: boolean;
   includeIndexedDB?: boolean;
   includeChecksum?: boolean;
+}
+
+export type BackupImportWarningCode =
+  | 'session-skipped'
+  | 'session-renamed'
+  | 'message-skipped'
+  | 'message-renamed'
+  | 'incompatible-segment'
+  | 'schema-version-unsupported';
+
+export interface BackupImportWarning {
+  code: BackupImportWarningCode;
+  message: string;
+  entity:
+    | 'session'
+    | 'message'
+    | 'project'
+    | 'knowledge-file'
+    | 'summary'
+    | 'payload'
+    | 'manifest';
+  id?: string;
+}
+
+export interface BackupImportMetadata {
+  schemaVersion?: number;
+  backend?: PersistenceBackend;
+  traceId?: string;
+}
+
+export interface BackupImportIntegrityReport {
+  requestedSchemaVersion?: number;
+  sourceBackend?: PersistenceBackend;
+  traceId?: string;
+  accepted: boolean;
+  rejectedSegments: string[];
+  reconciliation: {
+    sessionRemaps: number;
+    messageRemaps: number;
+  };
 }

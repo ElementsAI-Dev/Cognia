@@ -175,6 +175,7 @@ export function useStorage(options: UseStorageOptions = {}): UseStorageReturn {
         skipped: { sessions: 0, messages: 0, artifacts: 0 },
         errors: errors.map((msg) => ({ category: 'parse', message: msg })),
         warnings: [],
+        warningDetails: [],
         duration: 0,
       };
     }

@@ -41,8 +41,11 @@ describe('useLatexAI', () => {
 
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
+      expect(result.current.status).toBe('idle');
+      expect(result.current.activeOperation).toBeNull();
       expect(typeof result.current.runTextAction).toBe('function');
       expect(typeof result.current.generateEquation).toBe('function');
+      expect(typeof result.current.retryLastAction).toBe('function');
       expect(typeof result.current.stop).toBe('function');
     });
   });
@@ -62,6 +65,8 @@ describe('useLatexAI', () => {
       });
 
       expect(output).toBe('Improved text');
+      expect(result.current.status).toBe('success');
+      expect(result.current.isLoading).toBe(false);
       expect(mockSendMessage).toHaveBeenCalledWith(
         expect.objectContaining({
           messages: expect.arrayContaining([
@@ -199,6 +204,8 @@ describe('useLatexAI', () => {
 
       expect(output).toBeNull();
       expect(result.current.error).toBe('AI request failed');
+      expect(result.current.status).toBe('error');
+      expect(result.current.isLoading).toBe(false);
     });
 
     it('should return null for empty result', async () => {
@@ -230,6 +237,8 @@ describe('useLatexAI', () => {
       });
 
       expect(output).toBe('\\frac{a}{b}');
+      expect(result.current.status).toBe('success');
+      expect(result.current.isLoading).toBe(false);
       expect(mockSendMessage).toHaveBeenCalledWith(
         expect.objectContaining({
           messages: expect.arrayContaining([
@@ -266,6 +275,8 @@ describe('useLatexAI', () => {
 
       expect(output).toBeNull();
       expect(result.current.error).toBe('Generation failed');
+      expect(result.current.status).toBe('error');
+      expect(result.current.isLoading).toBe(false);
     });
 
     it('should return null for empty result', async () => {
@@ -291,6 +302,39 @@ describe('useLatexAI', () => {
       });
 
       expect(mockStop).toHaveBeenCalled();
+    });
+  });
+
+  describe('retryLastAction', () => {
+    it('should retry last text action', async () => {
+      mockSendMessage.mockResolvedValue('Improved text');
+
+      const { result } = renderHook(() => useLatexAI());
+
+      await act(async () => {
+        await result.current.runTextAction({
+          action: 'improveWriting',
+          text: 'Original text',
+        });
+      });
+
+      await act(async () => {
+        await result.current.retryLastAction();
+      });
+
+      expect(mockSendMessage).toHaveBeenCalledTimes(2);
+    });
+
+    it('should return null when there is no action to retry', async () => {
+      const { result } = renderHook(() => useLatexAI());
+
+      let retried: string | null = 'placeholder';
+      await act(async () => {
+        retried = await result.current.retryLastAction();
+      });
+
+      expect(retried).toBeNull();
+      expect(mockSendMessage).not.toHaveBeenCalled();
     });
   });
 });

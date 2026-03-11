@@ -79,6 +79,7 @@ interface MockStore {
   currentSlideIndex: number;
   mode: 'edit' | 'preview' | 'slideshow';
   zoom: number;
+  panelWidth: number;
   showNotes: boolean;
   isDirty: boolean;
   isGenerating: boolean;
@@ -101,9 +102,17 @@ interface MockStore {
   reorderSlides: jest.Mock;
   setThemeById: jest.Mock;
   regenerateSlide: jest.Mock;
+  setPanelWidth: jest.Mock;
   bringToFront: jest.Mock;
   sendToBack: jest.Mock;
   setTheme: jest.Mock;
+  applyLayoutSwap: jest.Mock;
+  autoFitSlideContent: jest.Mock;
+  rebalanceSlideHierarchy: jest.Mock;
+  regenerateSection: jest.Mock;
+  restoreGenerationSnapshot: jest.Mock;
+  replaceSlideMedia: jest.Mock;
+  getStyleAlignedVisualSuggestions: jest.Mock;
   updateElement: jest.Mock;
   updateSlide: jest.Mock;
 }
@@ -113,6 +122,7 @@ const mockStore: MockStore = {
   currentSlideIndex: 0,
   mode: 'edit',
   zoom: 100,
+  panelWidth: 240,
   showNotes: false,
   isDirty: false,
   isGenerating: false,
@@ -135,9 +145,17 @@ const mockStore: MockStore = {
   reorderSlides: jest.fn(),
   setThemeById: jest.fn(),
   regenerateSlide: jest.fn(),
+  setPanelWidth: jest.fn(),
   bringToFront: jest.fn(),
   sendToBack: jest.fn(),
   setTheme: jest.fn(),
+  applyLayoutSwap: jest.fn(),
+  autoFitSlideContent: jest.fn(),
+  rebalanceSlideHierarchy: jest.fn(),
+  regenerateSection: jest.fn(),
+  restoreGenerationSnapshot: jest.fn(),
+  replaceSlideMedia: jest.fn(),
+  getStyleAlignedVisualSuggestions: jest.fn(() => []),
   updateElement: jest.fn(),
   updateSlide: jest.fn(),
 };
@@ -223,6 +241,7 @@ describe('PPTEditor', () => {
     mockStore.currentSlideIndex = 0;
     mockStore.mode = 'edit';
     mockStore.zoom = 100;
+    mockStore.panelWidth = 240;
     mockStore.showNotes = false;
     mockStore.isDirty = false;
     mockStore.isGenerating = false;

@@ -20,6 +20,8 @@ interface LatexEquationDialogProps {
   onGenerate: (prompt: string) => Promise<string | null>;
   onInsert: (latex: string) => void;
   isLoading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
 export function LatexEquationDialog({
@@ -28,6 +30,8 @@ export function LatexEquationDialog({
   onGenerate,
   onInsert,
   isLoading = false,
+  error = null,
+  onRetry,
 }: LatexEquationDialogProps) {
   const t = useTranslations('latex');
   const [prompt, setPrompt] = useState('');
@@ -64,20 +68,44 @@ export function LatexEquationDialog({
 
         <div className="space-y-3">
           <Input
+            data-testid="latex-equation-prompt"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder={t('ai.equationDialog.inputPlaceholder')}
           />
 
           <div className="flex justify-end">
-            <Button type="button" onClick={() => void handleGenerate()} disabled={isLoading || !prompt.trim()}>
+            <Button
+              type="button"
+              onClick={() => void handleGenerate()}
+              disabled={isLoading || !prompt.trim()}
+              data-testid="latex-equation-generate"
+            >
               {t('ai.equationDialog.generate')}
             </Button>
           </div>
 
+          {error && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <p>{error}</p>
+              <div className="mt-2 flex justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={onRetry || (() => void handleGenerate())}
+                  disabled={isLoading || !prompt.trim()}
+                >
+                  {t('retry', { defaultValue: 'Retry' })}
+                </Button>
+              </div>
+            </div>
+          )}
+
           <Separator />
 
           <Textarea
+            data-testid="latex-equation-result"
             value={result}
             onChange={(e) => setResult(e.target.value)}
             rows={8}
@@ -88,7 +116,7 @@ export function LatexEquationDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {t('ai.equationDialog.cancel')}
             </Button>
-            <Button type="button" onClick={() => onInsert(result)} disabled={!result.trim()}>
+            <Button type="button" onClick={() => onInsert(result)} disabled={!result.trim()} data-testid="latex-equation-insert">
               {t('ai.equationDialog.insert')}
             </Button>
           </div>

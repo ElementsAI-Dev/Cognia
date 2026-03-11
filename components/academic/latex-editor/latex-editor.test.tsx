@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LaTeXEditor, LaTeXEditorHandle } from './latex-editor';
 
@@ -17,7 +17,14 @@ const mockGetContent = jest.fn().mockReturnValue('');
 
 jest.mock('./codemirror-editor', () => ({
   CodeMirrorEditor: React.forwardRef(function MockCodeMirrorEditor(
-    props: { value: string; onChange: (v: string) => void; onSave?: () => void; readOnly?: boolean; className?: string },
+    props: {
+      value: string;
+      onChange: (v: string) => void;
+      onSave?: () => void;
+      onScroll?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
+      readOnly?: boolean;
+      className?: string;
+    },
     ref: React.Ref<unknown>
   ) {
     React.useImperativeHandle(ref, () => ({
@@ -49,18 +56,24 @@ jest.mock('./latex-preview', () => ({
 }));
 
 jest.mock('./latex-toolbar', () => ({
-  LaTeXToolbar: ({ onInsert, mode, onModeChange }: {
+  LaTeXToolbar: ({ onInsert, mode, onModeChange, onImport, onExport, onFormat }: {
     onInsert: (text: string) => void;
     onUndo: () => void;
     onRedo: () => void;
     mode: string;
     onModeChange: (mode: string) => void;
+    onImport?: () => void;
+    onExport?: () => void;
+    onFormat?: () => void;
   }) => (
     <div data-testid="latex-toolbar">
       <button data-testid="insert-btn" onClick={() => onInsert('\\alpha')}>Insert</button>
       <button data-testid="mode-source" onClick={() => onModeChange('source')}>Source</button>
       <button data-testid="mode-visual" onClick={() => onModeChange('visual')}>Visual</button>
       <button data-testid="mode-split" onClick={() => onModeChange('split')}>Split</button>
+      <button data-testid="import-btn" onClick={() => onImport?.()}>Import</button>
+      <button data-testid="export-btn" onClick={() => onExport?.()}>Export</button>
+      <button data-testid="format-btn" onClick={() => onFormat?.()}>Format</button>
       <span data-testid="current-mode">{mode}</span>
     </div>
   ),
@@ -75,11 +88,27 @@ jest.mock('./latex-ai-panel', () => ({
 }));
 
 jest.mock('./error-panel', () => ({
-  ErrorPanel: () => <div data-testid="error-panel" />,
+  ErrorPanel: ({ onErrorClick }: { onErrorClick?: (error: { line: number; column: number }) => void }) => (
+    <button
+      data-testid="error-panel"
+      onClick={() => onErrorClick?.({ line: 12, column: 4 })}
+      type="button"
+    >
+      Error Panel
+    </button>
+  ),
 }));
 
 jest.mock('./document-outline', () => ({
-  DocumentOutline: () => <div data-testid="document-outline" />,
+  DocumentOutline: ({ onNavigate }: { onNavigate?: (line: number) => void }) => (
+    <button
+      type="button"
+      data-testid="document-outline"
+      onClick={() => onNavigate?.(7)}
+    >
+      Outline
+    </button>
+  ),
 }));
 
 // Mock libs
@@ -198,5 +227,80 @@ describe('LaTeXEditor', () => {
     render(<LaTeXEditor {...defaultProps} readOnly />);
     const editor = screen.getByTestId('codemirror-editor');
     expect(editor.getAttribute('data-readonly')).toBe('true');
+  });
+
+  it('switches to source mode and navigates when clicking an error in visual mode', async () => {
+    render(<LaTeXEditor {...defaultProps} />);
+
+    await userEvent.click(screen.getByTestId('mode-visual'));
+    expect(screen.getByTestId('current-mode')).toHaveTextContent('visual');
+
+    await userEvent.click(screen.getByTestId('error-panel'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('current-mode')).toHaveTextContent('source');
+      expect(mockScrollToLine).toHaveBeenCalledWith(12);
+    });
+  });
+
+  it('navigates to outline line selection', async () => {
+    render(<LaTeXEditor {...defaultProps} />);
+
+    await userEvent.click(screen.getByTitle('Toggle Outline'));
+    await userEvent.click(screen.getByTestId('document-outline'));
+
+    expect(mockScrollToLine).toHaveBeenCalledWith(7);
+  });
+
+  it('reports unsupported import file types', async () => {
+    const onImportResult = jest.fn();
+    const originalCreateElement = document.createElement.bind(document);
+
+    const fakeInput = {
+      type: '',
+      accept: '',
+      onchange: null as ((event: Event) => void) | null,
+      click: jest.fn(function click() {
+        const file = new File(['bad'], 'bad.pdf', { type: 'application/pdf' });
+        const event = {
+          target: {
+            files: [file],
+          },
+        } as unknown as Event;
+        this.onchange?.(event);
+      }),
+    } as unknown as HTMLInputElement;
+
+    const createElementSpy = jest.spyOn(document, 'createElement').mockImplementation(((tagName: string) => {
+      if (tagName === 'input') {
+        return fakeInput;
+      }
+      return originalCreateElement(tagName);
+    }) as typeof document.createElement);
+
+    render(<LaTeXEditor {...defaultProps} onImportResult={onImportResult} />);
+    await userEvent.click(screen.getByTestId('import-btn'));
+
+    expect(onImportResult).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        fileName: 'bad.pdf',
+      })
+    );
+
+    createElementSpy.mockRestore();
+  });
+
+  it('reports format success through callback', async () => {
+    const onFormatResult = jest.fn();
+    render(<LaTeXEditor {...defaultProps} onFormatResult={onFormatResult} />);
+
+    await userEvent.click(screen.getByTestId('format-btn'));
+
+    expect(onFormatResult).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+      })
+    );
   });
 });

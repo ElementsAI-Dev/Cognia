@@ -9,7 +9,7 @@
  * - Editor Mode: VideoEditorPanel (self-contained)
  */
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { AlertCircle, Disc, Sparkles, X } from 'lucide-react';
@@ -34,6 +34,7 @@ import { useRecordingMode } from '@/hooks/video-studio/use-recording-mode';
 import { useAIGenerationMode } from '@/hooks/video-studio/use-ai-generation-mode';
 import { RecordingModeContent } from './recording-mode';
 import { AIGenerationModeContent } from './ai-generation-mode';
+import { useVideoEditorStore } from '@/stores/media';
 
 export default function VideoStudioPage() {
   const t = useTranslations('videoStudio') as unknown as (key: string, values?: Record<string, unknown>) => string;
@@ -52,6 +53,137 @@ export default function VideoStudioPage() {
   // Mode-specific hooks
   const rec = useRecordingMode({ tEditor });
   const gen = useAIGenerationMode();
+  const { editSession, startEditSession, resumeEditSession, updatePendingOperation } =
+    useVideoEditorStore();
+
+  const selectedRecordingId = rec.selectedRecording?.id ?? null;
+  const selectedRecordingPath = rec.selectedRecording?.file_path;
+  const selectedAIVideoId = gen.selectedVideo?.id ?? null;
+  const selectedAIVideoUrl = gen.selectedVideo?.videoUrl;
+  const selectedAIVideoBase64 = gen.selectedVideo?.videoBase64;
+
+  useEffect(() => {
+    if (studioMode !== 'editor') {
+      return;
+    }
+
+    if (selectedRecordingId && selectedRecordingPath) {
+      const sourceMetadata = {
+        filePath: selectedRecordingPath,
+        mode: rec.selectedRecording?.mode,
+        durationMs: rec.selectedRecording?.duration_ms,
+      };
+
+      if (!(editSession?.sourceType === 'recording' && editSession.sourceRef === selectedRecordingId)) {
+        startEditSession({
+          sourceType: 'recording',
+          sourceRef: selectedRecordingId,
+          sourceMetadata,
+        });
+      }
+      if (editSession?.pendingOperation !== 'editing') {
+        updatePendingOperation('editing');
+      }
+      return;
+    }
+
+    if (selectedAIVideoId && (selectedAIVideoUrl || selectedAIVideoBase64)) {
+      const sourceMetadata = {
+        videoUrl: selectedAIVideoUrl,
+        videoBase64: selectedAIVideoBase64,
+        provider: gen.selectedVideo?.provider,
+        model: gen.selectedVideo?.model,
+      };
+
+      if (
+        !(
+          editSession?.sourceType === 'ai-generation' &&
+          editSession.sourceRef === selectedAIVideoId
+        )
+      ) {
+        startEditSession({
+          sourceType: 'ai-generation',
+          sourceRef: selectedAIVideoId,
+          sourceMetadata,
+        });
+      }
+      if (editSession?.pendingOperation !== 'editing') {
+        updatePendingOperation('editing');
+      }
+      return;
+    }
+
+    if (!editSession) {
+      resumeEditSession();
+    }
+  }, [
+    studioMode,
+    selectedRecordingId,
+    selectedRecordingPath,
+    selectedAIVideoId,
+    selectedAIVideoUrl,
+    selectedAIVideoBase64,
+    rec.selectedRecording?.duration_ms,
+    rec.selectedRecording?.mode,
+    gen.selectedVideo?.model,
+    gen.selectedVideo?.provider,
+    editSession?.pendingOperation,
+    editSession?.sourceRef,
+    editSession?.sourceType,
+    resumeEditSession,
+    startEditSession,
+    updatePendingOperation,
+  ]);
+
+  const editorInitialVideoUrl = useMemo(() => {
+    if (selectedRecordingPath) {
+      return `file://${selectedRecordingPath}`;
+    }
+
+    if (selectedAIVideoUrl) {
+      return selectedAIVideoUrl;
+    }
+
+    if (selectedAIVideoBase64) {
+      return `data:video/mp4;base64,${selectedAIVideoBase64}`;
+    }
+
+    const metadata = editSession?.sourceMetadata;
+    if (!metadata) {
+      return undefined;
+    }
+
+    const sessionVideoUrl =
+      typeof metadata.videoUrl === 'string' && metadata.videoUrl.length > 0
+        ? metadata.videoUrl
+        : undefined;
+    if (sessionVideoUrl) {
+      return sessionVideoUrl;
+    }
+
+    const sessionVideoBase64 =
+      typeof metadata.videoBase64 === 'string' && metadata.videoBase64.length > 0
+        ? metadata.videoBase64
+        : undefined;
+    if (sessionVideoBase64) {
+      return `data:video/mp4;base64,${sessionVideoBase64}`;
+    }
+
+    const sessionFilePath =
+      typeof metadata.filePath === 'string' && metadata.filePath.length > 0
+        ? metadata.filePath
+        : undefined;
+    if (sessionFilePath) {
+      return `file://${sessionFilePath}`;
+    }
+
+    return undefined;
+  }, [
+    selectedRecordingPath,
+    selectedAIVideoUrl,
+    selectedAIVideoBase64,
+    editSession?.sourceMetadata,
+  ]);
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -204,7 +336,7 @@ export default function VideoStudioPage() {
 
             {studioMode === 'editor' && (
               <VideoEditorPanel
-                initialVideoUrl={rec.selectedRecording?.file_path ? `file://${rec.selectedRecording.file_path}` : undefined}
+                initialVideoUrl={editorInitialVideoUrl}
                 onExport={(blob) => {
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');

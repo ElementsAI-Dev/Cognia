@@ -31,22 +31,26 @@ jest.mock('@/lib/logger', () => ({
 }));
 
 // Mock DEFAULT_PPT_THEMES
-jest.mock('@/types/workflow', () => ({
-  DEFAULT_PPT_THEMES: [
-    {
-      id: 'modern-dark',
-      name: 'Modern Dark',
-      primaryColor: '#3B82F6',
-      secondaryColor: '#1E40AF',
-      accentColor: '#60A5FA',
-      backgroundColor: '#0F172A',
-      textColor: '#F8FAFC',
-      headingFont: 'Inter',
-      bodyFont: 'Inter',
-      codeFont: 'JetBrains Mono',
-    },
-  ],
-}));
+jest.mock('@/types/workflow', () => {
+  const actual = jest.requireActual('@/types/workflow');
+  return {
+    ...actual,
+    DEFAULT_PPT_THEMES: [
+      {
+        id: 'modern-dark',
+        name: 'Modern Dark',
+        primaryColor: '#3B82F6',
+        secondaryColor: '#1E40AF',
+        accentColor: '#60A5FA',
+        backgroundColor: '#0F172A',
+        textColor: '#F8FAFC',
+        headingFont: 'Inter',
+        bodyFont: 'Inter',
+        codeFont: 'JetBrains Mono',
+      },
+    ],
+  };
+});
 
 describe('PPTCreationHub', () => {
   const defaultProps = {

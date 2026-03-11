@@ -60,37 +60,39 @@ function mapClipEffects(
  * @param updateClip - Function to update a single clip's properties
  */
 export function useClipEffects(
-  updateTracks: (updater: (tracks: VideoTrack[]) => VideoTrack[]) => void,
+  updateTracks: (updater: (tracks: VideoTrack[]) => VideoTrack[], action?: string) => void,
   updateClip: (clipId: string, updates: Partial<VideoClip>) => void
 ): UseClipEffectsReturn {
   const addEffect = useCallback(
     (clipId: string, effectId: string, params?: Record<string, unknown>) => {
-      updateTracks((tracks) =>
-        tracks.map((t) => ({
-          ...t,
-          clips: t.clips.map((c) =>
-            c.id === clipId
-              ? mapClipEffects(c, (effects) => {
-                  const existing = effects.find((effect) => effect.effectId === effectId);
-                  if (existing) {
-                    return effects.map((effect) =>
-                      effect.effectId === effectId
-                        ? {
-                            ...effect,
-                            enabled: true,
-                            params: {
-                              ...effect.params,
-                              ...(params ?? {}),
-                            },
-                          }
-                        : effect
-                    );
-                  }
-                  return [...effects, createEffectInstance(effectId, params)];
-                })
-              : c
-          ),
-        }))
+      updateTracks(
+        (tracks) =>
+          tracks.map((t) => ({
+            ...t,
+            clips: t.clips.map((c) =>
+              c.id === clipId
+                ? mapClipEffects(c, (effects) => {
+                    const existing = effects.find((effect) => effect.effectId === effectId);
+                    if (existing) {
+                      return effects.map((effect) =>
+                        effect.effectId === effectId
+                          ? {
+                              ...effect,
+                              enabled: true,
+                              params: {
+                                ...effect.params,
+                                ...(params ?? {}),
+                              },
+                            }
+                          : effect
+                      );
+                    }
+                    return [...effects, createEffectInstance(effectId, params)];
+                  })
+                : c
+            ),
+          })),
+        'effect:add'
       );
     },
     [updateTracks]
@@ -98,17 +100,19 @@ export function useClipEffects(
 
   const removeEffect = useCallback(
     (clipId: string, effectId: string) => {
-      updateTracks((tracks) =>
-        tracks.map((t) => ({
-          ...t,
-          clips: t.clips.map((c) =>
-            c.id === clipId
-              ? mapClipEffects(c, (effects) =>
-                  effects.filter((effect) => effect.effectId !== effectId && effect.id !== effectId)
-                )
-              : c
-          ),
-        }))
+      updateTracks(
+        (tracks) =>
+          tracks.map((t) => ({
+            ...t,
+            clips: t.clips.map((c) =>
+              c.id === clipId
+                ? mapClipEffects(c, (effects) =>
+                    effects.filter((effect) => effect.effectId !== effectId && effect.id !== effectId)
+                  )
+                : c
+            ),
+          })),
+        'effect:remove'
       );
     },
     [updateTracks]
@@ -116,21 +120,23 @@ export function useClipEffects(
 
   const updateEffectParams = useCallback(
     (clipId: string, effectId: string, params: Record<string, unknown>) => {
-      updateTracks((tracks) =>
-        tracks.map((t) => ({
-          ...t,
-          clips: t.clips.map((c) =>
-            c.id === clipId
-              ? mapClipEffects(c, (effects) =>
-                  effects.map((effect) =>
-                    effect.effectId === effectId || effect.id === effectId
-                      ? { ...effect, params: { ...effect.params, ...params } }
-                      : effect
+      updateTracks(
+        (tracks) =>
+          tracks.map((t) => ({
+            ...t,
+            clips: t.clips.map((c) =>
+              c.id === clipId
+                ? mapClipEffects(c, (effects) =>
+                    effects.map((effect) =>
+                      effect.effectId === effectId || effect.id === effectId
+                        ? { ...effect, params: { ...effect.params, ...params } }
+                        : effect
+                    )
                   )
-                )
-              : c
-          ),
-        }))
+                : c
+            ),
+          })),
+        'effect:update'
       );
     },
     [updateTracks]
@@ -138,21 +144,23 @@ export function useClipEffects(
 
   const setEffectEnabled = useCallback(
     (clipId: string, effectId: string, enabled: boolean) => {
-      updateTracks((tracks) =>
-        tracks.map((t) => ({
-          ...t,
-          clips: t.clips.map((c) =>
-            c.id === clipId
-              ? mapClipEffects(c, (effects) =>
-                  effects.map((effect) =>
-                    effect.effectId === effectId || effect.id === effectId
-                      ? { ...effect, enabled }
-                      : effect
+      updateTracks(
+        (tracks) =>
+          tracks.map((t) => ({
+            ...t,
+            clips: t.clips.map((c) =>
+              c.id === clipId
+                ? mapClipEffects(c, (effects) =>
+                    effects.map((effect) =>
+                      effect.effectId === effectId || effect.id === effectId
+                        ? { ...effect, enabled }
+                        : effect
+                    )
                   )
-                )
-              : c
-          ),
-        }))
+                : c
+            ),
+          })),
+        'effect:toggle'
       );
     },
     [updateTracks]
@@ -160,29 +168,31 @@ export function useClipEffects(
 
   const reorderEffects = useCallback(
     (clipId: string, fromIndex: number, toIndex: number) => {
-      updateTracks((tracks) =>
-        tracks.map((t) => ({
-          ...t,
-          clips: t.clips.map((c) => {
-            if (c.id !== clipId) {
-              return c;
-            }
-            return mapClipEffects(c, (effects) => {
-              if (
-                fromIndex < 0 ||
-                toIndex < 0 ||
-                fromIndex >= effects.length ||
-                toIndex >= effects.length
-              ) {
-                return effects;
+      updateTracks(
+        (tracks) =>
+          tracks.map((t) => ({
+            ...t,
+            clips: t.clips.map((c) => {
+              if (c.id !== clipId) {
+                return c;
               }
-              const reordered = [...effects];
-              const [moved] = reordered.splice(fromIndex, 1);
-              reordered.splice(toIndex, 0, moved);
-              return reordered;
-            });
-          }),
-        }))
+              return mapClipEffects(c, (effects) => {
+                if (
+                  fromIndex < 0 ||
+                  toIndex < 0 ||
+                  fromIndex >= effects.length ||
+                  toIndex >= effects.length
+                ) {
+                  return effects;
+                }
+                const reordered = [...effects];
+                const [moved] = reordered.splice(fromIndex, 1);
+                reordered.splice(toIndex, 0, moved);
+                return reordered;
+              });
+            }),
+          })),
+        'effect:reorder'
       );
     },
     [updateTracks]

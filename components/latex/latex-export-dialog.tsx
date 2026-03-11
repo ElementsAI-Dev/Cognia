@@ -33,6 +33,7 @@ export interface LaTeXExportDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   onExportComplete?: (format: ExportFormat, content: string) => void;
+  onExportError?: (format: ExportFormat, message: string) => void;
 }
 
 export function LaTeXExportDialog({
@@ -41,6 +42,7 @@ export function LaTeXExportDialog({
   open: controlledOpen,
   onOpenChange,
   onExportComplete,
+  onExportError,
 }: LaTeXExportDialogProps) {
   const t = useTranslations('latex');
   const [internalOpen, setInternalOpen] = useState(false);
@@ -50,6 +52,7 @@ export function LaTeXExportDialog({
   const [exportStatus, setExportStatus] = useState<'idle' | 'exporting' | 'success' | 'error'>(
     'idle'
   );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { exportToFormat, isExporting } = useLatex();
 
@@ -58,7 +61,12 @@ export function LaTeXExportDialog({
 
   const handleExport = useCallback(async () => {
     setExportStatus('exporting');
+    setErrorMessage(null);
     try {
+      if (!content.trim()) {
+        throw new Error('No content available to export.');
+      }
+
       const result = await exportToFormat(content, format);
 
       // Generate file extension based on format
@@ -82,6 +90,7 @@ export function LaTeXExportDialog({
       URL.revokeObjectURL(url);
 
       setExportStatus('success');
+      setErrorMessage(null);
       onExportComplete?.(format, result);
 
       // Reset status after 2 seconds
@@ -90,11 +99,12 @@ export function LaTeXExportDialog({
         setIsOpen(false);
       }, 1500);
     } catch (error) {
-      console.error('Export failed:', error);
       setExportStatus('error');
-      setTimeout(() => setExportStatus('idle'), 3000);
+      const message = error instanceof Error ? error.message : 'Export failed';
+      setErrorMessage(message);
+      onExportError?.(format, message);
     }
-  }, [content, format, fileName, exportToFormat, onExportComplete, setIsOpen]);
+  }, [content, format, fileName, exportToFormat, onExportComplete, onExportError, setIsOpen]);
 
   const formatOptions = [
     {
@@ -136,6 +146,7 @@ export function LaTeXExportDialog({
           <div className="space-y-2">
             <Label htmlFor="fileName">{t('fileName', { defaultValue: 'File Name' })}</Label>
             <Input
+              data-testid="latex-export-filename"
               id="fileName"
               value={fileName}
               onChange={(e) => setFileName(e.target.value)}
@@ -200,6 +211,12 @@ export function LaTeXExportDialog({
           )}
         </div>
 
+        {errorMessage && (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {errorMessage}
+          </div>
+        )}
+
         <DialogFooter>
           <Button variant="outline" onClick={() => setIsOpen(false)}>
             {t('cancel', { defaultValue: 'Cancel' })}
@@ -208,12 +225,15 @@ export function LaTeXExportDialog({
             onClick={handleExport}
             disabled={isExporting || exportStatus === 'exporting' || !fileName.trim()}
             className="gap-2"
+            data-testid="latex-export-confirm"
           >
             {exportStatus === 'exporting' && <Loader2 className="h-4 w-4 animate-spin" />}
             {exportStatus === 'success' && <Check className="h-4 w-4 text-green-500" />}
             {exportStatus === 'idle' && <Download className="h-4 w-4" />}
             {exportStatus === 'success'
               ? t('exported', { defaultValue: 'Exported!' })
+              : exportStatus === 'error'
+                ? t('retry', { defaultValue: 'Retry Export' })
               : t('export', { defaultValue: 'Export' })}
           </Button>
         </DialogFooter>
