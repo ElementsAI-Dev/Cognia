@@ -231,6 +231,7 @@ const config: Config = {
   modulePathIgnorePatterns: [
     "<rootDir>/out/",
     "<rootDir>/.next/",
+    "<rootDir>/.dify-ref/",
     "<rootDir>/.worktrees/",
   ],
 
@@ -316,6 +317,7 @@ const config: Config = {
   testPathIgnorePatterns: [
     "/node_modules/",
     "/.next/",
+    "/.dify-ref/",
     "/out/",
     "/.worktrees/",
     "/src-tauri/",

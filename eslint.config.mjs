@@ -27,6 +27,9 @@ const eslintConfig = defineConfig([
     "plugin-sdk/python/coverage_html/**",
     // Local auxiliary git worktrees (not part of current workspace validation scope)
     ".worktrees/**",
+    // Reference/third-party mirrors are not part of this app's lint scope
+    ".dify-ref/**",
+    ".pw-browsers/**",
     // Generated/shared type definitions are linted separately
     "types/**",
   ]),

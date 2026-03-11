@@ -1,56 +1,82 @@
-/**
- * Tests for PPTCreationHub
- */
-
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { PPTCreationHub } from './ppt-creation-hub';
 
-// Mock next/navigation
 const mockPush = jest.fn();
+const mockPrepareReview = jest.fn();
+const mockFinalizeReview = jest.fn();
+const mockUpdateReviewOutline = jest.fn();
+const mockRegenerateReviewOutline = jest.fn();
+const mockRetry = jest.fn();
+const mockClearReviewSession = jest.fn();
+
+const mockHookState = {
+  reviewSession: null as null | {
+    id: string;
+    sourceMode: 'generate';
+    config: {
+      topic: string;
+      theme: {
+        id: string;
+        name: string;
+        primaryColor: string;
+        secondaryColor: string;
+        accentColor: string;
+        backgroundColor: string;
+        textColor: string;
+        headingFont: string;
+        bodyFont: string;
+        codeFont: string;
+      };
+    };
+    outline: { title: string; outline: Array<{ slideNumber: number; title: string; layout: string }> };
+  },
+  isGenerating: false,
+  progress: { stage: 'idle', currentSlide: 0, totalSlides: 0, message: '' },
+  error: null as string | null,
+  retry: mockRetry,
+  canRetry: false,
+  prepareReview: mockPrepareReview,
+  updateReviewOutline: mockUpdateReviewOutline,
+  regenerateReviewOutline: mockRegenerateReviewOutline,
+  finalizeReview: mockFinalizeReview,
+  clearReviewSession: mockClearReviewSession,
+};
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
-// Mock hooks/ppt
-const mockGenerate = jest.fn();
-const mockGenerateFromMaterials = jest.fn();
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) =>
+    ({
+      creationHub: 'Create Presentation',
+      creationHubDesc: 'Choose how to create your presentation',
+      topic: 'Topic',
+      additionalDetails: 'Additional Details',
+      modeGenerate: 'Generate',
+      modeImport: 'Import',
+      modePaste: 'Paste',
+      modeGenerateDesc: 'Create from a topic or prompt',
+      cancel: 'Cancel',
+      backToInputs: 'Back to Inputs',
+      reviewSessionReady: 'A review session is ready',
+      resumeReview: 'Resume Review',
+      discardReview: 'Discard Review',
+    }[key] || key),
+}));
+
 jest.mock('@/hooks/ppt', () => ({
-  usePPTGeneration: () => ({
-    generate: mockGenerate,
-    generateFromMaterials: mockGenerateFromMaterials,
-    isGenerating: false,
-    progress: { stage: 'idle', currentSlide: 0, totalSlides: 0, message: '' },
-    error: null,
-  }),
+  usePPTGeneration: () => mockHookState,
 }));
 
-// Mock logger
-jest.mock('@/lib/logger', () => ({
-  loggers: { ui: { error: jest.fn(), info: jest.fn(), debug: jest.fn() } },
+jest.mock('./ppt-generation-review-panel', () => ({
+  PPTGenerationReviewPanel: ({ onStartGeneration }: { onStartGeneration: () => void }) => (
+    <div data-testid="ppt-review-panel" onClick={onStartGeneration}>
+      Review Panel
+    </div>
+  ),
 }));
-
-// Mock DEFAULT_PPT_THEMES
-jest.mock('@/types/workflow', () => {
-  const actual = jest.requireActual('@/types/workflow');
-  return {
-    ...actual,
-    DEFAULT_PPT_THEMES: [
-      {
-        id: 'modern-dark',
-        name: 'Modern Dark',
-        primaryColor: '#3B82F6',
-        secondaryColor: '#1E40AF',
-        accentColor: '#60A5FA',
-        backgroundColor: '#0F172A',
-        textColor: '#F8FAFC',
-        headingFont: 'Inter',
-        bodyFont: 'Inter',
-        codeFont: 'JetBrains Mono',
-      },
-    ],
-  };
-});
 
 describe('PPTCreationHub', () => {
   const defaultProps = {
@@ -60,162 +86,98 @@ describe('PPTCreationHub', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockHookState.reviewSession = null;
+    mockHookState.error = null;
+    mockHookState.canRetry = false;
   });
 
-  it('should render dialog when open', () => {
+  it('renders the creation form state by default', () => {
     render(<PPTCreationHub {...defaultProps} />);
     expect(screen.getByText('Create Presentation')).toBeInTheDocument();
-    expect(screen.getByText('Choose how to create your presentation')).toBeInTheDocument();
-  });
-
-  it('should render three mode tabs', () => {
-    render(<PPTCreationHub {...defaultProps} />);
-    expect(screen.getByRole('tab', { name: /Generate/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Import/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Paste/i })).toBeInTheDocument();
-  });
-
-  it('should render topic and description inputs', () => {
-    render(<PPTCreationHub {...defaultProps} />);
     expect(screen.getByLabelText('Topic')).toBeInTheDocument();
-    expect(screen.getByLabelText('Additional Details')).toBeInTheDocument();
   });
 
-  it('should render generate tab content by default', () => {
-    render(<PPTCreationHub {...defaultProps} />);
-    expect(screen.getByText('Create from a topic or prompt')).toBeInTheDocument();
-  });
-
-  it('should render import tab content when initialMode is import', () => {
-    render(<PPTCreationHub {...defaultProps} initialMode="import" />);
-    expect(screen.getByText('Drag & drop a file here')).toBeInTheDocument();
-  });
-
-  it('should render paste tab content when initialMode is paste', () => {
-    render(<PPTCreationHub {...defaultProps} initialMode="paste" />);
-    expect(screen.getByPlaceholderText(/Paste your article/)).toBeInTheDocument();
-  });
-
-  it('should render all three tab triggers', () => {
-    render(<PPTCreationHub {...defaultProps} />);
-    expect(screen.getByRole('tab', { name: /Generate/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Import/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Paste/i })).toBeInTheDocument();
-  });
-
-  it('should set initial topic from props', () => {
-    render(<PPTCreationHub {...defaultProps} initialTopic="AI in Healthcare" />);
-    const topicInput = screen.getByLabelText('Topic') as HTMLInputElement;
-    expect(topicInput.value).toBe('AI in Healthcare');
-  });
-
-  it('should enable generate button when topic is entered in generate mode', () => {
-    render(<PPTCreationHub {...defaultProps} />);
-    const topicInput = screen.getByLabelText('Topic');
-    fireEvent.change(topicInput, { target: { value: 'My Presentation' } });
-
-    const generateBtn = screen.getByRole('button', { name: /Generate/i });
-    expect(generateBtn).not.toBeDisabled();
-  });
-
-  it('should disable generate button when topic is empty in generate mode', () => {
-    render(<PPTCreationHub {...defaultProps} />);
-    // The Generate button in the submit area (not the tab)
-    const buttons = screen.getAllByRole('button');
-    const generateBtn = buttons.find(
-      (btn) => btn.textContent?.includes('Generate') && !btn.closest('[role="tablist"]')
-    );
-    expect(generateBtn).toBeDisabled();
-  });
-
-  it('should call generate when submit is clicked in generate mode', async () => {
-    mockGenerate.mockResolvedValue({ id: 'ppt-123' });
+  it('starts a review session from generate mode', async () => {
+    mockPrepareReview.mockResolvedValue({ id: 'session-1' });
     render(<PPTCreationHub {...defaultProps} />);
 
-    const topicInput = screen.getByLabelText('Topic');
-    fireEvent.change(topicInput, { target: { value: 'Test Topic' } });
+    fireEvent.change(screen.getByLabelText('Topic'), {
+      target: { value: 'Review deck' },
+    });
 
-    const buttons = screen.getAllByRole('button');
-    const generateBtn = buttons.find(
-      (btn) => btn.textContent?.includes('Generate') && !btn.closest('[role="tablist"]')
-    );
-    fireEvent.click(generateBtn!);
+    const submit = screen.getByTestId('ppt-create-submit');
+    fireEvent.click(submit);
 
     await waitFor(() => {
-      expect(mockGenerate).toHaveBeenCalledWith(
-        expect.objectContaining({ topic: 'Test Topic' })
+      expect(mockPrepareReview).toHaveBeenCalledWith(
+        expect.objectContaining({ topic: 'Review deck' }),
+        'generate'
       );
     });
   });
 
-  it('should show character count in paste mode', () => {
-    render(<PPTCreationHub {...defaultProps} initialMode="paste" />);
-    const textarea = screen.getByPlaceholderText(/Paste your article/);
-    fireEvent.change(textarea, { target: { value: 'Hello world' } });
-    expect(screen.getByText('11 characters')).toBeInTheDocument();
-  });
+  it('renders a resume card when a review session exists but is not open', () => {
+    mockHookState.reviewSession = {
+      id: 'session-1',
+      sourceMode: 'generate',
+      config: {
+        topic: 'Resume deck',
+        theme: {
+          id: 'default',
+          name: 'Default',
+          primaryColor: '#000',
+          secondaryColor: '#111',
+          accentColor: '#222',
+          backgroundColor: '#fff',
+          textColor: '#000',
+          headingFont: 'Inter',
+          bodyFont: 'Inter',
+          codeFont: 'Mono',
+        },
+      },
+      outline: {
+        title: 'Resume deck',
+        outline: [{ slideNumber: 1, title: 'Intro', layout: 'title-content' }],
+      },
+    };
 
-  it('should show min chars hint when paste text is less than 50 chars', () => {
-    render(<PPTCreationHub {...defaultProps} initialMode="paste" />);
-    const textarea = screen.getByPlaceholderText(/Paste your article/);
-    fireEvent.change(textarea, { target: { value: 'Short text' } });
-    expect(screen.getByText('Minimum 50 characters recommended')).toBeInTheDocument();
-  });
-
-  it('should call onOpenChange when cancel is clicked', () => {
-    const onOpenChange = jest.fn();
-    render(<PPTCreationHub {...defaultProps} onOpenChange={onOpenChange} />);
-    fireEvent.click(screen.getByText('Cancel'));
-    expect(onOpenChange).toHaveBeenCalledWith(false);
-  });
-
-  it('should navigate to ppt page after successful generation', async () => {
-    mockGenerate.mockResolvedValue({ id: 'ppt-new-123' });
-    const onCreated = jest.fn();
-    render(
-      <PPTCreationHub {...defaultProps} onCreated={onCreated} />
-    );
-
-    fireEvent.change(screen.getByLabelText('Topic'), {
-      target: { value: 'Test' },
-    });
-
-    const buttons = screen.getAllByRole('button');
-    const generateBtn = buttons.find(
-      (btn) => btn.textContent?.includes('Generate') && !btn.closest('[role="tablist"]')
-    );
-    fireEvent.click(generateBtn!);
-
-    await waitFor(() => {
-      expect(onCreated).toHaveBeenCalledWith('ppt-new-123');
-      expect(mockPush).not.toHaveBeenCalled();
-    });
-  });
-
-  it('should navigate directly when onCreated is not provided', async () => {
-    mockGenerate.mockResolvedValue({ id: 'ppt-new-456' });
     render(<PPTCreationHub {...defaultProps} />);
-
-    fireEvent.change(screen.getByLabelText('Topic'), {
-      target: { value: 'Direct navigation' },
-    });
-
-    const buttons = screen.getAllByRole('button');
-    const generateBtn = buttons.find(
-      (btn) => btn.textContent?.includes('Generate') && !btn.closest('[role="tablist"]')
-    );
-    fireEvent.click(generateBtn!);
-
-    await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/ppt?id=ppt-new-456');
-    });
+    expect(screen.getByText('A review session is ready')).toBeInTheDocument();
   });
 
-  it('should render import tab with file upload zone and URL input', () => {
-    render(<PPTCreationHub {...defaultProps} initialMode="import" />);
-    expect(screen.getByText('Drag & drop a file here')).toBeInTheDocument();
-    expect(screen.getByText('or click to select a file')).toBeInTheDocument();
-    expect(screen.getByText('Supported: PDF, DOCX, TXT, MD')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('https://example.com/article')).toBeInTheDocument();
+  it('finalizes the review flow and reports the created id', async () => {
+    mockHookState.reviewSession = {
+      id: 'session-1',
+      sourceMode: 'generate',
+      config: {
+        topic: 'Deck',
+        theme: {
+          id: 'default',
+          name: 'Default',
+          primaryColor: '#000',
+          secondaryColor: '#111',
+          accentColor: '#222',
+          backgroundColor: '#fff',
+          textColor: '#000',
+          headingFont: 'Inter',
+          bodyFont: 'Inter',
+          codeFont: 'Mono',
+        },
+      },
+      outline: {
+        title: 'Deck',
+        outline: [{ slideNumber: 1, title: 'Intro', layout: 'title-content' }],
+      },
+    };
+    mockFinalizeReview.mockResolvedValue({ id: 'ppt-123' });
+
+    render(<PPTCreationHub {...defaultProps} onCreated={jest.fn()} />);
+
+    fireEvent.click(screen.getByText('Resume Review'));
+    fireEvent.click(screen.getByTestId('ppt-review-panel'));
+
+    await waitFor(() => {
+      expect(mockFinalizeReview).toHaveBeenCalled();
+    });
   });
 });

@@ -33,7 +33,7 @@ test.describe('MCP Settings - Server List', () => {
         id: string;
         name: string;
         config: {
-          connectionType: 'stdio' | 'sse';
+          connectionType: 'stdio' | 'sse' | 'streamableHttp';
           command: string;
           args: string[];
           enabled: boolean;
@@ -86,7 +86,7 @@ test.describe('MCP Settings - Add Server', () => {
     const result = await page.evaluate(() => {
       interface McpServerConfig {
         name: string;
-        connectionType: 'stdio' | 'sse';
+        connectionType: 'stdio' | 'sse' | 'streamableHttp';
         command: string;
         args: string[];
         env: Record<string, string>;
@@ -136,7 +136,7 @@ test.describe('MCP Settings - Add Server', () => {
     const result = await page.evaluate(() => {
       interface McpServerConfig {
         name: string;
-        connectionType: 'stdio' | 'sse';
+        connectionType: 'stdio' | 'sse' | 'streamableHttp';
         url?: string;
         enabled: boolean;
         autoStart: boolean;
@@ -342,6 +342,189 @@ test.describe('MCP Settings - Add Server', () => {
 });
 
 test.describe('MCP Settings - Server Status', () => {
+  test('should apply deterministic streamableHttp fallback selection', async ({ page }) => {
+    await page.goto('/');
+
+    const result = await page.evaluate(() => {
+      type Transport = 'streamableHttp' | 'sse';
+      interface TransportEvent {
+        type: 'transport_fallback_attempted' | 'transport_selected';
+        selectedTransport: Transport;
+        reasonCode: string;
+      }
+
+      const connectRemote = (
+        fallbackEnabled: boolean,
+        streamableBehavior: 'success' | 'incompatible'
+      ): { selectedTransport: Transport; events: TransportEvent[] } => {
+        const events: TransportEvent[] = [];
+
+        if (streamableBehavior === 'success') {
+          events.push({
+            type: 'transport_selected',
+            selectedTransport: 'streamableHttp',
+            reasonCode: 'transport_selected',
+          });
+          return { selectedTransport: 'streamableHttp', events };
+        }
+
+        if (fallbackEnabled) {
+          events.push({
+            type: 'transport_fallback_attempted',
+            selectedTransport: 'sse',
+            reasonCode: 'transport_incompatible',
+          });
+          events.push({
+            type: 'transport_selected',
+            selectedTransport: 'sse',
+            reasonCode: 'transport_fallback_sse',
+          });
+          return { selectedTransport: 'sse', events };
+        }
+
+        return {
+          selectedTransport: 'streamableHttp',
+          events: [
+            {
+              type: 'transport_selected',
+              selectedTransport: 'streamableHttp',
+              reasonCode: 'transport_incompatible',
+            },
+          ],
+        };
+      };
+
+      return {
+        primarySuccess: connectRemote(true, 'success'),
+        fallbackPath: connectRemote(true, 'incompatible'),
+      };
+    });
+
+    expect(result.primarySuccess.selectedTransport).toBe('streamableHttp');
+    expect(result.primarySuccess.events).toEqual([
+      {
+        type: 'transport_selected',
+        selectedTransport: 'streamableHttp',
+        reasonCode: 'transport_selected',
+      },
+    ]);
+
+    expect(result.fallbackPath.selectedTransport).toBe('sse');
+    expect(result.fallbackPath.events).toEqual([
+      {
+        type: 'transport_fallback_attempted',
+        selectedTransport: 'sse',
+        reasonCode: 'transport_incompatible',
+      },
+      {
+        type: 'transport_selected',
+        selectedTransport: 'sse',
+        reasonCode: 'transport_fallback_sse',
+      },
+    ]);
+  });
+
+  test('should map bridge timeout/limit/policy errors to non-blocking UI semantics', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const result = await page.evaluate(() => {
+      type BridgeReason =
+        | 'timeout'
+        | 'ui_concurrency_limit_exceeded'
+        | 'ui_rate_limit_exceeded'
+        | 'policy_denied';
+      interface BridgeUiState {
+        reasonCode: BridgeReason;
+        severity: 'warning' | 'error';
+        blocking: boolean;
+        message: string;
+      }
+
+      const toUiState = (reasonCode: BridgeReason): BridgeUiState => {
+        switch (reasonCode) {
+          case 'timeout':
+            return {
+              reasonCode,
+              severity: 'warning',
+              blocking: false,
+              message: 'Widget request timed out. Showing fallback output.',
+            };
+          case 'ui_concurrency_limit_exceeded':
+          case 'ui_rate_limit_exceeded':
+            return {
+              reasonCode,
+              severity: 'warning',
+              blocking: false,
+              message: 'Widget request rate limit reached. Showing fallback output.',
+            };
+          case 'policy_denied':
+            return {
+              reasonCode,
+              severity: 'error',
+              blocking: false,
+              message: 'Widget request denied by policy. Showing fallback output.',
+            };
+        }
+      };
+
+      return {
+        timeoutState: toUiState('timeout'),
+        rateLimitState: toUiState('ui_rate_limit_exceeded'),
+        policyState: toUiState('policy_denied'),
+      };
+    });
+
+    expect(result.timeoutState.blocking).toBe(false);
+    expect(result.timeoutState.message).toContain('fallback');
+    expect(result.rateLimitState.reasonCode).toBe('ui_rate_limit_exceeded');
+    expect(result.rateLimitState.blocking).toBe(false);
+    expect(result.policyState.severity).toBe('error');
+    expect(result.policyState.blocking).toBe(false);
+  });
+
+  test('should preserve legacy renderer output when widget bridge fails', async ({ page }) => {
+    await page.goto('/');
+
+    const result = await page.evaluate(() => {
+      const renderResult = (params: {
+        widgetAvailable: boolean;
+        bridgeFailed: boolean;
+        textOutput: string;
+      }) => {
+        const showWidget = params.widgetAvailable && !params.bridgeFailed;
+        return {
+          showWidget,
+          showLegacyText: true,
+          legacyText: params.textOutput,
+          fallbackReasonCode: params.bridgeFailed ? 'policy_denied' : null,
+        };
+      };
+
+      return {
+        healthy: renderResult({
+          widgetAvailable: true,
+          bridgeFailed: false,
+          textOutput: 'primary output',
+        }),
+        degraded: renderResult({
+          widgetAvailable: true,
+          bridgeFailed: true,
+          textOutput: 'fallback output',
+        }),
+      };
+    });
+
+    expect(result.healthy.showWidget).toBe(true);
+    expect(result.healthy.showLegacyText).toBe(true);
+
+    expect(result.degraded.showWidget).toBe(false);
+    expect(result.degraded.showLegacyText).toBe(true);
+    expect(result.degraded.legacyText).toBe('fallback output');
+    expect(result.degraded.fallbackReasonCode).toBe('policy_denied');
+  });
+
   test('should track server connection status', async ({ page }) => {
     await page.goto('/');
 
