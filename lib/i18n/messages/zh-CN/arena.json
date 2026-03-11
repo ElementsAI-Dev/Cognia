@@ -267,8 +267,11 @@
       "maxRetryAttempts": "最大重试次数",
       "requestTimeout": "请求超时（秒）",
       "lastSync": "上次同步",
+      "lastUpdated": "更新时间 {time}",
       "refresh": "刷新",
       "syncing": "同步中...",
+      "fresh": "最新",
+      "stale": "过期",
       "offline": "离线",
       "online": "在线",
       "pendingSubmissions": "待提交",
@@ -320,6 +323,14 @@
     "shuffle": "随机选择",
     "blindMode": "盲选模式",
     "multiTurn": "多轮对话"
+  },
+  "launchReadiness": {
+    "invalidPrompt": "开始对战前请先输入提示词。",
+    "insufficientModels": "至少选择两个模型后才能开始对战。",
+    "providerNotConfigured": "请先为 {provider} 配置 API 密钥。",
+    "modelUnavailable": "模型 {model} 当前不可用。",
+    "alreadyExecuting": "已有对战正在进行，请等待完成后再试。",
+    "generic": "当前配置无法开始对战。"
   },
   "prompts": {
     "suggested": "推荐提示词",

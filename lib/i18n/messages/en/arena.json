@@ -267,8 +267,11 @@
       "maxRetryAttempts": "Max Retry Attempts",
       "requestTimeout": "Request Timeout (seconds)",
       "lastSync": "Last Sync",
+      "lastUpdated": "Updated {time}",
       "refresh": "Refresh",
       "syncing": "Syncing...",
+      "fresh": "Fresh",
+      "stale": "Stale",
       "offline": "Offline",
       "online": "Online",
       "pendingSubmissions": "Pending Submissions",
@@ -320,6 +323,14 @@
     "shuffle": "Shuffle Models",
     "blindMode": "Blind Mode",
     "multiTurn": "Multi-turn"
+  },
+  "launchReadiness": {
+    "invalidPrompt": "Enter a prompt before starting a battle.",
+    "insufficientModels": "Select at least two models to start a battle.",
+    "providerNotConfigured": "Configure API key for {provider} before starting.",
+    "modelUnavailable": "Model {model} is currently unavailable.",
+    "alreadyExecuting": "A battle is already running. Please wait for it to finish.",
+    "generic": "Battle cannot be started with the current setup."
   },
   "prompts": {
     "suggested": "Suggested Prompts",
