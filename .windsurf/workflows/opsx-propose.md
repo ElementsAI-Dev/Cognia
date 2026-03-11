@@ -20,62 +20,83 @@ When ready to implement, run /opsx:apply
 
 **Steps**
 
-1. **If no input provided, ask what they want to build**
+1. **Resolve the change name**
 
-   Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
+   If no input is provided, use the **AskUserQuestion tool** (open-ended, no preset options):
    > "What change do you want to work on? Describe what you want to build or fix."
 
-   From their description, derive a kebab-case name (e.g., "add user authentication" → `add-user-auth`).
+   Then resolve the name deterministically:
+   - If input is already valid kebab-case, use it exactly
+   - Otherwise derive kebab-case by:
+     - lowercasing
+     - replacing non-alphanumeric characters with `-`
+     - collapsing repeated `-`
+     - trimming leading/trailing `-`
+   - Example: `"Add user authentication"` → `add-user-authentication`
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Create the change directory**
+2. **Handle existing change collisions (idempotent behavior)**
+
+   If `openspec/changes/<name>/` already exists:
+   - Ask whether to continue existing change or create a new name
+   - If user chooses continue, reuse the existing directory and do NOT recreate completed artifacts
+   - If user chooses new, derive a new kebab-case name and continue
+
+3. **Create or reuse the change directory**
+
+   If creating a new change:
    ```bash
    openspec new change "<name>"
    ```
-   This creates a scaffolded change at `openspec/changes/<name>/` with `.openspec.yaml`.
 
-3. **Get the artifact build order**
+   Validate scaffold creation by confirming both paths exist:
+   - `openspec/changes/<name>/`
+   - `openspec/changes/<name>/.openspec.yaml`
+
+4. **Load status and dependency graph**
+
    ```bash
    openspec status --change "<name>" --json
    ```
-   Parse the JSON to get:
-   - `applyRequires`: array of artifact IDs needed before implementation (e.g., `["tasks"]`)
-   - `artifacts`: list of all artifacts with their status and dependencies
 
-4. **Create artifacts in sequence until apply-ready**
+   Parse:
+   - `applyRequires`: artifact IDs required before implementation
+   - `artifacts`: artifact list with readiness status (`ready`, `blocked`, `done`) and dependencies
 
-   Use the **TodoWrite tool** to track progress through the artifacts.
+5. **Generate artifacts in dependency order until apply-ready**
 
-   Loop through artifacts in dependency order (artifacts with no pending dependencies first):
+   Use the **TodoWrite tool** to track progress through artifacts.
 
-   a. **For each artifact that is `ready` (dependencies satisfied)**:
-      - Get instructions:
+   Loop:
+   - Select only artifacts currently marked `ready`
+   - For each ready artifact:
+     1. Fetch instructions:
         ```bash
         openspec instructions <artifact-id> --change "<name>" --json
         ```
-      - The instructions JSON includes:
-        - `context`: Project background (constraints for you - do NOT include in output)
-        - `rules`: Artifact-specific rules (constraints for you - do NOT include in output)
-        - `template`: The structure to use for your output file
-        - `instruction`: Schema-specific guidance for this artifact type
-        - `outputPath`: Where to write the artifact
-        - `dependencies`: Completed artifacts to read for context
-      - Read any completed dependency files for context
-      - Create the artifact file using `template` as the structure
-      - Apply `context` and `rules` as constraints - but do NOT copy them into the file
-      - Show brief progress: "Created <artifact-id>"
+     2. Read all completed dependency artifact files listed in `dependencies` before writing
+     3. Generate the artifact using `template` + `instruction` and apply `context`/`rules` as constraints
+     4. Ensure standard artifact coverage:
+        - `proposal` → `proposal.md`
+        - `design` → `design.md`
+        - `specs` → `specs/<capability>/spec.md`
+        - `tasks` → `tasks.md` with checkbox format `- [ ] X.Y ...`
+     5. Verify the output file exists on disk immediately after writing
+     6. Show progress: `Created <artifact-id>`
 
-   b. **Continue until all `applyRequires` artifacts are complete**
-      - After creating each artifact, re-run `openspec status --change "<name>" --json`
-      - Check if every artifact ID in `applyRequires` has `status: "done"` in the artifacts array
-      - Stop when all `applyRequires` artifacts are done
+   After each artifact write:
+   - Re-run:
+     ```bash
+     openspec status --change "<name>" --json
+     ```
+   - Stop as soon as every artifact in `applyRequires` is `done`
 
-   c. **If an artifact requires user input** (unclear context):
-      - Use **AskUserQuestion tool** to clarify
-      - Then continue with creation
+   If no artifact is `ready` and apply-required artifacts are still incomplete:
+   - Ask for clarification if context is missing
+   - Otherwise report blocker and stop
 
-5. **Show final status**
+6. **Show final status**
    ```bash
    openspec status --change "<name>"
    ```
@@ -84,7 +105,7 @@ When ready to implement, run /opsx:apply
 
 After completing all artifacts, summarize:
 - Change name and location
-- List of artifacts created with brief descriptions
+- List of artifacts created (or reused) with brief descriptions
 - What's ready: "All artifacts created! Ready for implementation."
 - Prompt: "Run `/opsx:apply` to start implementing."
 
