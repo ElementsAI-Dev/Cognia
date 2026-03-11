@@ -97,6 +97,8 @@ export interface ApiKeyUsageStats {
   lastError?: string;
 }
 
+export type ProviderVerificationStatus = 'unverified' | 'verified' | 'stale';
+
 export interface UserProviderSettings {
   providerId: string;
   apiKey?: string;
@@ -112,6 +114,11 @@ export interface UserProviderSettings {
   // OAuth state
   oauthConnected?: boolean;
   oauthExpiresAt?: number;
+  // Verification lifecycle
+  verificationStatus?: ProviderVerificationStatus;
+  lastVerifiedAt?: number;
+  verificationFingerprint?: string;
+  verificationMessage?: string;
   // Health monitoring
   lastHealthCheck?: number;
   healthStatus?: 'healthy' | 'degraded' | 'error' | 'unknown';
@@ -219,6 +226,10 @@ export interface CustomProviderSettings {
   models: string[];
   defaultModel: string;
   enabled: boolean;
+  verificationStatus?: ProviderVerificationStatus;
+  lastVerifiedAt?: number;
+  verificationFingerprint?: string;
+  verificationMessage?: string;
 }
 
 // Provider definitions

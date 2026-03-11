@@ -32,12 +32,53 @@ const mockGitHubProvider = {
   disconnect: jest.fn(),
 };
 
+const mockGoogleDriveProvider = {
+  type: 'googledrive' as const,
+  testConnection: jest.fn(),
+  upload: jest.fn(),
+  download: jest.fn(),
+  getRemoteMetadata: jest.fn(),
+  listBackups: jest.fn(),
+  downloadBackup: jest.fn(),
+  deleteBackup: jest.fn(),
+  disconnect: jest.fn(),
+};
+
+const mockConvexProvider = {
+  type: 'convex' as const,
+  testConnection: jest.fn(),
+  upload: jest.fn(),
+  download: jest.fn(),
+  getRemoteMetadata: jest.fn(),
+  listBackups: jest.fn(),
+  downloadBackup: jest.fn(),
+  deleteBackup: jest.fn(),
+  disconnect: jest.fn(),
+};
+
+const mockImportFullBackup = jest.fn();
+const mockGenerateChecksum = jest.fn();
+const mockSha256Hex = jest.fn();
+
 jest.mock('./providers/webdav-provider', () => ({
   WebDAVProvider: jest.fn().mockImplementation(() => mockWebDAVProvider),
 }));
 
 jest.mock('./providers/github-provider', () => ({
   GitHubProvider: jest.fn().mockImplementation(() => mockGitHubProvider),
+}));
+
+jest.mock('./providers/googledrive-provider', () => ({
+  GoogleDriveProvider: jest.fn().mockImplementation(() => mockGoogleDriveProvider),
+}));
+
+jest.mock('./providers/convex-provider', () => ({
+  ConvexProvider: jest.fn().mockImplementation(() => mockConvexProvider),
+}));
+
+const mockGetConvexDeployKey = jest.fn().mockResolvedValue(null);
+jest.mock('./credential-storage', () => ({
+  getConvexDeployKey: () => mockGetConvexDeployKey(),
 }));
 
 // Mock stores
@@ -65,6 +106,14 @@ const mockSyncState = {
   googleDriveConfig: {
     type: 'googledrive',
     enabled: false,
+    maxBackups: 10,
+    syncDataTypes: [],
+  },
+  convexConfig: {
+    type: 'convex',
+    enabled: true,
+    deploymentUrl: 'https://test-app.convex.cloud',
+    projectSlug: 'test-app',
     maxBackups: 10,
     syncDataTypes: [],
   },
@@ -107,8 +156,12 @@ jest.mock('@/lib/storage/data-export', () => ({
 }));
 
 jest.mock('@/lib/storage/data-import', () => ({
-  importFullBackup: jest.fn().mockResolvedValue(true),
-  generateChecksum: jest.fn().mockReturnValue('checksum-123'),
+  importFullBackup: (...args: unknown[]) => mockImportFullBackup(...args),
+  generateChecksum: (...args: unknown[]) => mockGenerateChecksum(...args),
+}));
+
+jest.mock('@/lib/storage/persistence/crypto', () => ({
+  sha256Hex: (...args: unknown[]) => mockSha256Hex(...args),
 }));
 
 // Import after mocking
@@ -119,8 +172,34 @@ describe('SyncManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGenerateChecksum.mockReturnValue('checksum-123');
+    mockSha256Hex.mockResolvedValue('payload-sha256');
+    mockImportFullBackup.mockResolvedValue({
+      success: true,
+      imported: {
+        sessions: 1,
+        messages: 1,
+        artifacts: 0,
+        documents: 0,
+        projects: 0,
+        settings: true,
+      },
+      skipped: {
+        sessions: 0,
+        messages: 0,
+        artifacts: 0,
+      },
+      errors: [],
+      warnings: [],
+      warningDetails: [],
+      duration: 1,
+    });
     mockWebDAVProvider.listBackups.mockResolvedValue([]);
     mockGitHubProvider.listBackups.mockResolvedValue([]);
+    mockGoogleDriveProvider.listBackups.mockResolvedValue([]);
+    mockConvexProvider.listBackups.mockResolvedValue([]);
+    mockSyncState.convexConfig.deploymentUrl = 'https://test-app.convex.cloud';
+    mockGetConvexDeployKey.mockResolvedValue(null);
     manager = new SyncManager();
   });
 
@@ -145,6 +224,46 @@ describe('SyncManager', () => {
 
       expect(manager.getProvider()).not.toBeNull();
       expect(manager.getProvider()?.type).toBe('github');
+    });
+  });
+
+  describe('initConvex / ensureProviderInitialized(convex)', () => {
+    it('should return validation error when deployment URL is missing', async () => {
+      mockSyncState.convexConfig.deploymentUrl = '';
+      const result = await manager.ensureProviderInitialized('convex');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Convex deployment URL is required');
+    });
+
+    it('should return validation error when deployment URL is not a convex host', async () => {
+      mockSyncState.convexConfig.deploymentUrl = 'https://example.com';
+      const result = await manager.ensureProviderInitialized('convex');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        'Convex deployment URL must use a .convex.cloud or .convex.site host'
+      );
+    });
+
+    it('should return missing credential error when deploy key is not stored', async () => {
+      mockSyncState.convexConfig.deploymentUrl = 'https://test-app.convex.cloud';
+      mockGetConvexDeployKey.mockResolvedValueOnce(null);
+
+      const result = await manager.ensureProviderInitialized('convex');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('No Convex deploy key configured');
+    });
+
+    it('should initialize convex provider when config and key are valid', async () => {
+      mockSyncState.convexConfig.deploymentUrl = 'https://test-app.convex.cloud';
+      mockGetConvexDeployKey.mockResolvedValueOnce('prod:key_123');
+
+      const result = await manager.ensureProviderInitialized('convex');
+
+      expect(result.success).toBe(true);
+      expect(manager.getProvider()?.type).toBe('convex');
     });
   });
 
@@ -308,6 +427,103 @@ describe('SyncManager', () => {
     it('should return false when no provider', async () => {
       const result = await manager.restoreBackup('backup-123');
       expect(result).toBe(false);
+    });
+
+    it('returns false when remote backup checksum is invalid', async () => {
+      await manager.initWebDAV('password');
+      mockWebDAVProvider.downloadBackup.mockResolvedValueOnce({
+        version: '1.1',
+        syncedAt: '2025-01-31T12:00:00Z',
+        deviceId: 'device-123',
+        deviceName: 'Remote Device',
+        checksum: 'mismatch',
+        dataTypes: ['settings'],
+        data: {
+          settings: { theme: 'dark' },
+        },
+      });
+
+      const result = await manager.restoreBackup('backup-123');
+
+      expect(result).toBe(false);
+      expect(mockImportFullBackup).not.toHaveBeenCalled();
+    });
+
+    it('returns false when shared import validation/import fails', async () => {
+      await manager.initWebDAV('password');
+      mockWebDAVProvider.downloadBackup.mockResolvedValueOnce({
+        version: '1.1',
+        syncedAt: '2025-01-31T12:00:00Z',
+        deviceId: 'device-123',
+        deviceName: 'Remote Device',
+        checksum: 'checksum-123',
+        dataTypes: ['settings'],
+        data: {
+          settings: { theme: 'dark' },
+        },
+      });
+      mockImportFullBackup.mockResolvedValueOnce({
+        success: false,
+        imported: {
+          sessions: 0,
+          messages: 0,
+          artifacts: 0,
+          documents: 0,
+          projects: 0,
+          settings: false,
+        },
+        skipped: {
+          sessions: 0,
+          messages: 0,
+          artifacts: 0,
+        },
+        errors: [{ category: 'checksum-mismatch', message: 'Backup checksum verification failed' }],
+        warnings: [],
+        warningDetails: [],
+        duration: 1,
+      });
+
+      const result = await manager.restoreBackup('backup-123');
+
+      expect(result).toBe(false);
+      expect(mockImportFullBackup).toHaveBeenCalled();
+    });
+
+    it('uses canonical backup package import path for successful restore', async () => {
+      await manager.initWebDAV('password');
+      mockWebDAVProvider.downloadBackup.mockResolvedValueOnce({
+        version: '1.1',
+        syncedAt: '2025-01-31T12:00:00Z',
+        deviceId: 'device-123',
+        deviceName: 'Remote Device',
+        checksum: 'checksum-123',
+        dataTypes: ['sessions', 'messages', 'settings'],
+        data: {
+          sessions: [],
+          messages: [],
+          settings: { theme: 'dark' },
+        },
+      });
+
+      const result = await manager.restoreBackup('backup-123');
+
+      expect(result).toBe(true);
+      expect(mockImportFullBackup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          version: '3.0',
+          manifest: expect.objectContaining({
+            integrity: expect.objectContaining({
+              algorithm: 'SHA-256',
+              checksum: 'payload-sha256',
+            }),
+          }),
+        }),
+        expect.objectContaining({
+          mergeStrategy: 'merge',
+          generateNewIds: false,
+          validateData: true,
+        })
+      );
     });
   });
 });

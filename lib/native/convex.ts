@@ -4,6 +4,7 @@
 
 import { invokeWithTrace } from './invoke-with-trace';
 import { isTauri } from '@/lib/utils';
+import { normalizeConvexDeploymentUrl } from '@/lib/sync/convex-url';
 
 export interface NativeConvexConfig {
   deploymentUrl: string;
@@ -19,7 +20,12 @@ export async function getConvexConfig(): Promise<NativeConvexConfig | null> {
 
 export async function setConvexConfig(config: NativeConvexConfig): Promise<boolean> {
   if (!isTauri()) return false;
-  return invokeWithTrace<boolean>('convex_set_config', { config });
+  const normalizedConfig: NativeConvexConfig = {
+    ...config,
+    deploymentUrl: normalizeConvexDeploymentUrl(config.deploymentUrl),
+    deployKey: config.deployKey.trim(),
+  };
+  return invokeWithTrace<boolean>('convex_set_config', { config: normalizedConfig });
 }
 
 export async function testConvexConnection(): Promise<boolean> {

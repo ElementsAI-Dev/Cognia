@@ -145,6 +145,8 @@ export interface ProxyStatus {
   enabled: boolean;
   connected: boolean;
   currentProxy: string | null;
+  lastKnownGoodProxy: string | null;
+  lastKnownGoodTime: string | null;
   lastTest: ProxyTestResult | null;
   lastTestTime: string | null;
 }
@@ -260,6 +262,8 @@ export function createDefaultProxyStatus(): ProxyStatus {
     enabled: false,
     connected: false,
     currentProxy: null,
+    lastKnownGoodProxy: null,
+    lastKnownGoodTime: null,
     lastTest: null,
     lastTestTime: null,
   };

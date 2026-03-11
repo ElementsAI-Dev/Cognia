@@ -4,11 +4,17 @@ import {
   evaluateCustomProviderCompleteness,
   getActiveCredential as getActiveCredentialFromContract,
   hasAnyCredential as hasAnyCredentialFromContract,
+  type ProviderSetupChecklist,
   type ProviderReadinessState,
 } from '@/lib/ai/providers/completeness';
-import type { UserProviderSettings } from '@/types/provider';
+import type { ProviderVerificationStatus, UserProviderSettings } from '@/types/provider';
 
-export type { ProviderReadinessState } from '@/lib/ai/providers/completeness';
+export type {
+  ProviderNextAction,
+  ProviderReadinessState,
+  ProviderSetupChecklist,
+} from '@/lib/ai/providers/completeness';
+export type { ProviderVerificationStatus } from '@/types/provider';
 
 export interface ProviderActionEligibility {
   allowed: boolean;
@@ -17,6 +23,9 @@ export interface ProviderActionEligibility {
 
 export interface BuiltInProviderReadiness {
   readiness: ProviderReadinessState;
+  verificationStatus: ProviderVerificationStatus;
+  verificationFingerprint: string;
+  setupChecklist: ProviderSetupChecklist;
   hasCredential: boolean;
   hasBaseUrl: boolean;
   eligibility: {
@@ -30,11 +39,17 @@ export interface BuiltInProviderReadiness {
 export interface CustomProviderLike {
   apiKey?: string;
   baseURL?: string;
+  defaultModel?: string;
   enabled?: boolean;
+  verificationStatus?: ProviderVerificationStatus;
+  verificationFingerprint?: string;
 }
 
 export interface CustomProviderReadiness {
   readiness: ProviderReadinessState;
+  verificationStatus: ProviderVerificationStatus;
+  verificationFingerprint: string;
+  setupChecklist: ProviderSetupChecklist;
   hasCredential: boolean;
   hasBaseUrl: boolean;
   eligibility: {
@@ -70,6 +85,9 @@ export function getBuiltInProviderReadiness(
 
   return {
     readiness: evaluated.readiness,
+    verificationStatus: evaluated.verificationStatus,
+    verificationFingerprint: evaluated.verificationFingerprint,
+    setupChecklist: evaluated.setupChecklist,
     hasCredential: evaluated.hasCredential,
     hasBaseUrl: evaluated.hasBaseUrl,
     eligibility: {
@@ -89,6 +107,9 @@ export function getCustomProviderReadiness(
 
   return {
     readiness: evaluated.readiness,
+    verificationStatus: evaluated.verificationStatus,
+    verificationFingerprint: evaluated.verificationFingerprint,
+    setupChecklist: evaluated.setupChecklist,
     hasCredential: evaluated.hasCredential,
     hasBaseUrl: evaluated.hasBaseUrl,
     eligibility: {
@@ -104,4 +125,63 @@ export function getVisibleSelectedProviderIds(
   selectedProviderIds: Set<string>
 ): string[] {
   return visibleProviderIds.filter((providerId) => selectedProviderIds.has(providerId));
+}
+
+export function getVisibleEligibleBuiltInProviderIds(
+  visibleProviderIds: string[],
+  providerSettings: Record<string, Partial<UserProviderSettings> | undefined>,
+  latestTestResults: Record<string, ApiTestResult | null | undefined>
+): string[] {
+  return visibleProviderIds.filter((providerId) => {
+    const settings = providerSettings[providerId];
+    if (!settings?.enabled) return false;
+    const state = getBuiltInProviderReadiness(providerId, settings, latestTestResults[providerId]);
+    return state.eligibility.testConnection.allowed;
+  });
+}
+
+export function getVisibleRetryFailedBuiltInProviderIds(
+  visibleProviderIds: string[],
+  providerSettings: Record<string, Partial<UserProviderSettings> | undefined>,
+  latestTestResults: Record<string, ApiTestResult | null | undefined>
+): string[] {
+  return visibleProviderIds.filter((providerId) => {
+    const settings = providerSettings[providerId];
+    if (!settings?.enabled) return false;
+    const latestResult = latestTestResults[providerId];
+    if (!latestResult || latestResult.success) return false;
+    const state = getBuiltInProviderReadiness(providerId, settings, latestResult);
+    return state.eligibility.testConnection.allowed;
+  });
+}
+
+export function getVisibleEligibleCustomProviderIds(
+  visibleCustomProviderIds: string[],
+  customProviders: Record<string, CustomProviderLike | undefined>,
+  latestResults: Record<string, 'success' | 'error' | null | undefined>
+): string[] {
+  return visibleCustomProviderIds.filter((providerId) => {
+    const provider = customProviders[providerId];
+    if (!provider?.enabled) return false;
+    const latest = latestResults[providerId];
+    const state = getCustomProviderReadiness(
+      provider,
+      latest ? { success: latest === 'success' } : null
+    );
+    return state.eligibility.testConnection.allowed;
+  });
+}
+
+export function getVisibleRetryFailedCustomProviderIds(
+  visibleCustomProviderIds: string[],
+  customProviders: Record<string, CustomProviderLike | undefined>,
+  latestResults: Record<string, 'success' | 'error' | null | undefined>
+): string[] {
+  return visibleCustomProviderIds.filter((providerId) => {
+    if (latestResults[providerId] !== 'error') return false;
+    const provider = customProviders[providerId];
+    if (!provider?.enabled) return false;
+    const state = getCustomProviderReadiness(provider, { success: false });
+    return state.eligibility.testConnection.allowed;
+  });
 }

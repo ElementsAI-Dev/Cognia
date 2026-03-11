@@ -84,12 +84,76 @@ pub struct ProxyTestResult {
 
 /// System proxy settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SystemProxySettings {
     pub enabled: bool,
     pub http_proxy: Option<String>,
     pub https_proxy: Option<String>,
     pub socks_proxy: Option<String>,
     pub no_proxy: Option<String>,
+}
+
+fn normalize_proxy_url(value: &str, default_scheme: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    if trimmed.starts_with("http://")
+        || trimmed.starts_with("https://")
+        || trimmed.starts_with("socks4://")
+        || trimmed.starts_with("socks5://")
+    {
+        return Some(trimmed.to_string());
+    }
+
+    Some(format!("{}://{}", default_scheme, trimmed))
+}
+
+fn parse_windows_proxy_server(proxy_server: &str) -> (Option<String>, Option<String>, Option<String>) {
+    let trimmed = proxy_server.trim();
+    if trimmed.is_empty() {
+        return (None, None, None);
+    }
+
+    // Windows can expose either a shared endpoint (host:port) or
+    // protocol-specific entries (e.g. http=host:port;https=host:port;socks=host:port).
+    if !trimmed.contains('=') {
+        let shared = normalize_proxy_url(trimmed, "http");
+        return (shared.clone(), shared, None);
+    }
+
+    let mut http_proxy = None;
+    let mut https_proxy = None;
+    let mut socks_proxy = None;
+
+    for part in trimmed.split(';') {
+        let mut split = part.splitn(2, '=');
+        let key = split.next().unwrap_or_default().trim().to_lowercase();
+        let value = split.next().unwrap_or_default();
+
+        if key.is_empty() {
+            continue;
+        }
+
+        match key.as_str() {
+            "http" => {
+                http_proxy = normalize_proxy_url(value, "http");
+            }
+            "https" => {
+                https_proxy = normalize_proxy_url(value, "http");
+            }
+            "socks" | "socks5" => {
+                socks_proxy = normalize_proxy_url(value, "socks5");
+            }
+            "socks4" => {
+                socks_proxy = normalize_proxy_url(value, "socks4");
+            }
+            _ => {}
+        }
+    }
+
+    (http_proxy, https_proxy, socks_proxy)
 }
 
 /// Detect all running proxy software
@@ -577,18 +641,22 @@ fn get_windows_system_proxy() -> Result<SystemProxySettings, String> {
         .get_value("ProxyOverride")
         .unwrap_or_default();
 
-    let enabled = proxy_enable == 1;
-    let http_proxy = if enabled && !proxy_server.is_empty() {
-        Some(format!("http://{}", proxy_server))
+    let enabled = proxy_enable == 1 && !proxy_server.trim().is_empty();
+    let (http_proxy, https_proxy, socks_proxy) = if enabled {
+        parse_windows_proxy_server(&proxy_server)
     } else {
-        None
+        (None, None, None)
     };
+
+    if enabled && http_proxy.is_none() && https_proxy.is_none() && socks_proxy.is_none() {
+        return Err("System proxy is enabled but ProxyServer format is invalid".to_string());
+    }
 
     Ok(SystemProxySettings {
         enabled,
-        http_proxy: http_proxy.clone(),
-        https_proxy: http_proxy,
-        socks_proxy: None,
+        http_proxy,
+        https_proxy,
+        socks_proxy,
         no_proxy: if proxy_override.is_empty() {
             None
         } else {
@@ -599,30 +667,62 @@ fn get_windows_system_proxy() -> Result<SystemProxySettings, String> {
 
 #[cfg(target_os = "macos")]
 fn get_macos_system_proxy() -> Result<SystemProxySettings, String> {
-    // Use networksetup to get proxy settings
-    let output = Command::new("networksetup")
-        .args(["-getwebproxy", "Wi-Fi"])
-        .output()
-        .map_err(|e| e.to_string())?;
+    fn parse_networksetup_proxy(output: &str, scheme: &str) -> Option<String> {
+        let mut enabled = false;
+        let mut server: Option<String> = None;
+        let mut port: Option<String> = None;
 
-    let output_str = String::from_utf8_lossy(&output.stdout);
-    let enabled = output_str.contains("Enabled: Yes");
-
-    let mut http_proxy = None;
-    for line in output_str.lines() {
-        if line.starts_with("Server:") {
-            let server = line.replace("Server:", "").trim().to_string();
-            if !server.is_empty() {
-                http_proxy = Some(format!("http://{}", server));
+        for line in output.lines() {
+            if line.starts_with("Enabled:") {
+                enabled = line.contains("Yes");
+            } else if line.starts_with("Server:") {
+                let value = line.replace("Server:", "").trim().to_string();
+                if !value.is_empty() {
+                    server = Some(value);
+                }
+            } else if line.starts_with("Port:") {
+                let value = line.replace("Port:", "").trim().to_string();
+                if !value.is_empty() {
+                    port = Some(value);
+                }
             }
+        }
+
+        if !enabled {
+            return None;
+        }
+
+        let server = server?;
+        match port {
+            Some(port) => normalize_proxy_url(&format!("{}:{}", server, port), scheme),
+            None => normalize_proxy_url(&server, scheme),
         }
     }
 
+    let web_output = Command::new("networksetup")
+        .args(["-getwebproxy", "Wi-Fi"])
+        .output()
+        .map_err(|e| format!("Failed to read macOS web proxy settings: {}", e))?;
+    let secure_output = Command::new("networksetup")
+        .args(["-getsecurewebproxy", "Wi-Fi"])
+        .output()
+        .map_err(|e| format!("Failed to read macOS secure web proxy settings: {}", e))?;
+    let socks_output = Command::new("networksetup")
+        .args(["-getsocksfirewallproxy", "Wi-Fi"])
+        .output()
+        .map_err(|e| format!("Failed to read macOS SOCKS proxy settings: {}", e))?;
+
+    let http_proxy = parse_networksetup_proxy(&String::from_utf8_lossy(&web_output.stdout), "http");
+    let https_proxy =
+        parse_networksetup_proxy(&String::from_utf8_lossy(&secure_output.stdout), "https");
+    let socks_proxy =
+        parse_networksetup_proxy(&String::from_utf8_lossy(&socks_output.stdout), "socks5");
+
     Ok(SystemProxySettings {
-        enabled,
-        http_proxy: http_proxy.clone(),
-        https_proxy: http_proxy,
-        socks_proxy: None,
+        enabled: http_proxy.is_some() || https_proxy.is_some() || socks_proxy.is_some(),
+        http_proxy,
+        https_proxy,
+        socks_proxy,
         no_proxy: None,
     })
 }
@@ -631,21 +731,30 @@ fn get_macos_system_proxy() -> Result<SystemProxySettings, String> {
 fn get_linux_system_proxy() -> Result<SystemProxySettings, String> {
     let http_proxy = std::env::var("http_proxy")
         .ok()
-        .or_else(|| std::env::var("HTTP_PROXY").ok());
+        .or_else(|| std::env::var("HTTP_PROXY").ok())
+        .as_deref()
+        .and_then(|value| normalize_proxy_url(value, "http"));
     let https_proxy = std::env::var("https_proxy")
         .ok()
-        .or_else(|| std::env::var("HTTPS_PROXY").ok());
+        .or_else(|| std::env::var("HTTPS_PROXY").ok())
+        .as_deref()
+        .and_then(|value| normalize_proxy_url(value, "https"));
+    let socks_proxy = std::env::var("socks_proxy")
+        .ok()
+        .or_else(|| std::env::var("SOCKS_PROXY").ok())
+        .as_deref()
+        .and_then(|value| normalize_proxy_url(value, "socks5"));
     let no_proxy = std::env::var("no_proxy")
         .ok()
         .or_else(|| std::env::var("NO_PROXY").ok());
 
-    let enabled = http_proxy.is_some() || https_proxy.is_some();
+    let enabled = http_proxy.is_some() || https_proxy.is_some() || socks_proxy.is_some();
 
     Ok(SystemProxySettings {
         enabled,
         http_proxy,
         https_proxy,
-        socks_proxy: std::env::var("socks_proxy").ok(),
+        socks_proxy,
         no_proxy,
     })
 }
@@ -1058,5 +1167,36 @@ mod tests {
         let deserialized: ProxyTestResult = serde_json::from_str(&serialized).unwrap();
         assert_eq!(result.success, deserialized.success);
         assert_eq!(result.latency, deserialized.latency);
+    }
+
+    #[test]
+    fn test_normalize_proxy_url() {
+        assert_eq!(
+            normalize_proxy_url("127.0.0.1:7890", "http"),
+            Some("http://127.0.0.1:7890".to_string())
+        );
+        assert_eq!(
+            normalize_proxy_url("https://proxy.local:443", "http"),
+            Some("https://proxy.local:443".to_string())
+        );
+        assert_eq!(normalize_proxy_url("   ", "http"), None);
+    }
+
+    #[test]
+    fn test_parse_windows_proxy_server_shared_endpoint() {
+        let (http, https, socks) = parse_windows_proxy_server("127.0.0.1:7890");
+        assert_eq!(http, Some("http://127.0.0.1:7890".to_string()));
+        assert_eq!(https, Some("http://127.0.0.1:7890".to_string()));
+        assert_eq!(socks, None);
+    }
+
+    #[test]
+    fn test_parse_windows_proxy_server_protocol_specific() {
+        let (http, https, socks) = parse_windows_proxy_server(
+            "http=127.0.0.1:7890;https=127.0.0.1:8443;socks=127.0.0.1:7891",
+        );
+        assert_eq!(http, Some("http://127.0.0.1:7890".to_string()));
+        assert_eq!(https, Some("http://127.0.0.1:8443".to_string()));
+        assert_eq!(socks, Some("socks5://127.0.0.1:7891".to_string()));
     }
 }

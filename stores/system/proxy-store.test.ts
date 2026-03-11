@@ -204,6 +204,17 @@ describe('useProxyStore', () => {
       expect(result.current.status.lastTest).toEqual(testResult);
       expect(result.current.status.lastTestTime).toBeDefined();
     });
+
+    it('records last known good proxy metadata', () => {
+      const { result } = renderHook(() => useProxyStore());
+
+      act(() => {
+        result.current.setLastKnownGood('http://127.0.0.1:7890');
+      });
+
+      expect(result.current.status.lastKnownGoodProxy).toBe('http://127.0.0.1:7890');
+      expect(result.current.status.lastKnownGoodTime).toBeDefined();
+    });
   });
 
   describe('UI State', () => {
@@ -438,6 +449,35 @@ describe('getActiveProxyUrl', () => {
     } as unknown as ProxyState;
 
     expect(getActiveProxyUrl(state)).toBe('http://127.0.0.1:7890');
+  });
+
+  it('returns null for system mode without provided snapshot', () => {
+    const state = {
+      config: {
+        enabled: true,
+        mode: 'system',
+        manual: undefined,
+        selectedProxy: undefined,
+        testUrl: '',
+        autoDetectInterval: 30000,
+      },
+      status: {
+        enabled: true,
+        mode: 'system',
+        connected: false,
+        lastTest: null,
+        lastTestTime: null,
+        currentProxy: null,
+      },
+      detectedProxies: [],
+      detectionStatus: 'idle',
+      isDetecting: false,
+      isTesting: false,
+      isApplying: false,
+      error: null,
+    } as unknown as ProxyState;
+
+    expect(getActiveProxyUrl(state)).toBeNull();
   });
 });
 

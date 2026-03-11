@@ -6,6 +6,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ProviderSettings } from './provider-settings';
 import { testProviderConnection } from '@/lib/ai/infrastructure/api-test';
 import { toast } from '@/components/ui/sonner';
+import type { UserProviderSettings } from '@/types/provider';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -25,13 +26,15 @@ const mockSetProviderSortBy = jest.fn();
 const mockSetProviderSortOrder = jest.fn();
 const mockSetProviderCategoryFilter = jest.fn();
 
+const mockProviderSettings: Record<string, Partial<UserProviderSettings>> = {
+  openai: { apiKey: 'test-key', enabled: true },
+  anthropic: { apiKey: '', enabled: false },
+  google: { apiKey: '', enabled: false },
+  ollama: { enabled: true, baseURL: 'http://localhost:11434' },
+};
+
 const mockSettingsState = {
-  providerSettings: {
-    openai: { apiKey: 'test-key', enabled: true },
-    anthropic: { apiKey: '', enabled: false },
-    google: { apiKey: '', enabled: false },
-    ollama: { enabled: true, baseURL: 'http://localhost:11434' },
-  },
+  providerSettings: mockProviderSettings,
   language: 'en',
   customProviders: {},
   updateProviderSettings: mockUpdateProviderSettings,
@@ -377,8 +380,36 @@ describe('ProviderSettings', () => {
     expect(screen.getAllByTitle(blockedReason as string).length).toBeGreaterThan(0);
   });
 
+  it('renders empty-state quick-fix guidance and routes to provider card workflow', () => {
+    mockSettingsState.providerSettings = {
+      openai: { apiKey: '', enabled: false },
+      anthropic: { apiKey: '', enabled: false },
+      google: { apiKey: '', enabled: false },
+      ollama: { enabled: false, baseURL: 'http://localhost:11434' },
+    };
+    mockSettingsState.customProviders = {};
+    mockSettingsState.providerUIPreferences.categoryFilter = 'all';
+
+    render(<ProviderSettings />);
+    const fixNowButton = screen.getByText('fixNow');
+    fireEvent.click(fixNowButton);
+
+    expect(mockSetProviderViewMode).toHaveBeenCalledWith('cards');
+  });
+
   it('recomputes readiness after provider config changes invalidate previous verification', async () => {
     mockSettingsState.providerUIPreferences.viewMode = 'table';
+    mockSettingsState.providerSettings.openai = {
+      ...mockSettingsState.providerSettings.openai,
+      verificationStatus: 'verified',
+      verificationFingerprint: JSON.stringify({
+        apiKey: 'test-key',
+        apiKeys: [],
+        currentKeyIndex: 0,
+        baseURL: '',
+        defaultModel: '',
+      }),
+    };
     const { rerender } = render(<ProviderSettings />);
 
     const openAiSelector = screen
@@ -405,6 +436,6 @@ describe('ProviderSettings', () => {
     await waitFor(() => {
       expect(screen.queryByText('connected')).not.toBeInTheDocument();
     });
-    expect(screen.getByText('ready')).toBeInTheDocument();
+    expect(screen.getByText('verificationStaleShort')).toBeInTheDocument();
   });
 });

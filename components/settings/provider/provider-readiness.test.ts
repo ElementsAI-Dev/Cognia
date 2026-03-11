@@ -3,6 +3,10 @@ import {
   getBuiltInProviderReadiness,
   getCustomProviderReadiness,
   getProviderEnableEligibility,
+  getVisibleEligibleBuiltInProviderIds,
+  getVisibleRetryFailedBuiltInProviderIds,
+  getVisibleEligibleCustomProviderIds,
+  getVisibleRetryFailedCustomProviderIds,
   getVisibleSelectedProviderIds,
   hasAnyCredential,
 } from './provider-readiness';
@@ -43,7 +47,31 @@ describe('provider-readiness helpers', () => {
       { success: true, message: 'ok' }
     );
     expect(configured.readiness).toBe('configured');
+    expect(configured.verificationStatus).toBe('unverified');
     expect(verified.readiness).toBe('verified');
+    expect(verified.verificationStatus).toBe('verified');
+  });
+
+  it('marks provider verification as stale when persisted fingerprint is out-of-date', () => {
+    const stale = getBuiltInProviderReadiness(
+      'openai',
+      {
+        apiKey: 'sk-test-next',
+        enabled: true,
+        verificationStatus: 'verified',
+        verificationFingerprint: JSON.stringify({
+          apiKey: 'sk-old',
+          apiKeys: [],
+          currentKeyIndex: 0,
+          baseURL: '',
+          defaultModel: 'gpt-4o',
+        }),
+      },
+      null
+    );
+
+    expect(stale.verificationStatus).toBe('stale');
+    expect(stale.setupChecklist.nextAction).toBe('verify_connection');
   });
 
   it('allows local provider test without credential when base url is present', () => {
@@ -73,6 +101,7 @@ describe('provider-readiness helpers', () => {
     expect(unconfigured.readiness).toBe('unconfigured');
     expect(unconfigured.eligibility.testConnection.allowed).toBe(false);
     expect(verified.readiness).toBe('verified');
+    expect(verified.verificationStatus).toBe('verified');
     expect(verified.eligibility.enable.allowed).toBe(true);
   });
 
@@ -82,5 +111,53 @@ describe('provider-readiness helpers', () => {
       new Set(['google', 'openai', 'non-visible'])
     );
     expect(result).toEqual(['openai', 'google']);
+  });
+
+  it('builds visible + eligible targets for verify-enabled and retry-failed operations', () => {
+    const visibleProviderIds = ['openai', 'anthropic', 'google'];
+    const providerSettings = {
+      openai: { apiKey: 'sk-openai', enabled: true },
+      anthropic: { apiKey: '', enabled: true },
+      google: { apiKey: 'sk-google', enabled: false },
+    };
+    const latestResults = {
+      openai: { success: false, message: 'failed' },
+      anthropic: null,
+      google: { success: false, message: 'failed' },
+    };
+
+    expect(
+      getVisibleEligibleBuiltInProviderIds(visibleProviderIds, providerSettings, latestResults)
+    ).toEqual(['openai']);
+    expect(
+      getVisibleRetryFailedBuiltInProviderIds(visibleProviderIds, providerSettings, latestResults)
+    ).toEqual(['openai']);
+  });
+
+  it('builds visible + eligible custom provider targets for verify-enabled and retry-failed', () => {
+    const visibleCustomProviderIds = ['custom-a', 'custom-b'];
+    const customProviders = {
+      'custom-a': {
+        enabled: true,
+        apiKey: 'sk-custom-a',
+        baseURL: 'https://api.example.com/v1',
+      },
+      'custom-b': {
+        enabled: true,
+        apiKey: '',
+        baseURL: 'https://api.example.com/v1',
+      },
+    };
+    const latestResults = {
+      'custom-a': 'error' as const,
+      'custom-b': null,
+    };
+
+    expect(
+      getVisibleEligibleCustomProviderIds(visibleCustomProviderIds, customProviders, latestResults)
+    ).toEqual(['custom-a']);
+    expect(
+      getVisibleRetryFailedCustomProviderIds(visibleCustomProviderIds, customProviders, latestResults)
+    ).toEqual(['custom-a']);
   });
 });

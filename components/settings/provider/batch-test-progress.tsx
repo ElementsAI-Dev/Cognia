@@ -6,6 +6,8 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 
+export type BatchVerificationOperation = 'verify-enabled' | 'verify-selected' | 'retry-failed';
+
 interface BatchTestProgressProps {
   isRunning: boolean;
   progress: number;
@@ -48,6 +50,7 @@ interface TestResultsSummaryProps {
   success: number;
   failed: number;
   total: number;
+  operationType?: BatchVerificationOperation;
   completed?: number;
   expectedTotal?: number;
   canceled?: boolean;
@@ -57,6 +60,7 @@ export const TestResultsSummary = React.memo(function TestResultsSummary({
   success,
   failed,
   total,
+  operationType,
   completed,
   expectedTotal,
   canceled = false,
@@ -65,11 +69,22 @@ export const TestResultsSummary = React.memo(function TestResultsSummary({
 
   if (total === 0) return null;
 
+  const operationLabel = operationType
+    ? operationType === 'retry-failed'
+      ? t('batchOperationRetryFailed')
+      : operationType === 'verify-selected'
+        ? t('batchOperationVerifySelected')
+        : t('batchOperationVerifyEnabled')
+    : null;
+
   return (
     <div className="flex items-center gap-4 rounded-lg border p-3 bg-muted/30">
       <div className="flex items-center gap-2">
         <Zap className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium">{t('testResults')}:</span>
+        {operationLabel && (
+          <span className="text-xs text-muted-foreground">({operationLabel})</span>
+        )}
       </div>
       <div className="flex items-center gap-4">
         <span className="flex items-center gap-1 text-sm text-green-600">

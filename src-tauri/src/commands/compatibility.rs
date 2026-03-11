@@ -21,7 +21,7 @@ use tauri::{Manager, State};
 use uuid::Uuid;
 
 use crate::commands::extensions::plugin::PluginManagerState;
-use crate::plugin::PluginStatus;
+use crate::plugin::{MarketplaceConfig, PluginStatus};
 use crate::screen_recording::timeline_renderer::{
     TimelineEffect, TimelineRenderClip, TimelineRenderOptions, TimelineRenderPlan,
     TimelineRenderTrack, TimelineTransition,
@@ -900,17 +900,178 @@ pub async fn plugin_requires_restart(_plugin_id: String) -> Result<bool, String>
     Ok(false)
 }
 
-#[tauri::command]
-pub async fn plugin_download_version(
-    _plugin_id: String,
-    _version: String,
-) -> Result<Value, String> {
-    Err("NOT_SUPPORTED: plugin_download_version is not implemented yet".to_string())
+fn normalize_marketplace_version_entry(raw: &Value) -> Option<Value> {
+    let version = raw.get("version").and_then(Value::as_str)?;
+    let published_at = raw
+        .get("publishedAt")
+        .or_else(|| raw.get("published_at"))
+        .and_then(Value::as_str)
+        .unwrap_or("1970-01-01T00:00:00Z");
+    let download_url = raw
+        .get("downloadUrl")
+        .or_else(|| raw.get("download_url"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
+
+    if download_url.is_empty() {
+        return None;
+    }
+
+    let changelog = raw
+        .get("changelog")
+        .and_then(Value::as_str)
+        .map(|v| Value::String(v.to_string()))
+        .unwrap_or(Value::Null);
+    let min_app_version = raw
+        .get("minAppVersion")
+        .or_else(|| raw.get("min_app_version"))
+        .and_then(Value::as_str)
+        .map(|v| Value::String(v.to_string()))
+        .unwrap_or(Value::Null);
+    let checksum = raw
+        .get("checksum")
+        .and_then(Value::as_str)
+        .map(|v| Value::String(v.to_string()))
+        .unwrap_or(Value::Null);
+
+    Some(json!({
+        "version": version,
+        "changelog": changelog,
+        "publishedAt": published_at,
+        "minAppVersion": min_app_version,
+        "downloadUrl": download_url,
+        "checksum": checksum
+    }))
+}
+
+fn plugin_download_error_code(message: &str) -> &'static str {
+    let lower = message.to_lowercase();
+    if lower.contains("not_supported")
+        || lower.contains("not available")
+        || lower.contains("desktop")
+    {
+        return "unsupported_env";
+    }
+    if lower.contains("401") || lower.contains("403") || lower.contains("auth") {
+        return "auth";
+    }
+    if lower.contains("429") || lower.contains("rate") {
+        return "rate_limit";
+    }
+    if lower.contains("timeout")
+        || lower.contains("network")
+        || lower.contains("econn")
+        || lower.contains("proxy")
+    {
+        return "network";
+    }
+    if lower.contains("already exists") || lower.contains("conflict") {
+        return "install_conflict";
+    }
+    if lower.contains("not found") || lower.contains("invalid") || lower.contains("version") {
+        return "validation";
+    }
+    "unknown"
+}
+
+fn is_retryable_download_error(code: &str) -> bool {
+    matches!(code, "network" | "rate_limit")
 }
 
 #[tauri::command]
-pub async fn plugin_marketplace_versions(_plugin_id: String) -> Result<Value, String> {
-    Ok(Value::Array(Vec::new()))
+pub async fn plugin_download_version(
+    plugin_id: String,
+    version: String,
+) -> Result<Value, String> {
+    let versions_value = plugin_marketplace_versions(plugin_id.clone()).await?;
+    let versions = versions_value.as_array().cloned().unwrap_or_default();
+    let target = versions.iter().find(|entry| {
+        entry
+            .get("version")
+            .and_then(Value::as_str)
+            .map(|v| v == version)
+            .unwrap_or(false)
+    });
+
+    let Some(target_entry) = target else {
+        return Ok(json!({
+            "success": false,
+            "pluginId": plugin_id,
+            "version": version,
+            "errorCode": "validation",
+            "retryable": false,
+            "error": format!("Version {version} not found for plugin {plugin_id}")
+        }));
+    };
+
+    let download_url = target_entry
+        .get("downloadUrl")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+
+    match crate::commands::extensions::plugin::plugin_install_version(
+        plugin_id.clone(),
+        version.clone(),
+    )
+    .await
+    {
+        Ok(()) => Ok(json!({
+            "success": true,
+            "pluginId": plugin_id,
+            "version": version,
+            "downloadUrl": download_url
+        })),
+        Err(error) => {
+            let error_code = plugin_download_error_code(&error);
+            Ok(json!({
+                "success": false,
+                "pluginId": plugin_id,
+                "version": version,
+                "downloadUrl": download_url,
+                "errorCode": error_code,
+                "retryable": is_retryable_download_error(error_code),
+                "error": error
+            }))
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn plugin_marketplace_versions(plugin_id: String) -> Result<Value, String> {
+    let config = MarketplaceConfig::default();
+    let url = format!("{}/plugins/{}/versions", config.registry_url, plugin_id);
+    let client = crate::http::create_proxy_client()
+        .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
+
+    let response = client
+        .get(&url)
+        .header("User-Agent", "Cognia-Compatibility/1.0")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch marketplace versions: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Failed to fetch marketplace versions: HTTP {}",
+            response.status()
+        ));
+    }
+
+    let raw: Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse marketplace versions response: {e}"))?;
+
+    let versions = raw
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(normalize_marketplace_version_entry)
+        .collect::<Vec<_>>();
+
+    Ok(Value::Array(versions))
 }
 
 #[tauri::command]
@@ -1512,4 +1673,56 @@ pub async fn plugin_media_ai_inpaint(
         width,
         height,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn plugin_download_error_code_maps_known_categories() {
+        assert_eq!(plugin_download_error_code("HTTP 429 rate limit"), "rate_limit");
+        assert_eq!(plugin_download_error_code("NOT_SUPPORTED: desktop only"), "unsupported_env");
+        assert_eq!(plugin_download_error_code("network timeout while fetching"), "network");
+        assert_eq!(plugin_download_error_code("Version not found"), "validation");
+        assert_eq!(plugin_download_error_code("already exists"), "install_conflict");
+    }
+
+    #[test]
+    fn retryable_download_errors_are_limited() {
+        assert!(is_retryable_download_error("network"));
+        assert!(is_retryable_download_error("rate_limit"));
+        assert!(!is_retryable_download_error("validation"));
+        assert!(!is_retryable_download_error("unsupported_env"));
+    }
+
+    #[test]
+    fn normalize_marketplace_version_entry_requires_download_url() {
+        let raw = json!({
+            "version": "1.2.3",
+            "publishedAt": "2026-03-10T00:00:00Z"
+        });
+        assert!(normalize_marketplace_version_entry(&raw).is_none());
+    }
+
+    #[test]
+    fn normalize_marketplace_version_entry_supports_snake_case_fields() {
+        let raw = json!({
+            "version": "2.0.0",
+            "published_at": "2026-03-10T00:00:00Z",
+            "download_url": "https://example.com/plugin.zip",
+            "min_app_version": "1.5.0",
+            "checksum": "abc123"
+        });
+        let normalized = normalize_marketplace_version_entry(&raw).expect("normalized value");
+        assert_eq!(normalized.get("version").and_then(Value::as_str), Some("2.0.0"));
+        assert_eq!(
+            normalized.get("downloadUrl").and_then(Value::as_str),
+            Some("https://example.com/plugin.zip")
+        );
+        assert_eq!(
+            normalized.get("minAppVersion").and_then(Value::as_str),
+            Some("1.5.0")
+        );
+    }
 }

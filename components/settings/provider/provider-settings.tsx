@@ -53,13 +53,18 @@ import { ProviderSkeleton } from './provider-skeleton';
 import { OpenRouterSettings } from './openrouter-settings';
 import { OpenRouterKeyManagement } from './openrouter-key-management';
 import { CLIProxyAPISettings } from './cliproxyapi-settings';
-import { BatchTestProgress, TestResultsSummary } from './batch-test-progress';
+import { BatchTestProgress, TestResultsSummary, type BatchVerificationOperation } from './batch-test-progress';
 import { ProviderFilters, type CapabilityFilter } from './provider-filters';
 import { CustomProvidersList } from './custom-providers-list';
 import {
   getBuiltInProviderReadiness,
   getCustomProviderReadiness,
   getProviderEnableEligibility,
+  getVisibleEligibleBuiltInProviderIds,
+  getVisibleEligibleCustomProviderIds,
+  getVisibleRetryFailedBuiltInProviderIds,
+  getVisibleRetryFailedCustomProviderIds,
+  type ProviderNextAction,
   getVisibleSelectedProviderIds,
 } from './provider-readiness';
 
@@ -107,6 +112,7 @@ export function ProviderSettings() {
   const [batchTestProgress, setBatchTestProgress] = useState(0);
   const [batchTestCancelRequested, setBatchTestCancelRequested] = useState(false);
   const [batchTestSummary, setBatchTestSummary] = useState<{ completed: number; total: number; canceled: boolean } | null>(null);
+  const [batchOperationType, setBatchOperationType] = useState<BatchVerificationOperation | null>(null);
   const batchTestCancelRef = useRef(false);
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -129,34 +135,96 @@ export function ProviderSettings() {
   const [customTestMessages, setCustomTestMessages] = useState<Record<string, string | null>>({});
   const [capabilityFilters, setCapabilityFilters] = useState<CapabilityFilter[]>([]);
   const providerConfigFingerprintRef = useRef<Record<string, string>>({});
+  const customProviderConfigFingerprintRef = useRef<Record<string, string>>({});
 
   const getProviderActionMessage = useCallback((providerId: string, fallback: string, reason?: string) => {
     const providerName = PROVIDERS[providerId]?.name || providerId;
     return `${providerName}: ${reason || fallback}`;
   }, []);
 
+  const getChecklistStepLabel = useCallback((stepId: string) => {
+    switch (stepId) {
+      case 'credential':
+        return t('setupStepCredential');
+      case 'base_url':
+        return t('setupStepBaseUrl');
+      case 'default_model':
+        return t('setupStepDefaultModel');
+      case 'verification':
+        return t('setupStepVerification');
+      default:
+        return stepId;
+    }
+  }, [t]);
+
+  const persistBuiltInVerificationResult = useCallback((
+    providerId: string,
+    success: boolean,
+    message?: string
+  ) => {
+    const settings = providerSettings[providerId];
+    if (!settings) return;
+
+    updateProviderSettings(providerId, {
+      verificationStatus: success ? 'verified' : settings.verificationStatus === 'verified' ? 'stale' : 'unverified',
+      verificationFingerprint: getBuiltInProviderReadiness(providerId, settings, {
+        success,
+        message: message ?? (success ? 'Connection verified.' : 'Connection test failed.'),
+      }).verificationFingerprint,
+      verificationMessage: message,
+      lastVerifiedAt: Date.now(),
+    });
+  }, [providerSettings, updateProviderSettings]);
+
+  const persistCustomVerificationResult = useCallback((
+    providerId: string,
+    success: boolean,
+    message?: string
+  ) => {
+    const provider = customProviders[providerId];
+    if (!provider) return;
+
+    updateCustomProvider(providerId, {
+      verificationStatus: success ? 'verified' : provider.verificationStatus === 'verified' ? 'stale' : 'unverified',
+      verificationFingerprint: getCustomProviderReadiness(provider, { success }).verificationFingerprint,
+      verificationMessage: message,
+      lastVerifiedAt: Date.now(),
+    });
+  }, [customProviders, updateCustomProvider]);
+
   const invalidateBuiltInVerification = useCallback((providerId: string) => {
     setTestResults((prev) => ({ ...prev, [providerId]: null }));
-  }, []);
+    const settings = providerSettings[providerId];
+    if (!settings) return;
+    const nextStatus = settings.verificationStatus === 'verified' ? 'stale' : 'unverified';
+    updateProviderSettings(providerId, {
+      verificationStatus: nextStatus,
+      verificationFingerprint: getBuiltInProviderReadiness(providerId, settings, null).verificationFingerprint,
+      verificationMessage:
+        nextStatus === 'stale' ? t('verificationStaleHint') : settings.verificationMessage,
+    });
+  }, [providerSettings, t, updateProviderSettings]);
 
   const invalidateCustomVerification = useCallback((providerId: string) => {
     setCustomTestResults((prev) => ({ ...prev, [providerId]: null }));
     setCustomTestMessages((prev) => ({ ...prev, [providerId]: null }));
-  }, []);
+    const provider = customProviders[providerId];
+    if (!provider) return;
+    const nextStatus = provider.verificationStatus === 'verified' ? 'stale' : 'unverified';
+    updateCustomProvider(providerId, {
+      verificationStatus: nextStatus,
+      verificationFingerprint: getCustomProviderReadiness(provider, null).verificationFingerprint,
+      verificationMessage:
+        nextStatus === 'stale' ? t('verificationStaleHint') : provider.verificationMessage,
+    });
+  }, [customProviders, t, updateCustomProvider]);
 
   useEffect(() => {
     const changedIds: string[] = [];
     const nextFingerprints: Record<string, string> = {};
 
     for (const [providerId, settings] of Object.entries(providerSettings)) {
-      const fingerprint = JSON.stringify({
-        enabled: settings?.enabled,
-        apiKey: settings?.apiKey || '',
-        apiKeys: settings?.apiKeys || [],
-        currentKeyIndex: settings?.currentKeyIndex ?? 0,
-        baseURL: settings?.baseURL || '',
-        defaultModel: settings?.defaultModel || '',
-      });
+      const fingerprint = getBuiltInProviderReadiness(providerId, settings, null).verificationFingerprint;
       nextFingerprints[providerId] = fingerprint;
       if (
         providerConfigFingerprintRef.current[providerId] &&
@@ -176,8 +244,63 @@ export function ProviderSettings() {
         }
         return next;
       });
+      for (const id of changedIds) {
+        const settings = providerSettings[id];
+        if (!settings) continue;
+        const nextStatus = settings.verificationStatus === 'verified' ? 'stale' : 'unverified';
+        updateProviderSettings(id, {
+          verificationStatus: nextStatus,
+          verificationFingerprint: nextFingerprints[id],
+          verificationMessage: nextStatus === 'stale' ? t('verificationStaleHint') : settings.verificationMessage,
+        });
+      }
     }
-  }, [providerSettings]);
+  }, [providerSettings, t, updateProviderSettings]);
+
+  useEffect(() => {
+    const changedIds: string[] = [];
+    const nextFingerprints: Record<string, string> = {};
+
+    for (const [providerId, provider] of Object.entries(customProviders)) {
+      const fingerprint = getCustomProviderReadiness(provider, null).verificationFingerprint;
+      nextFingerprints[providerId] = fingerprint;
+      if (
+        customProviderConfigFingerprintRef.current[providerId] &&
+        customProviderConfigFingerprintRef.current[providerId] !== fingerprint
+      ) {
+        changedIds.push(providerId);
+      }
+    }
+
+    customProviderConfigFingerprintRef.current = nextFingerprints;
+
+    if (changedIds.length > 0) {
+      setCustomTestResults((prev) => {
+        const next = { ...prev };
+        for (const id of changedIds) {
+          if (next[id] === 'success') next[id] = null;
+        }
+        return next;
+      });
+      setCustomTestMessages((prev) => {
+        const next = { ...prev };
+        for (const id of changedIds) {
+          next[id] = null;
+        }
+        return next;
+      });
+      for (const id of changedIds) {
+        const provider = customProviders[id];
+        if (!provider) continue;
+        const nextStatus = provider.verificationStatus === 'verified' ? 'stale' : 'unverified';
+        updateCustomProvider(id, {
+          verificationStatus: nextStatus,
+          verificationFingerprint: nextFingerprints[id],
+          verificationMessage: nextStatus === 'stale' ? t('verificationStaleHint') : provider.verificationMessage,
+        });
+      }
+    }
+  }, [customProviders, t, updateCustomProvider]);
 
   const toggleExpanded = useCallback((providerId: string) => {
     setExpandedProviders((prev) => ({ ...prev, [providerId]: !prev[providerId] }));
@@ -245,7 +368,7 @@ export function ProviderSettings() {
     invalidateBuiltInVerification(providerId);
   };
 
-  const handleToggleProvider = (providerId: string, enabled: boolean) => {
+  const handleToggleProvider = useCallback((providerId: string, enabled: boolean) => {
     const eligibility = getProviderEnableEligibility(providerId, providerSettings[providerId], enabled);
     if (!eligibility.allowed) {
       toast.warning(getProviderActionMessage(providerId, t('configureApiKey'), eligibility.reason));
@@ -253,7 +376,7 @@ export function ProviderSettings() {
     }
     updateProviderSettings(providerId, { enabled });
     return true;
-  };
+  }, [providerSettings, getProviderActionMessage, t, updateProviderSettings]);
 
   const handleTestConnection = useCallback(async (providerId: string) => {
     const settings = providerSettings[providerId];
@@ -284,6 +407,7 @@ export function ProviderSettings() {
         settings?.baseURL
       );
       setTestResults((prev) => ({ ...prev, [providerId]: result }));
+      persistBuiltInVerificationResult(providerId, !!result.success, result.message);
       return result;
     } catch (error) {
       const failedResult: ApiTestResult = {
@@ -294,11 +418,12 @@ export function ProviderSettings() {
         ...prev,
         [providerId]: failedResult,
       }));
+      persistBuiltInVerificationResult(providerId, false, failedResult.message);
       return failedResult;
     } finally {
       setTestingProviders((prev) => ({ ...prev, [providerId]: false }));
     }
-  }, [getProviderActionMessage, providerSettings, testResults, t]);
+  }, [getProviderActionMessage, persistBuiltInVerificationResult, providerSettings, testResults, t]);
 
   const handleTestCustomProvider = useCallback(async (providerId: string) => {
     const provider = customProviders[providerId];
@@ -307,11 +432,13 @@ export function ProviderSettings() {
       const message = readiness.eligibility.testConnection.reason || t('connectionFailed');
       setCustomTestResults((prev) => ({ ...prev, [providerId]: 'error' }));
       setCustomTestMessages((prev) => ({ ...prev, [providerId]: message }));
+      persistCustomVerificationResult(providerId, false, message);
       toast.warning(message);
       return { success: false, message };
     }
     if (!provider?.baseURL || !provider.apiKey) {
       const message = t('connectionFailed');
+      persistCustomVerificationResult(providerId, false, message);
       return { success: false, message };
     }
 
@@ -321,6 +448,7 @@ export function ProviderSettings() {
       const message = t('invalidBaseUrl');
       setCustomTestResults((prev) => ({ ...prev, [providerId]: 'error' }));
       setCustomTestMessages((prev) => ({ ...prev, [providerId]: message }));
+      persistCustomVerificationResult(providerId, false, message);
       toast.error(t('connectionFailed'), { description: message });
       return { success: false, message };
     }
@@ -343,6 +471,7 @@ export function ProviderSettings() {
         ...prev,
         [providerId]: result.message,
       }));
+      persistCustomVerificationResult(providerId, !!result.success, result.message);
 
       if (result.success) {
         toast.success(t('connectionSuccess'), { description: result.message });
@@ -354,6 +483,7 @@ export function ProviderSettings() {
       const message = error instanceof Error ? error.message : t('connectionFailed');
       setCustomTestResults((prev) => ({ ...prev, [providerId]: 'error' }));
       setCustomTestMessages((prev) => ({ ...prev, [providerId]: message }));
+      persistCustomVerificationResult(providerId, false, message);
       toast.error(t('connectionFailed'), { description: message });
       return {
         success: false,
@@ -362,77 +492,12 @@ export function ProviderSettings() {
     } finally {
       setTestingCustomProviders((prev) => ({ ...prev, [providerId]: false }));
     }
-  }, [customProviders, t]);
+  }, [customProviders, persistCustomVerificationResult, t]);
 
   const handleCancelBatchTest = useCallback(() => {
     batchTestCancelRef.current = true;
     setBatchTestCancelRequested(true);
   }, []);
-
-  // Batch test all configured providers
-  const handleBatchTest = useCallback(async () => {
-    const enabledProviders = Object.entries(providerSettings)
-      .filter(
-        ([id, settings]) => {
-          if (!settings?.enabled) return false;
-          const providerState = getBuiltInProviderReadiness(id, settings, testResults[id]);
-          return providerState.eligibility.testConnection.allowed;
-        }
-      )
-      .map(([id]) => id);
-
-    const enabledCustomProviders = Object.entries(customProviders)
-      .filter(([_id, provider]) => {
-        if (!provider.enabled) return false;
-        const readiness = getCustomProviderReadiness(provider);
-        return readiness.eligibility.testConnection.allowed;
-      })
-      .map(([id]) => id);
-
-    const totalProvidersToTest = enabledProviders.length + enabledCustomProviders.length;
-
-    if (totalProvidersToTest === 0) return;
-
-    batchTestCancelRef.current = false;
-    setBatchTestCancelRequested(false);
-    setIsBatchTesting(true);
-    setBatchTestProgress(0);
-    setBatchTestSummary(null);
-    setTestResults({});
-    setCustomTestResults({});
-    setCustomTestMessages({});
-
-    try {
-      let completed = 0;
-
-      for (let i = 0; i < enabledProviders.length; i++) {
-        if (batchTestCancelRef.current) break;
-        const providerId = enabledProviders[i];
-        await handleTestConnection(providerId);
-        if (batchTestCancelRef.current) break;
-        completed += 1;
-        setBatchTestProgress((completed / totalProvidersToTest) * 100);
-      }
-
-      for (let i = 0; i < enabledCustomProviders.length; i++) {
-        if (batchTestCancelRef.current) break;
-        const providerId = enabledCustomProviders[i];
-        await handleTestCustomProvider(providerId);
-        if (batchTestCancelRef.current) break;
-        completed += 1;
-        setBatchTestProgress((completed / totalProvidersToTest) * 100);
-      }
-      setBatchTestSummary({
-        completed,
-        total: totalProvidersToTest,
-        canceled: batchTestCancelRef.current,
-      });
-    } finally {
-      setIsBatchTesting(false);
-      setBatchTestCancelRequested(false);
-      batchTestCancelRef.current = false;
-    }
-  }, [providerSettings, customProviders, handleTestConnection, handleTestCustomProvider, testResults]);
 
   // Count test results
   const testResultsSummary = {
@@ -531,6 +596,30 @@ export function ProviderSettings() {
     [filteredProviders]
   );
 
+  const visibleCustomProviderIds = useMemo(() => {
+    const query = deferredSearchQuery.trim().toLowerCase();
+    if (!query) return Object.keys(customProviders);
+
+    return Object.entries(customProviders)
+      .filter(([_providerId, provider]) => {
+        const providerName = (
+          provider.customName ||
+          (provider as { name?: string }).name ||
+          ''
+        ).toLowerCase();
+        const baseUrl = (provider.baseURL || '').toLowerCase();
+        const rawModels =
+          provider.customModels || (provider as { models?: string[] }).models || [];
+        const models = rawModels.map((model) => String(model).toLowerCase());
+        return (
+          providerName.includes(query) ||
+          baseUrl.includes(query) ||
+          models.some((model) => model.includes(query))
+        );
+      })
+      .map(([providerId]) => providerId);
+  }, [customProviders, deferredSearchQuery]);
+
   // Auto-trim selectedProviderIds when filter changes (remove IDs no longer visible)
   useEffect(() => {
     const visibleSet = new Set(visibleProviderIds);
@@ -584,19 +673,15 @@ export function ProviderSettings() {
     setSelectedProviderIds(new Set());
   };
 
-  const handleBatchTestSelected = useCallback(async () => {
-    const selectedVisibleIds = getVisibleSelectedProviderIds(visibleProviderIds, selectedProviderIds);
-    const selectedIds = selectedVisibleIds.filter((providerId) => {
-      const providerState = getBuiltInProviderReadiness(
-        providerId,
-        providerSettings[providerId],
-        testResults[providerId]
-      );
-      return providerState.eligibility.testConnection.allowed;
-    });
-    if (selectedIds.length === 0) {
+  const runBatchVerification = useCallback(async (
+    operationType: BatchVerificationOperation,
+    builtInProviderIds: string[],
+    customProviderIds: string[]
+  ) => {
+    const totalProvidersToTest = builtInProviderIds.length + customProviderIds.length;
+    if (totalProvidersToTest === 0) {
       toast.warning(t('noProvidersFound'), {
-        description: 'Configure credentials or base URL for the selected providers, then retry.',
+        description: t('batchNoEligibleProviders'),
       });
       return;
     }
@@ -606,20 +691,38 @@ export function ProviderSettings() {
     setIsBatchTesting(true);
     setBatchTestProgress(0);
     setBatchTestSummary(null);
+    setBatchOperationType(operationType);
+
+    if (operationType !== 'retry-failed') {
+      setTestResults({});
+      setCustomTestResults({});
+      setCustomTestMessages({});
+    }
 
     try {
       let completed = 0;
-      for (let i = 0; i < selectedIds.length; i++) {
+
+      for (let i = 0; i < builtInProviderIds.length; i++) {
         if (batchTestCancelRef.current) break;
-        const providerId = selectedIds[i];
+        const providerId = builtInProviderIds[i];
         await handleTestConnection(providerId);
         if (batchTestCancelRef.current) break;
         completed += 1;
-        setBatchTestProgress((completed / selectedIds.length) * 100);
+        setBatchTestProgress((completed / totalProvidersToTest) * 100);
       }
+
+      for (let i = 0; i < customProviderIds.length; i++) {
+        if (batchTestCancelRef.current) break;
+        const providerId = customProviderIds[i];
+        await handleTestCustomProvider(providerId);
+        if (batchTestCancelRef.current) break;
+        completed += 1;
+        setBatchTestProgress((completed / totalProvidersToTest) * 100);
+      }
+
       setBatchTestSummary({
         completed,
-        total: selectedIds.length,
+        total: totalProvidersToTest,
         canceled: batchTestCancelRef.current,
       });
     } finally {
@@ -627,7 +730,64 @@ export function ProviderSettings() {
       setBatchTestCancelRequested(false);
       batchTestCancelRef.current = false;
     }
-  }, [handleTestConnection, providerSettings, selectedProviderIds, t, testResults, visibleProviderIds]);
+  }, [handleTestConnection, handleTestCustomProvider, t]);
+
+  const handleBatchTest = useCallback(async () => {
+    const builtInProviderIds = getVisibleEligibleBuiltInProviderIds(
+      visibleProviderIds,
+      providerSettings,
+      testResults
+    );
+    const customProviderIds = getVisibleEligibleCustomProviderIds(
+      visibleCustomProviderIds,
+      customProviders,
+      customTestResults
+    );
+
+    await runBatchVerification('verify-enabled', builtInProviderIds, customProviderIds);
+  }, [
+    customProviders,
+    customTestResults,
+    providerSettings,
+    runBatchVerification,
+    testResults,
+    visibleCustomProviderIds,
+    visibleProviderIds,
+  ]);
+
+  const handleRetryFailed = useCallback(async () => {
+    const builtInProviderIds = getVisibleRetryFailedBuiltInProviderIds(
+      visibleProviderIds,
+      providerSettings,
+      testResults
+    );
+    const customProviderIds = getVisibleRetryFailedCustomProviderIds(
+      visibleCustomProviderIds,
+      customProviders,
+      customTestResults
+    );
+
+    await runBatchVerification('retry-failed', builtInProviderIds, customProviderIds);
+  }, [
+    customProviders,
+    customTestResults,
+    providerSettings,
+    runBatchVerification,
+    testResults,
+    visibleCustomProviderIds,
+    visibleProviderIds,
+  ]);
+
+  const handleBatchTestSelected = useCallback(async () => {
+    const selectedVisibleIds = getVisibleSelectedProviderIds(visibleProviderIds, selectedProviderIds);
+    const selectedSet = new Set(selectedVisibleIds);
+    const selectedIds = getVisibleEligibleBuiltInProviderIds(
+      visibleProviderIds,
+      providerSettings,
+      testResults
+    ).filter((providerId) => selectedSet.has(providerId));
+    await runBatchVerification('verify-selected', selectedIds, []);
+  }, [providerSettings, runBatchVerification, selectedProviderIds, testResults, visibleProviderIds]);
 
   const handleSetSelectedEnabled = (enabled: boolean) => {
     const selectedIds = getVisibleSelectedProviderIds(visibleProviderIds, selectedProviderIds);
@@ -663,6 +823,26 @@ export function ProviderSettings() {
       });
     });
   }, [setProviderViewMode]);
+
+  const runBuiltInQuickFixAction = useCallback(async (
+    providerId: string,
+    action: ProviderNextAction | undefined
+  ) => {
+    if (!action) return;
+
+    if (action === 'verify_connection') {
+      await handleTestConnection(providerId);
+      return;
+    }
+
+    if (action === 'enable_provider') {
+      handleToggleProvider(providerId, true);
+      return;
+    }
+
+    // Remaining actions are configuration-focused and route users to the provider card workflow.
+    handleConfigureProviderFromTable(providerId);
+  }, [handleConfigureProviderFromTable, handleTestConnection, handleToggleProvider]);
 
   const renderBuiltInProviderCard = (providerId: string, provider: ProviderConfig) => {
     const settings = providerSettings[providerId] || {};
@@ -741,6 +921,7 @@ export function ProviderSettings() {
           invalidateBuiltInVerification(providerId);
         }}
         readinessState={providerState.readiness}
+        verificationStatus={providerState.verificationStatus}
         enableToggleDisabled={!enableGuard.allowed}
         enableToggleDisabledReason={enableGuard.reason}
         testConnectionDisabled={!testGuard.allowed || !!testingProviders[providerId]}
@@ -748,6 +929,42 @@ export function ProviderSettings() {
         defaultModelDisabled={!defaultModelGuard.allowed}
         defaultModelDisabledReason={defaultModelGuard.reason}
       >
+        {!providerState.setupChecklist.isComplete && (
+          <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">{t('setupChecklistTitle')}</p>
+              <Badge variant="outline" className="text-[10px]">
+                {providerState.setupChecklist.completed}/{providerState.setupChecklist.total}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              {providerState.setupChecklist.steps
+                .filter((step) => !step.done)
+                .slice(0, 3)
+                .map((step) => (
+                  <div key={step.id} className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium">{getChecklistStepLabel(step.id)}</p>
+                      {step.reason && (
+                        <p className="text-xs text-muted-foreground">{step.reason}</p>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs shrink-0"
+                      onClick={() => {
+                        void runBuiltInQuickFixAction(providerId, step.nextAction);
+                      }}
+                    >
+                      {t('fixNow')}
+                    </Button>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
         {isEnabled && providerState.hasCredential && <ProviderHealthStatus providerId={providerId} />}
 
         {provider.supportsOAuth && isEnabled && <OAuthLoginButton providerId={providerId} />}
@@ -769,6 +986,37 @@ export function ProviderSettings() {
     );
   };
 
+  const emptyStateQuickFixes = useMemo(() => {
+    const byStepId = new Map<string, {
+      providerId: string;
+      stepId: string;
+      reason?: string;
+      action?: ProviderNextAction;
+    }>();
+
+    for (const [providerId, provider] of Object.entries(PROVIDERS)) {
+      if (provider.category === 'local') continue;
+      const state = getBuiltInProviderReadiness(
+        providerId,
+        providerSettings[providerId],
+        testResults[providerId]
+      );
+      const pendingStep = state.setupChecklist.steps.find((step) => !step.done);
+      if (!pendingStep) continue;
+      if (!byStepId.has(pendingStep.id)) {
+        byStepId.set(pendingStep.id, {
+          providerId,
+          stepId: pendingStep.id,
+          reason: pendingStep.reason,
+          action: pendingStep.nextAction,
+        });
+      }
+      if (byStepId.size >= 3) break;
+    }
+
+    return Array.from(byStepId.values());
+  }, [providerSettings, testResults]);
+
   if (!isMounted) {
     return <ProviderSkeleton />;
   }
@@ -788,6 +1036,15 @@ export function ProviderSettings() {
             setShowCustomDialog(true);
           }}
           onImportSettings={() => {}}
+          guidanceItems={emptyStateQuickFixes.map((item) => ({
+            id: `${item.providerId}-${item.stepId}`,
+            label: getChecklistStepLabel(item.stepId),
+            description: item.reason,
+            actionLabel: t('fixNow'),
+            onAction: () => {
+              void runBuiltInQuickFixAction(item.providerId, item.action);
+            },
+          }))}
           importButton={<ProviderImportExport />}
         />
         <CustomProviderDialog
@@ -829,6 +1086,15 @@ export function ProviderSettings() {
               </>
             )}
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRetryFailed}
+            disabled={isBatchTesting || testResultsSummary.failed === 0}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            {t('retryFailed')}
+          </Button>
         </div>
       </div>
 
@@ -846,6 +1112,7 @@ export function ProviderSettings() {
           success={testResultsSummary.success}
           failed={testResultsSummary.failed}
           total={testResultsSummary.total}
+          operationType={batchOperationType || undefined}
           completed={batchTestSummary?.completed}
           expectedTotal={batchTestSummary?.total}
           canceled={batchTestSummary?.canceled}
@@ -1108,15 +1375,20 @@ export function ProviderSettings() {
                       </TableCell>
                       <TableCell className="text-center">
                         {isEnabled ? (
-                          testResult?.success || providerState.readiness === 'verified' ? (
-                            <Badge variant="default" className="text-[10px] bg-green-600">
-                              <Check className="h-3 w-3 mr-0.5" />
-                              {t('connected')}
-                            </Badge>
-                          ) : testResult && !testResult.success ? (
+                          testResult && !testResult.success ? (
                             <Badge variant="destructive" className="text-[10px]">
                               <AlertCircle className="h-3 w-3 mr-0.5" />
                               {t('failed')}
+                            </Badge>
+                          ) : providerState.verificationStatus === 'stale' ? (
+                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-400">
+                              <AlertCircle className="h-3 w-3 mr-0.5" />
+                              {t('verificationStaleShort')}
+                            </Badge>
+                          ) : testResult?.success || providerState.readiness === 'verified' ? (
+                            <Badge variant="default" className="text-[10px] bg-green-600">
+                              <Check className="h-3 w-3 mr-0.5" />
+                              {t('connected')}
                             </Badge>
                           ) : providerState.readiness === 'configured' ? (
                             <Badge variant="default" className="text-[10px]">
@@ -1246,6 +1518,21 @@ export function ProviderSettings() {
                                 >
                                   {testingProviders[providerId] ? t('testing') : t('testConnection')}
                                 </Button>
+                                {providerState.setupChecklist.nextAction && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => {
+                                      void runBuiltInQuickFixAction(
+                                        providerId,
+                                        providerState.setupChecklist.nextAction
+                                      );
+                                    }}
+                                  >
+                                    {t('resolveNextStep')}
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           </div>

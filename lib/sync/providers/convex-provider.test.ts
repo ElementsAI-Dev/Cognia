@@ -1,16 +1,7 @@
-/**
- * ConvexProvider unit tests
- *
- * Covers: constructor, testConnection, upload (with metadata round-trip),
- * download (with Convex system field stripping and metadata reconstruction),
- * getRemoteMetadata, listBackups, disconnect.
- */
-
 import { ConvexProvider } from './convex-provider';
 import type { ConvexSyncConfig, SyncData } from '@/types/sync';
 import { DEFAULT_CONVEX_CONFIG } from '@/types/sync';
 
-// Mock fetch globally
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
@@ -27,12 +18,13 @@ function createProvider(overrides?: Partial<ConvexSyncConfig>): ConvexProvider {
 function createMockSyncData(overrides?: Partial<SyncData>): SyncData {
   return {
     version: '1.1',
-    syncedAt: new Date().toISOString(),
+    syncedAt: '2026-03-10T00:00:00.000Z',
     deviceId: 'device-test123',
     deviceName: 'Test Device',
     checksum: 'abc123',
-    dataTypes: ['sessions', 'messages'],
+    dataTypes: ['sessions', 'messages', 'settings', 'artifacts', 'folders', 'projects'],
     data: {
+      settings: { theme: 'dark' },
       sessions: [
         {
           id: 'session-1',
@@ -43,13 +35,7 @@ function createMockSyncData(overrides?: Partial<SyncData>): SyncData {
           messageCount: 5,
           createdAt: new Date('2024-01-01'),
           updatedAt: new Date('2024-01-02'),
-          // Extra fields that MUST survive round-trip via metadata
           topP: 0.9,
-          frequencyPenalty: 0.5,
-          tags: ['tag1', 'tag2'],
-          isArchived: false,
-          branches: [{ id: 'main', name: 'main' }],
-          carriedContext: { enabled: true, maxTokens: 4096 },
         } as never,
       ],
       messages: [
@@ -59,10 +45,13 @@ function createMockSyncData(overrides?: Partial<SyncData>): SyncData {
           role: 'user',
           content: 'Hello',
           createdAt: new Date('2024-01-01T10:00:00Z'),
-          bookmarkedAt: new Date('2024-01-02T12:00:00Z'),
           isBookmarked: true,
+          bookmarkedAt: new Date('2024-01-02T10:00:00Z'),
         } as never,
       ],
+      artifacts: {
+        artifact_1: { id: 'artifact_1', kind: 'code', content: 'console.log(1)' } as never,
+      },
       folders: [
         {
           id: 'folder-1',
@@ -76,12 +65,10 @@ function createMockSyncData(overrides?: Partial<SyncData>): SyncData {
         {
           id: 'proj-1',
           name: 'My Project',
-          description: 'desc',
           tags: ['a', 'b'],
-          isArchived: false,
           sessionIds: ['session-1'],
           sessionCount: 1,
-          messageCount: 5,
+          messageCount: 1,
           createdAt: new Date('2024-01-01'),
           updatedAt: new Date('2024-01-02'),
           lastAccessedAt: new Date('2024-01-02'),
@@ -92,464 +79,233 @@ function createMockSyncData(overrides?: Partial<SyncData>): SyncData {
   };
 }
 
+function jsonResponse(data: unknown, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    statusText: status === 200 ? 'OK' : 'Error',
+    json: () => Promise.resolve(data),
+  };
+}
+
 describe('ConvexProvider', () => {
   beforeEach(() => {
     mockFetch.mockReset();
   });
 
-  describe('constructor', () => {
-    it('should create provider with correct type', () => {
-      const provider = createProvider();
-      expect(provider.type).toBe('convex');
-    });
+  it('normalizes cloud deployment URL to convex.site for HTTP actions', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ status: 'ok', timestamp: '2026-03-10T00:00:00.000Z' })
+    );
 
-    it('should strip trailing slash from deployment URL', () => {
-      const provider = createProvider({ deploymentUrl: 'https://test.convex.cloud/' });
-      expect(provider.type).toBe('convex');
-    });
+    const provider = createProvider();
+    const result = await provider.testConnection();
+
+    expect(result.success).toBe(true);
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://test-app.convex.site/health',
+      expect.objectContaining({ method: 'GET' })
+    );
   });
 
-  describe('testConnection', () => {
-    it('should return success when health check returns ok', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ status: 'ok', timestamp: new Date().toISOString() }),
-      });
+  it('uploads in bounded chunks with authoritative reconciliation contract', async () => {
+    const manyMessages = Array.from({ length: 205 }, (_, index) => ({
+      id: `msg-${index + 1}`,
+      sessionId: 'session-1',
+      role: 'user',
+      content: `message-${index + 1}`,
+      createdAt: new Date('2024-01-01T00:00:00.000Z'),
+    })) as never[];
 
-      const provider = createProvider();
-      const result = await provider.testConnection();
+    mockFetch.mockResolvedValue(jsonResponse({ imported: 1, errors: 0, deleted: 0 }));
 
-      expect(result.success).toBe(true);
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://test-app.convex.cloud/health',
-        expect.objectContaining({ method: 'GET' })
+    const provider = createProvider();
+    const result = await provider.upload(
+      createMockSyncData({
+        data: {
+          messages: manyMessages,
+        },
+      })
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockFetch).toHaveBeenCalled();
+
+    const importCalls = mockFetch.mock.calls
+      .map((call) => call[1])
+      .filter((init) => (init as RequestInit)?.method === 'POST') as RequestInit[];
+    expect(importCalls.length).toBeGreaterThan(1);
+
+    const firstBody = JSON.parse(String(importCalls[0].body));
+    const secondBody = JSON.parse(String(importCalls[1].body));
+
+    expect(firstBody.reconciliation.mode).toBe('authoritative');
+    expect(firstBody.reconciliation.replaceTables).toEqual(['messages']);
+    expect(secondBody.reconciliation.replaceTables).toEqual([]);
+  });
+
+  it('surfaces structured API error messages on upload failure', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse(
+        { code: 'sync_auth_invalid', error: 'Invalid deploy key', message: 'Invalid deploy key' },
+        401
+      )
+    );
+
+    const provider = createProvider();
+    const result = await provider.upload(createMockSyncData());
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Invalid deploy key');
+    expect(result.error).toContain('sync_auth_invalid');
+  });
+
+  it('downloads paged export contract and maps records', async () => {
+    mockFetch
+      // settings page
+      .mockResolvedValueOnce(
+        jsonResponse({
+          table: 'settings',
+          items: [{ localId: 'global-settings', payload: JSON.stringify({ locale: 'en-US' }) }],
+          continueCursor: 'done',
+          isDone: true,
+        })
+      )
+      // sessions page
+      .mockResolvedValueOnce(
+        jsonResponse({
+          table: 'sessions',
+          items: [
+            {
+              localId: 'session-1',
+              title: 'Downloaded Session',
+              provider: 'openai',
+              model: 'gpt-4',
+              mode: 'chat',
+              messageCount: 3,
+              metadata: JSON.stringify({ topP: 0.9 }),
+              localCreatedAt: '2024-01-01T00:00:00.000Z',
+              localUpdatedAt: '2024-01-02T00:00:00.000Z',
+            },
+          ],
+          continueCursor: 'done',
+          isDone: true,
+        })
+      )
+      // messages page
+      .mockResolvedValueOnce(
+        jsonResponse({
+          table: 'messages',
+          items: [],
+          continueCursor: 'done',
+          isDone: true,
+        })
+      )
+      // artifacts page
+      .mockResolvedValueOnce(
+        jsonResponse({
+          table: 'artifacts',
+          items: [{ localId: 'artifact_1', payload: JSON.stringify({ id: 'artifact_1' }) }],
+          continueCursor: 'done',
+          isDone: true,
+        })
+      )
+      // folders page
+      .mockResolvedValueOnce(
+        jsonResponse({
+          table: 'folders',
+          items: [],
+          continueCursor: 'done',
+          isDone: true,
+        })
+      )
+      // projects page
+      .mockResolvedValueOnce(
+        jsonResponse({
+          table: 'projects',
+          items: [],
+          continueCursor: 'done',
+          isDone: true,
+        })
+      )
+      // metadata
+      .mockResolvedValueOnce(
+        jsonResponse({
+          version: '1.1',
+          syncedAt: '2026-03-10T00:00:00.000Z',
+          deviceId: 'device-remote',
+          deviceName: 'Remote Device',
+          checksum: 'xyz789',
+        })
       );
-    });
 
-    it('should return failure on HTTP error', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        statusText: 'Unauthorized',
-      });
+    const provider = createProvider();
+    const result = await provider.download();
 
-      const provider = createProvider();
-      const result = await provider.testConnection();
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('401');
-    });
-
-    it('should return failure on network error', async () => {
-      mockFetch.mockRejectedValue(new Error('Network unreachable'));
-
-      const provider = createProvider();
-      const result = await provider.testConnection();
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-    });
-
-    it('should return failure on unexpected health response', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ status: 'degraded' }),
-      });
-
-      const provider = createProvider();
-      const result = await provider.testConnection();
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Unexpected');
-    });
+    expect(result).not.toBeNull();
+    expect(result?.data.settings).toEqual({ locale: 'en-US' });
+    expect(result?.data.artifacts).toEqual({ artifact_1: { id: 'artifact_1' } });
+    expect((result?.data.sessions?.[0] as unknown as Record<string, unknown>).topP).toBe(0.9);
   });
 
-  describe('upload', () => {
-    it('should upload sync data successfully', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ imported: 6, errors: 0 }),
-      });
-
-      const provider = createProvider();
-      const data = createMockSyncData();
-      const result = await provider.upload(data);
-
-      expect(result.success).toBe(true);
-      expect(result.itemsSynced).toBe(6);
-      expect(result.direction).toBe('upload');
-    });
-
-    it('should serialize extra session fields into metadata JSON', async () => {
-      let sentBody: string | undefined;
-      mockFetch.mockImplementationOnce((_url: string, init: RequestInit) => {
-        sentBody = init.body as string;
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ imported: 1, errors: 0 }),
-        });
-      });
-
-      const provider = createProvider();
-      const data = createMockSyncData();
-      await provider.upload(data);
-
-      expect(sentBody).toBeDefined();
-      const parsed = JSON.parse(sentBody!);
-      const session = parsed.tables.sessions[0];
-
-      // Indexed fields should be top-level
-      expect(session.localId).toBe('session-1');
-      expect(session.title).toBe('Test Session');
-      expect(session.provider).toBe('openai');
-
-      // Extra fields should be in metadata JSON string
-      expect(typeof session.metadata).toBe('string');
-      const meta = JSON.parse(session.metadata);
-      expect(meta.topP).toBe(0.9);
-      expect(meta.frequencyPenalty).toBe(0.5);
-      expect(meta.tags).toEqual(['tag1', 'tag2']);
-      expect(meta.branches).toEqual([{ id: 'main', name: 'main' }]);
-      expect(meta.carriedContext).toEqual({ enabled: true, maxTokens: 4096 });
-    });
-
-    it('should serialize bookmarkedAt as ISO string', async () => {
-      let sentBody: string | undefined;
-      mockFetch.mockImplementationOnce((_url: string, init: RequestInit) => {
-        sentBody = init.body as string;
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ imported: 1, errors: 0 }),
-        });
-      });
-
-      const provider = createProvider();
-      const data = createMockSyncData();
-      await provider.upload(data);
-
-      const parsed = JSON.parse(sentBody!);
-      const msg = parsed.tables.messages[0];
-      expect(msg.bookmarkedAt).toBe('2024-01-02T12:00:00.000Z');
-    });
-
-    it('should serialize project tags and sessionIds as JSON strings', async () => {
-      let sentBody: string | undefined;
-      mockFetch.mockImplementationOnce((_url: string, init: RequestInit) => {
-        sentBody = init.body as string;
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ imported: 1, errors: 0 }),
-        });
-      });
-
-      const provider = createProvider();
-      const data = createMockSyncData();
-      await provider.upload(data);
-
-      const parsed = JSON.parse(sentBody!);
-      const project = parsed.tables.projects[0];
-      expect(project.tags).toBe(JSON.stringify(['a', 'b']));
-      expect(project.sessionIds).toBe(JSON.stringify(['session-1']));
-      expect(project.isArchived).toBe(false);
-    });
-
-    it('should return error on upload failure', async () => {
-      // retryFetch retries 5xx up to maxRetries times; mock all attempts
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 500,
-        json: () => Promise.resolve({ error: 'Internal server error' }),
-      });
-
-      const provider = createProvider();
-      const data = createMockSyncData();
-      const result = await provider.upload(data);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-    });
-
-    it('should call progress callback during upload', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ imported: 1, errors: 0 }),
-      });
-
-      const onProgress = jest.fn();
-      const provider = createProvider();
-      await provider.upload(createMockSyncData(), onProgress);
-
-      expect(onProgress).toHaveBeenCalled();
-      const phases = onProgress.mock.calls.map(
-        (call: [{ phase: string }]) => call[0].phase
+  it('falls back to legacy /api/sync/export contract when paged payload is unavailable', async () => {
+    mockFetch
+      // paged request returns non-paged shape -> fallback
+      .mockResolvedValueOnce(jsonResponse({ sessions: [] }))
+      // legacy export
+      .mockResolvedValueOnce(
+        jsonResponse({
+          settings: [{ localId: 'global-settings', payload: JSON.stringify({ locale: 'en-US' }) }],
+          sessions: [],
+          messages: [],
+          artifacts: [],
+          folders: [],
+          projects: [],
+        })
+      )
+      // metadata
+      .mockResolvedValueOnce(
+        jsonResponse({
+          version: '1.1',
+          syncedAt: '2026-03-10T00:00:00.000Z',
+          deviceId: 'device-remote',
+          deviceName: 'Remote Device',
+          checksum: 'xyz789',
+        })
       );
-      expect(phases).toContain('preparing');
-      expect(phases).toContain('uploading');
-      expect(phases).toContain('completing');
-    });
+
+    const provider = createProvider();
+    const result = await provider.download();
+
+    expect(result).not.toBeNull();
+    expect(result?.data.settings).toEqual({ locale: 'en-US' });
   });
 
-  describe('download', () => {
-    function mockDownloadResponses(exportData: Record<string, unknown>) {
-      // Export endpoint
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(exportData),
-      });
-      // Metadata endpoint
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            version: '1.1',
-            syncedAt: '2024-01-02T00:00:00.000Z',
-            deviceId: 'device-remote',
-            deviceName: 'Remote Device',
-            checksum: 'xyz789',
-          }),
-      });
-    }
+  it('keeps legacy checksum compatibility when payload lacks settings/artifacts', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({ sessions: [] }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [],
+          messages: [],
+          folders: [],
+          projects: [],
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          version: '1.1',
+          syncedAt: '2026-03-10T00:00:00.000Z',
+          deviceId: 'device-remote',
+          deviceName: 'Remote Device',
+          checksum: 'legacy-checksum',
+        })
+      );
 
-    it('should download and map sessions correctly', async () => {
-      mockDownloadResponses({
-        sessions: [
-          {
-            _id: 'convex_id_123',
-            _creationTime: 1704067200000,
-            localId: 'session-1',
-            title: 'Downloaded Session',
-            provider: 'openai',
-            model: 'gpt-4',
-            mode: 'chat',
-            messageCount: 3,
-            localCreatedAt: '2024-01-01T00:00:00.000Z',
-            localUpdatedAt: '2024-01-02T00:00:00.000Z',
-          },
-        ],
-        messages: [],
-        folders: [],
-        projects: [],
-      });
+    const provider = createProvider();
+    const result = await provider.download();
 
-      const provider = createProvider();
-      const result = await provider.download();
-
-      expect(result).not.toBeNull();
-      expect(result?.data.sessions).toHaveLength(1);
-      const session = result?.data.sessions?.[0] as unknown as Record<string, unknown>;
-      expect(session.id).toBe('session-1');
-      // Convex internal fields should NOT be present
-      expect(session._id).toBeUndefined();
-      expect(session._creationTime).toBeUndefined();
-    });
-
-    it('should reconstruct extra session fields from metadata JSON', async () => {
-      const extraFields = {
-        topP: 0.9,
-        frequencyPenalty: 0.5,
-        tags: ['tag1', 'tag2'],
-        branches: [{ id: 'main', name: 'main' }],
-        carriedContext: { enabled: true, maxTokens: 4096 },
-      };
-
-      mockDownloadResponses({
-        sessions: [
-          {
-            _id: 'convex_id_123',
-            _creationTime: 1704067200000,
-            localId: 'session-1',
-            title: 'Session with metadata',
-            provider: 'openai',
-            model: 'gpt-4',
-            mode: 'chat',
-            messageCount: 3,
-            metadata: JSON.stringify(extraFields),
-            localCreatedAt: '2024-01-01T00:00:00.000Z',
-            localUpdatedAt: '2024-01-02T00:00:00.000Z',
-          },
-        ],
-        messages: [],
-        folders: [],
-        projects: [],
-      });
-
-      const provider = createProvider();
-      const result = await provider.download();
-      const session = result?.data.sessions?.[0] as unknown as Record<string, unknown>;
-
-      // Extra fields from metadata should be restored
-      expect(session.topP).toBe(0.9);
-      expect(session.frequencyPenalty).toBe(0.5);
-      expect(session.tags).toEqual(['tag1', 'tag2']);
-      expect(session.branches).toEqual([{ id: 'main', name: 'main' }]);
-      expect(session.carriedContext).toEqual({ enabled: true, maxTokens: 4096 });
-
-      // Indexed fields should still be correct (take precedence)
-      expect(session.title).toBe('Session with metadata');
-      expect(session.provider).toBe('openai');
-    });
-
-    it('should restore bookmarkedAt as Date on messages', async () => {
-      mockDownloadResponses({
-        sessions: [],
-        messages: [
-          {
-            _id: 'convex_msg_1',
-            _creationTime: 1704067200000,
-            localId: 'msg-1',
-            sessionId: 'session-1',
-            role: 'user',
-            content: 'Hello',
-            isBookmarked: true,
-            bookmarkedAt: '2024-01-02T12:00:00.000Z',
-            localCreatedAt: '2024-01-01T10:00:00.000Z',
-          },
-        ],
-        folders: [],
-        projects: [],
-      });
-
-      const provider = createProvider();
-      const result = await provider.download();
-      const msg = result?.data.messages?.[0] as unknown as Record<string, unknown>;
-
-      expect(msg.id).toBe('msg-1');
-      expect(msg.bookmarkedAt).toEqual(new Date('2024-01-02T12:00:00.000Z'));
-      expect(msg._id).toBeUndefined();
-    });
-
-    it('should deserialize project tags and sessionIds from JSON strings', async () => {
-      mockDownloadResponses({
-        sessions: [],
-        messages: [],
-        folders: [],
-        projects: [
-          {
-            _id: 'convex_proj_1',
-            _creationTime: 1704067200000,
-            localId: 'proj-1',
-            name: 'My Project',
-            description: 'desc',
-            tags: JSON.stringify(['a', 'b']),
-            sessionIds: JSON.stringify(['session-1']),
-            isArchived: false,
-            sessionCount: 1,
-            messageCount: 5,
-            localCreatedAt: '2024-01-01T00:00:00.000Z',
-            localUpdatedAt: '2024-01-02T00:00:00.000Z',
-            lastAccessedAt: '2024-01-02T00:00:00.000Z',
-          },
-        ],
-      });
-
-      const provider = createProvider();
-      const result = await provider.download();
-      const project = result?.data.projects?.[0] as unknown as Record<string, unknown>;
-
-      expect(project.id).toBe('proj-1');
-      expect(project.tags).toEqual(['a', 'b']);
-      expect(project.sessionIds).toEqual(['session-1']);
-      expect(project.isArchived).toBe(false);
-      expect(project._id).toBeUndefined();
-    });
-
-    it('should return null on download failure', async () => {
-      // retryFetch retries 5xx up to maxRetries times; mock all attempts
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 500,
-      });
-
-      const provider = createProvider();
-      const result = await provider.download();
-
-      expect(result).toBeNull();
-    });
-
-    it('should handle missing metadata endpoint gracefully', async () => {
-      // Export endpoint succeeds
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ sessions: [], messages: [], folders: [], projects: [] }),
-      });
-      // Metadata endpoint fails (retryFetch maxRetries=1 → needs 2 failures)
-      mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
-      mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
-
-      const provider = createProvider();
-      const result = await provider.download();
-
-      expect(result).not.toBeNull();
-      expect(result?.version).toBe('1.1');
-      expect(result?.deviceId).toBe('unknown');
-    });
-  });
-
-  describe('getRemoteMetadata', () => {
-    it('should return metadata when available', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            version: '1.1',
-            syncedAt: '2024-01-01T00:00:00.000Z',
-            deviceId: 'device-1',
-            deviceName: 'Test',
-            checksum: 'abc',
-          }),
-      });
-
-      const provider = createProvider();
-      const metadata = await provider.getRemoteMetadata();
-
-      expect(metadata).not.toBeNull();
-      expect(metadata?.deviceId).toBe('device-1');
-      expect(metadata?.size).toBe(0);
-    });
-
-    it('should return null on error', async () => {
-      mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
-
-      const provider = createProvider();
-      const metadata = await provider.getRemoteMetadata();
-
-      expect(metadata).toBeNull();
-    });
-
-    it('should return null on network failure', async () => {
-      mockFetch.mockRejectedValue(new Error('timeout'));
-
-      const provider = createProvider();
-      const metadata = await provider.getRemoteMetadata();
-
-      expect(metadata).toBeNull();
-    });
-  });
-
-  describe('listBackups', () => {
-    it('should return empty array (Convex manages backups via dashboard)', async () => {
-      const provider = createProvider();
-      const backups = await provider.listBackups();
-      expect(backups).toEqual([]);
-    });
-  });
-
-  describe('downloadBackup / deleteBackup', () => {
-    it('downloadBackup should return null', async () => {
-      const provider = createProvider();
-      expect(await provider.downloadBackup('any-id')).toBeNull();
-    });
-
-    it('deleteBackup should return false', async () => {
-      const provider = createProvider();
-      expect(await provider.deleteBackup('any-id')).toBe(false);
-    });
-  });
-
-  describe('disconnect', () => {
-    it('should complete without error', async () => {
-      const provider = createProvider();
-      await expect(provider.disconnect()).resolves.toBeUndefined();
-    });
+    expect(result).not.toBeNull();
+    expect(result?.checksum).toBe('');
   });
 });

@@ -74,6 +74,11 @@ export const CustomProvidersListItem = React.memo(function CustomProvidersListIt
           <Badge variant="secondary" className="text-xs">
             {getProviderModels(provider).length} {t('modelsCount')}
           </Badge>
+          {provider.verificationStatus === 'stale' && (
+            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-400">
+              {t('verificationStaleShort')}
+            </Badge>
+          )}
           {testResult === 'success' && <Check className="h-4 w-4 text-green-500" />}
           {testResult === 'error' && <AlertCircle className="h-4 w-4 text-destructive" />}
         </div>

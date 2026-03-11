@@ -70,14 +70,21 @@ describe('Convex Native API', () => {
       mockInvokeWithTrace.mockResolvedValueOnce(true);
 
       const config = {
-        deploymentUrl: 'https://test.convex.cloud',
-        deployKey: 'prod:key123',
+        deploymentUrl: 'https://test.convex.cloud/path/',
+        deployKey: '  prod:key123  ',
         enabled: true,
         syncIntervalSecs: 900,
       };
       const result = await setConvexConfig(config);
       expect(result).toBe(true);
-      expect(mockInvokeWithTrace).toHaveBeenCalledWith('convex_set_config', { config });
+      expect(mockInvokeWithTrace).toHaveBeenCalledWith('convex_set_config', {
+        config: {
+          deploymentUrl: 'https://test.convex.cloud',
+          deployKey: 'prod:key123',
+          enabled: true,
+          syncIntervalSecs: 900,
+        },
+      });
     });
 
     it('testConvexConnection should invoke convex_test_connection', async () => {

@@ -47,6 +47,32 @@ const mockSyncStoreState = {
     createPrivateRepo: true,
     gistMode: false,
   },
+  googleDriveConfig: {
+    enabled: false,
+    autoSync: false,
+    syncInterval: 30,
+    lastSyncAt: null as string | null,
+    syncOnStartup: false,
+    syncOnExit: false,
+    conflictResolution: 'newest',
+    syncDirection: 'bidirectional',
+    useAppDataFolder: true,
+    folderName: 'cognia-backup',
+    enableResumableUpload: true,
+    chunkSize: 10 * 1024 * 1024,
+  },
+  convexConfig: {
+    enabled: false,
+    autoSync: false,
+    syncInterval: 15,
+    lastSyncAt: null as string | null,
+    syncOnStartup: false,
+    syncOnExit: false,
+    conflictResolution: 'newest',
+    syncDirection: 'bidirectional',
+    deploymentUrl: '',
+    projectSlug: '',
+  },
   status: 'idle' as string,
   lastError: null as string | null,
 };
@@ -82,8 +108,24 @@ jest.mock('./github-config', () => ({
   ),
 }));
 
+jest.mock('./googledrive-config', () => ({
+  GoogleDriveConfigForm: ({ onConnectionStatusChange }: { onConnectionStatusChange?: (status: string) => void }) => (
+    <div data-testid="googledrive-config-form" onClick={() => onConnectionStatusChange?.('success')}>
+      Google Drive Config Form
+    </div>
+  ),
+}));
+
 jest.mock('./sync-history-dialog', () => ({
   SyncHistoryDialog: () => <div data-testid="sync-history-dialog">Sync History</div>,
+}));
+
+jest.mock('./convex-config', () => ({
+  ConvexConfigForm: ({ onConnectionStatusChange }: { onConnectionStatusChange?: (status: string) => void }) => (
+    <div data-testid="convex-config-form" onClick={() => onConnectionStatusChange?.('success')}>
+      Convex Config Form
+    </div>
+  ),
 }));
 
 // Mock UI components
@@ -171,6 +213,32 @@ const resetMockState = () => {
   };
   mockSyncStoreState.status = 'idle';
   mockSyncStoreState.lastError = null;
+  mockSyncStoreState.googleDriveConfig = {
+    enabled: false,
+    autoSync: false,
+    syncInterval: 30,
+    lastSyncAt: null,
+    syncOnStartup: false,
+    syncOnExit: false,
+    conflictResolution: 'newest',
+    syncDirection: 'bidirectional',
+    useAppDataFolder: true,
+    folderName: 'cognia-backup',
+    enableResumableUpload: true,
+    chunkSize: 10 * 1024 * 1024,
+  };
+  mockSyncStoreState.convexConfig = {
+    enabled: false,
+    autoSync: false,
+    syncInterval: 15,
+    lastSyncAt: null,
+    syncOnStartup: false,
+    syncOnExit: false,
+    conflictResolution: 'newest',
+    syncDirection: 'bidirectional',
+    deploymentUrl: '',
+    projectSlug: '',
+  };
 };
 
 describe('SyncSettings', () => {
@@ -208,6 +276,7 @@ describe('SyncSettings', () => {
     render(<SyncSettings />);
     expect(screen.queryByTestId('webdav-config-form')).not.toBeInTheDocument();
     expect(screen.queryByTestId('github-config-form')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('convex-config-form')).not.toBeInTheDocument();
   });
 
   it('calls setActiveProvider when provider is selected', () => {
@@ -305,6 +374,33 @@ describe('SyncSettings with GitHub provider', () => {
   it('shows GitHub config form when github provider is active', () => {
     render(<SyncSettings />);
     expect(screen.getByTestId('github-config-form')).toBeInTheDocument();
+  });
+});
+
+describe('SyncSettings with Convex provider', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    resetMockState();
+    mockSyncStoreState.activeProvider = 'convex';
+    mockSyncStoreState.convexConfig = {
+      enabled: true,
+      autoSync: false,
+      syncInterval: 15,
+      lastSyncAt: null,
+      syncOnStartup: false,
+      syncOnExit: false,
+      conflictResolution: 'newest',
+      syncDirection: 'bidirectional',
+      deploymentUrl: 'https://test-app.convex.cloud',
+      projectSlug: 'test-app',
+    };
+    mockSyncStoreState.status = 'idle';
+    mockSyncStoreState.lastError = null;
+  });
+
+  it('shows Convex config form when convex provider is active', () => {
+    render(<SyncSettings />);
+    expect(screen.getByTestId('convex-config-form')).toBeInTheDocument();
   });
 });
 

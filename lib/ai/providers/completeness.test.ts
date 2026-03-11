@@ -1,4 +1,5 @@
 import {
+  buildProviderVerificationFingerprint,
   evaluateBuiltInProviderCompleteness,
   evaluateCustomProviderCompleteness,
   evaluateRuntimeEligibility,
@@ -50,10 +51,33 @@ describe('provider completeness contract', () => {
     }, { success: true });
 
     expect(unconfigured.readiness).toBe('unconfigured');
+    expect(unconfigured.verificationStatus).toBe('unverified');
     expect(unconfigured.eligibility.enable.allowed).toBe(false);
     expect(unconfigured.eligibility.runtime.code).toBe('provider_disabled');
     expect(configured.readiness).toBe('configured');
+    expect(configured.setupChecklist.nextAction).toBe('verify_connection');
     expect(verified.readiness).toBe('verified');
+    expect(verified.verificationStatus).toBe('verified');
+  });
+
+  it('marks persisted verified state as stale after configuration fingerprint changes', () => {
+    const baselineFingerprint = buildProviderVerificationFingerprint({
+      apiKey: 'sk-original',
+      baseURL: '',
+      defaultModel: 'gpt-4o',
+    });
+
+    const stale = evaluateBuiltInProviderCompleteness('openai', {
+      apiKey: 'sk-updated',
+      enabled: true,
+      defaultModel: 'gpt-4o',
+      verificationStatus: 'verified',
+      verificationFingerprint: baselineFingerprint,
+    }, null);
+
+    expect(stale.readiness).toBe('configured');
+    expect(stale.verificationStatus).toBe('stale');
+    expect(stale.setupChecklist.nextAction).toBe('verify_connection');
   });
 
   it('allows keyless local providers with valid base URL', () => {
@@ -93,12 +117,15 @@ describe('provider completeness contract', () => {
     const verified = evaluateCustomProviderCompleteness({
       apiKey: 'sk-custom',
       baseURL: 'https://api.example.com/v1',
+      defaultModel: 'custom-model',
       enabled: true,
     }, { success: true });
 
     expect(invalid.eligibility.testConnection.allowed).toBe(false);
     expect(invalid.eligibility.testConnection.code).toBe('invalid_base_url');
     expect(verified.readiness).toBe('verified');
+    expect(verified.verificationStatus).toBe('verified');
+    expect(verified.setupChecklist.isComplete).toBe(true);
     expect(verified.eligibility.runtime.allowed).toBe(true);
   });
 });

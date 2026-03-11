@@ -78,6 +78,8 @@ export function useProxyHealthMonitor(
     setHealthMonitoring,
     recordHealthCheck,
     clearHealthHistory,
+    setStatus,
+    setTestResult,
   } = useProxyStore();
 
   const [totalChecks, setTotalChecks] = useState(0);
@@ -106,6 +108,10 @@ export function useProxyHealthMonitor(
         healthy: true,
         timestamp: new Date().toISOString(),
       };
+      setStatus({
+        connected: false,
+        currentProxy: null,
+      });
       return result;
     }
 
@@ -117,23 +123,44 @@ export function useProxyHealthMonitor(
         timestamp: new Date().toISOString(),
       };
       recordHealthCheck(result);
+      setStatus({
+        connected: false,
+        currentProxy: proxyUrl,
+      });
       setTotalChecks((c) => c + 1);
       return result;
     }
 
-    const testUrl = mergedConfig.testUrl || state.config.testUrl;
+    const testUrls = state.config.testEndpoints
+      ?.filter((endpoint) => endpoint.enabled)
+      .map((endpoint) => endpoint.url);
+    const fallbackUrl = mergedConfig.testUrl || state.config.testUrl;
     const startTime = Date.now();
 
     try {
-      const testResult = await proxyService.test(proxyUrl, testUrl);
+      const testResult = await proxyService.testMulti(
+        proxyUrl,
+        testUrls && testUrls.length > 0 ? testUrls : [fallbackUrl]
+      );
       const result: ProxyHealthCheckResult = {
-        healthy: testResult.success,
-        latency: testResult.latency,
-        error: testResult.error,
+        healthy: testResult.overallSuccess,
+        latency: testResult.avgLatency,
+        error: testResult.overallSuccess
+          ? undefined
+          : testResult.results.find((item) => item.error)?.error || 'Proxy health check failed',
         timestamp: new Date().toISOString(),
       };
 
       recordHealthCheck(result);
+      setStatus({
+        connected: result.healthy,
+        currentProxy: proxyUrl,
+      });
+      setTestResult({
+        success: result.healthy,
+        latency: result.latency,
+        error: result.error,
+      });
       setTotalChecks((c) => c + 1);
       return result;
     } catch (error) {
@@ -145,10 +172,19 @@ export function useProxyHealthMonitor(
       };
 
       recordHealthCheck(result);
+      setStatus({
+        connected: false,
+        currentProxy: proxyUrl,
+      });
+      setTestResult({
+        success: false,
+        latency: result.latency,
+        error: result.error,
+      });
       setTotalChecks((c) => c + 1);
       return result;
     }
-  }, [isAvailable, mergedConfig.testUrl, recordHealthCheck]);
+  }, [isAvailable, mergedConfig.testUrl, recordHealthCheck, setStatus, setTestResult]);
 
   /**
    * Start periodic health monitoring

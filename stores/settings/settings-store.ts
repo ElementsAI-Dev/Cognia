@@ -23,6 +23,7 @@ import {
   recordApiKeyError,
   getDefaultUsageStats,
 } from '@/lib/ai/infrastructure/api-key-rotation';
+import { buildProviderVerificationFingerprint } from '@/lib/ai/providers/completeness';
 import type {
   ColorThemePreset,
   UICustomization,
@@ -1323,6 +1324,12 @@ const defaultProviderSettings: Record<string, UserProviderSettings> = {
   },
 };
 
+for (const settings of Object.values(defaultProviderSettings)) {
+  settings.verificationStatus = settings.verificationStatus || 'unverified';
+  settings.verificationFingerprint =
+    settings.verificationFingerprint || buildProviderVerificationFingerprint(settings);
+}
+
 function parseLegacyEditorSettingsFromLocalStorage(): EditorSettingsPatch {
   if (typeof window === 'undefined') {
     return {};
@@ -1964,6 +1971,9 @@ export const useSettingsStore = create<SettingsState>()(
           ...provider,
           providerId: id,
           isCustom: true,
+          verificationStatus: provider.verificationStatus || 'unverified',
+          verificationFingerprint:
+            provider.verificationFingerprint || buildProviderVerificationFingerprint(provider),
         };
         set((state) => ({
           customProviders: {

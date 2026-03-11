@@ -1,4 +1,9 @@
-import { PROVIDERS, type CustomProviderSettings, type UserProviderSettings } from '@/types/provider';
+import {
+  PROVIDERS,
+  type CustomProviderSettings,
+  type ProviderVerificationStatus,
+  type UserProviderSettings,
+} from '@/types/provider';
 
 export type ProviderReadinessState = 'unconfigured' | 'configured' | 'verified';
 
@@ -29,8 +34,32 @@ export interface ProviderRequirements {
   isLocal: boolean;
 }
 
+export type ProviderSetupChecklistStepId =
+  | 'credential'
+  | 'base_url'
+  | 'default_model'
+  | 'verification';
+
+export interface ProviderSetupChecklistStep {
+  id: ProviderSetupChecklistStepId;
+  done: boolean;
+  nextAction?: ProviderNextAction;
+  reason?: string;
+}
+
+export interface ProviderSetupChecklist {
+  steps: ProviderSetupChecklistStep[];
+  total: number;
+  completed: number;
+  isComplete: boolean;
+  nextAction?: ProviderNextAction;
+}
+
 export interface BuiltInProviderCompleteness {
   readiness: ProviderReadinessState;
+  verificationStatus: ProviderVerificationStatus;
+  verificationFingerprint: string;
+  setupChecklist: ProviderSetupChecklist;
   hasCredential: boolean;
   hasBaseUrl: boolean;
   eligibility: {
@@ -44,6 +73,9 @@ export interface BuiltInProviderCompleteness {
 
 export interface CustomProviderCompleteness {
   readiness: ProviderReadinessState;
+  verificationStatus: ProviderVerificationStatus;
+  verificationFingerprint: string;
+  setupChecklist: ProviderSetupChecklist;
   hasCredential: boolean;
   hasBaseUrl: boolean;
   eligibility: {
@@ -74,6 +106,8 @@ interface SettingsLike {
   baseURL?: string;
   defaultModel?: string;
   enabled?: boolean;
+  verificationStatus?: ProviderVerificationStatus;
+  verificationFingerprint?: string;
 }
 
 const ALLOWED: ProviderGuardResult = { allowed: true };
@@ -180,6 +214,42 @@ export function isValidHttpUrl(value?: string): boolean {
   }
 }
 
+export function buildProviderVerificationFingerprint(settings?: SettingsLike): string {
+  return JSON.stringify({
+    apiKey: settings?.apiKey?.trim() || '',
+    apiKeys: Array.isArray(settings?.apiKeys)
+      ? settings!.apiKeys!.map((key) => key.trim())
+      : [],
+    currentKeyIndex: settings?.currentKeyIndex ?? 0,
+    baseURL: settings?.baseURL?.trim() || '',
+    defaultModel: settings?.defaultModel?.trim() || '',
+  });
+}
+
+function resolveVerificationStatus(
+  settings: SettingsLike | undefined,
+  latestTestResult?: { success?: boolean } | null
+): { status: ProviderVerificationStatus; fingerprint: string } {
+  const fingerprint = buildProviderVerificationFingerprint(settings);
+  const persistedStatus = settings?.verificationStatus ?? 'unverified';
+  const persistedFingerprint = settings?.verificationFingerprint;
+
+  if (latestTestResult?.success === true) {
+    return { status: 'verified', fingerprint };
+  }
+
+  if (persistedStatus === 'verified' && persistedFingerprint && persistedFingerprint !== fingerprint) {
+    return { status: 'stale', fingerprint };
+  }
+
+  if (latestTestResult?.success === false) {
+    if (persistedStatus === 'verified') return { status: 'stale', fingerprint };
+    return { status: persistedStatus === 'stale' ? 'stale' : 'unverified', fingerprint };
+  }
+
+  return { status: persistedStatus, fingerprint };
+}
+
 export function getProviderRequirements(providerId: string): ProviderRequirements {
   const provider = PROVIDERS[providerId];
   const inferredLocal = LOCAL_PROVIDER_IDS.has(providerId);
@@ -230,9 +300,13 @@ function getTestGuard(
   requirements: ProviderRequirements,
   settings: SettingsLike | undefined
 ): ProviderGuardResult {
-  if (requirements.requiresCredential && !hasText(getActiveCredential(settings))) return BLOCKED.addApiKeyToTest;
+  if (requirements.requiresCredential && !hasText(getActiveCredential(settings))) {
+    return BLOCKED.addApiKeyToTest;
+  }
   if (requirements.requiresBaseUrl && !hasText(settings?.baseURL)) return BLOCKED.configureBaseUrlToTest;
-  if (requirements.requiresBaseUrl && !isValidHttpUrl(settings?.baseURL)) return BLOCKED.invalidBaseUrlToTest;
+  if (requirements.requiresBaseUrl && !isValidHttpUrl(settings?.baseURL)) {
+    return BLOCKED.invalidBaseUrlToTest;
+  }
   return ALLOWED;
 }
 
@@ -247,11 +321,74 @@ function getRuntimeGuard(
   return ALLOWED;
 }
 
-function getDefaultModelGuard(
-  settings: SettingsLike | undefined
-): ProviderGuardResult {
+function getDefaultModelGuard(settings: SettingsLike | undefined): ProviderGuardResult {
   if (settings?.enabled === false) return BLOCKED.enableProviderFirst;
   return ALLOWED;
+}
+
+function createSetupChecklist(params: {
+  hasCredential: boolean;
+  hasBaseUrl: boolean;
+  defaultModelConfigured: boolean;
+  verificationStatus: ProviderVerificationStatus;
+  requiresCredential: boolean;
+  requiresBaseUrl: boolean;
+  testGuard: ProviderGuardResult;
+}): ProviderSetupChecklist {
+  const steps: ProviderSetupChecklistStep[] = [];
+
+  if (params.requiresCredential) {
+    steps.push({
+      id: 'credential',
+      done: params.hasCredential,
+      nextAction: params.hasCredential ? undefined : 'add_api_key',
+      reason: params.hasCredential ? undefined : BLOCKED.addApiKey.reason,
+    });
+  }
+
+  if (params.requiresBaseUrl) {
+    const baseUrlDone = params.hasBaseUrl && params.testGuard.code !== 'invalid_base_url';
+    steps.push({
+      id: 'base_url',
+      done: baseUrlDone,
+      nextAction: baseUrlDone ? undefined : 'configure_base_url',
+      reason: baseUrlDone ? undefined : params.testGuard.reason || BLOCKED.configureBaseUrl.reason,
+    });
+  }
+
+  steps.push({
+    id: 'default_model',
+    done: params.defaultModelConfigured,
+    nextAction: params.defaultModelConfigured ? undefined : 'select_default_model',
+    reason: params.defaultModelConfigured ? undefined : 'Select a default model before continuing.',
+  });
+
+  const prerequisitesDone = steps.every((step) => step.done);
+  const verificationReason = !prerequisitesDone
+    ? 'Complete setup prerequisites before verifying this provider.'
+    : params.verificationStatus === 'stale'
+      ? 'Provider configuration changed. Re-run verification.'
+      : params.verificationStatus === 'verified'
+        ? undefined
+        : 'Run a connection test to verify this provider.';
+
+  steps.push({
+    id: 'verification',
+    done: params.verificationStatus === 'verified',
+    nextAction: params.verificationStatus === 'verified' ? undefined : 'verify_connection',
+    reason: verificationReason,
+  });
+
+  const completed = steps.filter((step) => step.done).length;
+  const nextPending = steps.find((step) => !step.done);
+
+  return {
+    steps,
+    total: steps.length,
+    completed,
+    isComplete: completed === steps.length,
+    nextAction: nextPending?.nextAction,
+  };
 }
 
 export function evaluateBuiltInProviderCompleteness(
@@ -261,21 +398,37 @@ export function evaluateBuiltInProviderCompleteness(
 ): BuiltInProviderCompleteness {
   const requirements = getProviderRequirements(providerId);
   const configState = hasRequiredConfiguration(requirements, settings);
+  const testConnectionGuard = getTestGuard(requirements, settings);
+  const verification = resolveVerificationStatus(settings, latestTestResult);
 
   const readiness: ProviderReadinessState = !configState.complete
     ? 'unconfigured'
-    : latestTestResult?.success
+    : verification.status === 'verified'
       ? 'verified'
       : 'configured';
 
+  const defaultModelConfigured = hasText(settings?.defaultModel) || hasText(PROVIDERS[providerId]?.defaultModel);
+  const setupChecklist = createSetupChecklist({
+    hasCredential: configState.hasCredential,
+    hasBaseUrl: configState.hasBaseUrl,
+    defaultModelConfigured,
+    verificationStatus: verification.status,
+    requiresCredential: requirements.requiresCredential,
+    requiresBaseUrl: requirements.requiresBaseUrl,
+    testGuard: testConnectionGuard,
+  });
+
   return {
     readiness,
+    verificationStatus: verification.status,
+    verificationFingerprint: verification.fingerprint,
+    setupChecklist,
     hasCredential: configState.hasCredential,
     hasBaseUrl: configState.hasBaseUrl,
     eligibility: {
       configure: ALLOWED,
       enable: getEnableGuard(requirements, settings, true),
-      testConnection: getTestGuard(requirements, settings),
+      testConnection: testConnectionGuard,
       defaultModel: getDefaultModelGuard(settings),
       runtime: getRuntimeGuard(requirements, settings),
     },
@@ -288,11 +441,6 @@ export function evaluateCustomProviderCompleteness(
 ): CustomProviderCompleteness {
   const hasCredential = hasText(provider?.apiKey);
   const hasBaseUrl = hasText(provider?.baseURL);
-  const readiness: ProviderReadinessState = !hasCredential || !hasBaseUrl
-    ? 'unconfigured'
-    : latestTestResult?.success
-      ? 'verified'
-      : 'configured';
 
   const enable = !hasCredential
     ? BLOCKED.addApiKey
@@ -320,8 +468,28 @@ export function evaluateCustomProviderCompleteness(
           ? BLOCKED.invalidBaseUrlToRun
           : ALLOWED;
 
+  const verification = resolveVerificationStatus(provider, latestTestResult);
+  const readiness: ProviderReadinessState = !hasCredential || !hasBaseUrl
+    ? 'unconfigured'
+    : verification.status === 'verified'
+      ? 'verified'
+      : 'configured';
+
+  const setupChecklist = createSetupChecklist({
+    hasCredential,
+    hasBaseUrl,
+    defaultModelConfigured: hasText(provider?.defaultModel),
+    verificationStatus: verification.status,
+    requiresCredential: true,
+    requiresBaseUrl: true,
+    testGuard: testConnection,
+  });
+
   return {
     readiness,
+    verificationStatus: verification.status,
+    verificationFingerprint: verification.fingerprint,
+    setupChecklist,
     hasCredential,
     hasBaseUrl,
     eligibility: {

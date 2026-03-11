@@ -75,6 +75,9 @@ import {
   storeGitHubToken,
   getGitHubToken,
   removeGitHubToken,
+  storeConvexDeployKey,
+  getConvexDeployKey,
+  removeConvexDeployKey,
   hasStoredCredentials,
 } from './credential-storage';
 
@@ -182,6 +185,43 @@ describe('Credential Storage', () => {
     });
   });
 
+  describe('Convex Deploy Key (localStorage fallback)', () => {
+    describe('storeConvexDeployKey', () => {
+      it('should store key in localStorage when not in Tauri', async () => {
+        const result = await storeConvexDeployKey('prod:key_123');
+
+        expect(result).toBe(true);
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+          'sync:convex:deploy_key',
+          expect.any(String)
+        );
+      });
+    });
+
+    describe('getConvexDeployKey', () => {
+      it('should return null when no key stored', async () => {
+        const result = await getConvexDeployKey();
+        expect(result).toBeNull();
+      });
+
+      it('should retrieve and decode stored key', async () => {
+        await storeConvexDeployKey('prod:key_abc');
+        const result = await getConvexDeployKey();
+        expect(result).toBe('prod:key_abc');
+      });
+    });
+
+    describe('removeConvexDeployKey', () => {
+      it('should remove key from localStorage', async () => {
+        await storeConvexDeployKey('prod:key_abc');
+        const result = await removeConvexDeployKey();
+
+        expect(result).toBe(true);
+        expect(localStorageMock.removeItem).toHaveBeenCalledWith('sync:convex:deploy_key');
+      });
+    });
+  });
+
   describe('Tauri Environment', () => {
     beforeEach(() => {
       mockIsTauri = true;
@@ -223,7 +263,7 @@ describe('Credential Storage', () => {
 
         const result = await getWebDAVPassword();
 
-        expect(result).toBe('fallback-password');
+        expect(result).toBeNull();
       });
     });
 
@@ -276,6 +316,14 @@ describe('Credential Storage', () => {
         await storeGitHubToken('token');
 
         const result = await hasStoredCredentials('github');
+
+        expect(result).toBe(true);
+      });
+
+      it('should return true for convex when key stored', async () => {
+        await storeConvexDeployKey('prod:key');
+
+        const result = await hasStoredCredentials('convex');
 
         expect(result).toBe(true);
       });

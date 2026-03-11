@@ -25,11 +25,16 @@ pub async fn convex_set_config(
 ) -> Result<bool, String> {
     let mut new_config: crate::convex::config::ConvexConfig =
         serde_json::from_value(config.clone()).map_err(|e| format!("Invalid config: {}", e))?;
+    new_config.deployment_url = new_config
+        .deployment_url
+        .trim()
+        .trim_end_matches('/')
+        .to_string();
 
     // deploy_key is #[serde(skip)] so won't deserialize from JSON.
     // Extract it manually from the raw JSON if present (for in-memory use only).
     if let Some(key) = config.get("deployKey").and_then(|v| v.as_str()) {
-        new_config.deploy_key = key.to_string();
+        new_config.deploy_key = key.trim().to_string();
     }
 
     state

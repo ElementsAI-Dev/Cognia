@@ -49,6 +49,7 @@ import {
 } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { useProxy } from '@/hooks/network';
+import { validateManualProxyConfig } from '@/lib/network/proxy-resolution';
 import {
   PROXY_SOFTWARE_INFO,
   type ProxyMode,
@@ -69,6 +70,7 @@ export function ProxySettings() {
     connected,
     currentProxy,
     lastTestLatency,
+    validationError,
     error,
     isAvailable,
     setMode,
@@ -86,9 +88,12 @@ export function ProxySettings() {
     port: 7890,
     ...manualConfig,
   });
+  const [manualError, setManualError] = useState<string | null>(null);
 
   const handleModeChange = (newMode: string) => {
     setMode(newMode as ProxyMode);
+    clearError();
+    setManualError(null);
     if (newMode !== 'off') {
       setEnabled(true);
     } else {
@@ -97,6 +102,12 @@ export function ProxySettings() {
   };
 
   const handleManualConfigSave = () => {
+    const validation = validateManualProxyConfig(localManual);
+    if (!validation.valid) {
+      setManualError(validation.error);
+      return;
+    }
+    setManualError(null);
     setManualConfig(localManual);
   };
 
@@ -182,6 +193,22 @@ export function ProxySettings() {
             <Button size="sm" variant="outline" onClick={clearError}>
               {t('dismiss')}
             </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {(manualError || validationError) && mode === 'manual' && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{manualError || validationError}</AlertDescription>
+        </Alert>
+      )}
+
+      {mode === 'system' && enabled && !currentProxy && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            System proxy is selected, but no usable system proxy endpoint is currently available.
           </AlertDescription>
         </Alert>
       )}

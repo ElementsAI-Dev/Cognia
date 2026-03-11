@@ -20,9 +20,14 @@ import {
   testProxy,
   testProxyMulti,
   getSystemProxy,
+  resolveSystemProxy,
+  normalizeSystemProxySettings,
+  getPreferredSystemProxyUrl,
   checkPort,
   getClashInfo,
   buildProxyUrlFromDetected,
+  setBackendProxy,
+  syncBackendProxy,
   proxyService,
   type SystemProxySettings,
 } from './proxy';
@@ -133,18 +138,23 @@ describe('Proxy - getSystemProxy', () => {
 
   it('should return system proxy settings', async () => {
     mockIsTauri.mockReturnValue(true);
-    const mockSettings: SystemProxySettings = {
+    mockInvoke.mockResolvedValue({
       enabled: true,
-      httpProxy: 'http://127.0.0.1:7890',
-      httpsProxy: 'http://127.0.0.1:7890',
-      socksProxy: null,
-      noProxy: 'localhost,127.0.0.1',
-    };
-    mockInvoke.mockResolvedValue(mockSettings);
+      http_proxy: '127.0.0.1:7890',
+      https_proxy: 'https://127.0.0.1:7890',
+      socks_proxy: 'socks5://127.0.0.1:7891',
+      no_proxy: 'localhost,127.0.0.1',
+    });
 
     const result = await getSystemProxy();
     expect(mockInvoke).toHaveBeenCalledWith('proxy_get_system');
-    expect(result).toEqual(mockSettings);
+    expect(result).toEqual({
+      enabled: true,
+      httpProxy: 'http://127.0.0.1:7890',
+      httpsProxy: 'https://127.0.0.1:7890',
+      socksProxy: 'socks5://127.0.0.1:7891',
+      noProxy: 'localhost,127.0.0.1',
+    });
   });
 
   it('should return null on error', async () => {
@@ -153,6 +163,77 @@ describe('Proxy - getSystemProxy', () => {
 
     const result = await getSystemProxy();
     expect(result).toBeNull();
+  });
+});
+
+describe('Proxy - normalizeSystemProxySettings', () => {
+  it('should return null for invalid payload', () => {
+    expect(normalizeSystemProxySettings(null)).toBeNull();
+    expect(normalizeSystemProxySettings('invalid')).toBeNull();
+  });
+
+  it('should normalize snake_case payload', () => {
+    expect(
+      normalizeSystemProxySettings({
+        enabled: true,
+        http_proxy: '127.0.0.1:7890',
+        https_proxy: null,
+        socks_proxy: null,
+        no_proxy: 'localhost',
+      })
+    ).toEqual({
+      enabled: true,
+      httpProxy: 'http://127.0.0.1:7890',
+      httpsProxy: null,
+      socksProxy: null,
+      noProxy: 'localhost',
+    });
+  });
+});
+
+describe('Proxy - resolveSystemProxy', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should return diagnostics when unavailable', async () => {
+    mockIsTauri.mockReturnValue(false);
+    const result = await resolveSystemProxy();
+    expect(result.error).toContain('Tauri');
+    expect(result.proxyUrl).toBeNull();
+  });
+
+  it('should resolve preferred system proxy url', async () => {
+    mockIsTauri.mockReturnValue(true);
+    mockInvoke.mockResolvedValue({
+      enabled: true,
+      http_proxy: '127.0.0.1:7890',
+      https_proxy: '127.0.0.1:8443',
+    });
+    const result = await resolveSystemProxy();
+    expect(result.proxyUrl).toBe('http://127.0.0.1:7890');
+    expect(result.error).toBeNull();
+  });
+
+  it('should report not configured when no endpoints exist', async () => {
+    mockIsTauri.mockReturnValue(true);
+    mockInvoke.mockResolvedValue({ enabled: true });
+    const result = await resolveSystemProxy();
+    expect(result.proxyUrl).toBeNull();
+    expect(result.error).toBe('System proxy is not configured');
+  });
+});
+
+describe('Proxy - getPreferredSystemProxyUrl', () => {
+  it('should prefer http over https and socks', () => {
+    const settings: SystemProxySettings = {
+      enabled: true,
+      httpProxy: 'http://127.0.0.1:7890',
+      httpsProxy: 'https://127.0.0.1:8443',
+      socksProxy: 'socks5://127.0.0.1:1080',
+      noProxy: null,
+    };
+    expect(getPreferredSystemProxyUrl(settings)).toBe('http://127.0.0.1:7890');
   });
 });
 
@@ -244,9 +325,53 @@ describe('Proxy - proxyService', () => {
     expect(proxyService.test).toBe(testProxy);
     expect(proxyService.testMulti).toBe(testProxyMulti);
     expect(proxyService.getSystem).toBe(getSystemProxy);
+    expect(proxyService.resolveSystemProxy).toBe(resolveSystemProxy);
     expect(proxyService.checkPort).toBe(checkPort);
     expect(proxyService.getClashInfo).toBe(getClashInfo);
     expect(proxyService.buildUrl).toBe(buildProxyUrlFromDetected);
+    expect(proxyService.syncBackendProxy).toBe(syncBackendProxy);
+  });
+});
+
+describe('Proxy - setBackendProxy', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should throw on invoke failure', async () => {
+    mockIsTauri.mockReturnValue(true);
+    mockInvoke.mockRejectedValue(new Error('backend failure'));
+    await expect(setBackendProxy('http://127.0.0.1:7890')).rejects.toThrow('backend failure');
+  });
+});
+
+describe('Proxy - syncBackendProxy', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should skip sync when target matches current', async () => {
+    mockIsTauri.mockReturnValue(true);
+    mockInvoke
+      .mockResolvedValueOnce('http://127.0.0.1:7890'); // get_backend_proxy
+
+    const result = await syncBackendProxy('http://127.0.0.1:7890');
+    expect(result.changed).toBe(false);
+    expect(mockInvoke).toHaveBeenCalledWith('get_backend_proxy');
+  });
+
+  it('should sync when target changes', async () => {
+    mockIsTauri.mockReturnValue(true);
+    mockInvoke
+      .mockResolvedValueOnce('http://127.0.0.1:7890') // get_backend_proxy
+      .mockResolvedValueOnce(undefined); // set_backend_proxy
+
+    const result = await syncBackendProxy('http://127.0.0.1:7999');
+    expect(result.changed).toBe(true);
+    expect(mockInvoke).toHaveBeenNthCalledWith(1, 'get_backend_proxy');
+    expect(mockInvoke).toHaveBeenNthCalledWith(2, 'set_backend_proxy', {
+      proxyUrl: 'http://127.0.0.1:7999',
+    });
   });
 });
 

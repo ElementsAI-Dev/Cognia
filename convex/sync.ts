@@ -1,10 +1,103 @@
 import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
+export const SYNC_TABLES = [
+  "settings",
+  "sessions",
+  "messages",
+  "artifacts",
+  "projects",
+  "documents",
+  "knowledgeFiles",
+  "workflows",
+  "workflowExecutions",
+  "summaries",
+  "folders",
+  "agentTraces",
+  "checkpoints",
+  "mcpServers",
+  "videoProjects",
+  "contextFiles",
+  "assets",
+] as const;
+
+type SyncTable = (typeof SYNC_TABLES)[number];
+
+export const DEFAULT_EXPORT_LIMIT = 250;
+export const MAX_EXPORT_LIMIT = 1000;
+export const MAX_IMPORT_RECORDS_PER_REQUEST = 500;
+
+const syncTableLiterals = SYNC_TABLES.map((name) => v.literal(name)) as [
+  ReturnType<typeof v.literal>,
+  ...ReturnType<typeof v.literal>[],
+];
+const syncTableValidator = v.union(...syncTableLiterals);
+
+const reconciliationValidator = v.object({
+  mode: v.optional(v.union(v.literal("merge"), v.literal("authoritative"))),
+  replaceTables: v.optional(v.array(syncTableValidator)),
+  syncRunId: v.optional(v.string()),
+  chunkIndex: v.optional(v.number()),
+  chunkCount: v.optional(v.number()),
+});
+
+function clampLimit(limit: number | undefined): number {
+  const value = Number.isFinite(limit) ? Number(limit) : DEFAULT_EXPORT_LIMIT;
+  return Math.max(1, Math.min(MAX_EXPORT_LIMIT, value));
+}
+
+async function collectTableRowsPaginated(
+  ctx: { db: { query: (table: SyncTable) => { paginate: (opts: { numItems: number; cursor: string | null }) => Promise<{ page: unknown[]; isDone: boolean; continueCursor: string }> } } },
+  table: SyncTable,
+  limit = DEFAULT_EXPORT_LIMIT
+): Promise<unknown[]> {
+  const rows: unknown[] = [];
+  let cursor: string | null = null;
+  const pageSize = clampLimit(limit);
+
+  // Paginate to avoid one-shot unbounded collect() calls.
+  while (true) {
+    const page = await ctx.db.query(table).paginate({
+      numItems: pageSize,
+      cursor,
+    });
+
+    rows.push(...page.page);
+    if (page.isDone) break;
+    cursor = page.continueCursor;
+  }
+
+  return rows;
+}
+
+async function deleteTableRowsPaginated(
+  ctx: { db: { query: (table: SyncTable) => { paginate: (opts: { numItems: number; cursor: string | null }) => Promise<{ page: Array<{ _id: string }>; isDone: boolean; continueCursor: string }> }; delete: (id: string) => Promise<void> } },
+  table: SyncTable
+): Promise<number> {
+  let deleted = 0;
+  let cursor: string | null = null;
+
+  while (true) {
+    const page = await ctx.db.query(table).paginate({
+      numItems: 250,
+      cursor,
+    });
+
+    for (const record of page.page) {
+      await ctx.db.delete(record._id);
+      deleted++;
+    }
+
+    if (page.isDone) break;
+    cursor = page.continueCursor;
+  }
+
+  return deleted;
+}
+
 /**
  * Bulk import sync data from a local device.
- * Accepts the full backup payload and upserts all records.
- * Records are keyed by `localId` to enable idempotent upserts.
+ * Supports bounded chunks and optional authoritative reconciliation.
  */
 export const bulkImport = mutation({
   args: {
@@ -13,8 +106,10 @@ export const bulkImport = mutation({
     version: v.string(),
     checksum: v.string(),
     tables: v.object({
+      settings: v.optional(v.array(v.object({ localId: v.string() }))),
       sessions: v.optional(v.array(v.object({ localId: v.string() }))),
       messages: v.optional(v.array(v.object({ localId: v.string() }))),
+      artifacts: v.optional(v.array(v.object({ localId: v.string() }))),
       projects: v.optional(v.array(v.object({ localId: v.string() }))),
       documents: v.optional(v.array(v.object({ localId: v.string() }))),
       knowledgeFiles: v.optional(v.array(v.object({ localId: v.string() }))),
@@ -29,39 +124,63 @@ export const bulkImport = mutation({
       contextFiles: v.optional(v.array(v.object({ localId: v.string() }))),
       assets: v.optional(v.array(v.object({ localId: v.string() }))),
     }),
+    reconciliation: v.optional(reconciliationValidator),
   },
   returns: v.object({
     imported: v.number(),
     errors: v.number(),
+    deleted: v.optional(v.number()),
   }),
   handler: async (ctx, args) => {
+    const tableNames = SYNC_TABLES.filter(
+      (tableName) => (args.tables[tableName] ?? []).length > 0
+    );
+
+    const totalIncomingRecords = tableNames.reduce(
+      (sum, tableName) => sum + (args.tables[tableName]?.length ?? 0),
+      0
+    );
+
+    if (totalIncomingRecords > MAX_IMPORT_RECORDS_PER_REQUEST) {
+      throw new Error(
+        `Import request too large (${totalIncomingRecords}). Max per request is ${MAX_IMPORT_RECORDS_PER_REQUEST}.`
+      );
+    }
+
     let imported = 0;
     let errors = 0;
+    let deleted = 0;
 
-    const tableNames = Object.keys(args.tables) as Array<keyof typeof args.tables>;
+    const mode = args.reconciliation?.mode ?? "merge";
+    const replaceSet = new Set(args.reconciliation?.replaceTables ?? []);
+
+    if (mode === "authoritative" && replaceSet.size > 0) {
+      for (const tableName of tableNames) {
+        if (replaceSet.has(tableName)) {
+          deleted += await deleteTableRowsPaginated(ctx as never, tableName);
+        }
+      }
+    }
 
     for (const tableName of tableNames) {
-      const records = args.tables[tableName];
-      if (!records || records.length === 0) continue;
+      const records = args.tables[tableName] ?? [];
 
       for (const record of records) {
         try {
           if (!record.localId) continue;
 
-          // Strip Convex system fields that cannot be written
+          // Strip Convex system fields that cannot be written.
           const { _id, _creationTime, ...cleanRecord } = record;
 
-          // Check if record already exists by localId
+          // Idempotent upsert by localId to make retries safe.
           const existing = await ctx.db
             .query(tableName)
             .withIndex("by_local_id", (q) => q.eq("localId", cleanRecord.localId))
             .first();
 
           if (existing) {
-            // Update existing record
             await ctx.db.patch(existing._id, cleanRecord);
           } else {
-            // Insert new record
             await ctx.db.insert(tableName, cleanRecord);
           }
           imported++;
@@ -71,7 +190,6 @@ export const bulkImport = mutation({
       }
     }
 
-    // Update sync metadata
     const existingMeta = await ctx.db
       .query("syncMetadata")
       .withIndex("by_device", (q) => q.eq("deviceId", args.deviceId))
@@ -85,7 +203,7 @@ export const bulkImport = mutation({
       checksum: args.checksum,
       tableCounts: JSON.stringify(
         Object.fromEntries(
-          tableNames.map((t) => [t, args.tables[t]?.length ?? 0])
+          SYNC_TABLES.map((tableName) => [tableName, args.tables[tableName]?.length ?? 0])
         )
       ),
     };
@@ -96,19 +214,51 @@ export const bulkImport = mutation({
       await ctx.db.insert("syncMetadata", metaRecord);
     }
 
-    return { imported, errors };
+    return { imported, errors, deleted };
   },
 });
 
 /**
- * Export all data for a full download sync.
- * Returns all records from all tables.
+ * Export a single table page for bounded data transfer.
+ */
+export const exportPage = query({
+  args: {
+    table: syncTableValidator,
+    cursor: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  returns: v.object({
+    table: syncTableValidator,
+    items: v.array(v.any()),
+    continueCursor: v.string(),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const page = await ctx.db.query(args.table).paginate({
+      numItems: clampLimit(args.limit),
+      cursor: args.cursor ?? null,
+    });
+
+    return {
+      table: args.table,
+      items: page.page,
+      continueCursor: page.continueCursor,
+      isDone: page.isDone,
+    };
+  },
+});
+
+/**
+ * Legacy full export for backward compatibility.
+ * Uses paginated collection internally to avoid unbounded single queries.
  */
 export const exportAll = query({
   args: {},
   returns: v.object({
+    settings: v.array(v.any()),
     sessions: v.array(v.any()),
     messages: v.array(v.any()),
+    artifacts: v.array(v.any()),
     projects: v.array(v.any()),
     documents: v.array(v.any()),
     knowledgeFiles: v.array(v.any()),
@@ -125,8 +275,10 @@ export const exportAll = query({
   }),
   handler: async (ctx) => {
     const [
+      settings,
       sessions,
       messages,
+      artifacts,
       projects,
       documents,
       knowledgeFiles,
@@ -141,26 +293,30 @@ export const exportAll = query({
       contextFiles,
       assets,
     ] = await Promise.all([
-      ctx.db.query("sessions").collect(),
-      ctx.db.query("messages").collect(),
-      ctx.db.query("projects").collect(),
-      ctx.db.query("documents").collect(),
-      ctx.db.query("knowledgeFiles").collect(),
-      ctx.db.query("workflows").collect(),
-      ctx.db.query("workflowExecutions").collect(),
-      ctx.db.query("summaries").collect(),
-      ctx.db.query("folders").collect(),
-      ctx.db.query("agentTraces").collect(),
-      ctx.db.query("checkpoints").collect(),
-      ctx.db.query("mcpServers").collect(),
-      ctx.db.query("videoProjects").collect(),
-      ctx.db.query("contextFiles").collect(),
-      ctx.db.query("assets").collect(),
+      collectTableRowsPaginated(ctx as never, "settings"),
+      collectTableRowsPaginated(ctx as never, "sessions"),
+      collectTableRowsPaginated(ctx as never, "messages"),
+      collectTableRowsPaginated(ctx as never, "artifacts"),
+      collectTableRowsPaginated(ctx as never, "projects"),
+      collectTableRowsPaginated(ctx as never, "documents"),
+      collectTableRowsPaginated(ctx as never, "knowledgeFiles"),
+      collectTableRowsPaginated(ctx as never, "workflows"),
+      collectTableRowsPaginated(ctx as never, "workflowExecutions"),
+      collectTableRowsPaginated(ctx as never, "summaries"),
+      collectTableRowsPaginated(ctx as never, "folders"),
+      collectTableRowsPaginated(ctx as never, "agentTraces"),
+      collectTableRowsPaginated(ctx as never, "checkpoints"),
+      collectTableRowsPaginated(ctx as never, "mcpServers"),
+      collectTableRowsPaginated(ctx as never, "videoProjects"),
+      collectTableRowsPaginated(ctx as never, "contextFiles"),
+      collectTableRowsPaginated(ctx as never, "assets"),
     ]);
 
     return {
+      settings,
       sessions,
       messages,
+      artifacts,
       projects,
       documents,
       knowledgeFiles,
@@ -198,7 +354,6 @@ export const getMetadata = query({
   ),
   handler: async (ctx, args) => {
     if (!args.deviceId) {
-      // Return latest metadata across all devices
       const allMeta = await ctx.db.query("syncMetadata").collect();
       if (allMeta.length === 0) return null;
       return allMeta.sort((a, b) => b.syncedAt.localeCompare(a.syncedAt))[0];
@@ -212,28 +367,16 @@ export const getMetadata = query({
 });
 
 /**
- * Clear all data from all tables (for full re-sync).
+ * Clear all sync tables.
  */
 export const clearAll = internalMutation({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
     let deleted = 0;
-    const tableNames = [
-      "sessions", "messages", "projects", "documents", "knowledgeFiles",
-      "workflows", "workflowExecutions", "summaries", "folders",
-      "agentTraces", "checkpoints", "mcpServers", "videoProjects",
-      "contextFiles", "assets",
-    ] as const;
-
-    for (const tableName of tableNames) {
-      const records = await ctx.db.query(tableName).collect();
-      for (const record of records) {
-        await ctx.db.delete(record._id);
-        deleted++;
-      }
+    for (const tableName of SYNC_TABLES) {
+      deleted += await deleteTableRowsPaginated(ctx as never, tableName);
     }
-
     return deleted;
   },
 });

@@ -12,11 +12,110 @@ import type {
   SyncProgress,
   BackupInfo,
   ConvexSyncConfig,
+  SyncDataContent,
 } from '@/types/sync';
 import { BaseSyncProvider } from './sync-provider';
+import { resolveConvexHttpBaseUrl } from '@/lib/sync/convex-url';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.app;
+
+const PAGED_EXPORT_TABLES = [
+  'settings',
+  'sessions',
+  'messages',
+  'artifacts',
+  'folders',
+  'projects',
+] as const;
+
+const EXPORT_PAGE_SIZE = 250;
+const IMPORT_RECORD_CHUNK_SIZE = 200;
+const MAX_EXPORT_PAGES_PER_TABLE = 5000;
+
+function toIso(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string' && value.length > 0) return value;
+  return new Date().toISOString();
+}
+
+function sortDeep(value: unknown): unknown {
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map(sortDeep);
+  if (value && typeof value === 'object') {
+    return Object.keys(value as Record<string, unknown>)
+      .sort()
+      .reduce<Record<string, unknown>>((acc, key) => {
+        acc[key] = sortDeep((value as Record<string, unknown>)[key]);
+        return acc;
+      }, {});
+  }
+  return value;
+}
+
+function stableStringify(value: unknown): string {
+  return JSON.stringify(sortDeep(value));
+}
+
+function stripConvexFields(rec: Record<string, unknown>): Record<string, unknown> {
+  const { _id, _creationTime, ...rest } = rec;
+  return rest;
+}
+
+function parseJson<T>(value: unknown, fallback: T): T {
+  if (typeof value !== 'string' || value.length === 0) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function buildDataTypes(data: SyncDataContent): (keyof SyncDataContent)[] {
+  const dataTypes: (keyof SyncDataContent)[] = [];
+  if (data.settings !== undefined) dataTypes.push('settings');
+  if (data.sessions !== undefined) dataTypes.push('sessions');
+  if (data.messages !== undefined) dataTypes.push('messages');
+  if (data.artifacts !== undefined) dataTypes.push('artifacts');
+  if (data.folders !== undefined) dataTypes.push('folders');
+  if (data.projects !== undefined) dataTypes.push('projects');
+  return dataTypes;
+}
+
+function asRecords(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) return [];
+  return value as Record<string, unknown>[];
+}
+
+function chunkRecords(records: unknown[], chunkSize: number): unknown[][] {
+  if (records.length === 0) return [];
+  const chunks: unknown[][] = [];
+  for (let index = 0; index < records.length; index += chunkSize) {
+    chunks.push(records.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
+
+async function parseErrorResponse(response: Response, fallback: string): Promise<string> {
+  try {
+    const payload = (await response.json()) as Record<string, unknown>;
+    const message =
+      (typeof payload.message === 'string' && payload.message) ||
+      (typeof payload.error === 'string' && payload.error) ||
+      fallback;
+    const code = typeof payload.code === 'string' ? payload.code : '';
+    return code ? `${message} (${code})` : message;
+  } catch {
+    return fallback;
+  }
+}
+
+interface PagedExportResponse {
+  table: string;
+  items: unknown[];
+  continueCursor: string;
+  isDone: boolean;
+}
 
 export class ConvexProvider extends BaseSyncProvider {
   readonly type = 'convex' as const;
@@ -25,7 +124,8 @@ export class ConvexProvider extends BaseSyncProvider {
 
   constructor(config: ConvexSyncConfig, deployKey: string) {
     super();
-    this.deploymentUrl = config.deploymentUrl.replace(/\/$/, '');
+    const resolvedBaseUrl = resolveConvexHttpBaseUrl(config.deploymentUrl);
+    this.deploymentUrl = resolvedBaseUrl || config.deploymentUrl.replace(/\/$/, '');
     this.deployKey = deployKey;
   }
 
@@ -40,6 +140,103 @@ export class ConvexProvider extends BaseSyncProvider {
     };
   }
 
+  private async fetchLegacyExport(): Promise<Record<string, unknown>> {
+    const response = await this.retryFetch(
+      this.getHttpUrl('/api/sync/export'),
+      { method: 'GET', headers: this.getHeaders() },
+      2,
+      1000
+    );
+
+    if (!response.ok) {
+      const message = await parseErrorResponse(
+        response,
+        `Convex export failed: ${response.status}`
+      );
+      throw new Error(message);
+    }
+
+    return (await response.json()) as Record<string, unknown>;
+  }
+
+  private async fetchTablePaged(table: (typeof PAGED_EXPORT_TABLES)[number]): Promise<Record<string, unknown>[] | null> {
+    let cursor: string | undefined;
+    const rows: Record<string, unknown>[] = [];
+
+    for (let pageIndex = 0; pageIndex < MAX_EXPORT_PAGES_PER_TABLE; pageIndex++) {
+      const url = new URL(this.getHttpUrl('/api/sync/export'));
+      url.searchParams.set('table', table);
+      url.searchParams.set('limit', String(EXPORT_PAGE_SIZE));
+      if (cursor) {
+        url.searchParams.set('cursor', cursor);
+      }
+
+      const response = await this.retryFetch(
+        url.toString(),
+        { method: 'GET', headers: this.getHeaders() },
+        2,
+        1000
+      );
+
+      if (!response.ok) {
+        // Older servers may not support paged contract yet.
+        if (response.status === 400 || response.status === 404) {
+          return null;
+        }
+
+        const message = await parseErrorResponse(
+          response,
+          `Convex paged export failed: ${response.status}`
+        );
+        throw new Error(message);
+      }
+
+      const payload = (await response.json()) as Partial<PagedExportResponse>;
+      if (!Array.isArray(payload.items) || typeof payload.isDone !== 'boolean') {
+        return null;
+      }
+
+      rows.push(...asRecords(payload.items));
+      if (payload.isDone) {
+        break;
+      }
+
+      cursor = typeof payload.continueCursor === 'string' ? payload.continueCursor : undefined;
+      if (!cursor) {
+        break;
+      }
+    }
+
+    return rows;
+  }
+
+  private async fetchExportData(
+    onProgress?: (progress: SyncProgress) => void
+  ): Promise<Record<string, unknown>> {
+    const pagedResult: Record<string, unknown> = {};
+
+    for (let index = 0; index < PAGED_EXPORT_TABLES.length; index++) {
+      const table = PAGED_EXPORT_TABLES[index];
+      onProgress?.(
+        this.createProgress(
+          'downloading',
+          5 + Math.round((index / PAGED_EXPORT_TABLES.length) * 30),
+          100,
+          `Downloading ${table}...`
+        )
+      );
+
+      const rows = await this.fetchTablePaged(table);
+      if (rows === null) {
+        log.info('Convex export: paged endpoint unavailable, using legacy export fallback');
+        return this.fetchLegacyExport();
+      }
+      pagedResult[table] = rows;
+    }
+
+    return pagedResult;
+  }
+
   async testConnection(): Promise<{ success: boolean; error?: string }> {
     try {
       const response = await this.retryFetch(
@@ -52,7 +249,10 @@ export class ConvexProvider extends BaseSyncProvider {
       if (!response.ok) {
         return {
           success: false,
-          error: `Convex returned status ${response.status}: ${response.statusText}`,
+          error: await parseErrorResponse(
+            response,
+            `Convex returned status ${response.status}: ${response.statusText}`
+          ),
         };
       }
 
@@ -80,16 +280,18 @@ export class ConvexProvider extends BaseSyncProvider {
       const syncContent = data.data;
       const tables: Record<string, unknown[]> = {};
 
-      // Map SyncData content to Convex table records with localId.
-      // Indexed fields are stored as top-level columns; all remaining
-      // fields are serialized into the `metadata` JSON column so that
-      // the round-trip is lossless.
+      if (syncContent.settings !== undefined) {
+        tables.settings = [
+          {
+            localId: 'global-settings',
+            payload: stableStringify(syncContent.settings),
+            localUpdatedAt: data.syncedAt,
+          },
+        ];
+      }
+
       if (syncContent.sessions) {
         tables.sessions = syncContent.sessions.map((s) => {
-          const dateToISO = (d: unknown): string =>
-            d instanceof Date ? d.toISOString() : String(d ?? new Date().toISOString());
-
-          // Indexed / queryable fields
           const indexed = {
             localId: s.id,
             title: s.title,
@@ -106,188 +308,171 @@ export class ConvexProvider extends BaseSyncProvider {
             enableResearch: s.enableResearch,
             messageCount: s.messageCount ?? 0,
             lastMessagePreview: s.lastMessagePreview,
-            localCreatedAt: dateToISO(s.createdAt),
-            localUpdatedAt: dateToISO(s.updatedAt),
+            localCreatedAt: toIso(s.createdAt),
+            localUpdatedAt: toIso(s.updatedAt),
           };
 
-          // Collect ALL remaining fields into metadata for lossless sync
           const {
-            id: _id, title: _t, provider: _p, model: _m, mode: _mo,
-            customIcon: _ci, folderId: _fi, projectId: _pi,
-            systemPrompt: _sp, temperature: _te, maxTokens: _mt,
-            enableTools: _et, enableResearch: _er,
-            messageCount: _mc, lastMessagePreview: _lp,
-            createdAt: _ca, updatedAt: _ua,
+            id: _id,
+            title: _title,
+            provider: _provider,
+            model: _model,
+            mode: _mode,
+            customIcon: _customIcon,
+            folderId: _folderId,
+            projectId: _projectId,
+            systemPrompt: _systemPrompt,
+            temperature: _temperature,
+            maxTokens: _maxTokens,
+            enableTools: _enableTools,
+            enableResearch: _enableResearch,
+            messageCount: _messageCount,
+            lastMessagePreview: _lastMessagePreview,
+            createdAt: _createdAt,
+            updatedAt: _updatedAt,
             ...extraFields
           } = s;
 
-          const metadata = Object.keys(extraFields).length > 0
-            ? JSON.stringify(extraFields, (_k, v) =>
-                v instanceof Date ? v.toISOString() : v
-              )
-            : undefined;
+          const metadata =
+            Object.keys(extraFields).length > 0 ? stableStringify(extraFields) : undefined;
 
           return { ...indexed, metadata };
         });
       }
 
       if (syncContent.messages) {
-        tables.messages = syncContent.messages.map((m) => {
-          const dateToISO = (d: unknown): string =>
-            d instanceof Date ? d.toISOString() : String(d ?? new Date().toISOString());
+        tables.messages = syncContent.messages.map((m) => ({
+          localId: m.id,
+          sessionId: m.sessionId,
+          branchId: m.branchId,
+          role: m.role,
+          content: m.content,
+          parts: m.parts,
+          model: m.model,
+          provider: m.provider,
+          tokens: m.tokens,
+          attachments: m.attachments,
+          sources: m.sources,
+          error: m.error,
+          isEdited: m.isEdited,
+          editHistory: m.editHistory,
+          originalContent: m.originalContent,
+          isBookmarked: m.isBookmarked,
+          bookmarkedAt: m.bookmarkedAt ? toIso(m.bookmarkedAt) : undefined,
+          reaction: m.reaction,
+          reactions: m.reactions,
+          localCreatedAt: toIso(m.createdAt),
+        }));
+      }
 
-          return {
-            localId: m.id,
-            sessionId: m.sessionId,
-            branchId: m.branchId,
-            role: m.role,
-            content: m.content,
-            parts: m.parts,
-            model: m.model,
-            provider: m.provider,
-            tokens: m.tokens,
-            attachments: m.attachments,
-            sources: m.sources,
-            error: m.error,
-            isEdited: m.isEdited,
-            editHistory: m.editHistory,
-            originalContent: m.originalContent,
-            isBookmarked: m.isBookmarked,
-            bookmarkedAt: m.bookmarkedAt ? dateToISO(m.bookmarkedAt) : undefined,
-            reaction: m.reaction,
-            reactions: m.reactions,
-            localCreatedAt: dateToISO(m.createdAt),
-          };
-        });
+      if (syncContent.artifacts !== undefined) {
+        tables.artifacts = Object.entries(syncContent.artifacts).map(([id, artifact]) => ({
+          localId: id,
+          payload: stableStringify(artifact),
+          localUpdatedAt: data.syncedAt,
+        }));
       }
 
       if (syncContent.folders) {
-        tables.folders = (syncContent.folders as Record<string, unknown>[]).map((f) => {
-          const dateToISO = (d: unknown): string =>
-            d instanceof Date ? d.toISOString() : String(d ?? new Date().toISOString());
-
-          return {
-            localId: String(f.id ?? ''),
-            name: String(f.name ?? ''),
-            order: Number(f.order ?? 0),
-            isExpanded: f.isExpanded as boolean | undefined,
-            localCreatedAt: dateToISO(f.createdAt),
-            localUpdatedAt: dateToISO(f.updatedAt),
-          };
-        });
+        tables.folders = (syncContent.folders as Record<string, unknown>[]).map((f) => ({
+          localId: String(f.id ?? ''),
+          name: String(f.name ?? ''),
+          order: Number(f.order ?? 0),
+          isExpanded: f.isExpanded as boolean | undefined,
+          localCreatedAt: toIso(f.createdAt),
+          localUpdatedAt: toIso(f.updatedAt),
+        }));
       }
 
       if (syncContent.projects) {
-        tables.projects = (syncContent.projects as Record<string, unknown>[]).map((p) => {
-          const dateToISO = (d: unknown): string =>
-            d instanceof Date ? d.toISOString() : String(d ?? new Date().toISOString());
-
-          // Indexed / queryable fields
-          const indexed = {
-            localId: String(p.id ?? ''),
-            name: String(p.name ?? ''),
-            description: p.description as string | undefined,
-            icon: p.icon as string | undefined,
-            color: p.color as string | undefined,
-            customInstructions: p.customInstructions as string | undefined,
-            defaultProvider: p.defaultProvider as string | undefined,
-            defaultModel: p.defaultModel as string | undefined,
-            defaultMode: p.defaultMode as string | undefined,
-            tags: p.tags ? JSON.stringify(p.tags) : undefined,
-            isArchived: p.isArchived as boolean | undefined,
-            archivedAt: p.archivedAt ? dateToISO(p.archivedAt) : undefined,
-            sessionIds: p.sessionIds ? JSON.stringify(p.sessionIds) : undefined,
-            metadata: p.metadata as string | undefined,
-            sessionCount: Number(p.sessionCount ?? 0),
-            messageCount: Number(p.messageCount ?? 0),
-            localCreatedAt: dateToISO(p.createdAt),
-            localUpdatedAt: dateToISO(p.updatedAt),
-            lastAccessedAt: dateToISO(p.lastAccessedAt),
-          };
-
-          return indexed;
-        });
+        tables.projects = (syncContent.projects as Record<string, unknown>[]).map((p) => ({
+          localId: String(p.id ?? ''),
+          name: String(p.name ?? ''),
+          description: p.description as string | undefined,
+          icon: p.icon as string | undefined,
+          color: p.color as string | undefined,
+          customInstructions: p.customInstructions as string | undefined,
+          defaultProvider: p.defaultProvider as string | undefined,
+          defaultModel: p.defaultModel as string | undefined,
+          defaultMode: p.defaultMode as string | undefined,
+          tags: p.tags ? JSON.stringify(p.tags) : undefined,
+          isArchived: p.isArchived as boolean | undefined,
+          archivedAt: p.archivedAt ? toIso(p.archivedAt) : undefined,
+          sessionIds: p.sessionIds ? JSON.stringify(p.sessionIds) : undefined,
+          metadata:
+            typeof p.metadata === 'string' ? p.metadata : p.metadata ? stableStringify(p.metadata) : undefined,
+          sessionCount: Number(p.sessionCount ?? 0),
+          messageCount: Number(p.messageCount ?? 0),
+          localCreatedAt: toIso(p.createdAt),
+          localUpdatedAt: toIso(p.updatedAt),
+          lastAccessedAt: toIso(p.lastAccessedAt),
+        }));
       }
 
-      onProgress?.(this.createProgress('uploading', 30, 100, 'Uploading to Convex...'));
+      const tableEntries = Object.entries(tables).filter(([, rows]) => rows.length > 0);
+      const totalChunks = tableEntries.reduce(
+        (sum, [, rows]) => sum + chunkRecords(rows, IMPORT_RECORD_CHUNK_SIZE).length,
+        0
+      );
 
-      // Upload via HTTP API - split into chunks if payload is large
-      const payload = JSON.stringify({
-        deviceId: data.deviceId,
-        deviceName: data.deviceName,
-        version: data.version,
-        checksum: data.checksum,
-        tables,
-      });
+      onProgress?.(this.createProgress('uploading', 25, 100, 'Uploading to Convex...'));
 
-      const MAX_PAYLOAD_SIZE = 7 * 1024 * 1024; // 7MB (under Convex 8MB limit)
+      let processedChunks = 0;
       let totalImported = 0;
+      const syncRunId = `${data.deviceId}:${Date.now()}`;
 
-      if (payload.length <= MAX_PAYLOAD_SIZE) {
-        const response = await this.retryFetch(
-          this.getHttpUrl('/api/sync/import'),
-          { method: 'POST', headers: this.getHeaders(), body: payload },
-          2,
-          1000
-        );
+      for (const [tableName, rows] of tableEntries) {
+        const chunks = chunkRecords(rows, IMPORT_RECORD_CHUNK_SIZE);
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: response.statusText }));
-          throw new Error(errorData.error || `Upload failed: ${response.status}`);
-        }
+        for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+          const chunk = chunks[chunkIndex];
+          processedChunks++;
 
-        const result = await response.json();
-        totalImported = result.imported ?? 0;
-      } else {
-        // Split tables into batches
-        log.info('Convex upload: payload too large, splitting into batches');
-        const tableNames = Object.keys(tables);
-        const batchErrors: string[] = [];
-        for (let i = 0; i < tableNames.length; i++) {
-          const tableName = tableNames[i];
-          const batchPayload = JSON.stringify({
+          const payload = JSON.stringify({
             deviceId: data.deviceId,
             deviceName: data.deviceName,
             version: data.version,
             checksum: data.checksum,
-            tables: { [tableName]: tables[tableName] },
+            tables: { [tableName]: chunk },
+            reconciliation: {
+              mode: 'authoritative',
+              replaceTables: chunkIndex === 0 ? [tableName] : [],
+              syncRunId,
+              chunkIndex,
+              chunkCount: chunks.length,
+            },
           });
 
           onProgress?.(
             this.createProgress(
               'uploading',
-              30 + Math.round((i / tableNames.length) * 60),
+              25 + Math.round((processedChunks / Math.max(totalChunks, 1)) * 65),
               100,
-              `Uploading ${tableName}...`
+              `Uploading ${tableName} (${chunkIndex + 1}/${chunks.length})...`
             )
           );
 
           const response = await this.retryFetch(
             this.getHttpUrl('/api/sync/import'),
-            { method: 'POST', headers: this.getHeaders(), body: batchPayload },
+            { method: 'POST', headers: this.getHeaders(), body: payload },
             2,
             1000
           );
 
-          if (response.ok) {
-            const result = await response.json();
-            totalImported += result.imported ?? 0;
-          } else {
-            batchErrors.push(tableName);
-            log.warn(`Convex upload: batch for ${tableName} failed`);
+          if (!response.ok) {
+            const message = await parseErrorResponse(
+              response,
+              `Upload failed for ${tableName}: ${response.status}`
+            );
+            throw new Error(message);
           }
-        }
 
-        if (batchErrors.length > 0) {
-          return this.createErrorResult(
-            'upload',
-            `Partial upload failure: ${batchErrors.join(', ')} failed`
-          );
+          const result = (await response.json()) as Record<string, unknown>;
+          totalImported += Number(result.imported ?? 0);
         }
       }
 
       onProgress?.(this.createProgress('completing', 95, 100, 'Sync complete'));
-
       return this.createSuccessResult('upload', totalImported);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Upload failed';
@@ -302,40 +487,12 @@ export class ConvexProvider extends BaseSyncProvider {
     try {
       onProgress?.(this.createProgress('downloading', 0, 100, 'Downloading from Convex...'));
 
-      const response = await this.retryFetch(
-        this.getHttpUrl('/api/sync/export'),
-        { method: 'GET', headers: this.getHeaders() },
-        2,
-        1000
-      );
-
-      if (!response.ok) {
-        log.error(`Convex download failed: ${response.status}`);
-        return null;
-      }
-
-      const exportedData = await response.json();
-
+      const exportedData = await this.fetchExportData(onProgress);
       onProgress?.(this.createProgress('merging', 50, 100, 'Processing downloaded data...'));
 
-      // Helper: strip Convex internal fields from exported records
-      const stripConvexFields = (rec: Record<string, unknown>): Record<string, unknown> => {
-        const { _id, _creationTime, ...rest } = rec;
-        return rest;
-      };
-
-      // Map Convex records back to SyncData format.
-      // For sessions: merge indexed fields with the lossless metadata JSON
-      // to reconstruct the full Session object.
-      const sessions = (exportedData.sessions ?? []).map((raw: Record<string, unknown>) => {
+      const sessions = asRecords(exportedData.sessions).map((raw) => {
         const s = stripConvexFields(raw);
-
-        // Parse metadata to recover extra session fields
-        let extra: Record<string, unknown> = {};
-        if (typeof s.metadata === 'string' && s.metadata.length > 0) {
-          try { extra = JSON.parse(s.metadata); } catch { /* ignore */ }
-        }
-
+        const extra = parseJson<Record<string, unknown>>(s.metadata, {});
         return {
           ...extra,
           id: s.localId,
@@ -353,12 +510,12 @@ export class ConvexProvider extends BaseSyncProvider {
           enableResearch: s.enableResearch,
           messageCount: s.messageCount,
           lastMessagePreview: s.lastMessagePreview,
-          createdAt: new Date(s.localCreatedAt as string),
-          updatedAt: new Date(s.localUpdatedAt as string),
+          createdAt: new Date(toIso(s.localCreatedAt)),
+          updatedAt: new Date(toIso(s.localUpdatedAt)),
         };
       });
 
-      const messages = (exportedData.messages ?? []).map((raw: Record<string, unknown>) => {
+      const messages = asRecords(exportedData.messages).map((raw) => {
         const m = stripConvexFields(raw);
         return {
           id: m.localId,
@@ -377,26 +534,26 @@ export class ConvexProvider extends BaseSyncProvider {
           editHistory: m.editHistory,
           originalContent: m.originalContent,
           isBookmarked: m.isBookmarked,
-          bookmarkedAt: m.bookmarkedAt ? new Date(m.bookmarkedAt as string) : undefined,
+          bookmarkedAt: m.bookmarkedAt ? new Date(toIso(m.bookmarkedAt)) : undefined,
           reaction: m.reaction,
           reactions: m.reactions,
-          createdAt: new Date(m.localCreatedAt as string),
+          createdAt: new Date(toIso(m.localCreatedAt)),
         };
       });
 
-      const folders = (exportedData.folders ?? []).map((raw: Record<string, unknown>) => {
+      const folders = asRecords(exportedData.folders).map((raw) => {
         const f = stripConvexFields(raw);
         return {
           id: f.localId,
           name: f.name,
           order: f.order,
           isExpanded: f.isExpanded,
-          createdAt: new Date(f.localCreatedAt as string),
-          updatedAt: new Date(f.localUpdatedAt as string),
+          createdAt: new Date(toIso(f.localCreatedAt)),
+          updatedAt: new Date(toIso(f.localUpdatedAt)),
         };
       });
 
-      const projects = (exportedData.projects ?? []).map((raw: Record<string, unknown>) => {
+      const projects = asRecords(exportedData.projects).map((raw) => {
         const p = stripConvexFields(raw);
         return {
           id: p.localId,
@@ -408,22 +565,44 @@ export class ConvexProvider extends BaseSyncProvider {
           defaultProvider: p.defaultProvider,
           defaultModel: p.defaultModel,
           defaultMode: p.defaultMode,
-          tags: typeof p.tags === 'string' ? JSON.parse(p.tags) : p.tags,
+          tags: typeof p.tags === 'string' ? parseJson(p.tags, []) : p.tags,
           isArchived: p.isArchived,
-          archivedAt: p.archivedAt ? new Date(p.archivedAt as string) : undefined,
-          sessionIds: typeof p.sessionIds === 'string' ? JSON.parse(p.sessionIds) : p.sessionIds,
-          metadata: p.metadata,
+          archivedAt: p.archivedAt ? new Date(toIso(p.archivedAt)) : undefined,
+          sessionIds: typeof p.sessionIds === 'string' ? parseJson(p.sessionIds, []) : p.sessionIds,
+          metadata: typeof p.metadata === 'string' ? parseJson(p.metadata, p.metadata) : p.metadata,
           sessionCount: p.sessionCount,
           messageCount: p.messageCount,
-          createdAt: new Date(p.localCreatedAt as string),
-          updatedAt: new Date(p.localUpdatedAt as string),
-          lastAccessedAt: new Date(p.lastAccessedAt as string),
+          createdAt: new Date(toIso(p.localCreatedAt)),
+          updatedAt: new Date(toIso(p.localUpdatedAt)),
+          lastAccessedAt: new Date(toIso(p.lastAccessedAt)),
         };
       });
 
-      onProgress?.(this.createProgress('completing', 90, 100, 'Download complete'));
+      const settingsRecord = asRecords(exportedData.settings).map(stripConvexFields)[0];
+      const settings =
+        settingsRecord && typeof settingsRecord.payload === 'string'
+          ? parseJson<Record<string, unknown>>(settingsRecord.payload, {})
+          : undefined;
 
-      // Get metadata for device info
+      const artifactsRecords = asRecords(exportedData.artifacts).map(stripConvexFields);
+      const artifacts =
+        artifactsRecords.length > 0
+          ? artifactsRecords.reduce<Record<string, unknown>>((acc, record) => {
+              const localId = String(record.localId ?? '');
+              if (!localId) return acc;
+              acc[localId] = parseJson(record.payload, null);
+              return acc;
+            }, {})
+          : undefined;
+
+      const normalizedData: SyncDataContent = {};
+      if (settings !== undefined) normalizedData.settings = settings;
+      if (sessions.length > 0) normalizedData.sessions = sessions as never;
+      if (messages.length > 0) normalizedData.messages = messages as never;
+      if (artifacts !== undefined) normalizedData.artifacts = artifacts as never;
+      if (folders.length > 0) normalizedData.folders = folders as never;
+      if (projects.length > 0) normalizedData.projects = projects as never;
+
       const metaResponse = await this.retryFetch(
         this.getHttpUrl('/api/sync/metadata'),
         { method: 'GET', headers: this.getHeaders() },
@@ -432,19 +611,29 @@ export class ConvexProvider extends BaseSyncProvider {
       );
       const metadata = metaResponse.ok ? await metaResponse.json() : null;
 
+      const looksLegacyPayload =
+        (exportedData.settings === undefined || asRecords(exportedData.settings).length === 0) &&
+        (exportedData.artifacts === undefined || asRecords(exportedData.artifacts).length === 0);
+
+      let checksum = metadata?.checksum ?? '';
+      if (looksLegacyPayload && checksum) {
+        // Legacy payloads were missing settings/artifacts and may not match
+        // modern checksum expectations. Returning empty checksum enables
+        // compatibility mode in sync-manager (no hard-fail integrity check).
+        checksum = '';
+      }
+
+      const dataTypes = buildDataTypes(normalizedData);
+      onProgress?.(this.createProgress('completing', 90, 100, 'Download complete'));
+
       return {
         version: metadata?.version ?? '1.1',
         syncedAt: metadata?.syncedAt ?? new Date().toISOString(),
         deviceId: metadata?.deviceId ?? 'unknown',
         deviceName: metadata?.deviceName ?? 'unknown',
-        checksum: metadata?.checksum ?? '',
-        dataTypes: ['sessions', 'messages', 'folders', 'projects'],
-        data: {
-          sessions,
-          messages,
-          folders,
-          projects,
-        },
+        checksum,
+        dataTypes,
+        data: normalizedData,
       };
     } catch (error) {
       log.error('Convex download failed', error as Error);
@@ -494,6 +683,7 @@ export class ConvexProvider extends BaseSyncProvider {
   }
 
   async disconnect(): Promise<void> {
-    // No persistent connection to clean up for HTTP-based sync
+    // No persistent connection to clean up for HTTP-based sync.
   }
 }
+

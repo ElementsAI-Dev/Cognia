@@ -125,4 +125,27 @@ describe('ProviderEmptyState', () => {
     const card = screen.getByTestId('card');
     expect(card).toHaveClass('border-dashed');
   });
+
+  it('renders checklist guidance actions and calls handler', () => {
+    const onAction = jest.fn();
+    render(
+      <ProviderEmptyState
+        onAddProvider={mockOnAddProvider}
+        onImportSettings={mockOnImportSettings}
+        guidanceItems={[
+          {
+            id: 'credential',
+            label: 'Add credentials',
+            description: 'Missing API key',
+            actionLabel: 'Fix Now',
+            onAction,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText('Add credentials')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Fix Now'));
+    expect(onAction).toHaveBeenCalledTimes(1);
+  });
 });

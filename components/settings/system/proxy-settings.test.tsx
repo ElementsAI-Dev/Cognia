@@ -23,6 +23,9 @@ let mockIsAvailable = true;
 let mockMode = 'off';
 let mockEnabled = false;
 let mockConnected = false;
+let mockError: string | null = null;
+let mockValidationError: string | null = null;
+let mockCurrentProxy: string | null | undefined = undefined;
 let mockDetectedProxies: Array<{ software: string; running: boolean; mixedPort?: number; version?: string }> = [];
 
 jest.mock('@/hooks/network', () => ({
@@ -35,9 +38,15 @@ jest.mock('@/hooks/network', () => ({
     isDetecting: false,
     isTesting: false,
     connected: mockConnected,
-    currentProxy: mockEnabled ? 'http://127.0.0.1:7890' : null,
+    currentProxy:
+      mockCurrentProxy !== undefined
+        ? mockCurrentProxy
+        : mockEnabled
+          ? 'http://127.0.0.1:7890'
+          : null,
     lastTestLatency: mockConnected ? 50 : null,
-    error: null,
+    validationError: mockValidationError,
+    error: mockError,
     isAvailable: mockIsAvailable,
     setMode: mockSetMode,
     setEnabled: mockSetEnabled,
@@ -133,6 +142,9 @@ describe('ProxySettings', () => {
     mockMode = 'off';
     mockEnabled = false;
     mockConnected = false;
+    mockError = null;
+    mockValidationError = null;
+    mockCurrentProxy = undefined;
     mockDetectedProxies = [];
   });
 
@@ -219,6 +231,7 @@ describe('ProxySettings connected state', () => {
     mockMode = 'manual';
     mockEnabled = true;
     mockConnected = true;
+    mockCurrentProxy = 'http://127.0.0.1:7890';
   });
 
   it('shows connected badge when connected', () => {
@@ -229,6 +242,34 @@ describe('ProxySettings connected state', () => {
   it('shows current proxy address', () => {
     render(<ProxySettings />);
     expect(screen.getByText('http://127.0.0.1:7890')).toBeInTheDocument();
+  });
+});
+
+describe('ProxySettings validation and system state', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsAvailable = true;
+    mockEnabled = true;
+    mockConnected = false;
+    mockCurrentProxy = null;
+    mockDetectedProxies = [];
+  });
+
+  it('shows manual validation error', () => {
+    mockMode = 'manual';
+    mockValidationError = 'Proxy host is required';
+    render(<ProxySettings />);
+    expect(screen.getByText('Proxy host is required')).toBeInTheDocument();
+  });
+
+  it('shows explicit system proxy unavailable message', () => {
+    mockMode = 'system';
+    render(<ProxySettings />);
+    expect(
+      screen.getByText(
+        'System proxy is selected, but no usable system proxy endpoint is currently available.'
+      )
+    ).toBeInTheDocument();
   });
 });
 

@@ -10,6 +10,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from './utils';
 import { loggers } from '@/lib/logger';
+import { normalizeProxyUrl, pickPreferredSystemProxyUrl } from '@/lib/network/proxy-resolution';
 
 const log = loggers.native;
 import type {
@@ -46,6 +47,60 @@ export interface SystemProxySettings {
   httpsProxy: string | null;
   socksProxy: string | null;
   noProxy: string | null;
+}
+
+interface RawSystemProxySettings {
+  enabled?: unknown;
+  httpProxy?: unknown;
+  httpsProxy?: unknown;
+  socksProxy?: unknown;
+  noProxy?: unknown;
+  http_proxy?: unknown;
+  https_proxy?: unknown;
+  socks_proxy?: unknown;
+  no_proxy?: unknown;
+}
+
+export interface SystemProxyResolution {
+  proxyUrl: string | null;
+  settings: SystemProxySettings | null;
+  error: string | null;
+}
+
+function toMaybeString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function mapInvokeError(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string' && error.trim()) return error;
+  return fallback;
+}
+
+export function normalizeSystemProxySettings(raw: unknown): SystemProxySettings | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const value = raw as RawSystemProxySettings;
+  const httpProxy = normalizeProxyUrl(toMaybeString(value.httpProxy ?? value.http_proxy));
+  const httpsProxy = normalizeProxyUrl(toMaybeString(value.httpsProxy ?? value.https_proxy));
+  const socksProxy = normalizeProxyUrl(toMaybeString(value.socksProxy ?? value.socks_proxy));
+  const noProxy = toMaybeString(value.noProxy ?? value.no_proxy);
+
+  return {
+    enabled: Boolean(value.enabled),
+    httpProxy,
+    httpsProxy,
+    socksProxy,
+    noProxy,
+  };
+}
+
+export function getPreferredSystemProxyUrl(
+  settings: SystemProxySettings | null
+): string | null {
+  return pickPreferredSystemProxyUrl(settings);
 }
 
 /** Check if proxy management is available */
@@ -99,10 +154,47 @@ export async function getSystemProxy(): Promise<SystemProxySettings | null> {
   }
 
   try {
-    return await invoke<SystemProxySettings>('proxy_get_system');
+    const raw = await invoke<unknown>('proxy_get_system');
+    return normalizeSystemProxySettings(raw);
   } catch (error) {
     log.error('Failed to get system proxy', error as Error);
     return null;
+  }
+}
+
+/** Resolve current system proxy endpoint and keep error details for UI handling. */
+export async function resolveSystemProxy(): Promise<SystemProxyResolution> {
+  if (!isTauri()) {
+    return {
+      proxyUrl: null,
+      settings: null,
+      error: 'System proxy resolution requires Tauri environment',
+    };
+  }
+
+  try {
+    const raw = await invoke<unknown>('proxy_get_system');
+    const settings = normalizeSystemProxySettings(raw);
+    if (!settings) {
+      return {
+        proxyUrl: null,
+        settings: null,
+        error: 'Invalid system proxy response',
+      };
+    }
+
+    const proxyUrl = getPreferredSystemProxyUrl(settings);
+    return {
+      proxyUrl,
+      settings,
+      error: proxyUrl ? null : 'System proxy is not configured',
+    };
+  } catch (error) {
+    return {
+      proxyUrl: null,
+      settings: null,
+      error: mapInvokeError(error, 'Failed to resolve system proxy'),
+    };
   }
 }
 
@@ -221,12 +313,17 @@ export function buildProxyUrlFromDetected(proxy: DetectedProxy): string | null {
  * Pass null to disable the proxy.
  */
 export async function setBackendProxy(proxyUrl: string | null): Promise<void> {
-  if (!isTauri()) return;
+  if (!isTauri()) {
+    return;
+  }
+
   try {
     await invoke('set_backend_proxy', { proxyUrl: proxyUrl || null });
     log.info(`Backend proxy ${proxyUrl ? `set to: ${proxyUrl}` : 'disabled'}`);
   } catch (error) {
+    const message = mapInvokeError(error, 'Failed to set backend proxy');
     log.error('Failed to set backend proxy:', error);
+    throw new Error(message);
   }
 }
 
@@ -241,6 +338,27 @@ export async function getBackendProxy(): Promise<string | null> {
   }
 }
 
+/** Sync backend proxy only when effective endpoint changes. */
+export async function syncBackendProxy(
+  proxyUrl: string | null
+): Promise<{ changed: boolean; current: string | null }> {
+  if (!isTauri()) {
+    return { changed: false, current: null };
+  }
+
+  const target = proxyUrl || null;
+  const current = await getBackendProxy();
+  if (current === target) {
+    return { changed: false, current };
+  }
+
+  await setBackendProxy(target);
+  return {
+    changed: true,
+    current: target,
+  };
+}
+
 /** Proxy service object for convenient access */
 export const proxyService = {
   isAvailable: isProxyAvailable,
@@ -248,11 +366,13 @@ export const proxyService = {
   test: testProxy,
   testMulti: testProxyMulti,
   getSystem: getSystemProxy,
+  resolveSystemProxy,
   checkPort,
   getClashInfo,
   buildUrl: buildProxyUrlFromDetected,
   setBackendProxy,
   getBackendProxy,
+  syncBackendProxy,
 };
 
 export default proxyService;

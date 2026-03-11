@@ -8,6 +8,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Cloud,
+  Database,
   Github,
   RefreshCw,
   CheckCircle2,
@@ -43,6 +44,7 @@ import { initSyncScheduler } from '@/lib/sync';
 import { WebDAVConfigForm } from './webdav-config';
 import { GitHubConfigForm } from './github-config';
 import { GoogleDriveConfigForm } from './googledrive-config';
+import { ConvexConfigForm } from './convex-config';
 import { SyncHistoryDialog } from './sync-history-dialog';
 import type { SyncProviderType } from '@/types/sync';
 
@@ -55,6 +57,7 @@ export function SyncSettings() {
     webdavConfig,
     githubConfig,
     googleDriveConfig,
+    convexConfig,
     status,
     lastError,
     startSync,
@@ -122,7 +125,11 @@ export function SyncSettings() {
       ? webdavConfig
       : activeProvider === 'github'
         ? githubConfig
-        : googleDriveConfig;
+        : activeProvider === 'googledrive'
+          ? googleDriveConfig
+          : activeProvider === 'convex'
+            ? convexConfig
+            : null;
   const lastSyncTime = currentConfig?.lastSyncAt;
 
   return (
@@ -169,6 +176,12 @@ export function SyncSettings() {
                   <div className="flex items-center gap-2">
                     <Cloud className="h-4 w-4" />
                     Google Drive
+                  </div>
+                </SelectItem>
+                <SelectItem value="convex">
+                  <div className="flex items-center gap-2">
+                    <Database className="h-4 w-4" />
+                    {t('convex') || 'Convex'}
                   </div>
                 </SelectItem>
               </SelectContent>
@@ -234,6 +247,10 @@ export function SyncSettings() {
 
       {activeProvider === 'googledrive' && (
         <GoogleDriveConfigForm onConnectionStatusChange={setConnectionStatus} />
+      )}
+
+      {activeProvider === 'convex' && (
+        <ConvexConfigForm onConnectionStatusChange={setConnectionStatus} />
       )}
 
       {/* Sync Actions */}

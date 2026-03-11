@@ -10,6 +10,12 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useProxyStore } from '@/stores/system';
 import { proxyService, isProxyAvailable } from '@/lib/native/proxy';
+import {
+  dedupeDetectedProxies,
+  pickAutoSelectedProxy,
+  resolveEffectiveProxy,
+  validateManualProxyConfig,
+} from '@/lib/network/proxy-resolution';
 import type {
   ProxyMode,
   DetectedProxy,
@@ -34,6 +40,7 @@ export interface UseProxyReturn {
   connected: boolean;
   currentProxy: string | null;
   lastTestLatency: number | null;
+  validationError: string | null;
 
   // UI State
   isTesting: boolean;
@@ -71,8 +78,10 @@ export function useProxy(): UseProxyReturn {
     setDetectedProxies,
     setDetecting,
     setTesting,
+    setApplying,
     setStatus,
     setTestResult,
+    setLastKnownGood,
     setError,
     clearError,
   } = useProxyStore();
@@ -81,19 +90,44 @@ export function useProxy(): UseProxyReturn {
   const detectIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const initializedRef = useRef(false);
 
+  const syncSelectedProxy = useCallback(
+    (selectedProxy: ProxySoftware | undefined) => {
+      if (selectedProxy !== config.selectedProxy) {
+        setSelectedProxy(selectedProxy);
+      }
+    },
+    [config.selectedProxy, setSelectedProxy]
+  );
+
+  const resolveCurrentProxy = useCallback(async () => {
+    if (config.mode === 'system' && config.enabled) {
+      const systemResult = await proxyService.resolveSystemProxy();
+      return resolveEffectiveProxy(config, detectedProxies, {
+        systemProxy: systemResult.settings,
+        systemError: systemResult.error,
+      });
+    }
+
+    return resolveEffectiveProxy(config, detectedProxies);
+  }, [config, detectedProxies]);
+
   const detectProxies = useCallback(async () => {
     if (!isAvailable) return;
 
     setDetecting(true);
     try {
-      const proxies = await proxyService.detectAll();
+      const proxies = dedupeDetectedProxies(await proxyService.detectAll());
       setDetectedProxies(proxies);
 
-      // Auto-select first running proxy if none selected
-      if (!config.selectedProxy && proxies.length > 0) {
-        const running = proxies.find((p) => p.running);
-        if (running) {
-          setSelectedProxy(running.software);
+      if (config.mode === 'auto') {
+        const selectedProxy = pickAutoSelectedProxy(config.selectedProxy, proxies);
+        syncSelectedProxy(selectedProxy);
+        if (!selectedProxy) {
+          setStatus({
+            connected: false,
+            currentProxy: null,
+          });
+          setError('No running auto-detected proxy is available');
         }
       }
     } catch (err) {
@@ -103,11 +137,13 @@ export function useProxy(): UseProxyReturn {
     }
   }, [
     isAvailable,
+    config.mode,
     config.selectedProxy,
     setDetecting,
     setDetectedProxies,
-    setSelectedProxy,
     setError,
+    setStatus,
+    syncSelectedProxy,
   ]);
 
   // Auto-detect proxies on mount and periodically
@@ -135,40 +171,80 @@ export function useProxy(): UseProxyReturn {
 
     setTesting(true);
     try {
-      let proxyUrl: string | null = null;
+      const resolution = await resolveCurrentProxy();
+      syncSelectedProxy(resolution.selectedProxy);
 
-      if (config.mode === 'manual' && config.manual) {
-        proxyUrl = buildProxyUrl(config.manual);
-      } else if (config.mode === 'auto' && config.selectedProxy) {
-        const detected = detectedProxies.find(
-          (p) => p.software === config.selectedProxy && p.running
-        );
-        if (detected) {
-          proxyUrl = proxyService.buildUrl(detected);
-        }
-      }
-
-      if (!proxyUrl) {
+      if (!resolution.proxyUrl) {
+        const message = resolution.error || 'No proxy configured';
         setTestResult({
           success: false,
-          error: 'No proxy configured',
+          error: message,
         });
+        setStatus({
+          connected: false,
+          currentProxy: null,
+        });
+        setError(message);
         return false;
       }
 
-      const result = await proxyService.test(proxyUrl, config.testUrl);
+      const endpoints = (config.testEndpoints || [])
+        .filter((endpoint) => endpoint.enabled)
+        .map((endpoint) => endpoint.url);
+
+      const resultMulti = await proxyService.testMulti(
+        resolution.proxyUrl,
+        endpoints.length > 0 ? endpoints : undefined
+      );
+      const result = {
+        success: resultMulti.overallSuccess,
+        latency: resultMulti.avgLatency,
+        ip: resultMulti.ip,
+        location: resultMulti.location,
+        error: resultMulti.overallSuccess
+          ? undefined
+          : resultMulti.results.find((item) => item.error)?.error || 'Proxy test failed',
+      };
+
       setTestResult(result);
+      setStatus({
+        connected: result.success,
+        currentProxy: resolution.proxyUrl,
+      });
+      if (result.success) {
+        clearError();
+        setLastKnownGood(resolution.proxyUrl);
+      } else if (result.error) {
+        setError(result.error);
+      }
+
       return result.success;
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       setTestResult({
         success: false,
-        error: err instanceof Error ? err.message : String(err),
+        error: message,
       });
+      setStatus({
+        connected: false,
+      });
+      setError(message);
       return false;
     } finally {
       setTesting(false);
     }
-  }, [isAvailable, config, detectedProxies, setTesting, setTestResult]);
+  }, [
+    isAvailable,
+    config.testEndpoints,
+    resolveCurrentProxy,
+    syncSelectedProxy,
+    setTesting,
+    setStatus,
+    setTestResult,
+    setError,
+    clearError,
+    setLastKnownGood,
+  ]);
 
   const testManualProxy = useCallback(
     async (manualConfig: ManualProxyConfig): Promise<boolean> => {
@@ -176,47 +252,112 @@ export function useProxy(): UseProxyReturn {
 
       setTesting(true);
       try {
+        const validation = validateManualProxyConfig(manualConfig);
+        if (!validation.valid) {
+          const message = validation.error || 'Invalid manual proxy configuration';
+          setTestResult({
+            success: false,
+            error: message,
+          });
+          setError(message);
+          return false;
+        }
+
         const proxyUrl = buildProxyUrl(manualConfig);
-        const result = await proxyService.test(proxyUrl, config.testUrl);
+        const resultMulti = await proxyService.testMulti(proxyUrl, [config.testUrl]);
+        const result = {
+          success: resultMulti.overallSuccess,
+          latency: resultMulti.avgLatency,
+          ip: resultMulti.ip,
+          location: resultMulti.location,
+          error: resultMulti.overallSuccess
+            ? undefined
+            : resultMulti.results.find((item) => item.error)?.error || 'Proxy test failed',
+        };
         setTestResult(result);
+        setStatus({
+          connected: result.success,
+          currentProxy: result.success ? proxyUrl : null,
+        });
+        if (result.success) {
+          clearError();
+          setLastKnownGood(proxyUrl);
+        } else if (result.error) {
+          setError(result.error);
+        }
         return result.success;
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
         setTestResult({
           success: false,
-          error: err instanceof Error ? err.message : String(err),
+          error: message,
         });
+        setError(message);
         return false;
       } finally {
         setTesting(false);
       }
     },
-    [isAvailable, config.testUrl, setTesting, setTestResult]
+    [
+      isAvailable,
+      config.testUrl,
+      setTesting,
+      setTestResult,
+      setStatus,
+      setError,
+      clearError,
+      setLastKnownGood,
+    ]
   );
 
   const applyProxy = useCallback(async () => {
-    let currentProxy: string | null = null;
-
-    if (config.enabled && config.mode !== 'off') {
-      if (config.mode === 'manual' && config.manual) {
-        currentProxy = buildProxyUrl(config.manual);
-      } else if (config.mode === 'auto' && config.selectedProxy) {
-        const detected = detectedProxies.find(
-          (p) => p.software === config.selectedProxy && p.running
-        );
-        if (detected) {
-          currentProxy = proxyService.buildUrl(detected);
-        }
-      }
+    if (!isAvailable) {
+      setStatus({
+        connected: false,
+        currentProxy: null,
+      });
+      return;
     }
 
-    // Sync proxy configuration to the Rust backend
-    await proxyService.setBackendProxy(currentProxy);
+    setApplying(true);
+    try {
+      const resolution = await resolveCurrentProxy();
+      syncSelectedProxy(resolution.selectedProxy);
 
-    setStatus({
-      currentProxy,
-      connected: !!currentProxy,
-    });
-  }, [config, detectedProxies, setStatus]);
+      if (resolution.error) {
+        setError(resolution.error);
+      } else {
+        clearError();
+      }
+
+      await proxyService.syncBackendProxy(resolution.proxyUrl);
+
+      setStatus({
+        currentProxy: resolution.proxyUrl,
+        connected: !!resolution.proxyUrl,
+      });
+      if (resolution.proxyUrl) {
+        setLastKnownGood(resolution.proxyUrl);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      setStatus({
+        connected: false,
+      });
+    } finally {
+      setApplying(false);
+    }
+  }, [
+    isAvailable,
+    resolveCurrentProxy,
+    syncSelectedProxy,
+    setApplying,
+    setStatus,
+    setLastKnownGood,
+    clearError,
+    setError,
+  ]);
 
   const selectProxy = useCallback(
     (software: ProxySoftware) => {
@@ -224,6 +365,28 @@ export function useProxy(): UseProxyReturn {
     },
     [setSelectedProxy]
   );
+
+  // Keep backend proxy synchronized with effective endpoint.
+  useEffect(() => {
+    if (!isAvailable) {
+      return;
+    }
+    void applyProxy();
+  }, [
+    isAvailable,
+    applyProxy,
+    config.enabled,
+    config.mode,
+    config.manual,
+    config.selectedProxy,
+    detectedProxies,
+  ]);
+
+  const manualValidation = validateManualProxyConfig(config.manual);
+  const validationError =
+    config.mode === 'manual' && config.enabled && !manualValidation.valid
+      ? manualValidation.error
+      : null;
 
   return {
     // Configuration
@@ -241,6 +404,7 @@ export function useProxy(): UseProxyReturn {
     connected: status.connected,
     currentProxy: status.currentProxy,
     lastTestLatency: status.lastTest?.latency ?? null,
+    validationError,
 
     // UI State
     isTesting,

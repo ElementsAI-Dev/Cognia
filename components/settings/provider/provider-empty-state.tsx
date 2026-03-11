@@ -11,16 +11,26 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { ReactNode } from 'react';
 
+interface ProviderGuidanceItem {
+  id: string;
+  label: string;
+  description?: string;
+  actionLabel: string;
+  onAction: () => void;
+}
+
 interface ProviderEmptyStateProps {
   onAddProvider: () => void;
   onImportSettings: () => void;
   importButton?: ReactNode;
+  guidanceItems?: ProviderGuidanceItem[];
 }
 
 export function ProviderEmptyState({
   onAddProvider,
   onImportSettings,
   importButton,
+  guidanceItems = [],
 }: ProviderEmptyStateProps) {
   const t = useTranslations('providers');
 
@@ -42,6 +52,27 @@ export function ProviderEmptyState({
           {t('emptyStateDescription') ||
             'Add your first AI provider to start chatting with language models. You can configure OpenAI, Anthropic, Google, and more.'}
         </p>
+
+        {guidanceItems.length > 0 && (
+          <div className="w-full max-w-2xl mb-6 space-y-2">
+            {guidanceItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex flex-col gap-2 rounded-md border bg-muted/20 px-3 py-2 text-left sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{item.label}</p>
+                  {item.description && (
+                    <p className="text-xs text-muted-foreground">{item.description}</p>
+                  )}
+                </div>
+                <Button size="sm" variant="outline" onClick={item.onAction} className="shrink-0">
+                  {item.actionLabel}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3">

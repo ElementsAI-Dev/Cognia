@@ -11,7 +11,7 @@ const mockIsTauri = jest.fn();
 
 jest.mock('@/lib/native/proxy', () => ({
   proxyService: {
-    test: (...args: unknown[]) => mockProxyTest(...args),
+    testMulti: (...args: unknown[]) => mockProxyTest(...args),
   },
 }));
 
@@ -37,6 +37,8 @@ const mockStore: {
   setHealthMonitoring: jest.Mock;
   recordHealthCheck: jest.Mock;
   clearHealthHistory: jest.Mock;
+  setStatus: jest.Mock;
+  setTestResult: jest.Mock;
 } = {
   config: {
     enabled: true,
@@ -54,6 +56,8 @@ const mockStore: {
   setHealthMonitoring: jest.fn(),
   recordHealthCheck: jest.fn(),
   clearHealthHistory: jest.fn(),
+  setStatus: jest.fn(),
+  setTestResult: jest.fn(),
 };
 
 jest.mock('@/stores/system', () => {
@@ -73,6 +77,8 @@ jest.mock('@/stores/system', () => {
     setHealthMonitoring: jest.fn(),
     recordHealthCheck: jest.fn(),
     clearHealthHistory: jest.fn(),
+    setStatus: jest.fn(),
+    setTestResult: jest.fn(),
   };
 
   const mockUseProxyStore = Object.assign(

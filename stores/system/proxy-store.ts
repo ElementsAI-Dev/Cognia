@@ -21,6 +21,7 @@ import type {
   ProxySoftware,
 } from '@/types/system/proxy';
 import { createDefaultProxyConfig, createDefaultProxyStatus } from '@/types/system/proxy';
+import { resolveEffectiveProxy } from '@/lib/network/proxy-resolution';
 
 /** Health check result */
 export interface ProxyHealthCheckResult {
@@ -67,7 +68,7 @@ export interface ProxyActions {
   setMode: (mode: ProxyMode) => void;
   setEnabled: (enabled: boolean) => void;
   setManualConfig: (config: ManualProxyConfig) => void;
-  setSelectedProxy: (software: ProxySoftware) => void;
+  setSelectedProxy: (software: ProxySoftware | undefined) => void;
   setTestUrl: (url: string) => void;
   setAutoDetectInterval: (interval: number) => void;
   updateConfig: (config: Partial<ProxyConfig>) => void;
@@ -80,6 +81,7 @@ export interface ProxyActions {
   // Status
   setStatus: (status: Partial<ProxyStatus>) => void;
   setTestResult: (result: ProxyTestResult) => void;
+  setLastKnownGood: (proxyUrl: string | null) => void;
 
   // UI State
   setDetecting: (detecting: boolean) => void;
@@ -127,13 +129,31 @@ export const useProxyStore = create<ProxyState & ProxyActions>()(
       setMode: (mode) =>
         set((state) => ({
           config: { ...state.config, mode },
-          status: { ...state.status, mode },
+          status: {
+            ...state.status,
+            mode,
+            ...(mode === 'off'
+              ? {
+                  connected: false,
+                  currentProxy: null,
+                }
+              : {}),
+          },
         })),
 
       setEnabled: (enabled) =>
         set((state) => ({
           config: { ...state.config, enabled },
-          status: { ...state.status, enabled },
+          status: {
+            ...state.status,
+            enabled,
+            ...(enabled
+              ? {}
+              : {
+                  connected: false,
+                  currentProxy: null,
+                }),
+          },
         })),
 
       setManualConfig: (manual) =>
@@ -185,6 +205,15 @@ export const useProxyStore = create<ProxyState & ProxyActions>()(
             connected: result.success,
             lastTest: result,
             lastTestTime: new Date().toISOString(),
+          },
+        })),
+
+      setLastKnownGood: (proxyUrl) =>
+        set((state) => ({
+          status: {
+            ...state.status,
+            lastKnownGoodProxy: proxyUrl,
+            lastKnownGoodTime: proxyUrl ? new Date().toISOString() : state.status.lastKnownGoodTime,
           },
         })),
 
@@ -268,29 +297,7 @@ export const useProxyHealthMonitoring = () => useProxyStore((state) => state.hea
 
 /** Get the currently active proxy URL */
 export function getActiveProxyUrl(state: ProxyState): string | null {
-  if (!state.config.enabled || state.config.mode === 'off') {
-    return null;
-  }
-
-  if (state.config.mode === 'manual' && state.config.manual) {
-    const { protocol, host, port, username, password } = state.config.manual;
-    const auth = username && password ? `${username}:${password}@` : '';
-    return `${protocol}://${auth}${host}:${port}`;
-  }
-
-  if (state.config.mode === 'auto' && state.config.selectedProxy) {
-    const detected = state.detectedProxies.find(
-      (p) => p.software === state.config.selectedProxy && p.running
-    );
-    if (detected) {
-      const port = detected.mixedPort || detected.httpPort;
-      if (port) {
-        return `http://127.0.0.1:${port}`;
-      }
-    }
-  }
-
-  return null;
+  return resolveEffectiveProxy(state.config, state.detectedProxies).proxyUrl;
 }
 
 export default useProxyStore;

@@ -21,9 +21,10 @@ import type { PersistedChatMessage } from '@/lib/storage/persistence/types';
 import { WebDAVProvider } from './providers/webdav-provider';
 import { GitHubProvider } from './providers/github-provider';
 import { GoogleDriveProvider } from './providers/googledrive-provider';
+import { validateConvexDeploymentUrl } from './convex-url';
 import { createFullBackup } from '@/lib/storage/data-export';
-import { importFullBackup } from '@/lib/storage/data-import';
-import { generateChecksum } from '@/lib/storage/data-import';
+import { importFullBackup, generateChecksum } from '@/lib/storage/data-import';
+import { sha256Hex } from '@/lib/storage/persistence/crypto';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.app;
@@ -187,7 +188,11 @@ class SyncManager {
   async initConvex(deployKey: string): Promise<void> {
     const { useSyncStore } = await import('@/stores/sync');
     const config = useSyncStore.getState().convexConfig;
-    
+    const urlError = validateConvexDeploymentUrl(config.deploymentUrl);
+    if (urlError) {
+      throw new Error(urlError);
+    }
+
     const { ConvexProvider } = await import('./providers/convex-provider');
     this.provider = new ConvexProvider(config, deployKey);
     this.providerType = 'convex';
@@ -242,6 +247,12 @@ class SyncManager {
         }
         await this.initGoogleDrive(token);
       } else if (provider === 'convex') {
+        const { useSyncStore } = await import('@/stores/sync');
+        const config = useSyncStore.getState().convexConfig;
+        const urlError = validateConvexDeploymentUrl(config.deploymentUrl);
+        if (urlError) {
+          return { success: false, error: urlError };
+        }
         const { getConvexDeployKey } = await import('./credential-storage');
         const deployKey = await getConvexDeployKey();
         if (!deployKey) {
@@ -512,6 +523,14 @@ class SyncManager {
     if (remoteData.checksum) {
       const actualChecksum = generateChecksum(JSON.stringify(remoteData.data));
       if (actualChecksum !== remoteData.checksum) {
+        const isConvexLegacyCompatibility =
+          this.providerType === 'convex' &&
+          (!remoteData.dataTypes.includes('settings') || !remoteData.dataTypes.includes('artifacts'));
+
+        if (isConvexLegacyCompatibility) {
+          log.warn('Convex download checksum mismatch on legacy payload; continuing with compatibility checksum');
+          remoteData = { ...remoteData, checksum: actualChecksum };
+        } else {
         log.error('Checksum mismatch on downloaded data', {
           expected: remoteData.checksum,
           actual: actualChecksum,
@@ -520,13 +539,21 @@ class SyncManager {
           'download',
           'Data integrity check failed: checksum mismatch'
         );
+        }
       }
     }
 
     // Import remote data
     try {
       this.checkCancelled();
-      await this.importRemoteData(remoteData);
+      const importResult = await this.importRemoteData(remoteData);
+      if (!importResult.success) {
+        const details = importResult.errors.map((entry) => entry.message).join(', ');
+        return this.createErrorResult(
+          'download',
+          details ? `Import failed: ${details}` : 'Import failed'
+        );
+      }
 
       onProgress?.({
         phase: 'completing',
@@ -538,6 +565,8 @@ class SyncManager {
       const itemsSynced =
         (remoteData.data.sessions?.length || 0) +
         (remoteData.data.messages?.length || 0) +
+        (remoteData.data.folders?.length || 0) +
+        (remoteData.data.projects?.length || 0) +
         Object.keys(remoteData.data.artifacts || {}).length +
         (remoteData.data.settings ? 1 : 0);
 
@@ -711,7 +740,19 @@ class SyncManager {
   /**
    * Import remote data into local storage
    */
-  private async importRemoteData(remoteData: SyncData): Promise<void> {
+  private async importRemoteData(remoteData: SyncData) {
+    const payload: BackupPackageV3['payload'] = {
+      sessions: remoteData.data.sessions || [],
+      messages: (remoteData.data.messages || []).map(fromSyncMessage),
+      projects: (remoteData.data.projects as Project[]) || [],
+      knowledgeFiles: [],
+      summaries: [],
+      settings: remoteData.data.settings,
+      artifacts: remoteData.data.artifacts,
+      folders: remoteData.data.folders as DBFolder[] | undefined,
+    };
+    const payloadChecksum = await sha256Hex(JSON.stringify(payload));
+
     const exportData: BackupPackageV3 = {
       version: '3.0',
       manifest: {
@@ -722,22 +763,13 @@ class SyncManager {
         backend: 'web-dexie',
         integrity: {
           algorithm: 'SHA-256',
-          checksum: '',
+          checksum: payloadChecksum,
         },
       },
-      payload: {
-        sessions: remoteData.data.sessions || [],
-        messages: (remoteData.data.messages || []).map(fromSyncMessage),
-        projects: (remoteData.data.projects as Project[]) || [],
-        knowledgeFiles: [],
-        summaries: [],
-        settings: remoteData.data.settings,
-        artifacts: remoteData.data.artifacts,
-        folders: remoteData.data.folders as DBFolder[] | undefined,
-      },
+      payload,
     };
 
-    await importFullBackup(exportData, {
+    return await importFullBackup(exportData, {
       mergeStrategy: 'merge',
       generateNewIds: false,
       validateData: true,
@@ -780,7 +812,14 @@ class SyncManager {
         }
       }
 
-      await this.importRemoteData(backupData);
+      const importResult = await this.importRemoteData(backupData);
+      if (!importResult.success) {
+        log.error('Backup restore import failed', {
+          backupId,
+          errors: importResult.errors,
+        });
+        return false;
+      }
       log.info(`Backup ${backupId} restored successfully`);
       return true;
     } catch (error) {

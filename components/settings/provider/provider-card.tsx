@@ -80,7 +80,7 @@ import type {
 import { maskApiKey, isValidApiKeyFormat } from '@/lib/ai/infrastructure/api-key-rotation';
 import { ModelListDialog } from './model-list-dialog';
 import { ModelSettingsDialog } from './model-settings-dialog';
-import type { ProviderReadinessState } from './provider-readiness';
+import type { ProviderReadinessState, ProviderVerificationStatus } from './provider-readiness';
 
 interface TestResult {
   success: boolean;
@@ -217,6 +217,7 @@ interface ProviderCardProps {
   onRotationStrategyChange?: (strategy: ApiKeyRotationStrategy) => void;
   onReorderApiKeys?: (fromIndex: number, toIndex: number) => void;
   readinessState?: ProviderReadinessState;
+  verificationStatus?: ProviderVerificationStatus;
   enableToggleDisabled?: boolean;
   enableToggleDisabledReason?: string;
   testConnectionDisabled?: boolean;
@@ -252,6 +253,7 @@ export const ProviderCard = React.memo(function ProviderCard({
   onRotationStrategyChange,
   onReorderApiKeys,
   readinessState,
+  verificationStatus,
   enableToggleDisabled = false,
   enableToggleDisabledReason,
   testConnectionDisabled,
@@ -335,6 +337,13 @@ export const ProviderCard = React.memo(function ProviderCard({
     }
     if (readinessState === 'unconfigured') {
       return <Badge variant="outline" className="h-6 text-xs">{t('notConfigured') || 'Not Configured'}</Badge>;
+    }
+    if (verificationStatus === 'stale') {
+      return (
+        <Badge variant="outline" className="h-6 text-xs text-amber-600 border-amber-400">
+          {t('verificationStale') || 'Verification Stale'}
+        </Badge>
+      );
     }
     if (readinessState === 'configured') {
       return <Badge variant="secondary" className="h-6 text-xs">{t('configured') || 'Configured'}</Badge>;

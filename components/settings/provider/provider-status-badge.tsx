@@ -5,7 +5,14 @@ import { Check, X, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 
-export type ProviderStatus = 'connected' | 'testing' | 'failed' | 'ready' | 'unknown' | 'not-set';
+export type ProviderStatus =
+  | 'connected'
+  | 'testing'
+  | 'failed'
+  | 'ready'
+  | 'stale'
+  | 'unknown'
+  | 'not-set';
 
 interface ProviderStatusBadgeProps {
   status: ProviderStatus;
@@ -47,6 +54,13 @@ export const ProviderStatusBadge = React.memo(function ProviderStatusBadge({
         </Badge>
       );
 
+    case 'stale':
+      return (
+        <Badge variant="outline" className={`text-[10px] text-amber-600 border-amber-400 ${className || ''}`}>
+          {t('verificationStaleShort') || 'Stale'}
+        </Badge>
+      );
+
     case 'failed':
       return (
         <Badge variant="destructive" className={`h-6 text-xs gap-1 ${className || ''}`}>
@@ -72,12 +86,14 @@ export function getProviderStatus(
   isEnabled: boolean,
   hasApiKey: boolean,
   isTesting: boolean,
-  testResult?: { success: boolean } | null
+  testResult?: { success: boolean } | null,
+  verificationStatus?: 'unverified' | 'verified' | 'stale'
 ): ProviderStatus {
   if (isTesting) return 'testing';
   if (!isEnabled || !hasApiKey) return 'not-set';
-  if (testResult?.success) return 'connected';
   if (testResult && !testResult.success) return 'failed';
+  if (verificationStatus === 'stale') return 'stale';
+  if (testResult?.success || verificationStatus === 'verified') return 'connected';
   return 'ready';
 }
 

@@ -32,6 +32,11 @@ describe('ProviderStatusBadge', () => {
     expect(screen.getByTestId('badge')).toBeInTheDocument();
   });
 
+  it('renders stale status', () => {
+    render(<ProviderStatusBadge status="stale" />);
+    expect(screen.getByTestId('badge')).toBeInTheDocument();
+  });
+
   it('renders failed status with X icon', () => {
     render(<ProviderStatusBadge status="failed" />);
     expect(screen.getByTestId('badge')).toBeInTheDocument();
@@ -81,5 +86,9 @@ describe('getProviderStatus', () => {
 
   it('returns ready when enabled with key but no test result', () => {
     expect(getProviderStatus(true, true, false, null)).toBe('ready');
+  });
+
+  it('returns stale when verification state is stale', () => {
+    expect(getProviderStatus(true, true, false, null, 'stale')).toBe('stale');
   });
 });

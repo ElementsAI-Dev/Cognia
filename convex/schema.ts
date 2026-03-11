@@ -28,6 +28,15 @@ export default defineSchema({
     .index("by_folder", ["folderId"])
     .index("by_updated", ["localUpdatedAt"]),
 
+  // ── 1.5 Settings ──
+  settings: defineTable({
+    localId: v.string(),
+    payload: v.string(),
+    localUpdatedAt: v.string(),
+  })
+    .index("by_local_id", ["localId"])
+    .index("by_updated", ["localUpdatedAt"]),
+
   // ── 2. Messages ──
   messages: defineTable({
     localId: v.string(),
@@ -204,6 +213,15 @@ export default defineSchema({
   })
     .index("by_local_id", ["localId"])
     .index("by_kind", ["kind"]),
+
+  // ── 10.5 Artifacts ──
+  artifacts: defineTable({
+    localId: v.string(),
+    payload: v.string(),
+    localUpdatedAt: v.string(),
+  })
+    .index("by_local_id", ["localId"])
+    .index("by_updated", ["localUpdatedAt"]),
 
   // ── 11. Folders ──
   folders: defineTable({
