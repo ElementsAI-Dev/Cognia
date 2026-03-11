@@ -1,13 +1,19 @@
 /**
  * Plugin Marketplace Store
- * Persists favorites, recently viewed, install progress, and user preferences.
- * 
+ * Persists favorites, recently viewed, discovery query state, and user preferences.
+ *
  * Uses plain objects (Record/Array) instead of Map/Set for robust JSON serialization.
  */
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { InstallProgressInfo, InstallStage } from '@/components/plugin/marketplace/components/marketplace-types';
+import type {
+  InstallProgressInfo,
+  InstallStage,
+  SortOption,
+  CategoryFilter,
+  QuickFilter,
+} from '@/components/plugin/marketplace/components/marketplace-types';
 
 // =============================================================================
 // Types
@@ -18,6 +24,57 @@ interface UserReview {
   rating: number;
   content: string;
   date: string;
+}
+
+export type MarketplaceSourceMode = 'remote' | 'fallback-mock';
+
+export type MarketplaceErrorCategory =
+  | 'network'
+  | 'auth'
+  | 'rate_limit'
+  | 'validation'
+  | 'unsupported_env'
+  | 'install_conflict'
+  | 'unknown';
+
+export type PluginOperationStage = 'idle' | 'installing' | 'updating' | 'installed' | 'error';
+
+export interface MarketplaceDiscoveryState {
+  query: string;
+  sortBy: SortOption;
+  categoryFilter: CategoryFilter;
+  quickFilter: QuickFilter;
+  page: number;
+  pageSize: number;
+}
+
+interface MarketplaceSourceState {
+  mode: MarketplaceSourceMode;
+  lastFailureCategory?: MarketplaceErrorCategory;
+  lastErrorMessage?: string;
+  updatedAt?: string;
+}
+
+interface PluginOperationState {
+  stage: PluginOperationStage;
+  operationKey?: string;
+  targetVersion?: string;
+  retryCount: number;
+  lastErrorCategory?: MarketplaceErrorCategory;
+  lastErrorMessage?: string;
+  retryable?: boolean;
+  updatedAt: string;
+}
+
+interface MarketplaceDiagnostic {
+  operation: 'search' | 'detail' | 'install' | 'update' | 'retry';
+  category: MarketplaceErrorCategory;
+  retryable: boolean;
+  message: string;
+  pluginId?: string;
+  operationKey?: string;
+  sourceMode: MarketplaceSourceMode;
+  occurredAt: string;
 }
 
 interface PluginMarketplaceState {
@@ -31,6 +88,48 @@ interface PluginMarketplaceState {
   recentlyViewed: string[];
   addRecentlyViewed: (pluginId: string) => void;
   clearRecentlyViewed: () => void;
+
+  // Canonical discovery state
+  discoveryState: MarketplaceDiscoveryState;
+  setDiscoveryQuery: (query: string) => void;
+  setDiscoverySort: (sortBy: SortOption) => void;
+  setDiscoveryCategoryFilter: (categoryFilter: CategoryFilter) => void;
+  setDiscoveryQuickFilter: (quickFilter: QuickFilter) => void;
+  setDiscoveryPage: (page: number) => void;
+  setDiscoveryState: (updates: Partial<MarketplaceDiscoveryState>) => void;
+  resetDiscoveryState: () => void;
+
+  // Marketplace source mode and diagnostics
+  sourceState: MarketplaceSourceState;
+  setRemoteMode: () => void;
+  setFallbackMode: (category: MarketplaceErrorCategory, message?: string) => void;
+  diagnostics: MarketplaceDiagnostic[];
+  latestDiagnostic?: MarketplaceDiagnostic;
+  recordDiagnostic: (diagnostic: Omit<MarketplaceDiagnostic, 'occurredAt' | 'sourceMode'>) => void;
+  clearDiagnostics: () => void;
+
+  // Operation state
+  operationState: Record<string, PluginOperationState>;
+  startPluginOperation: (
+    pluginId: string,
+    operation: 'install' | 'update',
+    targetVersion?: string
+  ) => { operationKey: string; skipped: boolean };
+  completePluginOperation: (pluginId: string) => void;
+  failPluginOperation: (
+    pluginId: string,
+    category: MarketplaceErrorCategory,
+    message: string,
+    retryable: boolean,
+    operation?: 'install' | 'update'
+  ) => void;
+  retryPluginOperation: (
+    pluginId: string,
+    operation: 'install' | 'update',
+    targetVersion?: string
+  ) => { operationKey: string; skipped: boolean };
+  getPluginOperationState: (pluginId: string) => PluginOperationState | undefined;
+  getActiveOperationKey: (pluginId: string) => string | undefined;
 
   // Install progress tracking (not persisted — transient state)
   installProgress: Record<string, InstallProgressInfo>;
@@ -63,6 +162,44 @@ interface PluginMarketplaceState {
 
 const MAX_RECENTLY_VIEWED = 20;
 const MAX_SEARCH_HISTORY = 50;
+const MAX_DIAGNOSTICS = 100;
+
+const DEFAULT_DISCOVERY_STATE: MarketplaceDiscoveryState = {
+  query: '',
+  sortBy: 'popular',
+  categoryFilter: 'all',
+  quickFilter: 'all',
+  page: 1,
+  pageSize: 20,
+};
+
+const DEFAULT_SOURCE_STATE: MarketplaceSourceState = {
+  mode: 'remote',
+};
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+function redactSensitiveError(input: string): string {
+  if (!input) return '';
+  return input
+    .replace(/Bearer\s+[A-Za-z0-9\-._~+/]+=*/gi, 'Bearer [redacted]')
+    .replace(/\bsk_[A-Za-z0-9_-]{8,}\b/g, '[redacted-token]')
+    .replace(/api[_-]?key[=: ]+[A-Za-z0-9_-]{6,}/gi, 'api-key=[redacted]')
+    .slice(0, 500);
+}
+
+function mapInstallStageToOperationStage(stage: InstallStage): PluginOperationStage {
+  if (stage === 'complete') return 'installed';
+  if (stage === 'error') return 'error';
+  if (stage === 'idle') return 'idle';
+  return 'installing';
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
 
 // =============================================================================
 // Store
@@ -104,12 +241,230 @@ export const usePluginMarketplaceStore = create<PluginMarketplaceState>()(
 
       clearRecentlyViewed: () => set({ recentlyViewed: [] }),
 
+      // Canonical discovery state
+      discoveryState: { ...DEFAULT_DISCOVERY_STATE },
+
+      setDiscoveryQuery: (query) =>
+        set((state) => ({
+          discoveryState: {
+            ...state.discoveryState,
+            query,
+            page: 1,
+          },
+        })),
+
+      setDiscoverySort: (sortBy) =>
+        set((state) => ({
+          discoveryState: {
+            ...state.discoveryState,
+            sortBy,
+            page: 1,
+          },
+        })),
+
+      setDiscoveryCategoryFilter: (categoryFilter) =>
+        set((state) => ({
+          discoveryState: {
+            ...state.discoveryState,
+            categoryFilter,
+            page: 1,
+          },
+        })),
+
+      setDiscoveryQuickFilter: (quickFilter) =>
+        set((state) => ({
+          discoveryState: {
+            ...state.discoveryState,
+            quickFilter,
+            page: 1,
+          },
+        })),
+
+      setDiscoveryPage: (page) =>
+        set((state) => ({
+          discoveryState: {
+            ...state.discoveryState,
+            page: Math.max(1, page),
+          },
+        })),
+
+      setDiscoveryState: (updates) =>
+        set((state) => ({
+          discoveryState: {
+            ...state.discoveryState,
+            ...updates,
+          },
+        })),
+
+      resetDiscoveryState: () => set({ discoveryState: { ...DEFAULT_DISCOVERY_STATE } }),
+
+      // Source mode and diagnostics
+      sourceState: { ...DEFAULT_SOURCE_STATE },
+      diagnostics: [],
+      latestDiagnostic: undefined,
+
+      setRemoteMode: () =>
+        set({
+          sourceState: {
+            mode: 'remote',
+            updatedAt: nowIso(),
+          },
+        }),
+
+      setFallbackMode: (category, message) =>
+        set({
+          sourceState: {
+            mode: 'fallback-mock',
+            lastFailureCategory: category,
+            lastErrorMessage: redactSensitiveError(message || ''),
+            updatedAt: nowIso(),
+          },
+        }),
+
+      recordDiagnostic: (diagnostic) => {
+        const sourceMode = get().sourceState.mode;
+        const entry: MarketplaceDiagnostic = {
+          ...diagnostic,
+          message: redactSensitiveError(diagnostic.message),
+          occurredAt: nowIso(),
+          sourceMode,
+        };
+        set((state) => ({
+          diagnostics: [entry, ...state.diagnostics].slice(0, MAX_DIAGNOSTICS),
+          latestDiagnostic: entry,
+        }));
+      },
+
+      clearDiagnostics: () => set({ diagnostics: [], latestDiagnostic: undefined }),
+
+      // Operation state
+      operationState: {},
+
+      startPluginOperation: (pluginId, operation, targetVersion) => {
+        const key = `${operation}:${pluginId}:${targetVersion || 'latest'}`;
+        let skipped = false;
+
+        set((state) => {
+          const previous = state.operationState[pluginId];
+          if (previous?.operationKey === key && previous.stage !== 'error') {
+            skipped = true;
+            return state;
+          }
+
+          const nextStage: PluginOperationStage =
+            operation === 'update' ? 'updating' : 'installing';
+
+          return {
+            operationState: {
+              ...state.operationState,
+              [pluginId]: {
+                stage: nextStage,
+                operationKey: key,
+                targetVersion,
+                retryCount: previous?.retryCount || 0,
+                updatedAt: nowIso(),
+              },
+            },
+          };
+        });
+
+        return { operationKey: key, skipped };
+      },
+
+      completePluginOperation: (pluginId) => {
+        set((state) => ({
+          operationState: {
+            ...state.operationState,
+            [pluginId]: {
+              ...(state.operationState[pluginId] || {
+                retryCount: 0,
+              }),
+              stage: 'installed',
+              lastErrorCategory: undefined,
+              lastErrorMessage: undefined,
+              retryable: undefined,
+              updatedAt: nowIso(),
+            },
+          },
+        }));
+      },
+
+      failPluginOperation: (pluginId, category, message, retryable, operation = 'install') => {
+        const previous = get().operationState[pluginId];
+        const key =
+          previous?.operationKey || `${operation}:${pluginId}:${previous?.targetVersion || 'latest'}`;
+
+        set((state) => ({
+          operationState: {
+            ...state.operationState,
+            [pluginId]: {
+              ...(state.operationState[pluginId] || {
+                retryCount: 0,
+              }),
+              stage: 'error',
+              operationKey: key,
+              lastErrorCategory: category,
+              lastErrorMessage: redactSensitiveError(message),
+              retryable,
+              updatedAt: nowIso(),
+            },
+          },
+        }));
+      },
+
+      retryPluginOperation: (pluginId, operation, targetVersion) => {
+        const startResult = get().startPluginOperation(pluginId, operation, targetVersion);
+        if (startResult.skipped) {
+          return startResult;
+        }
+
+        set((state) => {
+          const previous = state.operationState[pluginId];
+          return {
+            operationState: {
+              ...state.operationState,
+              [pluginId]: {
+                ...(previous || {
+                  stage: operation === 'update' ? 'updating' : 'installing',
+                }),
+                stage: operation === 'update' ? 'updating' : 'installing',
+                operationKey: startResult.operationKey,
+                retryCount: (previous?.retryCount || 0) + 1,
+                lastErrorCategory: undefined,
+                lastErrorMessage: undefined,
+                retryable: undefined,
+                updatedAt: nowIso(),
+              },
+            },
+          };
+        });
+
+        return startResult;
+      },
+
+      getPluginOperationState: (pluginId) => get().operationState[pluginId],
+      getActiveOperationKey: (pluginId) => get().operationState[pluginId]?.operationKey,
+
       // Install progress (transient, not persisted)
       installProgress: {},
 
       setInstallProgress: (pluginId, progress) => {
         set((state) => ({
           installProgress: { ...state.installProgress, [pluginId]: progress },
+          operationState: {
+            ...state.operationState,
+            [pluginId]: {
+              ...(state.operationState[pluginId] || {
+                retryCount: 0,
+              }),
+              stage: mapInstallStageToOperationStage(progress.stage),
+              lastErrorMessage:
+                progress.stage === 'error'
+                  ? redactSensitiveError(progress.error || progress.message)
+                  : undefined,
+              updatedAt: nowIso(),
+            },
+          },
         }));
       },
 
@@ -124,6 +479,10 @@ export const usePluginMarketplaceStore = create<PluginMarketplaceState>()(
       getInstallProgress: (pluginId) => get().installProgress[pluginId],
 
       isInstalling: (pluginId) => {
+        const operation = get().operationState[pluginId];
+        if (operation?.stage === 'installing' || operation?.stage === 'updating') {
+          return true;
+        }
         const progress = get().installProgress[pluginId];
         if (!progress) return false;
         return !['idle', 'complete', 'error'].includes(progress.stage);
@@ -172,6 +531,11 @@ export const usePluginMarketplaceStore = create<PluginMarketplaceState>()(
         set({
           favorites: {},
           recentlyViewed: [],
+          discoveryState: { ...DEFAULT_DISCOVERY_STATE },
+          sourceState: { ...DEFAULT_SOURCE_STATE },
+          diagnostics: [],
+          latestDiagnostic: undefined,
+          operationState: {},
           installProgress: {},
           userReviews: {},
           searchHistory: [],
@@ -180,14 +544,26 @@ export const usePluginMarketplaceStore = create<PluginMarketplaceState>()(
     }),
     {
       name: 'cognia-plugin-marketplace',
+      version: 2,
       storage: createJSONStorage(() => localStorage),
+      migrate: (state, version) => {
+        const persisted = (state || {}) as Record<string, unknown>;
+        if (version < 2) {
+          return {
+            ...persisted,
+            discoveryState: DEFAULT_DISCOVERY_STATE,
+          };
+        }
+        return persisted;
+      },
       partialize: (state) => ({
         favorites: state.favorites,
         recentlyViewed: state.recentlyViewed,
+        discoveryState: state.discoveryState,
         userReviews: state.userReviews,
         searchHistory: state.searchHistory,
         viewMode: state.viewMode,
-        // installProgress is intentionally excluded (transient state)
+        // installProgress, sourceState, diagnostics, operationState are transient
       }),
     }
   )
@@ -203,7 +579,17 @@ export const selectFavoriteCount = (state: PluginMarketplaceState) =>
 export const selectIsInstalling = (pluginId: string) => (state: PluginMarketplaceState) =>
   state.isInstalling(pluginId);
 
-export const selectInstallStage = (pluginId: string) => (state: PluginMarketplaceState): InstallStage => {
-  const progress = state.installProgress[pluginId];
-  return progress?.stage || 'idle';
-};
+export const selectInstallStage =
+  (pluginId: string) =>
+  (state: PluginMarketplaceState): InstallStage => {
+    const progress = state.installProgress[pluginId];
+    return progress?.stage || 'idle';
+  };
+
+export const selectOperationStage =
+  (pluginId: string) =>
+  (state: PluginMarketplaceState): PluginOperationStage =>
+    state.operationState[pluginId]?.stage || 'idle';
+
+export const selectMarketplaceSourceMode = (state: PluginMarketplaceState) =>
+  state.sourceState.mode;

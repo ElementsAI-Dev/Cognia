@@ -258,6 +258,108 @@ describe('usePluginMarketplaceStore', () => {
   });
 
   // ===========================================================================
+  // Canonical Discovery State
+  // ===========================================================================
+
+  describe('discoveryState', () => {
+    it('should update query and reset page', () => {
+      act(() => {
+        usePluginMarketplaceStore.getState().setDiscoveryPage(4);
+        usePluginMarketplaceStore.getState().setDiscoveryQuery('agent');
+      });
+      const state = usePluginMarketplaceStore.getState();
+      expect(state.discoveryState.query).toBe('agent');
+      expect(state.discoveryState.page).toBe(1);
+    });
+
+    it('should reset page when sort changes', () => {
+      act(() => {
+        usePluginMarketplaceStore.getState().setDiscoveryPage(3);
+        usePluginMarketplaceStore.getState().setDiscoverySort('rating');
+      });
+      const state = usePluginMarketplaceStore.getState();
+      expect(state.discoveryState.sortBy).toBe('rating');
+      expect(state.discoveryState.page).toBe(1);
+    });
+  });
+
+  // ===========================================================================
+  // Source State and Diagnostics
+  // ===========================================================================
+
+  describe('sourceState and diagnostics', () => {
+    it('should switch to fallback mode with category', () => {
+      act(() => {
+        usePluginMarketplaceStore
+          .getState()
+          .setFallbackMode('network', 'Network timeout');
+      });
+      const state = usePluginMarketplaceStore.getState();
+      expect(state.sourceState.mode).toBe('fallback-mock');
+      expect(state.sourceState.lastFailureCategory).toBe('network');
+    });
+
+    it('should redact sensitive values in diagnostics', () => {
+      act(() => {
+        usePluginMarketplaceStore.getState().recordDiagnostic({
+          operation: 'search',
+          category: 'auth',
+          retryable: false,
+          message: 'Bearer sk_live_sensitive_token',
+        });
+      });
+      const latest = usePluginMarketplaceStore.getState().latestDiagnostic;
+      expect(latest).toBeDefined();
+      expect(latest?.message).toContain('[redacted');
+    });
+  });
+
+  // ===========================================================================
+  // Operation State
+  // ===========================================================================
+
+  describe('operationState', () => {
+    it('should start and complete install operation', () => {
+      act(() => {
+        usePluginMarketplaceStore.getState().startPluginOperation('p1', 'install');
+      });
+      expect(usePluginMarketplaceStore.getState().getPluginOperationState('p1')?.stage).toBe('installing');
+
+      act(() => {
+        usePluginMarketplaceStore.getState().completePluginOperation('p1');
+      });
+      expect(usePluginMarketplaceStore.getState().getPluginOperationState('p1')?.stage).toBe('installed');
+    });
+
+    it('should prevent duplicate in-flight operation keys', () => {
+      let firstSkipped = false;
+      let secondSkipped = false;
+      act(() => {
+        firstSkipped = usePluginMarketplaceStore
+          .getState()
+          .startPluginOperation('p1', 'install', '1.0.0').skipped;
+        secondSkipped = usePluginMarketplaceStore
+          .getState()
+          .startPluginOperation('p1', 'install', '1.0.0').skipped;
+      });
+      expect(firstSkipped).toBe(false);
+      expect(secondSkipped).toBe(true);
+    });
+
+    it('should map install progress to operation stage', () => {
+      act(() => {
+        usePluginMarketplaceStore.getState().setInstallProgress('p2', {
+          pluginId: 'p2',
+          stage: 'complete',
+          progress: 100,
+          message: 'Done',
+        });
+      });
+      expect(usePluginMarketplaceStore.getState().getPluginOperationState('p2')?.stage).toBe('installed');
+    });
+  });
+
+  // ===========================================================================
   // Reset
   // ===========================================================================
 
