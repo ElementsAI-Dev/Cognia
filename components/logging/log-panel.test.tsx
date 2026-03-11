@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LogPanel } from './log-panel';
-import { useLogStream, useLogModules } from '@/hooks/logging';
+import { useLogStream, useLogModules, useTransportHealth } from '@/hooks/logging';
 import type { StructuredLogEntry } from '@/lib/logger';
 
 // Mock next-intl
@@ -50,6 +50,13 @@ jest.mock('next-intl', () => ({
       'panel.traceView': 'Trace View',
       'panel.agentTraceModule': 'Agent Trace',
       'panel.noTraceEvents': 'No agent trace events',
+      'panel.presets': 'Presets',
+      'panel.noPreset': 'No preset',
+      'panel.savePreset': 'Save preset',
+      'panel.deletePreset': 'Delete preset',
+      'panel.highSeverityOnly': 'High severity only',
+      'panel.focusTrace': 'Focus trace',
+      'panel.clearTraceFocus': 'Clear trace focus',
       'levels.trace': 'Trace',
       'levels.debug': 'Debug',
       'levels.info': 'Info',
@@ -65,6 +72,7 @@ jest.mock('next-intl', () => ({
 jest.mock('@/hooks/logging', () => ({
   useLogStream: jest.fn(),
   useLogModules: jest.fn(),
+  useTransportHealth: jest.fn(() => ({ healthByTransport: {}, isLoading: false, error: null, refresh: jest.fn() })),
   useAgentTraceAsLogs: jest.fn(() => ({ logs: [], isLoading: false, error: null })),
 }));
 
@@ -116,6 +124,7 @@ global.URL.revokeObjectURL = jest.fn();
 
 const mockUseLogStream = useLogStream as jest.Mock;
 const mockUseLogModules = useLogModules as jest.Mock;
+const mockUseTransportHealth = useTransportHealth as jest.Mock;
 
 const createMockLog = (overrides: Partial<StructuredLogEntry> = {}): StructuredLogEntry => ({
   id: `log-${Math.random().toString(36).slice(2)}`,
@@ -145,8 +154,15 @@ const defaultMockHookReturn = {
 describe('LogPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    window.localStorage.clear();
     mockUseLogModules.mockReturnValue(['app', 'api', 'chat']);
     mockUseLogStream.mockReturnValue(defaultMockHookReturn);
+    mockUseTransportHealth.mockReturnValue({
+      healthByTransport: {},
+      isLoading: false,
+      error: null,
+      refresh: jest.fn(),
+    });
   });
 
   describe('Rendering', () => {
@@ -263,6 +279,62 @@ describe('LogPanel', () => {
         })
       );
     });
+
+    it('filters to high-severity logs when quick filter is toggled', async () => {
+      const user = userEvent.setup();
+      const logs = [
+        createMockLog({ id: 'info-log', level: 'info', message: 'Info log' }),
+        createMockLog({ id: 'error-log', level: 'error', message: 'Error log' }),
+      ];
+
+      mockUseLogStream.mockReturnValue({
+        ...defaultMockHookReturn,
+        logs,
+        stats: {
+          total: 2,
+          byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 1, error: 1 },
+          byModule: {},
+        },
+      });
+
+      render(<LogPanel />);
+
+      const severityButton = screen.getByRole('button', { name: 'High severity only' });
+      await user.click(severityButton);
+
+      expect(screen.queryByText('Info log')).not.toBeInTheDocument();
+      expect(screen.getByText('Error log')).toBeInTheDocument();
+    });
+
+    it('focuses logs to the selected trace from trace drill-down action', async () => {
+      const user = userEvent.setup();
+      const logs = [
+        createMockLog({ id: 'trace-1-a', traceId: 'trace-1', message: 'Trace one A' }),
+        createMockLog({ id: 'trace-1-b', traceId: 'trace-1', message: 'Trace one B' }),
+        createMockLog({ id: 'trace-2-a', traceId: 'trace-2', message: 'Trace two A' }),
+      ];
+
+      mockUseLogStream.mockReturnValue({
+        ...defaultMockHookReturn,
+        logs,
+        stats: {
+          total: 3,
+          byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 3 },
+          byModule: {},
+        },
+      });
+
+      render(<LogPanel />);
+
+      const focusButtons = screen.getAllByRole('button', { name: 'Focus trace' });
+      expect(focusButtons.length).toBeGreaterThan(0);
+
+      await user.click(focusButtons[0]);
+
+      expect(screen.getAllByText('Trace one A').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Trace one B').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Trace two A')).not.toBeInTheDocument();
+    });
   });
 
   describe('Actions', () => {
@@ -292,6 +364,23 @@ describe('LogPanel', () => {
           autoRefresh: false,
         })
       );
+    });
+
+    it('saves presets and recovers from invalid preset payloads', async () => {
+      const user = userEvent.setup();
+      window.localStorage.setItem('cognia-log-filter-presets', '{"invalid":true}');
+
+      render(<LogPanel />);
+
+      const savePresetButton = screen
+        .getAllByRole('button')
+        .find((button) => button.querySelector('.lucide-bookmark-plus'));
+      expect(savePresetButton).toBeDefined();
+
+      await user.click(savePresetButton!);
+
+      const stored = window.localStorage.getItem('cognia-log-filter-presets');
+      expect(stored).toContain('Preset 1');
     });
   });
 

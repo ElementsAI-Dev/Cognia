@@ -1,5 +1,6 @@
 import {
   addTransport,
+  emitLoggerDiagnostic,
   getLoggerConfig,
   getTransport,
   getTransports,
@@ -126,7 +127,24 @@ function applyTransportSettings(
   }
 
   if (transports.remote && config.remoteEndpoint) {
-    addTransport(createRemoteTransport({ endpoint: config.remoteEndpoint }));
+    addTransport(
+      createRemoteTransport({
+        endpoint: config.remoteEndpoint,
+        maxQueueEntries: config.remoteQueueMaxEntries,
+        maxQueueBytes: config.remoteQueueMaxBytes,
+        diagnosticRateLimitMs: config.diagnosticRateLimitMs,
+        diagnosticEmitter: (event) => {
+          emitLoggerDiagnostic({
+            code: event.code,
+            message: event.message,
+            level: event.level,
+            data: event.data,
+            sourceTransport: event.sourceTransport || 'remote',
+            skipTransports: ['remote'],
+          });
+        },
+      })
+    );
   } else {
     removeTransport('remote');
   }

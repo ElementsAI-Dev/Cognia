@@ -7,6 +7,9 @@ import {
   createLogger,
   addTransport,
   removeTransport,
+  getTransportHealth,
+  getTransportHealthSnapshot,
+  emitLoggerDiagnostic,
   updateLoggerConfig,
   getLoggerConfig,
   flushLogs,
@@ -374,6 +377,46 @@ describe('Logger Core', () => {
       expect(errorSpy).toHaveBeenCalled();
       
       errorSpy.mockRestore();
+    });
+  });
+
+  describe('Transport health and diagnostics', () => {
+    it('should expose transport health snapshots', () => {
+      initLogger({ minLevel: 'info' }, [mockTransport]);
+
+      (mockTransport as Transport).getHealth = jest.fn(() => ({
+        transport: 'test-transport',
+        status: 'degraded',
+        queueDepth: 4,
+        retryCount: 2,
+        droppedEntries: 1,
+        lastFailureAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }));
+
+      const transportHealth = getTransportHealth('test-transport');
+      const snapshot = getTransportHealthSnapshot();
+
+      expect(transportHealth?.queueDepth).toBe(4);
+      expect(snapshot['test-transport']?.status).toBe('degraded');
+    });
+
+    it('should rate-limit duplicate diagnostics', () => {
+      initLogger({ minLevel: 'trace', diagnosticRateLimitMs: 5000 }, [mockTransport]);
+
+      emitLoggerDiagnostic({
+        code: 'logger.test.failure',
+        message: 'Test diagnostic',
+        level: 'warn',
+      });
+      emitLoggerDiagnostic({
+        code: 'logger.test.failure',
+        message: 'Test diagnostic',
+        level: 'warn',
+      });
+
+      const diagnosticLogs = loggedEntries.filter((entry) => entry.module === 'logger.internal');
+      expect(diagnosticLogs).toHaveLength(1);
     });
   });
 });

@@ -114,6 +114,12 @@ export interface UnifiedLoggerConfig {
   flushInterval: number;
   /** Redaction configuration */
   redaction: LoggerRedactionConfig;
+  /** Max entries allowed in durable remote retry queue */
+  remoteQueueMaxEntries: number;
+  /** Max serialized bytes allowed in durable remote retry queue */
+  remoteQueueMaxBytes: number;
+  /** Minimum interval for emitting repeated logger diagnostics */
+  diagnosticRateLimitMs: number;
 }
 
 /**
@@ -157,7 +163,32 @@ export const DEFAULT_UNIFIED_CONFIG: UnifiedLoggerConfig = {
     ],
     maxDepth: 8,
   },
+  remoteQueueMaxEntries: 5_000,
+  remoteQueueMaxBytes: 10 * 1024 * 1024,
+  diagnosticRateLimitMs: 2_000,
 };
+
+export type TransportHealthStatus = 'healthy' | 'degraded' | 'offline';
+
+export interface TransportHealthSnapshot {
+  transport: string;
+  status: TransportHealthStatus;
+  queueDepth: number;
+  retryCount: number;
+  droppedEntries: number;
+  lastSuccessAt?: string;
+  lastFailureAt?: string;
+  lastError?: string;
+  updatedAt: string;
+}
+
+export interface TransportDiagnosticEvent {
+  code: string;
+  message: string;
+  level?: LogLevel;
+  data?: Record<string, unknown>;
+  sourceTransport?: string;
+}
 
 /**
  * Transport interface for log output
@@ -171,6 +202,10 @@ export interface Transport {
   flush?(): void | Promise<void>;
   /** Close and cleanup */
   close?(): void | Promise<void>;
+  /** Report transport health snapshot */
+  getHealth?(): TransportHealthSnapshot;
+  /** Optional sync pending count for lightweight polling */
+  getPendingCount?(): number;
 }
 
 /**

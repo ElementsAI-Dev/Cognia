@@ -98,6 +98,9 @@ const defaultBootstrapState = {
   enableStorage: true,
   enableRemote: false,
   maxStorageEntries: 10000,
+  remoteQueueMaxEntries: 5000,
+  remoteQueueMaxBytes: 10485760,
+  diagnosticRateLimitMs: 2000,
   },
   transports: {
     console: true,

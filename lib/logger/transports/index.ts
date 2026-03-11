@@ -24,3 +24,12 @@ export {
   createLangfuseTransport,
   type LangfuseTransportOptions,
 } from './langfuse-transport';
+export {
+  IndexedDBRemoteRetryQueueStore,
+  createRemoteRetryQueueStore,
+  type RemoteRetryQueueStore,
+  type RemoteRetryQueueBatch,
+  type RemoteRetryQueueStats,
+  type RemoteRetryQueueLimits,
+  type RemoteRetryQueueEnqueueResult,
+} from './remote-retry-queue-store';

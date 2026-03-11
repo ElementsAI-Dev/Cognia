@@ -53,7 +53,14 @@
       "logsPerMin": "logs/min",
       "traceView": "Trace View",
       "agentTraceModule": "Agent Trace",
-      "noTraceEvents": "No agent trace events"
+      "noTraceEvents": "No agent trace events",
+      "presets": "Presets",
+      "noPreset": "No preset",
+      "savePreset": "Save current filters as preset",
+      "deletePreset": "Delete selected preset",
+      "highSeverityOnly": "Toggle high-severity only",
+      "focusTrace": "Focus this trace",
+      "clearTraceFocus": "Clear trace focus"
     },
 
     "dashboard": {

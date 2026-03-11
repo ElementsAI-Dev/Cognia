@@ -8,6 +8,7 @@ import type {
   LogLevel,
   StructuredLogEntry,
   Transport,
+  TransportHealthSnapshot,
   UnifiedLoggerConfig,
 } from './types';
 import { DEFAULT_UNIFIED_CONFIG, LEVEL_PRIORITY } from './types';
@@ -20,13 +21,19 @@ interface LoggerRuntimeState {
   config: UnifiedLoggerConfig;
   transports: Map<string, Transport>;
   initialized: boolean;
+  isEmittingDiagnostic: boolean;
+  diagnosticCooldown: Map<string, number>;
 }
 
 const runtimeState: LoggerRuntimeState = {
   config: cloneConfig(DEFAULT_UNIFIED_CONFIG),
   transports: new Map<string, Transport>(),
   initialized: false,
+  isEmittingDiagnostic: false,
+  diagnosticCooldown: new Map<string, number>(),
 };
+
+const LOGGER_DIAGNOSTIC_MODULE = 'logger.internal';
 
 /**
  * Generate unique log entry ID.
@@ -182,13 +189,53 @@ function normalizeEntry(entry: StructuredLogEntry): StructuredLogEntry {
   };
 }
 
-function dispatchEntry(entry: StructuredLogEntry): void {
+function dispatchEntry(
+  entry: StructuredLogEntry,
+  options?: { skipTransports?: ReadonlySet<string> }
+): void {
   const transports = [...runtimeState.transports.values()];
   for (const transport of transports) {
+    if (options?.skipTransports?.has(transport.name)) {
+      continue;
+    }
     try {
       void transport.log(entry);
     } catch (error) {
       console.error(`Transport ${transport.name} failed:`, error);
+    }
+  }
+}
+
+function resolveTransportHealth(name: string, transport: Transport): TransportHealthSnapshot {
+  const now = new Date().toISOString();
+  const reported = transport.getHealth?.();
+  if (reported) {
+    return {
+      ...reported,
+      transport: reported.transport || name,
+      updatedAt: reported.updatedAt || now,
+    };
+  }
+
+  const queueDepth = transport.getPendingCount?.() ?? 0;
+  return {
+    transport: name,
+    status: queueDepth > 0 ? 'degraded' : 'healthy',
+    queueDepth,
+    retryCount: 0,
+    droppedEntries: 0,
+    updatedAt: now,
+  };
+}
+
+function trimDiagnosticCooldown(nowMs: number): void {
+  if (runtimeState.diagnosticCooldown.size <= 200) {
+    return;
+  }
+
+  for (const [key, ts] of runtimeState.diagnosticCooldown.entries()) {
+    if (nowMs - ts > 5 * 60_000) {
+      runtimeState.diagnosticCooldown.delete(key);
     }
   }
 }
@@ -324,6 +371,8 @@ class CoreLogger implements Logger {
  */
 export function initLogger(config?: Partial<UnifiedLoggerConfig>, transports?: Transport[]): void {
   runtimeState.config = mergeConfig(cloneConfig(DEFAULT_UNIFIED_CONFIG), config);
+  runtimeState.isEmittingDiagnostic = false;
+  runtimeState.diagnosticCooldown.clear();
 
   if (transports) {
     runtimeState.transports = new Map(transports.map((transport) => [transport.name, transport]));
@@ -370,6 +419,30 @@ export function getTransports(): Transport[] {
 }
 
 /**
+ * Get health snapshot for a specific transport.
+ */
+export function getTransportHealth(name: string): TransportHealthSnapshot | undefined {
+  ensureInitialized();
+  const transport = runtimeState.transports.get(name);
+  if (!transport) {
+    return undefined;
+  }
+  return resolveTransportHealth(name, transport);
+}
+
+/**
+ * Get health snapshots for all registered transports.
+ */
+export function getTransportHealthSnapshot(): Record<string, TransportHealthSnapshot> {
+  ensureInitialized();
+  const snapshot: Record<string, TransportHealthSnapshot> = {};
+  for (const [name, transport] of runtimeState.transports.entries()) {
+    snapshot[name] = resolveTransportHealth(name, transport);
+  }
+  return snapshot;
+}
+
+/**
  * Update global configuration.
  * Changes are immediately applied to all existing logger instances.
  */
@@ -385,6 +458,66 @@ export function updateLoggerConfig(config: Partial<UnifiedLoggerConfig>): void {
 export function getLoggerConfig(): UnifiedLoggerConfig {
   ensureInitialized();
   return cloneConfig(runtimeState.config);
+}
+
+/**
+ * Emit guarded diagnostics for logger subsystem health.
+ * Diagnostics are rate-limited and can skip specific transports to avoid recursion loops.
+ */
+export function emitLoggerDiagnostic(params: {
+  code: string;
+  message: string;
+  level?: LogLevel;
+  data?: Record<string, unknown>;
+  sourceTransport?: string;
+  skipTransports?: string[];
+}): void {
+  ensureInitialized();
+
+  if (runtimeState.isEmittingDiagnostic) {
+    return;
+  }
+
+  const level = params.level ?? 'warn';
+  const nowMs = Date.now();
+  const cooldownKey = `${level}:${params.code}`;
+  const minIntervalMs = Math.max(250, runtimeState.config.diagnosticRateLimitMs || 1000);
+  const lastEmit = runtimeState.diagnosticCooldown.get(cooldownKey);
+  if (typeof lastEmit === 'number' && nowMs - lastEmit < minIntervalMs) {
+    return;
+  }
+
+  runtimeState.diagnosticCooldown.set(cooldownKey, nowMs);
+  trimDiagnosticCooldown(nowMs);
+
+  const entry: StructuredLogEntry = {
+    id: generateLogId(),
+    timestamp: new Date(nowMs).toISOString(),
+    level,
+    message: params.message,
+    module: LOGGER_DIAGNOSTIC_MODULE,
+    code: params.code,
+    sessionId: logContext.sessionId,
+    tags: ['logger', 'diagnostic'],
+    data: {
+      ...(params.data || {}),
+      ...(params.sourceTransport ? { sourceTransport: params.sourceTransport } : {}),
+    },
+  };
+
+  const normalized = normalizeEntry(entry);
+  const redacted = redactStructuredLogEntry(normalized, runtimeState.config.redaction);
+  const skipTransports = new Set<string>(params.skipTransports || []);
+  if (params.sourceTransport && !skipTransports.has(params.sourceTransport)) {
+    skipTransports.add(params.sourceTransport);
+  }
+
+  runtimeState.isEmittingDiagnostic = true;
+  try {
+    dispatchEntry(redacted, { skipTransports });
+  } finally {
+    runtimeState.isEmittingDiagnostic = false;
+  }
 }
 
 /**
@@ -424,5 +557,7 @@ export async function shutdownLogger(): Promise<void> {
 
   runtimeState.transports.clear();
   runtimeState.config = cloneConfig(DEFAULT_UNIFIED_CONFIG);
+  runtimeState.isEmittingDiagnostic = false;
+  runtimeState.diagnosticCooldown.clear();
   runtimeState.initialized = false;
 }

@@ -41,6 +41,9 @@ import {
   Regex,
   Bookmark,
   BookmarkCheck,
+  BookmarkPlus,
+  BookmarkX,
+  Crosshair,
   Activity,
   PanelRightOpen,
   PanelRightClose,
@@ -70,11 +73,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { useLogStream, useLogModules, useAgentTraceAsLogs } from '@/hooks/logging';
+import {
+  useLogStream,
+  useLogModules,
+  useAgentTraceAsLogs,
+  useTransportHealth,
+} from '@/hooks/logging';
 import { useAgentTrace } from '@/hooks/agent-trace/use-agent-trace';
 import { LogStatsDashboard } from './log-stats-dashboard';
 import { LogTimeline } from './log-timeline';
 import { LogDetailPanel } from './log-detail-panel';
+import {
+  LOG_FILTER_PRESETS_STORAGE_KEY,
+  createLogFilterPreset,
+  loadLogFilterPresets,
+  serializeLogFilterPresets,
+  type LogFilterPreset,
+  type LogFilterPresetFilters,
+  type PresetTimeRange,
+} from './log-filter-presets';
 import { AgentTraceTimeline } from '@/components/settings/data/agent-trace-timeline';
 import { AGENT_TRACE_MODULE } from '@/lib/agent-trace/log-adapter';
 import { LIVE_TRACE_EVENT_ICONS, LIVE_TRACE_EVENT_COLORS } from '@/lib/agent';
@@ -91,11 +108,12 @@ const TIME_RANGES = {
   all: 0,
 } as const;
 
-type TimeRange = keyof typeof TIME_RANGES;
+type TimeRange = PresetTimeRange;
 type ExportFormat = 'json' | 'csv' | 'text';
 type ViewMode = 'list' | 'dashboard' | 'trace';
 
 const BOOKMARKS_STORAGE_KEY = 'cognia-log-bookmarks';
+const EMPTY_PRESET_VALUE = '__none__';
 
 export interface LogPanelProps {
   /** CSS class name */
@@ -191,6 +209,7 @@ function LogEntry({
   isExpanded,
   onToggle,
   onSelect,
+  onFocusTrace,
   searchQuery,
   useRegex,
   isBookmarked,
@@ -201,6 +220,7 @@ function LogEntry({
   isExpanded: boolean;
   onToggle: () => void;
   onSelect?: () => void;
+  onFocusTrace?: (traceId: string, log: StructuredLogEntry) => void;
   searchQuery: string;
   useRegex: boolean;
   isBookmarked: boolean;
@@ -327,6 +347,26 @@ function LogEntry({
             </Tooltip>
           )}
 
+          {onFocusTrace && log.traceId && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  aria-label={t('panel.focusTrace')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFocusTrace(log.traceId!, log);
+                  }}
+                >
+                  <Crosshair className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('panel.focusTrace')}</TooltipContent>
+            </Tooltip>
+          )}
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -383,6 +423,7 @@ function TraceGroup({
   logs,
   expandedIds,
   toggleExpanded,
+  onFocusTrace,
   searchQuery,
   useRegex,
   bookmarkedIds,
@@ -393,6 +434,7 @@ function TraceGroup({
   logs: StructuredLogEntry[];
   expandedIds: Set<string>;
   toggleExpanded: (id: string) => void;
+  onFocusTrace?: (traceId: string, log: StructuredLogEntry) => void;
   searchQuery: string;
   useRegex: boolean;
   bookmarkedIds: Set<string>;
@@ -428,6 +470,7 @@ function TraceGroup({
             log={log}
             isExpanded={expandedIds.has(log.id)}
             onToggle={() => toggleExpanded(log.id)}
+            onFocusTrace={onFocusTrace}
             searchQuery={searchQuery}
             useRegex={useRegex}
             isBookmarked={bookmarkedIds.has(log.id)}
@@ -460,6 +503,7 @@ function VirtualizedLogList({
   bookmarkedIds,
   toggleBookmark,
   handleSelectLog,
+  handleFocusTrace,
   t,
 }: {
   scrollRef: React.RefObject<HTMLDivElement | null>;
@@ -477,6 +521,7 @@ function VirtualizedLogList({
   bookmarkedIds: Set<string>;
   toggleBookmark: (id: string) => void;
   handleSelectLog: (log: StructuredLogEntry) => void;
+  handleFocusTrace: (traceId: string, log: StructuredLogEntry) => void;
   t: ReturnType<typeof useTranslations>;
 }) {
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -531,6 +576,7 @@ function VirtualizedLogList({
               logs={traceLogs}
               expandedIds={expandedIds}
               toggleExpanded={toggleExpanded}
+              onFocusTrace={handleFocusTrace}
               searchQuery={searchQuery}
               useRegex={useRegex}
               bookmarkedIds={bookmarkedIds}
@@ -570,6 +616,7 @@ function VirtualizedLogList({
                 isExpanded={expandedIds.has(log.id)}
                 onToggle={() => toggleExpanded(log.id)}
                 onSelect={() => handleSelectLog(log)}
+                onFocusTrace={handleFocusTrace}
                 searchQuery={searchQuery}
                 useRegex={useRegex}
                 isBookmarked={bookmarkedIds.has(log.id)}
@@ -602,13 +649,22 @@ export function LogPanel({
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [useRegex, setUseRegex] = useState(false);
+  const [highSeverityOnly, setHighSeverityOnly] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
+  const [traceFocusId, setTraceFocusId] = useState<string | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedLog, setSelectedLog] = useState<StructuredLogEntry | null>(null);
   const [showDetailPanel, setShowDetailPanel] = useState(false);
+  const [presets, setPresets] = useState<LogFilterPreset[]>(() => {
+    if (typeof window === 'undefined') {
+      return [];
+    }
+    return loadLogFilterPresets(localStorage.getItem(LOG_FILTER_PRESETS_STORAGE_KEY));
+  });
+  const [activePresetId, setActivePresetId] = useState<string>(EMPTY_PRESET_VALUE);
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set();
     try {
@@ -622,6 +678,10 @@ export function LogPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const modules = useLogModules();
+  const { healthByTransport } = useTransportHealth({
+    autoRefresh: true,
+    refreshInterval: Math.max(refreshInterval, 1500),
+  });
 
   // Persist bookmarks to localStorage
   const toggleBookmark = useCallback((id: string) => {
@@ -641,6 +701,74 @@ export function LogPanel({
     });
   }, []);
 
+  const persistPresets = useCallback((next: LogFilterPreset[]) => {
+    try {
+      localStorage.setItem(LOG_FILTER_PRESETS_STORAGE_KEY, serializeLogFilterPresets(next));
+    } catch {
+      // Ignore storage errors.
+    }
+  }, []);
+
+  const saveCurrentPreset = useCallback(() => {
+    const defaultName = `Preset ${presets.length + 1}`;
+    const presetFilters: LogFilterPresetFilters = {
+      levelFilter: levelFilter as LogLevel | 'all',
+      moduleFilter,
+      timeRange,
+      searchQuery,
+      useRegex,
+      highSeverityOnly,
+    };
+    const preset = createLogFilterPreset(defaultName, presetFilters);
+    const next = [...presets, preset];
+    setPresets(next);
+    setActivePresetId(preset.id);
+    persistPresets(next);
+  }, [
+    presets,
+    levelFilter,
+    moduleFilter,
+    timeRange,
+    searchQuery,
+    useRegex,
+    highSeverityOnly,
+    persistPresets,
+  ]);
+
+  const applyPreset = useCallback((preset: LogFilterPreset) => {
+    setLevelFilter(preset.filters.levelFilter);
+    setModuleFilter(preset.filters.moduleFilter);
+    setTimeRange(preset.filters.timeRange);
+    setSearchQuery(preset.filters.searchQuery);
+    setUseRegex(preset.filters.useRegex);
+    setHighSeverityOnly(preset.filters.highSeverityOnly);
+    setActivePresetId(preset.id);
+  }, []);
+
+  const removeActivePreset = useCallback(() => {
+    if (activePresetId === EMPTY_PRESET_VALUE) {
+      return;
+    }
+    const next = presets.filter((preset) => preset.id !== activePresetId);
+    setPresets(next);
+    setActivePresetId(EMPTY_PRESET_VALUE);
+    persistPresets(next);
+  }, [activePresetId, presets, persistPresets]);
+
+  const handlePresetChange = useCallback(
+    (presetId: string) => {
+      if (presetId === EMPTY_PRESET_VALUE) {
+        setActivePresetId(EMPTY_PRESET_VALUE);
+        return;
+      }
+      const preset = presets.find((item) => item.id === presetId);
+      if (preset) {
+        applyPreset(preset);
+      }
+    },
+    [presets, applyPreset]
+  );
+
   // Get time range cutoff (calculated during filter, not in useMemo to avoid impure function issue)
   const getTimeRangeCutoff = useCallback(() => {
     if (timeRange === 'all') return 0;
@@ -653,6 +781,7 @@ export function LogPanel({
       refreshInterval,
       level: levelFilter,
       module: moduleFilter === 'all' || moduleFilter === AGENT_TRACE_MODULE ? undefined : moduleFilter,
+      traceId: traceFocusId || undefined,
       searchQuery: deferredSearchQuery || undefined,
       useRegex,
       groupByTraceId,
@@ -772,8 +901,17 @@ export function LogPanel({
       const cutoff = getTimeRangeCutoff();
       result = result.filter((log) => new Date(log.timestamp).getTime() >= cutoff);
     }
+
+    if (highSeverityOnly) {
+      result = result.filter((log) => log.level === 'error' || log.level === 'fatal');
+    }
+
+    if (traceFocusId) {
+      result = result.filter((log) => log.traceId === traceFocusId);
+    }
+
     return result;
-  }, [mergedLogs, timeRange, getTimeRangeCutoff, moduleFilter]);
+  }, [mergedLogs, timeRange, getTimeRangeCutoff, moduleFilter, highSeverityOnly, traceFocusId]);
 
   // Related logs for the detail panel (same traceId)
   const relatedLogs = useMemo(() => {
@@ -783,6 +921,13 @@ export function LogPanel({
 
   // Handle selecting a log for detail view
   const handleSelectLog = useCallback((log: StructuredLogEntry) => {
+    setSelectedLog(log);
+    setShowDetailPanel(true);
+  }, []);
+
+  const handleFocusTrace = useCallback((traceId: string, log: StructuredLogEntry) => {
+    setTraceFocusId(traceId);
+    setModuleFilter('all');
     setSelectedLog(log);
     setShowDetailPanel(true);
   }, []);
@@ -964,10 +1109,75 @@ export function LogPanel({
               <SelectItem value="7d">{t('panel.timeRange7d')}</SelectItem>
             </SelectContent>
           </Select>
+
+          <Select value={activePresetId} onValueChange={handlePresetChange}>
+            <SelectTrigger className="w-[120px] sm:w-[150px] h-8 shrink-0">
+              <Bookmark className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+              <SelectValue placeholder={t('panel.presets')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={EMPTY_PRESET_VALUE}>{t('panel.noPreset')}</SelectItem>
+              {presets.map((preset) => (
+                <SelectItem key={preset.id} value={preset.id}>
+                  {preset.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 px-2" onClick={saveCurrentPreset}>
+                <BookmarkPlus className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('panel.savePreset')}</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2"
+                onClick={removeActivePreset}
+                disabled={activePresetId === EMPTY_PRESET_VALUE}
+              >
+                <BookmarkX className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('panel.deletePreset')}</TooltipContent>
+          </Tooltip>
         </div>
 
         {/* Action buttons */}
         <div className="flex items-center gap-1 sm:ml-auto">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={highSeverityOnly ? 'default' : 'outline'}
+                size="sm"
+                aria-label={t('panel.highSeverityOnly')}
+                onClick={() => setHighSeverityOnly((prev) => !prev)}
+              >
+                <AlertTriangle className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('panel.highSeverityOnly')}</TooltipContent>
+          </Tooltip>
+
+          {traceFocusId && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={() => setTraceFocusId(null)}>
+                  <Crosshair className="h-4 w-4 mr-1" />
+                  {t('panel.clearTraceFocus')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('panel.clearTraceFocus')}</TooltipContent>
+            </Tooltip>
+          )}
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -1107,6 +1317,20 @@ export function LogPanel({
               ~{logRate} {t('panel.logsPerMin')}
             </span>
           )}
+          {Object.values(healthByTransport).map((health) => (
+            <Badge
+              key={health.transport}
+              variant="outline"
+              className={cn(
+                'text-[10px] h-5',
+                health.status === 'healthy' && 'border-green-200 text-green-700',
+                health.status === 'degraded' && 'border-yellow-200 text-yellow-700',
+                health.status === 'offline' && 'border-red-200 text-red-700'
+              )}
+            >
+              {health.transport}:{health.status} q={health.queueDepth}
+            </Badge>
+          ))}
         </div>
       )}
 
@@ -1151,6 +1375,7 @@ export function LogPanel({
               bookmarkedIds={bookmarkedIds}
               toggleBookmark={toggleBookmark}
               handleSelectLog={handleSelectLog}
+              handleFocusTrace={handleFocusTrace}
               t={t}
             />
           )}

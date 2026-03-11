@@ -53,7 +53,14 @@
       "logsPerMin": "条/分钟",
       "traceView": "追踪视图",
       "agentTraceModule": "Agent 追踪",
-      "noTraceEvents": "暂无 Agent 追踪事件"
+      "noTraceEvents": "暂无 Agent 追踪事件",
+      "presets": "预设",
+      "noPreset": "无预设",
+      "savePreset": "保存当前筛选为预设",
+      "deletePreset": "删除选中预设",
+      "highSeverityOnly": "仅显示高严重级别",
+      "focusTrace": "聚焦此追踪",
+      "clearTraceFocus": "清除追踪聚焦"
     },
 
     "dashboard": {
