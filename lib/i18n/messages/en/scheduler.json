@@ -81,6 +81,10 @@
   "yes": "Yes",
   "no": "No",
   "allowConcurrent": "Allow Concurrent",
+  "runMissedOnStartup": "Run missed on startup",
+  "maxMissedRuns": "Max Missed Runs",
+  "terminalReason": "Last terminal reason",
+  "recoveryHint": "Use Run Now or Edit to recover from this state.",
   "all": "All",
   "pausedTasks": "Paused",
   "schedulerRunning": "Running",
@@ -285,6 +289,7 @@
       "webdav": "WebDAV Server",
       "github": "GitHub Repository",
       "googledrive": "Google Drive",
+      "convex": "Convex",
       "all": "All Configured Targets"
     },
     "includeOptions": "Include in Backup",

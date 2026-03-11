@@ -81,6 +81,10 @@
   "yes": "是",
   "no": "否",
   "allowConcurrent": "允许并发",
+  "runMissedOnStartup": "启动时补跑错过任务",
+  "maxMissedRuns": "最大补跑次数",
+  "terminalReason": "最近终态原因",
+  "recoveryHint": "可使用“立即运行”或“编辑”进行恢复。",
   "all": "全部",
   "pausedTasks": "已暂停",
   "schedulerRunning": "运行中",
@@ -285,6 +289,7 @@
       "webdav": "WebDAV 服务器",
       "github": "GitHub 仓库",
       "googledrive": "Google Drive",
+      "convex": "Convex",
       "all": "所有已配置目标"
     },
     "includeOptions": "包含内容",

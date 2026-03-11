@@ -46,6 +46,7 @@ jest.mock('./notification-integration', () => ({
 }));
 
 jest.mock('./cron-parser', () => ({
+  validateCronExpression: jest.fn().mockReturnValue({ valid: true }),
   getNextCronTime: jest.fn().mockReturnValue(new Date(Date.now() + 60000)),
 }));
 
@@ -61,6 +62,7 @@ jest.mock('@/lib/logger', () => ({
 }));
 
 import { schedulerDb } from './scheduler-db';
+import { validateCronExpression } from './cron-parser';
 
 const mockSchedulerDb = schedulerDb as jest.Mocked<typeof schedulerDb>;
 
@@ -168,6 +170,32 @@ describe('TaskScheduler', () => {
 
         const task = await scheduler.createTask(input);
         expect(task.trigger.type).toBe('cron');
+      });
+
+      it('should reject invalid cron trigger', async () => {
+        (validateCronExpression as jest.Mock).mockReturnValueOnce({
+          valid: false,
+          error: 'bad cron',
+        });
+
+        await expect(
+          scheduler.createTask({
+            name: 'Invalid Cron',
+            type: 'test',
+            trigger: { type: 'cron', cronExpression: 'invalid cron' },
+          })
+        ).rejects.toThrow('Invalid cron expression');
+      });
+
+      it('should reject one-time trigger in the past', async () => {
+        const past = new Date(Date.now() - 60_000);
+        await expect(
+          scheduler.createTask({
+            name: 'Past Once',
+            type: 'test',
+            trigger: { type: 'once', runAt: past },
+          })
+        ).rejects.toThrow('must be in the future');
       });
     });
 
@@ -332,6 +360,233 @@ describe('TaskScheduler', () => {
         const result = await scheduler.runTaskNow('task-1');
         expect(result).toBeDefined();
         expect(executor).toHaveBeenCalled();
+      });
+    });
+
+    describe('lifecycle integration flow', () => {
+      it('should cover create -> pause -> resume -> run-now failure/recovery', async () => {
+        const flakyExecutor = jest
+          .fn()
+          .mockResolvedValueOnce({ success: false, error: 'transient failure' })
+          .mockResolvedValueOnce({ success: true, output: { ok: true } });
+        registerTaskExecutor('test', flakyExecutor);
+
+        const created = await scheduler.createTask({
+          name: 'Lifecycle Task',
+          type: 'test',
+          trigger: { type: 'interval', intervalMs: 60000 },
+          config: { maxRetries: 1, retryDelay: 10, timeout: 30000, allowConcurrent: true, runMissedOnStartup: true },
+        });
+
+        mockSchedulerDb.getTask.mockResolvedValueOnce(created);
+        const paused = await scheduler.pauseTask(created.id);
+        expect(paused).toBe(true);
+
+        mockSchedulerDb.getTask.mockResolvedValueOnce({ ...created, status: 'paused' });
+        const resumed = await scheduler.resumeTask(created.id);
+        expect(resumed).toBe(true);
+
+        mockSchedulerDb.getTask.mockResolvedValueOnce({ ...created, status: 'active' });
+        await scheduler.runTaskNow(created.id);
+        await jest.advanceTimersByTimeAsync(20);
+
+        expect(flakyExecutor).toHaveBeenCalledTimes(2);
+        expect(mockSchedulerDb.createExecution).toHaveBeenCalledTimes(2);
+        expect(mockSchedulerDb.createExecution).toHaveBeenCalledWith(
+          expect.objectContaining({ triggerSource: 'run-now' })
+        );
+        expect(mockSchedulerDb.updateExecution).toHaveBeenCalledWith(
+          expect.objectContaining({ status: 'completed' })
+        );
+      });
+
+      it('should skip overlapping run-now executions when concurrency is disabled', async () => {
+        let resolveFirstExecution:
+          | ((value: { success: boolean; output?: Record<string, unknown>; error?: string }) => void)
+          | undefined;
+        const blockingExecutor = jest.fn().mockImplementation(
+          () =>
+            new Promise<{ success: boolean }>((resolve) => {
+              resolveFirstExecution = resolve;
+            })
+        );
+        registerTaskExecutor('test', blockingExecutor);
+
+        const task: ScheduledTask = {
+          id: 'task-concurrency-1',
+          name: 'Concurrency Guard Task',
+          type: 'test',
+          trigger: { type: 'interval', intervalMs: 60000 },
+          config: {
+            maxRetries: 0,
+            retryDelay: 1000,
+            timeout: 30000,
+            allowConcurrent: false,
+            runMissedOnStartup: true,
+          },
+          notification: { onStart: false, onComplete: false, onError: true },
+          status: 'active',
+          runCount: 0,
+          successCount: 0,
+          failureCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        mockSchedulerDb.getTask.mockResolvedValue(task);
+
+        const firstExecution = scheduler.runTaskNow(task.id);
+        await Promise.resolve();
+
+        const secondExecution = await scheduler.runTaskNow(task.id);
+
+        expect(secondExecution).toEqual(
+          expect.objectContaining({
+            status: 'skipped',
+            terminalReason: 'concurrency-blocked',
+          })
+        );
+
+        resolveFirstExecution?.({ success: true });
+        await firstExecution;
+      });
+    });
+
+    describe('missed-run reconciliation', () => {
+      it('should skip overdue recurring task when runMissedOnStartup is disabled', async () => {
+        const overdueTask: ScheduledTask = {
+          id: 'overdue-1',
+          name: 'Overdue Task',
+          type: 'test',
+          trigger: { type: 'interval', intervalMs: 60000 },
+          config: {
+            maxRetries: 0,
+            retryDelay: 1000,
+            timeout: 30000,
+            allowConcurrent: false,
+            runMissedOnStartup: false,
+            maxMissedRuns: 2,
+          },
+          notification: { onStart: false, onComplete: false, onError: true },
+          status: 'active',
+          nextRunAt: new Date(Date.now() - 5 * 60000),
+          runCount: 0,
+          successCount: 0,
+          failureCount: 0,
+          createdAt: new Date(Date.now() - 60 * 60000),
+          updatedAt: new Date(),
+        };
+
+        mockSchedulerDb.getTasksByStatus.mockResolvedValueOnce([overdueTask]);
+
+        await (scheduler as unknown as { checkMissedTasks: () => Promise<void> }).checkMissedTasks();
+
+        expect(mockSchedulerDb.createExecution).toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: 'skipped',
+            terminalReason: 'missed-run-skipped',
+            triggerSource: 'catch-up',
+          })
+        );
+        expect(mockSchedulerDb.updateTask).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: 'overdue-1',
+            lastTerminalReason: 'missed-run-skipped',
+          })
+        );
+      });
+
+      it('should execute bounded catch-up runs when runMissedOnStartup is enabled', async () => {
+        const executor = jest.fn().mockResolvedValue({ success: true });
+        registerTaskExecutor('test', executor);
+
+        const now = new Date();
+        const overdueTask: ScheduledTask = {
+          id: 'overdue-catchup-1',
+          name: 'Overdue Catch-up Task',
+          type: 'test',
+          trigger: { type: 'interval', intervalMs: 60000 },
+          config: {
+            maxRetries: 0,
+            retryDelay: 1000,
+            timeout: 30000,
+            allowConcurrent: false,
+            runMissedOnStartup: true,
+            maxMissedRuns: 2,
+          },
+          notification: { onStart: false, onComplete: false, onError: true },
+          status: 'active',
+          nextRunAt: new Date(now.getTime() - 5 * 60000),
+          runCount: 0,
+          successCount: 0,
+          failureCount: 0,
+          createdAt: new Date(now.getTime() - 60 * 60000),
+          updatedAt: now,
+        };
+
+        mockSchedulerDb.getTasksByStatus.mockResolvedValueOnce([overdueTask]);
+
+        await (scheduler as unknown as { checkMissedTasks: () => Promise<void> }).checkMissedTasks();
+
+        expect(executor).toHaveBeenCalledTimes(2);
+
+        const catchUpExecutions = mockSchedulerDb.createExecution.mock.calls
+          .map(([execution]) => execution)
+          .filter((execution) => execution.triggerSource === 'catch-up');
+        expect(catchUpExecutions).toHaveLength(2);
+        expect(catchUpExecutions[0]).toEqual(
+          expect.objectContaining({
+            scheduledFor: overdueTask.nextRunAt,
+          })
+        );
+
+        const updatedTaskAfterCatchUp = mockSchedulerDb.updateTask.mock.calls
+          .map(([task]) => task)
+          .filter((task) => task.id === 'overdue-catchup-1')
+          .at(-1);
+        expect(updatedTaskAfterCatchUp).toEqual(
+          expect.objectContaining({
+            id: 'overdue-catchup-1',
+          })
+        );
+        expect(updatedTaskAfterCatchUp?.nextRunAt?.getTime()).toBeGreaterThan(now.getTime());
+      });
+
+      it('should expire overdue one-time task', async () => {
+        const overdueOneTimeTask: ScheduledTask = {
+          id: 'once-overdue-1',
+          name: 'Overdue Once',
+          type: 'test',
+          trigger: { type: 'once', runAt: new Date(Date.now() - 120000) },
+          config: {
+            maxRetries: 0,
+            retryDelay: 1000,
+            timeout: 30000,
+            allowConcurrent: false,
+            runMissedOnStartup: true,
+            maxMissedRuns: 1,
+          },
+          notification: { onStart: false, onComplete: false, onError: true },
+          status: 'active',
+          nextRunAt: new Date(Date.now() - 120000),
+          runCount: 0,
+          successCount: 0,
+          failureCount: 0,
+          createdAt: new Date(Date.now() - 60 * 60000),
+          updatedAt: new Date(),
+        };
+
+        mockSchedulerDb.getTasksByStatus.mockResolvedValueOnce([overdueOneTimeTask]);
+
+        await (scheduler as unknown as { checkMissedTasks: () => Promise<void> }).checkMissedTasks();
+
+        expect(mockSchedulerDb.updateTask).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: 'once-overdue-1',
+            status: 'expired',
+            lastTerminalReason: 'once-expired',
+          })
+        );
       });
     });
 

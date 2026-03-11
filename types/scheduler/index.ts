@@ -18,6 +18,25 @@ export type TaskExecutionStatus =
   | 'cancelled'
   | 'skipped';
 
+export type TaskExecutionTriggerSource =
+  | 'schedule'
+  | 'run-now'
+  | 'retry'
+  | 'event'
+  | 'dependency'
+  | 'catch-up';
+
+export type TaskExecutionTerminalReason =
+  | 'completed'
+  | 'executor-failure'
+  | 'execution-error'
+  | 'execution-timeout'
+  | 'concurrency-blocked'
+  | 'retry-chain-active'
+  | 'missed-run-skipped'
+  | 'once-expired'
+  | 'retry-scheduled';
+
 // Task status
 export type ScheduledTaskStatus = 'active' | 'paused' | 'disabled' | 'expired';
 
@@ -26,7 +45,7 @@ export type NotificationChannel = 'desktop' | 'toast' | 'webhook' | 'none';
 
 export type BackupTaskType = 'full' | 'sessions' | 'settings' | 'plugins' | 'all';
 
-export type BackupDestination = 'local' | 'webdav' | 'github' | 'googledrive' | 'all';
+export type BackupDestination = 'local' | 'webdav' | 'github' | 'googledrive' | 'convex' | 'all';
 
 export interface BackupSelectionOptions {
   includeSessions?: boolean;
@@ -158,6 +177,10 @@ export interface ScheduledTask {
   failureCount: number;
   /** Last error message */
   lastError?: string;
+  /** Most recent terminal outcome reason */
+  lastTerminalReason?: TaskExecutionTerminalReason | string;
+  /** Timestamp of most recent terminal outcome */
+  lastTerminalAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -178,6 +201,14 @@ export interface TaskExecution {
   retryAttempt: number;
   /** Execution duration in milliseconds */
   duration?: number;
+  /** Scheduled execution slot (if execution was schedule-bound) */
+  scheduledFor?: Date;
+  /** What initiated this execution */
+  triggerSource?: TaskExecutionTriggerSource;
+  /** Structured terminal outcome reason */
+  terminalReason?: TaskExecutionTerminalReason | string;
+  /** Timestamp when a retry attempt was scheduled */
+  retryScheduledAt?: Date;
   startedAt: Date;
   completedAt?: Date;
   /** Logs from execution */

@@ -303,5 +303,33 @@ describe('SchedulerDatabase', () => {
       expect(retrieved!.logs[0].timestamp instanceof Date).toBe(true);
       expect(retrieved!.logs[1].data).toEqual({ code: 500 });
     });
+
+    it('should persist structured terminal metadata for tasks and executions', async () => {
+      const task = createMockTask({
+        id: 'terminal-meta-task',
+        lastTerminalReason: 'missed-run-skipped',
+        lastTerminalAt: new Date(),
+      });
+      await schedulerDb.createTask(task);
+
+      const execution = createMockExecution('terminal-meta-task', {
+        id: 'terminal-meta-exec',
+        triggerSource: 'catch-up',
+        scheduledFor: new Date(Date.now() - 60000),
+        terminalReason: 'missed-run-skipped',
+        retryScheduledAt: new Date(),
+      });
+      await schedulerDb.createExecution(execution);
+
+      const retrievedTask = await schedulerDb.getTask('terminal-meta-task');
+      const retrievedExecution = await schedulerDb.getExecution('terminal-meta-exec');
+
+      expect(retrievedTask?.lastTerminalReason).toBe('missed-run-skipped');
+      expect(retrievedTask?.lastTerminalAt instanceof Date).toBe(true);
+      expect(retrievedExecution?.triggerSource).toBe('catch-up');
+      expect(retrievedExecution?.terminalReason).toBe('missed-run-skipped');
+      expect(retrievedExecution?.scheduledFor instanceof Date).toBe(true);
+      expect(retrievedExecution?.retryScheduledAt instanceof Date).toBe(true);
+    });
   });
 });

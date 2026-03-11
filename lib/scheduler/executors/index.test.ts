@@ -64,6 +64,7 @@ const mockSyncStoreState = {
   webdavConfig: { enabled: true },
   githubConfig: { enabled: true },
   googleDriveConfig: { enabled: true },
+  convexConfig: { enabled: true },
 };
 
 jest.mock('@/lib/storage/data-export', () => ({
@@ -390,6 +391,7 @@ describe('executeBackupTask', () => {
     mockSyncStoreState.webdavConfig.enabled = true;
     mockSyncStoreState.githubConfig.enabled = true;
     mockSyncStoreState.googleDriveConfig.enabled = true;
+    mockSyncStoreState.convexConfig.enabled = true;
   });
 
   it('executes googledrive destination backup', async () => {
@@ -406,6 +408,22 @@ describe('executeBackupTask', () => {
 
     expect(result.success).toBe(true);
     expect(mockRunBackupUploadForProvider).toHaveBeenCalledWith('googledrive');
+  });
+
+  it('executes convex destination backup', async () => {
+    const backupTask = {
+      ...createTask({
+        backupType: 'full',
+        destination: 'convex',
+        options: {},
+      }),
+      type: 'backup' as const,
+    };
+
+    const result = await executeBackupTask(backupTask, createExecution());
+
+    expect(result.success).toBe(true);
+    expect(mockRunBackupUploadForProvider).toHaveBeenCalledWith('convex');
   });
 
   it('fails when any configured provider fails for all destination', async () => {
@@ -430,7 +448,7 @@ describe('executeBackupTask', () => {
     expect(result.output).toEqual(
       expect.objectContaining({
         syncResult: expect.objectContaining({
-          successfulProviders: ['webdav'],
+          successfulProviders: ['webdav', 'convex'],
           skippedProviders: ['github'],
           failedProviders: [{ provider: 'googledrive', error: 'upload failed' }],
         }),

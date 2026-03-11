@@ -121,6 +121,27 @@ describe('BackupScheduleDialog', () => {
           trigger: expect.objectContaining({
             type: 'cron',
             cronExpression: '0 2 * * *',
+            timezone: 'UTC',
+          }),
+        })
+      );
+    });
+  });
+
+  it('should include execution config defaults when scheduling backup task', async () => {
+    render(<BackupScheduleDialog />);
+    fireEvent.click(screen.getByText('backup.schedule'));
+    fireEvent.click(screen.getByText('schedule'));
+
+    await waitFor(() => {
+      expect(mockCreateTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            maxRetries: 3,
+            retryDelay: 5000,
+            runMissedOnStartup: false,
+            maxMissedRuns: 1,
+            allowConcurrent: false,
           }),
         })
       );

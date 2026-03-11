@@ -33,6 +33,8 @@ interface DBScheduledTask {
   successCount: number;
   failureCount: number;
   lastError?: string;
+  lastTerminalReason?: string;
+  lastTerminalAt?: string; // ISO date string
   createdAt: string; // ISO date string
   updatedAt: string; // ISO date string
 }
@@ -48,6 +50,10 @@ interface DBTaskExecution {
   error?: string;
   retryAttempt: number;
   duration?: number;
+  scheduledFor?: string; // ISO date string
+  triggerSource?: string;
+  terminalReason?: string;
+  retryScheduledAt?: string; // ISO date string
   startedAt: string; // ISO date string
   completedAt?: string; // ISO date string
   logs: string; // JSON serialized TaskExecutionLog[]
@@ -373,6 +379,8 @@ function serializeTask(task: ScheduledTask): DBScheduledTask {
     successCount: task.successCount,
     failureCount: task.failureCount,
     lastError: task.lastError,
+    lastTerminalReason: task.lastTerminalReason,
+    lastTerminalAt: task.lastTerminalAt?.toISOString(),
     createdAt: task.createdAt.toISOString(),
     updatedAt: task.updatedAt.toISOString(),
   };
@@ -400,6 +408,8 @@ function deserializeTask(dbTask: DBScheduledTask): ScheduledTask {
     successCount: dbTask.successCount,
     failureCount: dbTask.failureCount,
     lastError: dbTask.lastError,
+    lastTerminalReason: dbTask.lastTerminalReason,
+    lastTerminalAt: dbTask.lastTerminalAt ? new Date(dbTask.lastTerminalAt) : undefined,
     createdAt: new Date(dbTask.createdAt),
     updatedAt: new Date(dbTask.updatedAt),
   };
@@ -426,6 +436,10 @@ function serializeExecution(execution: TaskExecution): DBTaskExecution {
     error: execution.error,
     retryAttempt: execution.retryAttempt,
     duration: execution.duration,
+    scheduledFor: execution.scheduledFor?.toISOString(),
+    triggerSource: execution.triggerSource,
+    terminalReason: execution.terminalReason,
+    retryScheduledAt: execution.retryScheduledAt?.toISOString(),
     startedAt: execution.startedAt.toISOString(),
     completedAt: execution.completedAt?.toISOString(),
     logs: JSON.stringify(
@@ -450,6 +464,12 @@ function deserializeExecution(dbExecution: DBTaskExecution): TaskExecution {
     error: dbExecution.error,
     retryAttempt: dbExecution.retryAttempt,
     duration: dbExecution.duration,
+    scheduledFor: dbExecution.scheduledFor ? new Date(dbExecution.scheduledFor) : undefined,
+    triggerSource: dbExecution.triggerSource as TaskExecution['triggerSource'],
+    terminalReason: dbExecution.terminalReason,
+    retryScheduledAt: dbExecution.retryScheduledAt
+      ? new Date(dbExecution.retryScheduledAt)
+      : undefined,
     startedAt: new Date(dbExecution.startedAt),
     completedAt: dbExecution.completedAt ? new Date(dbExecution.completedAt) : undefined,
     logs: logs.map((entry: Record<string, unknown>) => ({

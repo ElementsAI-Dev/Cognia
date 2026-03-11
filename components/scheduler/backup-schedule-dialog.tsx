@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Calendar, Clock, Database, Upload, X } from 'lucide-react';
+import { Calendar, Clock, Database, Upload, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,7 +30,18 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useScheduler } from '@/hooks/scheduler';
-import type { BackupDestination, BackupTaskPayload, BackupTaskType } from '@/types/scheduler';
+import {
+  type BackupDestination,
+  type BackupTaskPayload,
+  type BackupTaskType,
+  DEFAULT_EXECUTION_CONFIG,
+} from '@/types/scheduler';
+import { TimezoneSelect } from '@/components/scheduler/timezone-select';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 type BackupType = Exclude<BackupTaskType, 'plugins'>;
 
@@ -60,8 +71,15 @@ export function BackupScheduleDialog({
   // Form state
   const [taskName, setTaskName] = useState('Scheduled Backup');
   const [cronExpression, setCronExpression] = useState('0 2 * * *');
+  const [timezone, setTimezone] = useState('UTC');
   const [backupType, setBackupType] = useState<BackupType>('full');
   const [destination, setDestination] = useState<BackupDestination>('local');
+  const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
+  const [maxRetries, setMaxRetries] = useState(DEFAULT_EXECUTION_CONFIG.maxRetries);
+  const [retryDelay, setRetryDelay] = useState(DEFAULT_EXECUTION_CONFIG.retryDelay);
+  const [runMissedOnStartup, setRunMissedOnStartup] = useState(DEFAULT_EXECUTION_CONFIG.runMissedOnStartup);
+  const [maxMissedRuns, setMaxMissedRuns] = useState(DEFAULT_EXECUTION_CONFIG.maxMissedRuns ?? 1);
+  const [allowConcurrent, setAllowConcurrent] = useState(DEFAULT_EXECUTION_CONFIG.allowConcurrent);
   
   // Backup options
   const [includeSessions, setIncludeSessions] = useState(true);
@@ -82,6 +100,7 @@ export function BackupScheduleDialog({
         trigger: {
           type: 'cron',
           cronExpression,
+          timezone,
         },
         payload: {
           backupType,
@@ -100,6 +119,14 @@ export function BackupScheduleDialog({
           onProgress: false,
           channels: ['toast', 'desktop'],
         },
+        config: {
+          timeout: DEFAULT_EXECUTION_CONFIG.timeout,
+          maxRetries,
+          retryDelay,
+          runMissedOnStartup,
+          maxMissedRuns: Math.max(0, maxMissedRuns),
+          allowConcurrent,
+        },
       });
 
       if (task) {
@@ -112,6 +139,7 @@ export function BackupScheduleDialog({
   }, [
     taskName,
     cronExpression,
+    timezone,
     backupType,
     destination,
     includeSessions,
@@ -120,6 +148,11 @@ export function BackupScheduleDialog({
     includeIndexedDB,
     notifyOnComplete,
     notifyOnError,
+    maxRetries,
+    retryDelay,
+    runMissedOnStartup,
+    maxMissedRuns,
+    allowConcurrent,
     createTask,
     onScheduled,
   ]);
@@ -184,6 +217,15 @@ export function BackupScheduleDialog({
                 className="font-mono text-sm"
               />
             </div>
+            <div className="space-y-1">
+              <Label className="text-sm">{t('timezone') || 'Timezone'}</Label>
+              <TimezoneSelect
+                value={timezone}
+                onValueChange={setTimezone}
+                testId="backup-schedule-timezone"
+                includeOffset
+              />
+            </div>
           </div>
 
           {/* Backup Type */}
@@ -232,6 +274,12 @@ export function BackupScheduleDialog({
                   <div className="flex items-center gap-2">
                     <Upload className="h-4 w-4" />
                     {t('backup.destinations.googledrive')}
+                  </div>
+                </SelectItem>
+                <SelectItem value="convex">
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    {t('backup.destinations.convex')}
                   </div>
                 </SelectItem>
                 <SelectItem value="all">
@@ -295,6 +343,57 @@ export function BackupScheduleDialog({
               </div>
             </div>
           )}
+
+          <Collapsible open={showAdvancedConfig} onOpenChange={setShowAdvancedConfig}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm"
+              >
+                <span>{t('advancedSettings') || 'Advanced Settings'}</span>
+                {showAdvancedConfig ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2 space-y-3 rounded-lg border bg-muted/20 p-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">{t('maxRetries') || 'Max Retries'}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={maxRetries}
+                    onChange={(e) => setMaxRetries(parseInt(e.target.value, 10) || 0)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">{t('retryDelayMs') || 'Retry Delay (ms)'}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={retryDelay}
+                    onChange={(e) => setRetryDelay(parseInt(e.target.value, 10) || 0)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">{t('maxMissedRuns') || 'Max Missed Runs'}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={maxMissedRuns}
+                    onChange={(e) => setMaxMissedRuns(parseInt(e.target.value, 10) || 0)}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">{t('runMissedOnStartup') || 'Run missed on startup'}</span>
+                <Switch checked={runMissedOnStartup} onCheckedChange={setRunMissedOnStartup} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">{t('allowConcurrent') || 'Allow Concurrent'}</span>
+                <Switch checked={allowConcurrent} onCheckedChange={setAllowConcurrent} />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
           {/* Notifications */}
           <div className="space-y-3">

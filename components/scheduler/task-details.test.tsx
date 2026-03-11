@@ -94,7 +94,7 @@ describe('TaskDetails', () => {
 
   it('should render task status badge', () => {
     render(<TaskDetails {...defaultProps} />);
-    expect(screen.getByText('active')).toBeInTheDocument();
+    expect(screen.getByText('statuses.active')).toBeInTheDocument();
   });
 
   it('should render action buttons', () => {
@@ -179,7 +179,7 @@ describe('TaskDetails', () => {
     });
     render(<TaskDetails {...defaultProps} task={task} />);
     
-    expect(screen.getByText('Every 5 minutes')).toBeInTheDocument();
+    expect(screen.getByText('triggerDescInterval')).toBeInTheDocument();
   });
 
   it('should describe once trigger', () => {
@@ -189,7 +189,7 @@ describe('TaskDetails', () => {
     });
     render(<TaskDetails {...defaultProps} task={task} />);
     
-    expect(screen.getByText(/Once at/)).toBeInTheDocument();
+    expect(screen.getByText('triggerDescOnce')).toBeInTheDocument();
   });
 
   it('should describe event trigger', () => {
@@ -198,7 +198,7 @@ describe('TaskDetails', () => {
     });
     render(<TaskDetails {...defaultProps} task={task} />);
     
-    expect(screen.getByText('On event: message.created')).toBeInTheDocument();
+    expect(screen.getByText('triggerDescEvent')).toBeInTheDocument();
   });
 
   it('should display metrics in hero header', () => {
@@ -228,6 +228,14 @@ describe('TaskDetails', () => {
     render(<TaskDetails {...defaultProps} task={task} />);
     
     expect(screen.getByText('Connection timeout')).toBeInTheDocument();
+  });
+
+  it('should display terminal reason context when present', () => {
+    const task = createMockTask({ lastTerminalReason: 'missed-run-skipped' });
+    render(<TaskDetails {...defaultProps} task={task} />);
+
+    expect(screen.getByText('missed-run-skipped')).toBeInTheDocument();
+    expect(screen.getByText('recoveryHint')).toBeInTheDocument();
   });
 
   it('should have executions tab', () => {

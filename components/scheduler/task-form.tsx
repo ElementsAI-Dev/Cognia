@@ -94,6 +94,9 @@ interface TaskFormState {
   taskTimeout: number;
   maxRetries: number;
   retryDelay: number;
+  runMissedOnStartup: boolean;
+  maxMissedRuns: number;
+  allowConcurrent: boolean;
   showAdvanced: boolean;
   cronError: string | null;
   payloadError: string | null;
@@ -129,6 +132,12 @@ function createInitialState(initialValues?: Partial<CreateScheduledTaskInput>): 
     taskTimeout: initialValues?.config?.timeout || DEFAULT_EXECUTION_CONFIG.timeout,
     maxRetries: initialValues?.config?.maxRetries || DEFAULT_EXECUTION_CONFIG.maxRetries,
     retryDelay: initialValues?.config?.retryDelay || DEFAULT_EXECUTION_CONFIG.retryDelay,
+    runMissedOnStartup:
+      initialValues?.config?.runMissedOnStartup ?? DEFAULT_EXECUTION_CONFIG.runMissedOnStartup,
+    maxMissedRuns:
+      initialValues?.config?.maxMissedRuns ?? DEFAULT_EXECUTION_CONFIG.maxMissedRuns ?? 1,
+    allowConcurrent:
+      initialValues?.config?.allowConcurrent ?? DEFAULT_EXECUTION_CONFIG.allowConcurrent,
     showAdvanced: false,
     cronError: null,
     payloadError: null,
@@ -200,6 +209,10 @@ export function TaskForm({
       taskTimeout: input.config?.timeout || DEFAULT_EXECUTION_CONFIG.timeout,
       maxRetries: input.config?.maxRetries || DEFAULT_EXECUTION_CONFIG.maxRetries,
       retryDelay: input.config?.retryDelay || DEFAULT_EXECUTION_CONFIG.retryDelay,
+      runMissedOnStartup:
+        input.config?.runMissedOnStartup ?? DEFAULT_EXECUTION_CONFIG.runMissedOnStartup,
+      maxMissedRuns: input.config?.maxMissedRuns ?? DEFAULT_EXECUTION_CONFIG.maxMissedRuns ?? 1,
+      allowConcurrent: input.config?.allowConcurrent ?? DEFAULT_EXECUTION_CONFIG.allowConcurrent,
       nameError: null,
       cronError: null,
       payloadError: null,
@@ -309,9 +322,9 @@ export function TaskForm({
         timeout: f.taskTimeout,
         maxRetries: f.maxRetries,
         retryDelay: f.retryDelay,
-        runMissedOnStartup: false,
-        maxMissedRuns: 1,
-        allowConcurrent: false,
+        runMissedOnStartup: f.runMissedOnStartup,
+        maxMissedRuns: Math.max(0, f.maxMissedRuns),
+        allowConcurrent: f.allowConcurrent,
       },
       notification: {
         onStart: f.notifyOnStart,
@@ -769,6 +782,42 @@ export function TaskForm({
                 onChange={(e) => updateForm({ retryDelay: parseInt(e.target.value) || 0 })}
                 className="h-9 text-sm transition-all focus:ring-2 focus:ring-primary/20"
               />
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground">
+                {t('maxMissedRuns') || 'Max Missed Runs'}
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                value={f.maxMissedRuns}
+                onChange={(e) => updateForm({ maxMissedRuns: parseInt(e.target.value) || 0 })}
+                className="h-9 text-sm transition-all focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <div className="space-y-2 rounded-lg border bg-background/50 px-3 py-2.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  {t('runMissedOnStartup') || 'Run missed on startup'}
+                </Label>
+                <Switch
+                  checked={f.runMissedOnStartup}
+                  onCheckedChange={(v) => updateForm({ runMissedOnStartup: v })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2 rounded-lg border bg-background/50 px-3 py-2.5 sm:col-span-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  {t('allowConcurrent') || 'Allow Concurrent'}
+                </Label>
+                <Switch
+                  checked={f.allowConcurrent}
+                  onCheckedChange={(v) => updateForm({ allowConcurrent: v })}
+                />
+              </div>
             </div>
           </div>
         </CollapsibleContent>

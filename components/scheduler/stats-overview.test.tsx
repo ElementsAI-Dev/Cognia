@@ -226,6 +226,35 @@ describe('StatsOverview', () => {
     expect(screen.getByText('Exec Task 2')).toBeInTheDocument();
   });
 
+  it('should show terminal reason context in recent executions', () => {
+    const executions = [
+      createMockExecution({
+        id: 'e1',
+        taskName: 'Exec Task 1',
+        status: 'skipped',
+        terminalReason: 'missed-run-skipped',
+      }),
+    ];
+    render(<StatsOverview {...defaultProps} recentExecutions={executions} />);
+
+    expect(screen.getByText('terminalReason: missed-run-skipped')).toBeInTheDocument();
+  });
+
+  it('should call onSelectTask when recent execution row is clicked', () => {
+    const executions = [
+      createMockExecution({
+        id: 'e1',
+        taskId: 'task-42',
+        taskName: 'Recoverable Task',
+        status: 'failed',
+      }),
+    ];
+    render(<StatsOverview {...defaultProps} recentExecutions={executions} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Recoverable Task/i }));
+    expect(mockOnSelectTask).toHaveBeenCalledWith('task-42');
+  });
+
   it('should format execution duration', () => {
     const executions = [
       createMockExecution({ id: 'e1', duration: 5000 }), // 5.0s

@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Calendar, Clock, Play, X } from 'lucide-react';
+import { Calendar, Clock, Play, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,13 +31,18 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useScheduler } from '@/hooks/scheduler';
 import type { TaskTriggerType } from '@/types/scheduler';
-import { getCronExpressionOptions } from '@/types/scheduler';
+import { getCronExpressionOptions, DEFAULT_EXECUTION_CONFIG } from '@/types/scheduler';
 import { TimezoneSelect } from '@/components/scheduler/timezone-select';
 import type { WorkflowErrorEnvelope } from '@/types/workflow/workflow-editor';
 import {
   createWorkflowErrorEnvelope,
   formatWorkflowErrorEnvelope,
 } from '@/lib/workflow-editor/workflow-error';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 interface WorkflowScheduleDialogProps {
   workflowId: string;
@@ -74,6 +79,12 @@ export function WorkflowScheduleDialog({
   const [runAt, setRunAt] = useState<string>('');
   const [notifyOnComplete, setNotifyOnComplete] = useState(true);
   const [notifyOnError, setNotifyOnError] = useState(true);
+  const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
+  const [maxRetries, setMaxRetries] = useState(DEFAULT_EXECUTION_CONFIG.maxRetries);
+  const [retryDelay, setRetryDelay] = useState(DEFAULT_EXECUTION_CONFIG.retryDelay);
+  const [runMissedOnStartup, setRunMissedOnStartup] = useState(DEFAULT_EXECUTION_CONFIG.runMissedOnStartup);
+  const [maxMissedRuns, setMaxMissedRuns] = useState(DEFAULT_EXECUTION_CONFIG.maxMissedRuns ?? 1);
+  const [allowConcurrent, setAllowConcurrent] = useState(DEFAULT_EXECUTION_CONFIG.allowConcurrent);
 
   const handleSubmit = useCallback(async () => {
     setSubmitError(null);
@@ -114,6 +125,14 @@ export function WorkflowScheduleDialog({
           onError: notifyOnError,
           onProgress: false,
           channels: ['toast'],
+        },
+        config: {
+          timeout: DEFAULT_EXECUTION_CONFIG.timeout,
+          maxRetries,
+          retryDelay,
+          runMissedOnStartup,
+          maxMissedRuns: Math.max(0, maxMissedRuns),
+          allowConcurrent,
         },
       });
 
@@ -156,7 +175,13 @@ export function WorkflowScheduleDialog({
     runAt,
     notifyOnComplete,
     notifyOnError,
+    maxRetries,
+    retryDelay,
+    runMissedOnStartup,
+    maxMissedRuns,
+    allowConcurrent,
     workflowId,
+    workflowName,
     defaultInput,
     createTask,
     error,
@@ -310,6 +335,57 @@ export function WorkflowScheduleDialog({
               />
             </div>
           </div>
+
+          <Collapsible open={showAdvancedConfig} onOpenChange={setShowAdvancedConfig}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm"
+              >
+                <span>{t('advancedSettings') || 'Advanced Settings'}</span>
+                {showAdvancedConfig ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2 space-y-3 rounded-lg border bg-muted/20 p-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">{t('maxRetries') || 'Max Retries'}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={maxRetries}
+                    onChange={(e) => setMaxRetries(parseInt(e.target.value, 10) || 0)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">{t('retryDelayMs') || 'Retry Delay (ms)'}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={retryDelay}
+                    onChange={(e) => setRetryDelay(parseInt(e.target.value, 10) || 0)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">{t('maxMissedRuns') || 'Max Missed Runs'}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={maxMissedRuns}
+                    onChange={(e) => setMaxMissedRuns(parseInt(e.target.value, 10) || 0)}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">{t('runMissedOnStartup') || 'Run missed on startup'}</span>
+                <Switch checked={runMissedOnStartup} onCheckedChange={setRunMissedOnStartup} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">{t('allowConcurrent') || 'Allow Concurrent'}</span>
+                <Switch checked={allowConcurrent} onCheckedChange={setAllowConcurrent} />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
           {submitError && (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">

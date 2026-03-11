@@ -30,6 +30,9 @@ export {
   matchesCronExpression,
 } from './cron-parser';
 
+// Trigger normalization and validation
+export { normalizeTaskTrigger, isValidTimezone } from './trigger-normalizer';
+
 // Database
 export { schedulerDb, SchedulerDatabase } from './scheduler-db';
 

@@ -12,6 +12,7 @@ export type SchedulerErrorCode =
   | 'CONCURRENT_EXECUTION'
   | 'INVALID_CRON'
   | 'INVALID_TRIGGER'
+  | 'INVALID_TIMEZONE'
   | 'DB_ERROR'
   | 'NOTIFICATION_FAILED'
   | 'WEBHOOK_FAILED'
@@ -40,6 +41,22 @@ export class SchedulerError extends Error {
 
   static taskNotFound(taskId: string): SchedulerError {
     return new SchedulerError('TASK_NOT_FOUND', `Task not found: ${taskId}`, { taskId });
+  }
+
+  static invalidTrigger(message: string, details?: Record<string, unknown>): SchedulerError {
+    return new SchedulerError('INVALID_TRIGGER', message, details);
+  }
+
+  static invalidCron(expression: string, reason?: string): SchedulerError {
+    return new SchedulerError(
+      'INVALID_CRON',
+      reason ? `Invalid cron expression "${expression}": ${reason}` : `Invalid cron expression: ${expression}`,
+      { expression, reason }
+    );
+  }
+
+  static invalidTimezone(timezone: string): SchedulerError {
+    return new SchedulerError('INVALID_TIMEZONE', `Invalid timezone: ${timezone}`, { timezone });
   }
 
   static executorNotFound(taskType: string): SchedulerError {

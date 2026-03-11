@@ -327,6 +327,25 @@ export function TaskDetails({
                 </div>
               </div>
             )}
+
+            {task.lastTerminalReason && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                      {t('terminalReason') || 'Last terminal reason'}
+                    </h4>
+                    <p className="font-mono text-xs text-amber-700/90 dark:text-amber-300/90">
+                      {task.lastTerminalReason}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {t('recoveryHint') || 'Use Run Now or Edit to recover from this state.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </TabsContent>
 
@@ -477,6 +496,11 @@ function ExecutionHistory({
                   <div className="mt-0.5 text-[11px] text-muted-foreground">
                     {execution.startedAt.toLocaleString()}
                   </div>
+                  {execution.terminalReason && (
+                    <div className="mt-1 rounded-md bg-amber-500/10 px-2 py-1 text-[11px] font-mono text-amber-700 dark:text-amber-300">
+                      {execution.terminalReason}
+                    </div>
+                  )}
                   {execution.error && (
                     <div className="mt-1.5 rounded-md bg-destructive/5 px-2 py-1.5 font-mono text-[11px] text-destructive">
                       {execution.error}

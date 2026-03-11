@@ -12,7 +12,6 @@ import type {
   UpdateScheduledTaskInput,
   TaskFilter,
   TaskStatistics,
-  ScheduledTaskStatus,
 } from '@/types/scheduler';
 import { getTaskScheduler } from '@/lib/scheduler/task-scheduler';
 import { schedulerDb } from '@/lib/scheduler/scheduler-db';
@@ -136,6 +135,21 @@ const initialState: SchedulerState = {
   autoRefreshInterval: 60,
 };
 
+const EXECUTIONS_PAGE_SIZE = 50;
+
+function sortTasksBySchedulerPriority(tasks: ScheduledTask[]): ScheduledTask[] {
+  return [...tasks].sort((a, b) => {
+    if (a.status === 'active' && b.status !== 'active') return -1;
+    if (a.status !== 'active' && b.status === 'active') return 1;
+    if (a.nextRunAt && b.nextRunAt) {
+      return a.nextRunAt.getTime() - b.nextRunAt.getTime();
+    }
+    if (a.nextRunAt) return -1;
+    if (b.nextRunAt) return 1;
+    return 0;
+  });
+}
+
 export const useSchedulerStore = create<SchedulerStore>()(
   persist(
     (set, get) => ({
@@ -149,8 +163,9 @@ export const useSchedulerStore = create<SchedulerStore>()(
           const scheduler = getTaskScheduler();
           const task = await scheduler.createTask(input);
           
-          // Refresh tasks list
-          await get().loadTasks();
+          if (task) {
+            await get().refreshAll();
+          }
           
           return task;
         } catch (error) {
@@ -170,10 +185,7 @@ export const useSchedulerStore = create<SchedulerStore>()(
           const task = await scheduler.updateTask(taskId, input);
           
           if (task) {
-            // Update local state
-            set((state) => ({
-              tasks: state.tasks.map((t) => (t.id === taskId ? task : t)),
-            }));
+            await get().refreshAll();
           }
           
           return task;
@@ -194,10 +206,11 @@ export const useSchedulerStore = create<SchedulerStore>()(
           const deleted = await scheduler.deleteTask(taskId);
           
           if (deleted) {
-            set((state) => ({
-              tasks: state.tasks.filter((t) => t.id !== taskId),
-              selectedTaskId: state.selectedTaskId === taskId ? null : state.selectedTaskId,
-            }));
+            const { selectedTaskId } = get();
+            if (selectedTaskId === taskId) {
+              set({ selectedTaskId: null, executions: [] });
+            }
+            await get().refreshAll();
           }
           
           return deleted;
@@ -219,11 +232,7 @@ export const useSchedulerStore = create<SchedulerStore>()(
           const success = await scheduler.pauseTask(taskId);
           
           if (success) {
-            set((state) => ({
-              tasks: state.tasks.map((t) =>
-                t.id === taskId ? { ...t, status: 'paused' as ScheduledTaskStatus } : t
-              ),
-            }));
+            await get().refreshAll();
           }
           
           return success;
@@ -239,8 +248,7 @@ export const useSchedulerStore = create<SchedulerStore>()(
           const success = await scheduler.resumeTask(taskId);
           
           if (success) {
-            // Reload task to get updated nextRunAt
-            await get().loadTasks();
+            await get().refreshAll();
           }
           
           return success;
@@ -257,16 +265,7 @@ export const useSchedulerStore = create<SchedulerStore>()(
           const execution = await scheduler.runTaskNow(taskId);
           
           if (execution) {
-            // Add execution to list if viewing this task
-            const { selectedTaskId } = get();
-            if (selectedTaskId === taskId) {
-              set((state) => ({
-                executions: [execution, ...state.executions],
-              }));
-            }
-            
-            // Refresh task to get updated stats
-            await get().loadTasks();
+            await get().refreshAll();
           }
           
           return execution;
@@ -292,20 +291,8 @@ export const useSchedulerStore = create<SchedulerStore>()(
           } else {
             tasks = await schedulerDb.getAllTasks();
           }
-          
-          // Sort: active tasks first, then by next run time
-          tasks.sort((a, b) => {
-            if (a.status === 'active' && b.status !== 'active') return -1;
-            if (a.status !== 'active' && b.status === 'active') return 1;
-            if (a.nextRunAt && b.nextRunAt) {
-              return a.nextRunAt.getTime() - b.nextRunAt.getTime();
-            }
-            if (a.nextRunAt) return -1;
-            if (b.nextRunAt) return 1;
-            return 0;
-          });
-          
-          set({ tasks });
+
+          set({ tasks: sortTasksBySchedulerPriority(tasks) });
         } catch (error) {
           log.error('SchedulerStore: Load tasks failed', error as Error);
           set({ error: 'Failed to load tasks' });
@@ -314,14 +301,13 @@ export const useSchedulerStore = create<SchedulerStore>()(
 
       loadTaskExecutions: async (taskId) => {
         try {
-          const PAGE_SIZE = 50;
-          const executions = await schedulerDb.getTaskExecutions(taskId, PAGE_SIZE);
+          const executions = await schedulerDb.getTaskExecutions(taskId, EXECUTIONS_PAGE_SIZE);
           const cursor = executions.length > 0
             ? executions[executions.length - 1].startedAt.toISOString()
             : null;
           set({
             executions,
-            hasMoreExecutions: executions.length >= PAGE_SIZE,
+            hasMoreExecutions: executions.length >= EXECUTIONS_PAGE_SIZE,
             executionsCursor: cursor,
           });
         } catch (error) {
@@ -334,10 +320,9 @@ export const useSchedulerStore = create<SchedulerStore>()(
         if (!selectedTaskId || !executionsCursor || !hasMoreExecutions) return;
 
         try {
-          const PAGE_SIZE = 50;
           const moreExecutions = await schedulerDb.getTaskExecutions(
             selectedTaskId,
-            PAGE_SIZE,
+            EXECUTIONS_PAGE_SIZE,
             executionsCursor
           );
           const newCursor = moreExecutions.length > 0
@@ -345,7 +330,7 @@ export const useSchedulerStore = create<SchedulerStore>()(
             : null;
           set((state) => ({
             executions: [...state.executions, ...moreExecutions],
-            hasMoreExecutions: moreExecutions.length >= PAGE_SIZE,
+            hasMoreExecutions: moreExecutions.length >= EXECUTIONS_PAGE_SIZE,
             executionsCursor: newCursor,
           }));
         } catch (error) {
@@ -390,30 +375,33 @@ export const useSchedulerStore = create<SchedulerStore>()(
             const { filter, selectedTaskId } = get();
             
             // Fetch all data in parallel
-            const [tasks, statistics, executions] = await Promise.all([
+            const [tasks, statistics, executions, recentExecutions, upcomingTasks] = await Promise.all([
               Object.keys(filter).length > 0
                 ? schedulerDb.getFilteredTasks(filter)
                 : schedulerDb.getAllTasks(),
               schedulerDb.getStatistics(),
               selectedTaskId
-                ? schedulerDb.getTaskExecutions(selectedTaskId, 50)
+                ? schedulerDb.getTaskExecutions(selectedTaskId, EXECUTIONS_PAGE_SIZE)
                 : Promise.resolve(get().executions),
+              schedulerDb.getRecentExecutions(50),
+              schedulerDb.getUpcomingTasks(10),
             ]);
-            
-            // Sort: active tasks first, then by next run time
-            tasks.sort((a, b) => {
-              if (a.status === 'active' && b.status !== 'active') return -1;
-              if (a.status !== 'active' && b.status === 'active') return 1;
-              if (a.nextRunAt && b.nextRunAt) {
-                return a.nextRunAt.getTime() - b.nextRunAt.getTime();
-              }
-              if (a.nextRunAt) return -1;
-              if (b.nextRunAt) return 1;
-              return 0;
-            });
-            
+
+            const cursor = executions.length > 0
+              ? executions[executions.length - 1].startedAt.toISOString()
+              : null;
+
             // Single batched state update
-            set({ tasks, statistics, executions, isLoading: false });
+            set({
+              tasks: sortTasksBySchedulerPriority(tasks),
+              statistics,
+              executions,
+              recentExecutions,
+              upcomingTasks,
+              hasMoreExecutions: executions.length >= EXECUTIONS_PAGE_SIZE,
+              executionsCursor: cursor,
+              isLoading: false,
+            });
           } catch (error) {
             log.error('SchedulerStore: Refresh all failed', error as Error);
             set({ error: 'Failed to refresh scheduler data', isLoading: false });
@@ -438,12 +426,12 @@ export const useSchedulerStore = create<SchedulerStore>()(
         set((state) => ({
           filter: { ...state.filter, ...filter },
         }));
-        get().loadTasks();
+        void get().refreshAll();
       },
 
       clearFilter: () => {
         set({ filter: {} });
-        get().loadTasks();
+        void get().refreshAll();
       },
 
       setTasks: (tasks) => {
@@ -583,7 +571,7 @@ export const useSchedulerStore = create<SchedulerStore>()(
             notification: originalTask.notification,
             tags: originalTask.tags,
           });
-          await get().loadTasks();
+          await get().refreshAll();
           return clonedTask;
         } catch (error) {
           log.error('SchedulerStore: Clone task failed', error as Error);
@@ -599,8 +587,7 @@ export const useSchedulerStore = create<SchedulerStore>()(
           const deleted = await schedulerDb.cleanupOldExecutions(maxAgeDays);
           if (deleted > 0) {
             log.info(`SchedulerStore: Cleaned up ${deleted} old executions`);
-            // Refresh recent executions after cleanup
-            await get().loadRecentExecutions();
+            await get().refreshAll();
           }
           return deleted;
         } catch (error) {

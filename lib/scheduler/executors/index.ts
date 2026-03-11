@@ -325,6 +325,7 @@ async function executeBackupTask(
         destination === 'webdav' ||
         destination === 'github' ||
         destination === 'googledrive' ||
+        destination === 'convex' ||
         destination === 'all';
 
       if (shouldRemoteSync) {

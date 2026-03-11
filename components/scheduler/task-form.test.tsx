@@ -52,16 +52,16 @@ describe('TaskForm', () => {
     render(<TaskForm {...defaultProps} />);
     
     expect(screen.getByText('taskType')).toBeInTheDocument();
-    expect(screen.getByText('Plugin')).toBeInTheDocument();
+    expect(screen.getByText('taskTypes.plugin')).toBeInTheDocument();
   });
 
   it('should render trigger type buttons', () => {
     render(<TaskForm {...defaultProps} />);
     
-    expect(screen.getByText('Schedule (Cron)')).toBeInTheDocument();
-    expect(screen.getByText('Interval')).toBeInTheDocument();
-    expect(screen.getByText('One Time')).toBeInTheDocument();
-    expect(screen.getByText('Event Trigger')).toBeInTheDocument();
+    expect(screen.getByText('triggerTypes.cron')).toBeInTheDocument();
+    expect(screen.getByText('triggerTypes.interval')).toBeInTheDocument();
+    expect(screen.getByText('triggerTypes.once')).toBeInTheDocument();
+    expect(screen.getByText('triggerTypes.event')).toBeInTheDocument();
   });
 
   it('should show cron configuration by default', () => {
@@ -74,14 +74,14 @@ describe('TaskForm', () => {
   it('should show interval configuration when interval is selected', () => {
     render(<TaskForm {...defaultProps} />);
     
-    fireEvent.click(screen.getByText('Interval'));
+    fireEvent.click(screen.getByText('triggerTypes.interval'));
     expect(screen.getByText('intervalMinutes')).toBeInTheDocument();
   });
 
   it('should show date/time inputs when once is selected', () => {
     render(<TaskForm {...defaultProps} />);
     
-    fireEvent.click(screen.getByText('One Time'));
+    fireEvent.click(screen.getByText('triggerTypes.once'));
     expect(screen.getByText('date')).toBeInTheDocument();
     expect(screen.getByText('time')).toBeInTheDocument();
   });
@@ -89,7 +89,7 @@ describe('TaskForm', () => {
   it('should show event type input when event is selected', () => {
     render(<TaskForm {...defaultProps} />);
     
-    fireEvent.click(screen.getByText('Event Trigger'));
+    fireEvent.click(screen.getByText('triggerTypes.event'));
     expect(screen.getByText('eventType')).toBeInTheDocument();
   });
 
@@ -248,7 +248,7 @@ describe('TaskForm', () => {
     const nameInput = screen.getByLabelText(/taskName/i);
     await userEvent.type(nameInput, 'Interval Task');
     
-    fireEvent.click(screen.getByText('Interval'));
+    fireEvent.click(screen.getByText('triggerTypes.interval'));
     
     fireEvent.click(screen.getByText('save'));
     
@@ -280,5 +280,26 @@ describe('TaskForm', () => {
     fireEvent.click(screen.getByText('save'));
     
     expect(mockOnSubmit).not.toHaveBeenCalled();
+  });
+
+  it('should include advanced execution reliability defaults in submitted config', async () => {
+    mockOnSubmit.mockResolvedValue(undefined);
+    render(<TaskForm {...defaultProps} />);
+
+    const nameInput = screen.getByLabelText(/taskName/i);
+    await userEvent.type(nameInput, 'Config Task');
+    fireEvent.click(screen.getByText('save'));
+
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            runMissedOnStartup: false,
+            maxMissedRuns: 1,
+            allowConcurrent: false,
+          }),
+        })
+      );
+    });
   });
 });

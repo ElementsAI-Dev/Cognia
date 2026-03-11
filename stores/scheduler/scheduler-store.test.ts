@@ -39,7 +39,9 @@ jest.mock('@/lib/scheduler/task-scheduler', () => ({
 jest.mock('@/lib/scheduler/scheduler-db', () => ({
   schedulerDb: {
     getAllTasks: jest.fn().mockResolvedValue([]),
+    getFilteredTasks: jest.fn().mockResolvedValue([]),
     getRecentExecutions: jest.fn().mockResolvedValue([]),
+    getUpcomingTasks: jest.fn().mockResolvedValue([]),
     getTaskExecutions: jest.fn().mockResolvedValue([]),
     getStatistics: jest.fn().mockResolvedValue({
       totalTasks: 0,

@@ -147,6 +147,26 @@ describe('WorkflowScheduleDialog', () => {
     });
   });
 
+  it('should include execution config defaults when scheduling workflow task', async () => {
+    render(<WorkflowScheduleDialog {...defaultProps} />);
+    fireEvent.click(screen.getByText('scheduleWorkflow'));
+    fireEvent.click(screen.getByText('schedule'));
+
+    await waitFor(() => {
+      expect(mockCreateTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            maxRetries: 3,
+            retryDelay: 5000,
+            runMissedOnStartup: false,
+            maxMissedRuns: 1,
+            allowConcurrent: false,
+          }),
+        })
+      );
+    });
+  });
+
   it('should have cron configuration visible by default', () => {
     render(<WorkflowScheduleDialog {...defaultProps} />);
     fireEvent.click(screen.getByText('scheduleWorkflow'));

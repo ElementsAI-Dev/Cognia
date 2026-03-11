@@ -229,9 +229,11 @@ export function StatsOverview({
             ) : (
               <div className="space-y-1">
                 {recentExecutions.slice(0, 5).map((exec) => (
-                  <div
+                  <button
                     key={exec.id}
-                    className="flex items-center gap-3 rounded-lg px-2 py-2"
+                    type="button"
+                    onClick={() => onSelectTask(exec.taskId)}
+                    className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted/50"
                   >
                     <div className="shrink-0">
                       {exec.status === 'completed' ? (
@@ -246,6 +248,11 @@ export function StatsOverview({
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-medium">{exec.taskName}</p>
+                      {exec.terminalReason && (
+                        <p className="mt-0.5 truncate font-mono text-[10px] text-amber-700 dark:text-amber-300">
+                          {t('terminalReason')}: {exec.terminalReason}
+                        </p>
+                      )}
                     </div>
                     <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
                       {formatDuration(exec.duration)}
@@ -253,7 +260,8 @@ export function StatsOverview({
                     <span className="shrink-0 text-[10px] text-muted-foreground/70">
                       {exec.startedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                  </div>
+                    <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground/50" />
+                  </button>
                 ))}
               </div>
             )}
