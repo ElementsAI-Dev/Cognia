@@ -72,6 +72,12 @@ test-results/
 llmdoc/
 output/
 i18n-reports/
+.dify-ref/
+.pw-browsers/
+.tmp/
+
+# Local generated reports/artifacts
+artifacts/
 
 # OS
 .DS_Store
