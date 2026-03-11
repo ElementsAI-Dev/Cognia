@@ -101,6 +101,7 @@ const mockExternalAgentHook: Record<string, unknown> = {
   configOptions: [],
   setConfigOption: mockExternalSetConfigOption,
   isExecuting: false,
+  activeAgentValidity: null,
 };
 
 const mockProjectContextHook = { hasKnowledge: false };
@@ -696,6 +697,7 @@ beforeEach(() => {
   mockExternalChatFailurePolicy = 'fallback';
   mockExternalAgentHook.pendingPermission = null;
   mockExternalAgentHook.isExecuting = false;
+  mockExternalAgentHook.activeAgentValidity = null;
   mockExternalRespondToPermission.mockImplementation(async () => {
     mockExternalAgentHook.pendingPermission = null;
   });
@@ -838,6 +840,17 @@ describe('ChatContainer', () => {
       toolCalls: [],
       duration: 12,
     });
+    mockExternalAgentHook.activeAgentValidity = {
+      executable: true,
+      checkedAt: new Date('2026-03-10T00:00:00.000Z'),
+      source: 'execution',
+      lastBranchReasonCode: 'ok',
+      sessionExtensions: {
+        'session/list': { state: 'supported' },
+        'session/fork': { state: 'supported' },
+        'session/resume': { state: 'supported' },
+      },
+    };
 
     render(<ChatContainer sessionId="session-1" />);
     const input = screen.getByTestId('input-field');
@@ -861,6 +874,10 @@ describe('ChatContainer', () => {
       'session-1',
       expect.objectContaining({
         externalAgentSessionId: 'external-session-new',
+        externalRoutingDiagnostics: expect.objectContaining({
+          route: 'external',
+          reasonCode: 'ok',
+        }),
       })
     );
   });
@@ -877,6 +894,17 @@ describe('ChatContainer', () => {
     });
     mockExternalAgentCheckHealth.mockResolvedValueOnce(true);
     mockExternalAgentExecute.mockRejectedValueOnce(new Error('External failure'));
+    mockExternalAgentHook.activeAgentValidity = {
+      executable: false,
+      checkedAt: new Date('2026-03-10T00:00:00.000Z'),
+      source: 'execution',
+      lastBranchReasonCode: 'health_check_failed',
+      sessionExtensions: {
+        'session/list': { state: 'supported' },
+        'session/fork': { state: 'supported' },
+        'session/resume': { state: 'supported' },
+      },
+    };
 
     render(<ChatContainer sessionId="session-1" />);
     const input = screen.getByTestId('input-field');
@@ -888,6 +916,16 @@ describe('ChatContainer', () => {
     await waitFor(() => {
       expect(mockAgentRun).toHaveBeenCalledWith('Fallback request');
     });
+    expect(mockUpdateSession).toHaveBeenCalledWith(
+      'session-1',
+      expect.objectContaining({
+        externalRoutingDiagnostics: expect.objectContaining({
+          route: 'fallback',
+          policy: 'fallback',
+          reasonCode: 'health_check_failed',
+        }),
+      })
+    );
   });
 
   it('does not fall back when failure policy is strict', async () => {
@@ -897,6 +935,17 @@ describe('ChatContainer', () => {
     mockAgentRun.mockClear();
     mockExternalAgentCheckHealth.mockResolvedValueOnce(true);
     mockExternalAgentExecute.mockRejectedValueOnce(new Error('External failure strict'));
+    mockExternalAgentHook.activeAgentValidity = {
+      executable: false,
+      checkedAt: new Date('2026-03-10T00:00:00.000Z'),
+      source: 'connect',
+      lastBranchReasonCode: 'initialization_failed',
+      sessionExtensions: {
+        'session/list': { state: 'supported' },
+        'session/fork': { state: 'supported' },
+        'session/resume': { state: 'supported' },
+      },
+    };
 
     render(<ChatContainer sessionId="session-1" />);
     const input = screen.getByTestId('input-field');
@@ -912,6 +961,16 @@ describe('ChatContainer', () => {
       );
     });
     expect(mockAgentRun).not.toHaveBeenCalled();
+    expect(mockUpdateSession).toHaveBeenCalledWith(
+      'session-1',
+      expect.objectContaining({
+        externalRoutingDiagnostics: expect.objectContaining({
+          route: 'strict_failure',
+          policy: 'strict',
+          reasonCode: 'initialization_failed',
+        }),
+      })
+    );
   });
 
   it('responds to ACP permission option selection', async () => {

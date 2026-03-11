@@ -121,6 +121,12 @@ export interface AddAgentFormData {
   command: string;
   args: string;
   endpoint: string;
+  timeoutMs: string;
+  retryMaxRetries: string;
+  retryDelayMs: string;
+  retryExponentialBackoff: boolean;
+  retryMaxDelayMs: string;
+  retryOnErrors: string;
 }
 
 // ============================================================================

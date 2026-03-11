@@ -2,6 +2,7 @@ export { useExternalAgentStore } from './store';
 export {
   selectAgents,
   selectConnectionStatus,
+  selectAgentValidity,
   selectActiveAgentId,
   selectDelegationRules,
   selectEnabled,
@@ -10,6 +11,7 @@ export {
   selectEnabledAgents,
   selectAgentById,
   selectActiveAgent,
+  selectAgentValidityById,
   selectRunningAgents,
   selectActiveRunningAgents,
   selectTerminals,

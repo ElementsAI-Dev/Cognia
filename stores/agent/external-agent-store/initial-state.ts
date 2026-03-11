@@ -3,6 +3,7 @@ import type { ExternalAgentState } from './types';
 export const initialState: ExternalAgentState = {
   agents: {},
   connectionStatus: {},
+  agentValidity: {},
   activeAgentId: null,
   delegationRules: [],
   enabled: true,

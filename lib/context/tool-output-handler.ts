@@ -51,6 +51,8 @@ export interface ProcessToolOutputOptions {
   tags?: string[];
   /** Maximum inline preview lines */
   maxPreviewLines?: number;
+  /** Override threshold for deciding long output persistence */
+  longOutputThreshold?: number;
 }
 
 /**
@@ -70,6 +72,7 @@ export async function processToolOutput(
     ttlMs = CONTEXT_CONSTANTS.DEFAULT_TOOL_OUTPUT_TTL,
     tags = [],
     maxPreviewLines = 20,
+    longOutputThreshold,
   } = options;
   
   // Serialize output to string
@@ -80,7 +83,7 @@ export async function processToolOutput(
   const originalSize = content.length;
   
   // Check if output is long enough to warrant file storage
-  if (!forceFile && !isLongOutput(content)) {
+  if (!forceFile && !isLongOutput(content, longOutputThreshold)) {
     return {
       writtenToFile: false,
       inlineContent: content,

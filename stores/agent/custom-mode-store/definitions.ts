@@ -122,6 +122,18 @@ export const TOOL_CATEGORIES = {
       'directory_create',
     ],
   },
+  git: {
+    name: 'Git',
+    icon: 'GitBranch',
+    tools: [
+      'git_repo_inspect',
+      'git_changes',
+      'git_branch',
+      'git_history',
+      'git_remote',
+      'git_tag',
+    ],
+  },
   document: {
     name: 'Document Processing',
     icon: 'FileSearch',
@@ -242,7 +254,17 @@ export const MODE_TEMPLATES: ModeTemplate[] = [
     description: 'Expert programmer for code generation, debugging, and reviews',
     icon: 'Code2',
     category: 'technical',
-    tools: ['calculator', 'file_read', 'file_write', 'file_list', 'web_search'],
+    tools: [
+      'calculator',
+      'file_read',
+      'file_write',
+      'file_list',
+      'web_search',
+      'git_repo_inspect',
+      'git_changes',
+      'git_branch',
+      'git_history',
+    ],
     systemPrompt: `You are an expert software developer. Help users with:
 - Writing clean, efficient, and well-documented code
 - Debugging and fixing issues

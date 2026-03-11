@@ -21,6 +21,7 @@ import {
   getMcpToolRefs,
   generateMcpStaticPrompt,
 } from '@/lib/context';
+import { DEFAULT_CONTEXT_TRUNCATION_MARKER } from '@/lib/context/prompt-composer';
 import { z } from 'zod';
 
 // Mock dependencies
@@ -235,6 +236,158 @@ describe('context-aware-executor', () => {
 
       const callArgs = mockExecuteAgent.mock.calls[0][1];
       expect(callArgs.systemPrompt).toContain('MCP Tools Available');
+    });
+
+    it('should forward maxInlineOutputSize to processToolOutput threshold', async () => {
+      await executeContextAwareAgent('Threshold test', {
+        ...baseConfig,
+        enableContextFiles: true,
+        maxInlineOutputSize: 1234,
+      });
+
+      const callArgs = mockExecuteAgent.mock.calls[0][1] as {
+        tools?: Record<string, { execute: (args: Record<string, unknown>) => Promise<unknown> }>;
+      };
+      expect(callArgs.tools?.test_tool).toBeDefined();
+      await callArgs.tools?.test_tool.execute({});
+
+      expect(mockProcessToolOutput).toHaveBeenCalledWith(
+        'tool result',
+        expect.objectContaining({
+          longOutputThreshold: 1234,
+        })
+      );
+    });
+
+    it('should compose context metadata in deterministic order', async () => {
+      mockGetSkillRefs.mockResolvedValueOnce([
+        { id: 'skill-1', name: 'S', briefDescription: 'Skill', keywords: [] },
+      ]);
+      mockGenerateSkillsStaticPrompt.mockReturnValueOnce('## Skills Section\nskills');
+      mockGetMcpToolRefs.mockResolvedValueOnce([
+        {
+          fullName: 'mcp_docs_search',
+          toolName: 'search',
+          serverId: 'docs',
+          serverName: 'Docs',
+          briefDescription: 'Search docs',
+        },
+      ]);
+      mockGenerateMcpStaticPrompt.mockReturnValueOnce('## MCP Section\nmcp');
+      (getContextToolsPrompt as jest.MockedFunction<typeof getContextToolsPrompt>).mockReturnValueOnce(
+        '## Context Tools Section\ncontext-tools'
+      );
+
+      await executeContextAwareAgent('Order test', {
+        ...baseConfig,
+        systemPrompt: '## Base Section\nbase',
+      });
+
+      const callArgs = mockExecuteAgent.mock.calls[0][1];
+      const prompt = callArgs.systemPrompt as string;
+      expect(prompt.indexOf('## Skills Section')).toBeGreaterThanOrEqual(0);
+      expect(prompt.indexOf('## MCP Section')).toBeGreaterThan(prompt.indexOf('## Skills Section'));
+      expect(prompt.indexOf('## Context Tools Section')).toBeGreaterThan(
+        prompt.indexOf('## MCP Section')
+      );
+      expect(prompt.indexOf('## Base Section')).toBeGreaterThan(
+        prompt.indexOf('## Context Tools Section')
+      );
+    });
+
+    it('should deduplicate semantically equivalent metadata sections', async () => {
+      mockGetSkillRefs.mockResolvedValueOnce([
+        { id: 'skill-1', name: 'S', briefDescription: 'Skill', keywords: [] },
+      ]);
+      mockGenerateSkillsStaticPrompt.mockReturnValueOnce('## Shared Metadata\nskills');
+      mockGetMcpToolRefs.mockResolvedValueOnce([
+        {
+          fullName: 'mcp_docs_search',
+          toolName: 'search',
+          serverId: 'docs',
+          serverName: 'Docs',
+          briefDescription: 'Search docs',
+        },
+      ]);
+      mockGenerateMcpStaticPrompt.mockReturnValueOnce('## Shared Metadata\nmcp');
+
+      await executeContextAwareAgent('Dedup test', {
+        ...baseConfig,
+        systemPrompt: 'Base prompt',
+      });
+
+      const callArgs = mockExecuteAgent.mock.calls[0][1];
+      const prompt = callArgs.systemPrompt as string;
+      const matches = prompt.match(/## Shared Metadata/g) ?? [];
+      expect(matches).toHaveLength(1);
+    });
+
+    it('should truncate over-budget metadata sections with marker', async () => {
+      mockGetMcpToolRefs.mockResolvedValueOnce([
+        {
+          fullName: 'mcp_docs_search',
+          toolName: 'search',
+          serverId: 'docs',
+          serverName: 'Docs',
+          briefDescription: 'Search docs',
+        },
+      ]);
+      mockGenerateMcpStaticPrompt.mockReturnValueOnce(
+        `## MCP Tools Available\n${'a'.repeat(12000)}`
+      );
+
+      await executeContextAwareAgent('Truncation test', {
+        ...baseConfig,
+        systemPrompt: 'Base prompt',
+      });
+
+      const callArgs = mockExecuteAgent.mock.calls[0][1];
+      const prompt = callArgs.systemPrompt as string;
+      expect(prompt).toContain(DEFAULT_CONTEXT_TRUNCATION_MARKER);
+    });
+
+    it('should redact sensitive values in injected metadata', async () => {
+      mockGetSkillRefs.mockResolvedValueOnce([
+        { id: 'skill-1', name: 'S', briefDescription: 'Skill', keywords: [] },
+      ]);
+      mockGenerateSkillsStaticPrompt.mockReturnValueOnce(
+        '## Agent Skills Available\napi_key=super-secret-value'
+      );
+
+      await executeContextAwareAgent('Redaction test', {
+        ...baseConfig,
+        systemPrompt: 'Base prompt',
+      });
+
+      const callArgs = mockExecuteAgent.mock.calls[0][1];
+      const prompt = callArgs.systemPrompt as string;
+      expect(prompt).toContain('api_key=[REDACTED]');
+      expect(prompt).not.toContain('super-secret-value');
+    });
+
+    it('should skip stale terminal context sections', async () => {
+      const oldTime = new Date(Date.now() - 11 * 60 * 1000);
+      mockListTerminalSessions.mockResolvedValueOnce([
+        {
+          sessionId: 'term-stale',
+          path: '.cognia/context/terminal/term-stale.txt',
+          sizeBytes: 1024,
+          createdAt: oldTime,
+          accessedAt: oldTime,
+        },
+      ]);
+      mockGenerateTerminalStaticPrompt.mockReturnValueOnce(
+        '## Terminal Sessions Available\n- term-stale'
+      );
+
+      await executeContextAwareAgent('Stale terminal test', {
+        ...baseConfig,
+        systemPrompt: 'Base prompt',
+      });
+
+      const callArgs = mockExecuteAgent.mock.calls[0][1];
+      const prompt = callArgs.systemPrompt as string;
+      expect(prompt).not.toContain('term-stale');
     });
 
     it('should gracefully handle terminal sessions fetch failure', async () => {

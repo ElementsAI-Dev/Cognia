@@ -36,6 +36,7 @@ The implementation aligns with:
 - Synchronization bridge:
   - `components/providers/initializers/external-agent-initializer.tsx`
   - `hooks/agent/use-external-agent.ts`
+  - `ExternalAgentManager.addLifecycleListener` (runtime connection/status updates)
 
 ### Startup Initialization
 
@@ -70,7 +71,7 @@ These remain visible in settings as `Coming Soon`, are preserved in storage, but
 
 ## Migration Behavior
 
-External agent persisted state now uses store persist version `2`.
+External agent persisted state now uses store persist version `3`.
 
 During migration:
 
@@ -82,6 +83,19 @@ During migration:
 - They remain editable and can be migrated to ACP in UI.
 
 No non-ACP config is silently deleted.
+
+## External Runtime Controls
+
+External agent creation now supports explicit runtime resilience controls:
+
+- `timeout` (execution timeout, ms)
+- `retryConfig.maxRetries`
+- `retryConfig.retryDelay`
+- `retryConfig.exponentialBackoff`
+- `retryConfig.maxRetryDelay`
+- `retryConfig.retryOnErrors` (pattern list)
+
+These values flow from UI (`ExternalAgentManager`) into persisted config, then into runtime execution in `ExternalAgentManager.connect / execute / executeStreaming`.
 
 ## Chat Routing and Fallback
 
@@ -155,6 +169,7 @@ They consistently:
 External execution path uses trace bridge metadata and keeps ACP session id + chat session id linkage for debugging:
 
 - `lib/ai/agent/external/manager.ts`
+- Runtime connection/error status is pushed through lifecycle events and synced into store state by `useExternalAgent`.
 
 ## Validation Coverage
 

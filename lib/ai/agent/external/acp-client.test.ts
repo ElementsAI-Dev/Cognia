@@ -10,6 +10,10 @@ import {
   acpTerminalOutput,
   acpTerminalWaitForExit,
 } from '@/lib/native/external-agent';
+import {
+  ExternalAgentUnsupportedSessionExtensionError,
+  isExternalAgentUnsupportedSessionExtensionError,
+} from './session-extension-errors';
 
 jest.mock('@/lib/utils', () => ({
   isTauri: jest.fn().mockReturnValue(false),
@@ -402,7 +406,19 @@ describe('AcpClientAdapter protocol behavior', () => {
       .spyOn(client as unknown as { sendRequest: (method: string, params?: Record<string, unknown>) => Promise<unknown> }, 'sendRequest')
       .mockRejectedValue(new Error('-32601: Method not found'));
 
-    await expect(client.listSessions()).rejects.toThrow('session listing');
+    let caught: unknown;
+    try {
+      await client.listSessions();
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(isExternalAgentUnsupportedSessionExtensionError(caught, 'session/list')).toBe(true);
+    expect(caught).toBeInstanceOf(ExternalAgentUnsupportedSessionExtensionError);
+    expect(caught).toMatchObject({
+      method: 'session/list',
+      code: 'extension_unsupported',
+    });
     await expect(client.listSessions()).rejects.toThrow('session listing');
 
     expect(sendRequestSpy).toHaveBeenCalledTimes(1);
@@ -757,9 +773,143 @@ describe('AcpClientAdapter protocol behavior', () => {
       .spyOn(client as unknown as { sendRequest: (method: string, params?: Record<string, unknown>) => Promise<unknown> }, 'sendRequest')
       .mockRejectedValue(new Error('-32601: Method not found'));
 
-    await expect(client.forkSession('session-1')).rejects.toThrow('session forking');
+    let caught: unknown;
+    try {
+      await client.forkSession('session-1');
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(isExternalAgentUnsupportedSessionExtensionError(caught, 'session/fork')).toBe(true);
+    expect(caught).toBeInstanceOf(ExternalAgentUnsupportedSessionExtensionError);
+    expect(caught).toMatchObject({
+      method: 'session/fork',
+      code: 'extension_unsupported',
+    });
     await expect(client.forkSession('session-1')).rejects.toThrow('session forking');
 
     expect(sendRequestSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('caches unsupported session/resume after method-not-found when loadSession fallback is unavailable', async () => {
+    const client = new AcpClientAdapter();
+    (client as unknown as { _agentCapabilities: Record<string, unknown> })._agentCapabilities = {};
+    (client as unknown as { _config: { id: string; process?: { cwd?: string } } })._config = {
+      id: 'agent-1',
+      process: { cwd: '/tmp' },
+    };
+
+    const sendRequestSpy = jest
+      .spyOn(client as unknown as { sendRequest: (method: string, params?: Record<string, unknown>) => Promise<unknown> }, 'sendRequest')
+      .mockRejectedValue(new Error('-32601: Method not found'));
+
+    let caught: unknown;
+    try {
+      await client.resumeSession('session-1');
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(isExternalAgentUnsupportedSessionExtensionError(caught, 'session/resume')).toBe(true);
+    expect(caught).toBeInstanceOf(ExternalAgentUnsupportedSessionExtensionError);
+    expect(caught).toMatchObject({
+      method: 'session/resume',
+      code: 'extension_unsupported',
+    });
+    await expect(client.resumeSession('session-1')).rejects.toThrow('session resume');
+
+    expect(sendRequestSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('captures initialization metadata for runtime validity snapshots', async () => {
+    const client = new AcpClientAdapter();
+    jest
+      .spyOn(
+        client as unknown as {
+          sendRequest: (method: string, params?: Record<string, unknown>) => Promise<unknown>;
+        },
+        'sendRequest'
+      )
+      .mockResolvedValue({
+        protocolVersion: 2,
+        agentCapabilities: {
+          promptCapabilities: { embeddedContext: true },
+          loadSession: true,
+        },
+        agentInfo: { name: 'Mock ACP Agent' },
+        authMethods: [{ id: 'token', name: 'Token' }],
+      });
+
+    await (
+      client as unknown as {
+        initialize: () => Promise<unknown>;
+      }
+    ).initialize();
+
+    expect(client.getAcpInitializationMetadata()).toEqual({
+      protocolVersion: 2,
+      agentCapabilities: {
+        promptCapabilities: { embeddedContext: true },
+        loadSession: true,
+      },
+      agentInfo: { name: 'Mock ACP Agent' },
+      authMethods: [{ id: 'token', name: 'Token' }],
+    });
+  });
+
+  it('exposes unsupported session/list in extension support cache and resets on clear', async () => {
+    const client = new AcpClientAdapter();
+    const sendRequestSpy = jest
+      .spyOn(
+        client as unknown as {
+          sendRequest: (method: string, params?: Record<string, unknown>) => Promise<unknown>;
+        },
+        'sendRequest'
+      )
+      .mockRejectedValueOnce(new Error('-32601: Method not found'))
+      .mockResolvedValueOnce({ sessions: [] });
+
+    await expect(client.listSessions()).rejects.toThrow('session listing');
+    expect(client.getSessionExtensionSupport()['session/list']).toMatchObject({
+      state: 'unsupported',
+      reasonCode: 'extension_unsupported',
+    });
+
+    client.clearSessionExtensionSupportCache();
+
+    await expect(client.listSessions()).resolves.toEqual([]);
+    expect(sendRequestSpy).toHaveBeenCalledTimes(2);
+    expect(client.getSessionExtensionSupport()['session/list'].state).toBe('supported');
+  });
+
+  it('marks session/resume support as supported when falling back to session/load', async () => {
+    const client = new AcpClientAdapter();
+    (client as unknown as { _agentCapabilities: Record<string, unknown> })._agentCapabilities = {
+      loadSession: true,
+    };
+    (client as unknown as { _config: { id: string; process?: { cwd?: string } } })._config = {
+      id: 'agent-1',
+      process: { cwd: '/tmp' },
+    };
+
+    jest
+      .spyOn(
+        client as unknown as {
+          sendRequest: (method: string, params?: Record<string, unknown>) => Promise<unknown>;
+        },
+        'sendRequest'
+      )
+      .mockImplementation(async (method: string) => {
+        if (method === 'session/resume') {
+          throw new Error('-32601: Method not found');
+        }
+        return {};
+      });
+
+    await client.resumeSession('session-1');
+    expect(client.getSessionExtensionSupport()['session/resume']).toMatchObject({
+      state: 'supported',
+      reasonCode: 'ok',
+    });
   });
 });

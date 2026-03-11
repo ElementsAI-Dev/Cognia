@@ -633,8 +633,12 @@ export function createToolOutputRef(
 /**
  * Check if content is "long" and should be written to file
  */
-export function isLongOutput(content: string): boolean {
-  return content.length > CONTEXT_CONSTANTS.LONG_OUTPUT_THRESHOLD;
+export function isLongOutput(content: string, threshold?: number): boolean {
+  const resolvedThreshold =
+    typeof threshold === 'number' && threshold >= 0
+      ? threshold
+      : CONTEXT_CONSTANTS.LONG_OUTPUT_THRESHOLD;
+  return content.length > resolvedThreshold;
 }
 
 /**

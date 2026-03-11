@@ -32,6 +32,24 @@ jest.mock('../tools', () => ({
           create: () => async () => ({ success: true }),
         };
       }
+      if (
+        [
+          'git_repo_inspect',
+          'git_changes',
+          'git_branch',
+          'git_history',
+          'git_remote',
+          'git_tag',
+        ].includes(name)
+      ) {
+        return {
+          name,
+          description: `${name} description`,
+          parameters: z.object({}),
+          create: () => async () => ({ success: true, action: name }),
+          requiresApproval: name !== 'git_repo_inspect' && name !== 'git_history',
+        };
+      }
       return undefined;
     }),
   })),
@@ -44,6 +62,10 @@ jest.mock('../tools', () => ({
   artifactTools: [],
   memoryTools: [],
   getArtifactToolsPrompt: jest.fn(() => 'Artifact tools guidance prompt'),
+}));
+
+jest.mock('../tools/git-tool', () => ({
+  gitToolPromptSnippet: 'Git tools prompt snippet',
 }));
 
 jest.mock('@/lib/skills', () => ({
@@ -505,6 +527,32 @@ describe('initializeAgentTools', () => {
     expect(tools.custom_tool).toBeDefined();
     expect(tools.custom_tool.name).toBe('custom_tool');
   });
+
+  it('includes Git tools when enabled', () => {
+    const tools = initializeAgentTools({
+      enableGitTools: true,
+    });
+
+    expect(tools.git_repo_inspect).toBeDefined();
+    expect(tools.git_changes).toBeDefined();
+    expect(tools.git_branch).toBeDefined();
+    expect(tools.git_history).toBeDefined();
+    expect(tools.git_remote).toBeDefined();
+    expect(tools.git_tag).toBeDefined();
+  });
+
+  it('does not include Git tools when disabled', () => {
+    const tools = initializeAgentTools({
+      enableGitTools: false,
+    });
+
+    expect(tools.git_repo_inspect).toBeUndefined();
+    expect(tools.git_changes).toBeUndefined();
+    expect(tools.git_branch).toBeUndefined();
+    expect(tools.git_history).toBeUndefined();
+    expect(tools.git_remote).toBeUndefined();
+    expect(tools.git_tag).toBeUndefined();
+  });
 });
 
 describe('getToolDescriptions', () => {
@@ -701,6 +749,14 @@ describe('buildAgentSystemPrompt', () => {
     });
 
     expect(prompt).toContain('Artifact tools guidance prompt');
+  });
+
+  it('includes Git tools prompt when enabled', () => {
+    const prompt = buildAgentSystemPrompt({
+      enableGitTools: true,
+    });
+
+    expect(prompt).toContain('Git tools prompt snippet');
   });
 
   it('does not include artifact tools prompt when not enabled', () => {

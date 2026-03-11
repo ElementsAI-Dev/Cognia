@@ -2,8 +2,99 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { ExternalAgentManager } from './external-agent-manager';
+import { toast } from '@/components/ui/sonner';
+import { createExternalAgentUnsupportedSessionExtensionError } from '@/lib/ai/agent/external/session-extension-errors';
+import type { ExternalAgentValiditySnapshot } from '@/types/agent/external-agent';
+
+jest.mock('@/components/ui/sonner', () => ({
+  toast: {
+    error: jest.fn(),
+    success: jest.fn(),
+  },
+}));
+
+jest.mock('next-intl', () => ({
+  useTranslations:
+    (namespace?: string) =>
+    (key: string) => {
+      const translations: Record<string, string> = {
+        'externalAgent.externalAgents': 'External Agents',
+        'externalAgent.statusConnected': 'Connected',
+        'externalAgent.statusConnecting': 'Connecting',
+        'externalAgent.statusDisconnected': 'Disconnected',
+        'externalAgent.statusReconnecting': 'Reconnecting',
+        'externalAgent.statusError': 'Error',
+        'externalAgent.settings.configuredAgentsDesc': 'Manage your external agent connections',
+        'externalAgent.settings.addAgent': 'Add Agent',
+        'externalAgent.settings.addAgentToStart': 'Add an agent to get started',
+        'externalAgent.settings.protocol': 'Protocol',
+        'externalAgent.settings.transport': 'Transport',
+        'externalAgent.settings.command': 'Command',
+        'externalAgent.settings.arguments': 'Arguments',
+        'externalAgent.settings.endpoint': 'Endpoint URL',
+        'externalAgent.settings.connect': 'Connect',
+        'externalAgent.settings.disconnect': 'Disconnect',
+        'externalAgent.settings.connected': 'Connected successfully',
+        'externalAgent.settings.disconnected': 'Disconnected successfully',
+        'externalAgent.settings.connectionFailed': 'Connection failed',
+        'externalAgent.settings.disconnectFailed': 'Failed to disconnect',
+        'externalAgent.settings.agentRemoved': 'Agent removed successfully',
+        'externalAgent.settings.nameRequired': 'Agent name is required',
+        'externalAgent.settings.commandRequired': 'Command is required for stdio transport',
+        'externalAgent.settings.endpointRequired': 'Endpoint URL is required for HTTP transport',
+        'externalAgent.settings.executionTimeoutMs': 'Execution Timeout (ms)',
+        'externalAgent.settings.maxRetries': 'Max Retries',
+        'externalAgent.settings.retryDelayMs': 'Retry Delay (ms)',
+        'externalAgent.settings.maxRetryDelayMs': 'Max Retry Delay (ms)',
+        'externalAgent.settings.backoffStrategy': 'Backoff Strategy',
+        'externalAgent.settings.backoffExponential': 'Exponential',
+        'externalAgent.settings.backoffFixedDelay': 'Fixed Delay',
+        'externalAgent.settings.retryErrorPatterns': 'Retry Error Patterns (comma/newline separated)',
+        'externalAgent.settings.retryErrorPatternsPlaceholder': 'timeout, connection reset',
+        'externalAgent.manager.protocolViaTransport': '{protocol} via {transport}',
+        'externalAgent.manager.noEndpoint': 'No endpoint',
+        'externalAgent.manager.addExternalAgent': 'Add External Agent',
+        'externalAgent.manager.configureNewExternalAgentConnection': 'Configure a new external agent connection.',
+        'externalAgent.manager.quickStartPreset': 'Quick Start (Preset)',
+        'externalAgent.manager.selectPresetOrConfigureManually': 'Select a preset or configure manually...',
+        'externalAgent.manager.customConfiguration': 'Custom Configuration',
+        'externalAgent.manager.noteLabel': 'Note',
+        'externalAgent.manager.name': 'Name',
+        'externalAgent.manager.a2aComingSoon': 'A2A (Coming Soon)',
+        'externalAgent.manager.httpProtocolComingSoon': 'HTTP Protocol (Coming Soon)',
+        'externalAgent.manager.websocketProtocolComingSoon': 'WebSocket Protocol (Coming Soon)',
+        'externalAgent.manager.customProtocolComingSoon': 'Custom Protocol (Coming Soon)',
+        'externalAgent.manager.transportStdioLocal': 'stdio (local)',
+        'externalAgent.manager.transportHttp': 'HTTP',
+        'externalAgent.manager.transportWebsocket': 'WebSocket',
+        'externalAgent.manager.transportSse': 'SSE',
+        'externalAgent.manager.stdioDesktopRuntimeWarning':
+          'stdio transport requires desktop runtime. You can still save this config, but execution is disabled on web.',
+        'externalAgent.manager.removeAgentConfirm': 'Are you sure you want to remove this agent?',
+        'externalAgent.manager.removeAgentFailed': 'Failed to remove external agent',
+        'externalAgent.manager.unsupportedProtocol': 'Only ACP protocol is currently supported.',
+        'externalAgent.manager.addingAgent': 'Adding...',
+        'externalAgent.manager.addAgentFailed': 'Failed to add external agent',
+        'externalAgent.manager.refresh': 'Refresh',
+        'externalAgent.manager.refreshSessionsFailed': 'Failed to refresh sessions',
+        'externalAgent.manager.noExternalAgents': 'No External Agents',
+        'externalAgent.manager.sessions': 'Sessions',
+        'externalAgent.manager.refreshSessions': 'Refresh Sessions',
+        'externalAgent.manager.noResumableSessions': 'No resumable sessions discovered.',
+        'externalAgent.manager.resumeSessionFailed': 'Failed to resume session',
+        'externalAgent.manager.forkSessionFailed': 'Failed to fork session',
+        'externalAgent.manager.resume': 'Resume',
+        'externalAgent.manager.fork': 'Fork',
+        'common.remove': 'Remove',
+        'common.cancel': 'Cancel',
+        'common.dismiss': 'Dismiss',
+        'common.loading': 'Loading...',
+      };
+      return translations[namespace ? `${namespace}.${key}` : key] || key;
+    },
+}));
 
 // Mock lucide-react icons
 jest.mock('lucide-react', () => {
@@ -300,6 +391,7 @@ describe('ExternalAgentManager', () => {
     agents: [],
     activeAgentId: null,
     activeSession: null,
+    activeAgentValidity: null as ExternalAgentValiditySnapshot | null,
     isExecuting: false,
     isLoading: false,
     error: null,
@@ -322,6 +414,25 @@ describe('ExternalAgentManager', () => {
     forkSession: jest.fn(),
     resumeSession: jest.fn(),
   };
+  const connectedAcpAgent = {
+    config: {
+      id: 'agent-1',
+      name: 'Agent One',
+      protocol: 'acp',
+      transport: 'stdio',
+      enabled: true,
+      process: { command: 'npx', args: [] },
+    },
+    connectionStatus: 'connected' as const,
+  };
+  const withConnectedActiveAgent = (
+    overrides: Partial<typeof baseHookReturn> = {}
+  ) => ({
+    ...baseHookReturn,
+    activeAgentId: 'agent-1',
+    agents: [connectedAcpAgent],
+    ...overrides,
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -475,6 +586,152 @@ describe('ExternalAgentManager', () => {
     expect(setActiveAgent).not.toHaveBeenCalled();
   });
 
+  it('renders runtime diagnostics from validity snapshot', async () => {
+    mockUseExternalAgent.mockReturnValue(
+      withConnectedActiveAgent({
+        activeAgentValidity: {
+          executable: false,
+          checkedAt: new Date('2026-03-10T00:00:00.000Z'),
+          source: 'connect',
+          blockingReasonCode: 'transport_blocked',
+          blockingReason: 'The stdio transport requires the desktop (Tauri) runtime.',
+          healthStatus: 'unhealthy',
+          sessionExtensions: {
+            'session/list': { state: 'unsupported', reason: 'session/list not available' },
+            'session/fork': { state: 'unknown' },
+            'session/resume': { state: 'unknown' },
+          },
+          negotiation: {
+            protocol: 'acp',
+            authRequired: true,
+            authMethods: [{ id: 'token', name: 'Token' }],
+          },
+        },
+      })
+    );
+
+    render(<ExternalAgentManager />);
+
+    expect(screen.getByTestId('external-agent-diagnostics')).toBeInTheDocument();
+    expect(screen.getByText(/Runtime Diagnostics/)).toBeInTheDocument();
+    expect(screen.getByText(/Executable: no \(transport_blocked\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Health: unhealthy/)).toBeInTheDocument();
+    expect(screen.getByText(/Auth Required: yes/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Blocking reason: The stdio transport requires the desktop/)
+    ).toBeInTheDocument();
+  });
+
+  it('disables connect action when agent validity marks it non-executable', () => {
+    const connect = jest.fn();
+    mockUseExternalAgent.mockReturnValue({
+      ...baseHookReturn,
+      connect,
+      agents: [
+        {
+          config: {
+            id: 'a1',
+            name: 'Agent One',
+            protocol: 'acp',
+            transport: 'stdio',
+            enabled: true,
+            process: { command: 'npx', args: [] },
+          },
+          connectionStatus: 'disconnected',
+          validity: {
+            executable: false,
+            checkedAt: new Date('2026-03-10T00:00:00.000Z'),
+            source: 'config',
+            blockingReasonCode: 'transport_blocked',
+            blockingReason: 'stdio requires desktop runtime',
+            sessionExtensions: {
+              'session/list': { state: 'unknown' },
+              'session/fork': { state: 'unknown' },
+              'session/resume': { state: 'unknown' },
+            },
+          },
+        },
+      ],
+    });
+
+    render(<ExternalAgentManager />);
+    const powerIcon = screen.getByTestId('icon-Power');
+    const connectButton = powerIcon.closest('button');
+    expect(connectButton).toBeDisabled();
+    expect(screen.getByText('stdio requires desktop runtime')).toBeInTheDocument();
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  it('shows toast error when connect fails', async () => {
+    const connect = jest.fn().mockRejectedValue(new Error('connect failed'));
+
+    mockUseExternalAgent.mockReturnValue({
+      ...baseHookReturn,
+      connect,
+      agents: [
+        {
+          config: {
+            id: 'a1',
+            name: 'Agent One',
+            protocol: 'acp',
+            transport: 'stdio',
+            enabled: true,
+            process: { command: 'npx', args: [] },
+          },
+          connectionStatus: 'disconnected',
+        },
+      ],
+    });
+
+    render(<ExternalAgentManager />);
+
+    const powerIcon = screen.getByTestId('icon-Power');
+    const connectButton = powerIcon.closest('button');
+    await act(async () => {
+      fireEvent.click(connectButton as HTMLButtonElement);
+    });
+
+    await waitFor(() => {
+      expect(connect).toHaveBeenCalledWith('a1');
+      expect(toast.error).toHaveBeenCalledWith('connect failed');
+    });
+  });
+
+  it('shows toast error when disconnect fails', async () => {
+    const disconnect = jest.fn().mockRejectedValue(new Error('disconnect failed'));
+
+    mockUseExternalAgent.mockReturnValue({
+      ...baseHookReturn,
+      disconnect,
+      agents: [
+        {
+          config: {
+            id: 'a2',
+            name: 'Agent Two',
+            protocol: 'http',
+            transport: 'http',
+            enabled: true,
+            network: { endpoint: 'http://localhost:8080' },
+          },
+          connectionStatus: 'connected',
+        },
+      ],
+    });
+
+    render(<ExternalAgentManager />);
+
+    const powerOffIcon = screen.getByTestId('icon-PowerOff');
+    const disconnectButton = powerOffIcon.closest('button');
+    await act(async () => {
+      fireEvent.click(disconnectButton as HTMLButtonElement);
+    });
+
+    await waitFor(() => {
+      expect(disconnect).toHaveBeenCalledWith('a2');
+      expect(toast.error).toHaveBeenCalledWith('disconnect failed');
+    });
+  });
+
   it('remove button confirms before calling removeAgent', () => {
     const removeAgent = jest.fn();
     const confirmSpy = jest.fn(() => true);
@@ -541,6 +798,44 @@ describe('ExternalAgentManager', () => {
     expect(removeAgent).not.toHaveBeenCalled();
   });
 
+  it('shows toast error when remove fails after confirmation', async () => {
+    const removeAgent = jest.fn().mockRejectedValue(new Error('remove failed'));
+    const confirmSpy = jest.fn(() => true);
+    (global as unknown as { confirm: jest.Mock }).confirm = confirmSpy;
+
+    mockUseExternalAgent.mockReturnValue({
+      ...baseHookReturn,
+      removeAgent,
+      agents: [
+        {
+          config: {
+            id: 'a1',
+            name: 'Agent One',
+            protocol: 'acp',
+            transport: 'stdio',
+            enabled: true,
+            process: { command: 'npx', args: [] },
+          },
+          connectionStatus: 'disconnected',
+        },
+      ],
+    });
+
+    render(<ExternalAgentManager />);
+
+    const trashIcon = screen.getByTestId('icon-Trash2');
+    const removeButton = trashIcon.closest('button');
+    await act(async () => {
+      fireEvent.click(removeButton as HTMLButtonElement);
+    });
+
+    await waitFor(() => {
+      expect(confirmSpy).toHaveBeenCalledTimes(1);
+      expect(removeAgent).toHaveBeenCalledWith('a1');
+      expect(toast.error).toHaveBeenCalledWith('remove failed');
+    });
+  });
+
   it('opens add dialog and submitting stdio form calls addAgent with process args split', async () => {
     const addAgent = jest.fn(async (_config: Record<string, unknown>) => undefined);
 
@@ -573,9 +868,64 @@ describe('ExternalAgentManager', () => {
           protocol: 'acp',
           transport: 'stdio',
           process: { command: 'npx', args: ['@anthropics/claude-code', '--stdio'] },
+          timeout: 300000,
+          retryConfig: expect.objectContaining({
+            maxRetries: 3,
+            retryDelay: 1000,
+            exponentialBackoff: true,
+            maxRetryDelay: 30000,
+            retryOnErrors: [],
+          }),
         })
       );
     });
+  });
+
+  it('shows validation error when stdio command is missing', async () => {
+    const addAgent = jest.fn(async (_config: Record<string, unknown>) => undefined);
+    mockUseExternalAgent.mockReturnValue({
+      ...baseHookReturn,
+      addAgent,
+    });
+
+    render(<ExternalAgentManager />);
+    fireEvent.click(screen.getAllByText('Add Agent')[0]);
+    const dialog = screen.getByTestId('dialog-content');
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My Agent' } });
+    fireEvent.change(screen.getByLabelText('Command'), { target: { value: '   ' } });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Add Agent' }));
+    });
+
+    expect(addAgent).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith('Command is required for stdio transport');
+    expect(screen.getByTestId('dialog-content')).toBeInTheDocument();
+  });
+
+  it('keeps dialog open and shows error toast when addAgent fails', async () => {
+    const addAgent = jest.fn().mockRejectedValue(new Error('Agent start failed'));
+    mockUseExternalAgent.mockReturnValue({
+      ...baseHookReturn,
+      addAgent,
+    });
+
+    render(<ExternalAgentManager />);
+    fireEvent.click(screen.getAllByText('Add Agent')[0]);
+    const dialog = screen.getByTestId('dialog-content');
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My Agent' } });
+    fireEvent.change(screen.getByLabelText('Command'), { target: { value: 'npx' } });
+
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Add Agent' }));
+    });
+
+    await waitFor(() => {
+      expect(addAgent).toHaveBeenCalledTimes(1);
+      expect(toast.error).toHaveBeenCalledWith('Agent start failed');
+    });
+    expect(screen.getByTestId('dialog-content')).toBeInTheDocument();
   });
 
   it('preset selection populates form and shows env var hint', () => {
@@ -603,7 +953,7 @@ describe('ExternalAgentManager', () => {
     expect(screen.getByText(/Set CLAUDE_CODE_API_KEY/)).toBeInTheDocument();
   });
 
-  it('submitting non-stdio form calls addAgent with network endpoint', () => {
+  it('submitting non-stdio form calls addAgent with network endpoint', async () => {
     const addAgent = jest.fn(async (_config: Record<string, unknown>) => undefined);
 
     mockUseExternalAgent.mockReturnValue({
@@ -626,17 +976,21 @@ describe('ExternalAgentManager', () => {
       target: { value: 'http://localhost:9999' },
     });
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Add Agent' }));
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Add Agent' }));
+    });
 
-    expect(addAgent).toHaveBeenCalledTimes(1);
-    expect(addAgent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'HTTP Agent',
-        protocol: 'acp',
-        transport: 'http',
-        network: { endpoint: 'http://localhost:9999' },
-      })
-    );
+    await waitFor(() => {
+      expect(addAgent).toHaveBeenCalledTimes(1);
+      expect(addAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'HTTP Agent',
+          protocol: 'acp',
+          transport: 'http',
+          network: { endpoint: 'http://localhost:9999' },
+        })
+      );
+    });
   });
 
   it('renders ACP permission dialog and responds with selected option', async () => {
@@ -723,46 +1077,254 @@ describe('ExternalAgentManager', () => {
 
   it('shows session list actions and triggers resume/fork', async () => {
     const listSessions = jest.fn().mockResolvedValue([{ sessionId: 'session-1', title: 'Session One' }]);
-    const resumeSession = jest.fn();
-    const forkSession = jest.fn();
+    const resumeSession = jest.fn().mockResolvedValue(undefined);
+    const forkSession = jest.fn().mockResolvedValue(undefined);
 
-    mockUseExternalAgent.mockReturnValue({
-      ...baseHookReturn,
-      activeAgentId: 'agent-1',
-      listSessions,
-      resumeSession,
-      forkSession,
+    mockUseExternalAgent.mockReturnValue(
+      withConnectedActiveAgent({
+        listSessions,
+        resumeSession,
+        forkSession,
+      })
+    );
+
+    await act(async () => {
+      render(<ExternalAgentManager />);
     });
-
-    render(<ExternalAgentManager />);
 
     await waitFor(() => {
       expect(screen.getByText('Session One')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText('Resume'));
-    fireEvent.click(screen.getByText('Fork'));
-
-    expect(resumeSession).toHaveBeenCalledWith('session-1');
-    expect(forkSession).toHaveBeenCalledWith('session-1');
-  });
-
-  it('hides session extension section when listSessions is unsupported', async () => {
-    const listSessions = jest.fn().mockRejectedValue(new Error('Agent does not support session listing'));
-
-    mockUseExternalAgent.mockReturnValue({
-      ...baseHookReturn,
-      activeAgentId: 'agent-1',
-      listSessions,
+    await act(async () => {
+      fireEvent.click(screen.getByText('Resume'));
+      fireEvent.click(screen.getByText('Fork'));
     });
 
-    render(<ExternalAgentManager />);
+    await waitFor(() => {
+      expect(resumeSession).toHaveBeenCalledWith('session-1');
+      expect(forkSession).toHaveBeenCalledWith('session-1');
+    });
+  });
+
+  it('disables resume/fork actions when support state is unsupported and shows reasons', async () => {
+    const listSessions = jest
+      .fn()
+      .mockResolvedValue([{ sessionId: 'session-1', title: 'Session One' }]);
+    const resumeSession = jest.fn();
+    const forkSession = jest.fn();
+
+    mockUseExternalAgent.mockReturnValue(
+      withConnectedActiveAgent({
+        listSessions,
+        resumeSession,
+        forkSession,
+        activeAgentValidity: {
+          executable: true,
+          checkedAt: new Date('2026-03-10T00:00:00.000Z'),
+          source: 'connect',
+          healthStatus: 'healthy',
+          sessionExtensions: {
+            'session/list': { state: 'supported' },
+            'session/fork': { state: 'unsupported', reason: 'fork unsupported' },
+            'session/resume': { state: 'unsupported', reason: 'resume unsupported' },
+          },
+        },
+      })
+    );
+
+    await act(async () => {
+      render(<ExternalAgentManager />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Session One')).toBeInTheDocument();
+    });
+
+    const resumeButton = screen.getByText('Resume').closest('button');
+    const forkButton = screen.getByText('Fork').closest('button');
+    expect(resumeButton).toBeDisabled();
+    expect(forkButton).toBeDisabled();
+    expect(screen.getByText(/Resume unsupported: resume unsupported/)).toBeInTheDocument();
+    expect(screen.getByText(/Fork unsupported: fork unsupported/)).toBeInTheDocument();
+    expect(resumeSession).not.toHaveBeenCalled();
+    expect(forkSession).not.toHaveBeenCalled();
+  });
+
+  it('silently keeps session section when listSessions is unsupported', async () => {
+    const listSessions = jest
+      .fn()
+      .mockRejectedValue(createExternalAgentUnsupportedSessionExtensionError('session/list'));
+
+    mockUseExternalAgent.mockReturnValue(
+      withConnectedActiveAgent({
+        listSessions,
+      })
+    );
+
+    await act(async () => {
+      render(<ExternalAgentManager />);
+    });
 
     await waitFor(() => {
       expect(listSessions).toHaveBeenCalledWith('agent-1');
     });
 
-    expect(screen.queryByText('Sessions')).not.toBeInTheDocument();
-    expect(screen.queryByText('Refresh Sessions')).not.toBeInTheDocument();
+    expect(screen.getByText('Sessions')).toBeInTheDocument();
+    expect(screen.getByText('Refresh Sessions')).toBeInTheDocument();
+    expect(screen.getByText('No resumable sessions discovered.')).toBeInTheDocument();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('shows toast when listSessions fails for transient errors and keeps session section', async () => {
+    const listSessions = jest.fn().mockRejectedValue(new Error('network unavailable'));
+
+    mockUseExternalAgent.mockReturnValue(
+      withConnectedActiveAgent({
+        listSessions,
+      })
+    );
+
+    await act(async () => {
+      render(<ExternalAgentManager />);
+    });
+
+    await waitFor(() => {
+      expect(listSessions).toHaveBeenCalledWith('agent-1');
+      expect(toast.error).toHaveBeenCalledWith('network unavailable');
+    });
+
+    expect(screen.getByText('Sessions')).toBeInTheDocument();
+    expect(screen.getByText('Refresh Sessions')).toBeInTheDocument();
+  });
+
+  it('silently clears session list when resume is unsupported', async () => {
+    const listSessions = jest.fn().mockResolvedValue([{ sessionId: 'session-1', title: 'Session One' }]);
+    const resumeSession = jest
+      .fn()
+      .mockRejectedValue(new Error('Agent does not support session resume'));
+
+    mockUseExternalAgent.mockReturnValue(
+      withConnectedActiveAgent({
+        listSessions,
+        resumeSession,
+        forkSession: jest.fn().mockResolvedValue(undefined),
+      })
+    );
+
+    await act(async () => {
+      render(<ExternalAgentManager />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Session One')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Resume'));
+    });
+
+    await waitFor(() => {
+      expect(resumeSession).toHaveBeenCalledWith('session-1');
+      expect(screen.getByText('Sessions')).toBeInTheDocument();
+      expect(screen.queryByText('Session One')).not.toBeInTheDocument();
+    });
+
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('silently clears session list when fork is unsupported', async () => {
+    const listSessions = jest.fn().mockResolvedValue([{ sessionId: 'session-1', title: 'Session One' }]);
+    const forkSession = jest
+      .fn()
+      .mockRejectedValue(new Error('Agent does not support session forking'));
+
+    mockUseExternalAgent.mockReturnValue(
+      withConnectedActiveAgent({
+        listSessions,
+        resumeSession: jest.fn().mockResolvedValue(undefined),
+        forkSession,
+      })
+    );
+
+    await act(async () => {
+      render(<ExternalAgentManager />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Session One')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Fork'));
+    });
+
+    await waitFor(() => {
+      expect(forkSession).toHaveBeenCalledWith('session-1');
+      expect(screen.getByText('Sessions')).toBeInTheDocument();
+      expect(screen.queryByText('Session One')).not.toBeInTheDocument();
+    });
+
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('shows toast error when resume session fails', async () => {
+    const listSessions = jest.fn().mockResolvedValue([{ sessionId: 'session-1', title: 'Session One' }]);
+    const resumeSession = jest.fn().mockRejectedValue(new Error('resume failed'));
+
+    mockUseExternalAgent.mockReturnValue(
+      withConnectedActiveAgent({
+        listSessions,
+        resumeSession,
+        forkSession: jest.fn().mockResolvedValue(undefined),
+      })
+    );
+
+    await act(async () => {
+      render(<ExternalAgentManager />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Session One')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Resume'));
+    });
+
+    await waitFor(() => {
+      expect(resumeSession).toHaveBeenCalledWith('session-1');
+      expect(toast.error).toHaveBeenCalledWith('resume failed');
+    });
+  });
+
+  it('shows toast error when fork session fails', async () => {
+    const listSessions = jest.fn().mockResolvedValue([{ sessionId: 'session-1', title: 'Session One' }]);
+    const forkSession = jest.fn().mockRejectedValue(new Error('fork failed'));
+
+    mockUseExternalAgent.mockReturnValue(
+      withConnectedActiveAgent({
+        listSessions,
+        resumeSession: jest.fn().mockResolvedValue(undefined),
+        forkSession,
+      })
+    );
+
+    await act(async () => {
+      render(<ExternalAgentManager />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Session One')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Fork'));
+    });
+
+    await waitFor(() => {
+      expect(forkSession).toHaveBeenCalledWith('session-1');
+      expect(toast.error).toHaveBeenCalledWith('fork failed');
+    });
   });
 });

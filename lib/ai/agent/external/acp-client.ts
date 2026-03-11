@@ -22,6 +22,11 @@ import {
   BaseProtocolAdapter,
   type SessionCreateOptions,
 } from './protocol-adapter';
+import {
+  createExternalAgentUnsupportedSessionExtensionError,
+  isExternalAgentMethodNotFoundError,
+  isExternalAgentSessionExtensionUnsupportedForMethod,
+} from './session-extension-errors';
 
 const log = loggers.agent;
 import type {
@@ -54,6 +59,10 @@ import type {
   AcpToolCallKind,
   AcpToolCallStatus,
   AcpToolCallLocation,
+  ExternalAgentBranchReasonCode,
+  ExternalAgentSessionExtensionMethod,
+  ExternalAgentSessionExtensionSupport,
+  ExternalAgentExtensionSupportStatus,
 } from '@/types/agent/external-agent';
 
 // ============================================================================
@@ -232,6 +241,20 @@ interface PendingRequest {
   timeout: ReturnType<typeof setTimeout>;
 }
 
+function createDefaultExtensionSupportStatus(): ExternalAgentExtensionSupportStatus {
+  return {
+    state: 'unknown',
+  };
+}
+
+function createDefaultSessionExtensionSupport(): ExternalAgentSessionExtensionSupport {
+  return {
+    'session/list': createDefaultExtensionSupportStatus(),
+    'session/fork': createDefaultExtensionSupportStatus(),
+    'session/resume': createDefaultExtensionSupportStatus(),
+  };
+}
+
 // ============================================================================
 // ACP Client Adapter Implementation
 // ============================================================================
@@ -284,6 +307,7 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
 
     this._config = config;
     this._connectionStatus = 'connecting';
+    this.clearSessionExtensionSupportCache();
 
     try {
       if (config.transport === 'stdio') {
@@ -391,14 +415,22 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
     this._rpcEndpoint = this.resolveRpcEndpoint(config);
     this._eventsEndpoint = this.resolveEventsEndpoint(config);
 
-    // Basic HTTP connectivity check
-    const response = await proxyFetch(`${config.network.endpoint}/health`, {
-      method: 'GET',
-      headers: this.buildHeaders(config),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Health check failed: ${response.status} ${response.statusText}`);
+    // Advisory HTTP connectivity check.
+    // Some ACP servers do not expose /health but are protocol-valid through initialize.
+    try {
+      const response = await proxyFetch(`${config.network.endpoint}/health`, {
+        method: 'GET',
+        headers: this.buildHeaders(config),
+      });
+      if (!response.ok && response.status !== 404 && response.status !== 405) {
+        throw new Error(`Health check failed: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+      if (!message.includes('404') && !message.includes('405')) {
+        throw error;
+      }
+      log.warn('ACP network health endpoint unavailable; continuing with protocol initialization.');
     }
 
     if (config.transport === 'websocket') {
@@ -457,9 +489,12 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
   }
 
   // Store agent capabilities from initialization
+  private _protocolVersion?: number;
   private _agentCapabilities?: AcpAgentCapabilities;
   private _agentInfo?: AcpImplementationInfo;
   private _authMethods?: AcpAuthMethod[];
+  private _sessionExtensionSupport: ExternalAgentSessionExtensionSupport =
+    createDefaultSessionExtensionSupport();
   private _rpcEndpoint?: string;
   private _eventsEndpoint?: string;
 
@@ -469,6 +504,46 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
 
   private resolveEventsEndpoint(config: ExternalAgentConfig): string {
     return config.network?.eventsEndpoint || `${config.network?.endpoint}/events`;
+  }
+
+  private setExtensionSupport(
+    method: ExternalAgentSessionExtensionMethod,
+    state: ExternalAgentExtensionSupportStatus['state'],
+    reasonCode?: ExternalAgentBranchReasonCode,
+    reason?: string
+  ): void {
+    this._sessionExtensionSupport = {
+      ...this._sessionExtensionSupport,
+      [method]: {
+        state,
+        reasonCode,
+        reason,
+        lastCheckedAt: new Date(),
+      },
+    };
+  }
+
+  clearSessionExtensionSupportCache(): void {
+    this._sessionExtensionSupport = createDefaultSessionExtensionSupport();
+    this.unsupportedMethods.clear();
+  }
+
+  getSessionExtensionSupport(): ExternalAgentSessionExtensionSupport {
+    return { ...this._sessionExtensionSupport };
+  }
+
+  getAcpInitializationMetadata(): {
+    protocolVersion?: number;
+    agentInfo?: AcpImplementationInfo;
+    agentCapabilities?: AcpAgentCapabilities;
+    authMethods?: AcpAuthMethod[];
+  } {
+    return {
+      protocolVersion: this._protocolVersion,
+      agentInfo: this._agentInfo,
+      agentCapabilities: this._agentCapabilities,
+      authMethods: this._authMethods,
+    };
   }
 
   /**
@@ -499,6 +574,7 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
     const result = await this.sendRequest<AcpInitializeResult>('initialize', params as unknown as Record<string, unknown>);
 
     // Store agent info for later use
+    this._protocolVersion = result.protocolVersion;
     this._agentCapabilities = result.agentCapabilities;
     this._agentInfo = result.agentInfo;
     this._authMethods = result.authMethods;
@@ -595,7 +671,7 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
     }
     this.pendingPermissions.clear();
     this.pendingRequests.clear();
-    this.unsupportedMethods.clear();
+    this.clearSessionExtensionSupportCache();
     this._connectionStatus = 'disconnected';
 
     log.info('Disconnected');
@@ -1086,7 +1162,8 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
   async listSessions(): Promise<AcpSessionListItem[]> {
     const method = 'session/list';
     if (this.unsupportedMethods.has(method)) {
-      throw new Error('Agent does not support session listing');
+      this.setExtensionSupport(method, 'unsupported', 'extension_unsupported', 'Agent does not support session listing');
+      throw createExternalAgentUnsupportedSessionExtensionError(method);
     }
 
     try {
@@ -1094,15 +1171,26 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
         method,
         {}
       );
+      this.setExtensionSupport(method, 'supported', 'ok');
       if (Array.isArray(result)) {
         return result;
       }
       return result.sessions ?? [];
     } catch (error) {
-      if (this.isMethodNotFoundError(error)) {
+      if (
+        isExternalAgentMethodNotFoundError(error) ||
+        isExternalAgentSessionExtensionUnsupportedForMethod(error, method)
+      ) {
         this.unsupportedMethods.add(method);
-        throw new Error('Agent does not support session listing');
+        this.setExtensionSupport(method, 'unsupported', 'extension_unsupported', 'Agent does not support session listing');
+        throw createExternalAgentUnsupportedSessionExtensionError(method);
       }
+      this.setExtensionSupport(
+        method,
+        'unknown',
+        'extension_unknown',
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
     }
   }
@@ -1113,10 +1201,15 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
   async forkSession(sessionId: string): Promise<ExternalAgentSession> {
     const method = 'session/fork';
     if (this._agentCapabilities?.sessionCapabilities && !this._agentCapabilities.sessionCapabilities.fork) {
-      throw new Error('Agent does not advertise session forking support');
+      this.setExtensionSupport(method, 'unsupported', 'extension_unsupported', 'Agent does not advertise session forking support');
+      throw createExternalAgentUnsupportedSessionExtensionError(
+        method,
+        'Agent does not advertise session forking support'
+      );
     }
     if (this.unsupportedMethods.has(method)) {
-      throw new Error('Agent does not support session forking');
+      this.setExtensionSupport(method, 'unsupported', 'extension_unsupported', 'Agent does not support session forking');
+      throw createExternalAgentUnsupportedSessionExtensionError(method);
     }
 
     try {
@@ -1141,12 +1234,23 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
         },
       };
       this._sessions.set(forkedSession.id, forkedSession);
+      this.setExtensionSupport(method, 'supported', 'ok');
       return forkedSession;
     } catch (error) {
-      if (this.isMethodNotFoundError(error)) {
+      if (
+        isExternalAgentMethodNotFoundError(error) ||
+        isExternalAgentSessionExtensionUnsupportedForMethod(error, method)
+      ) {
         this.unsupportedMethods.add(method);
-        throw new Error('Agent does not support session forking');
+        this.setExtensionSupport(method, 'unsupported', 'extension_unsupported', 'Agent does not support session forking');
+        throw createExternalAgentUnsupportedSessionExtensionError(method);
       }
+      this.setExtensionSupport(
+        method,
+        'unknown',
+        'extension_unknown',
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
     }
   }
@@ -1158,15 +1262,32 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
     const method = 'session/resume';
     if (this._agentCapabilities?.sessionCapabilities && !this._agentCapabilities.sessionCapabilities.resume) {
       if (this._agentCapabilities.loadSession) {
+        this.setExtensionSupport(
+          method,
+          'supported',
+          'ok',
+          'session/resume unsupported; using session/load fallback'
+        );
         return this.loadSession(sessionId, options);
       }
-      throw new Error('Agent does not advertise session resume support');
+      this.setExtensionSupport(method, 'unsupported', 'extension_unsupported', 'Agent does not advertise session resume support');
+      throw createExternalAgentUnsupportedSessionExtensionError(
+        method,
+        'Agent does not advertise session resume support'
+      );
     }
     if (this.unsupportedMethods.has(method)) {
       if (this._agentCapabilities?.loadSession) {
+        this.setExtensionSupport(
+          method,
+          'supported',
+          'ok',
+          'session/resume unsupported; using session/load fallback'
+        );
         return this.loadSession(sessionId, options);
       }
-      throw new Error('Agent does not support session resume');
+      this.setExtensionSupport(method, 'unsupported', 'extension_unsupported', 'Agent does not support session resume');
+      throw createExternalAgentUnsupportedSessionExtensionError(method);
     }
 
     try {
@@ -1197,15 +1318,32 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
         },
       };
       this._sessions.set(resumedSession.id, resumedSession);
+      this.setExtensionSupport(method, 'supported', 'ok');
       return resumedSession;
     } catch (error) {
-      if (this.isMethodNotFoundError(error)) {
+      if (
+        isExternalAgentMethodNotFoundError(error) ||
+        isExternalAgentSessionExtensionUnsupportedForMethod(error, method)
+      ) {
         this.unsupportedMethods.add(method);
         if (this._agentCapabilities?.loadSession) {
+          this.setExtensionSupport(
+            method,
+            'supported',
+            'ok',
+            'session/resume unsupported; using session/load fallback'
+          );
           return this.loadSession(sessionId, options);
         }
-        throw new Error('Agent does not support session resume');
+        this.setExtensionSupport(method, 'unsupported', 'extension_unsupported', 'Agent does not support session resume');
+        throw createExternalAgentUnsupportedSessionExtensionError(method);
       }
+      this.setExtensionSupport(
+        method,
+        'unknown',
+        'extension_unknown',
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
     }
   }
@@ -1244,14 +1382,6 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
    */
   unregisterExtensionHandler(method: string): void {
     this.extensionHandlers.delete(method);
-  }
-
-  /**
-   * Best-effort detection of JSON-RPC method-not-found errors.
-   */
-  private isMethodNotFoundError(error: unknown): boolean {
-    const message = error instanceof Error ? error.message : String(error);
-    return message.includes('-32601') || /method not found/i.test(message);
   }
 
   private normalizePermissionOptionKind(kind: string | undefined): string {

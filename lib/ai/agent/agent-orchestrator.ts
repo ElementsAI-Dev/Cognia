@@ -980,7 +980,11 @@ export class AgentOrchestrator {
   checkExternalAgentDelegation(task: string): ExternalAgentDelegationResult {
     // If external agents are not enabled, return false
     if (!this.config.enableExternalAgents) {
-      return { shouldDelegate: false, reason: 'External agents not enabled' };
+      return {
+        shouldDelegate: false,
+        reason: 'External agents not enabled',
+        reasonCode: 'agent_disabled',
+      };
     }
 
     // If a preferred external agent is set, always delegate to it
@@ -989,6 +993,7 @@ export class AgentOrchestrator {
         shouldDelegate: true,
         targetAgentId: this.config.preferredExternalAgentId,
         reason: 'Preferred external agent configured',
+        reasonCode: 'ok',
       };
     }
 
@@ -1034,11 +1039,16 @@ export class AgentOrchestrator {
           targetAgentId: rule.targetAgentId,
           matchedRule: rule,
           reason: `Matched delegation rule: ${rule.name}`,
+          reasonCode: 'ok',
         };
       }
     }
 
-    return { shouldDelegate: false, reason: 'No matching delegation rule' };
+    return {
+      shouldDelegate: false,
+      reason: 'No matching delegation rule',
+      reasonCode: 'external_unavailable',
+    };
   }
 
   /**

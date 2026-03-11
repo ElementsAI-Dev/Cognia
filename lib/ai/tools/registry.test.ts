@@ -312,6 +312,16 @@ describe('getGlobalToolRegistry', () => {
     expect(registry.getAll).toBeDefined();
   });
 
+  it('includes structured git tools in default registry', () => {
+    const registry = getGlobalToolRegistry();
+    expect(registry.get('git_repo_inspect')).toBeDefined();
+    expect(registry.get('git_changes')).toBeDefined();
+    expect(registry.get('git_branch')).toBeDefined();
+    expect(registry.get('git_history')).toBeDefined();
+    expect(registry.get('git_remote')).toBeDefined();
+    expect(registry.get('git_tag')).toBeDefined();
+  });
+
   it('persists registered tools across calls', () => {
     const registry1 = getGlobalToolRegistry();
 

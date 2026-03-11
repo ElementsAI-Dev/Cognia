@@ -10,7 +10,7 @@
  * - Customizable templates
  */
 
-import { memo, useState, useCallback, lazy, Suspense } from 'react';
+import { memo, useState, useCallback, lazy, Suspense, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Play,
@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/tabs';
 import { useCopy } from '@/hooks/ui';
 import { Skeleton } from '@/components/ui/skeleton';
+import { buildFrameworkSandboxConfig, sandpackTemplateToFramework } from '@/lib/designer';
 
 // Lazy load Sandpack to reduce initial bundle size
 const SandpackProvider = lazy(() =>
@@ -101,8 +102,22 @@ export const SandpackBlock = memo(function SandpackBlock({
   const [activeTab, setActiveTab] = useState<'code' | 'preview' | 'console'>('preview');
   const { copy, isCopying } = useCopy({ toastMessage: tToasts('codeCopied') });
 
+  const runtimeConfig = useMemo(() => {
+    const framework = sandpackTemplateToFramework(template);
+    if (!framework) {
+      return null;
+    }
+
+    return buildFrameworkSandboxConfig({
+      framework,
+      code,
+      enableBridge: false,
+    });
+  }, [template, code]);
+
   // Prepare files based on template
-  const files = customFiles || getDefaultFiles(template, code);
+  const files = customFiles || runtimeConfig?.files || getDefaultFiles(template, code);
+  const resolvedTemplate = runtimeConfig?.template || template;
 
   const handleCopy = useCallback(async () => {
     await copy(code);
@@ -119,13 +134,15 @@ export const SandpackBlock = memo(function SandpackBlock({
         }
       >
         <SandpackProvider
-          template={template}
+          template={resolvedTemplate}
           files={files}
+          customSetup={runtimeConfig?.customSetup}
           theme="dark"
           options={{
             autorun: autoRun,
             recompileMode: 'delayed',
             recompileDelay: 500,
+            externalResources: runtimeConfig?.externalResources,
           }}
         >
           <div className={cn('flex flex-col', inFullscreen ? 'h-full' : 'h-[400px]')}>
@@ -200,7 +217,16 @@ export const SandpackBlock = memo(function SandpackBlock({
         </SandpackProvider>
       </Suspense>
     ),
-    [template, files, autoRun, showTabs, showConsole, activeTab]
+    [
+      resolvedTemplate,
+      files,
+      autoRun,
+      showTabs,
+      showConsole,
+      activeTab,
+      runtimeConfig?.customSetup,
+      runtimeConfig?.externalResources,
+    ]
   );
 
   return (

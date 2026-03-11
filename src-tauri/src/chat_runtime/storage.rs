@@ -6,7 +6,9 @@ use rusqlite::{params, Connection, Transaction};
 use serde_json::Value as JsonValue;
 
 use crate::chat_runtime::migrations::initialize_chat_schema;
-use crate::chat_runtime::models::{ChatBackupPayload, ChatImportResult, ChatMessagesPage};
+use crate::chat_runtime::models::{
+    ChatBackupPayload, ChatImportResult, ChatMessagesPage, ChatSchemaDiagnostics,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ChatRuntimeStorageError {
@@ -58,6 +60,40 @@ impl ChatRuntimeStorage {
             .lock()
             .map_err(|error| ChatRuntimeStorageError::Lock(error.to_string()))?;
         operation(&mut conn)
+    }
+
+    pub fn read_schema_version(&self) -> Result<i64, ChatRuntimeStorageError> {
+        self.with_connection(|conn| {
+            let raw_version: String = conn.query_row(
+                "SELECT value FROM meta WHERE key = 'schema_version'",
+                [],
+                |row| row.get(0),
+            )?;
+            raw_version.parse::<i64>().map_err(|error| {
+                ChatRuntimeStorageError::Validation(format!(
+                    "invalid schema_version value '{raw_version}': {error}"
+                ))
+            })
+        })
+    }
+
+    pub fn schema_diagnostics(&self, expected_schema_version: Option<i64>) -> ChatSchemaDiagnostics {
+        match self.read_schema_version() {
+            Ok(actual_schema_version) => {
+                if let Some(expected_schema_version) = expected_schema_version {
+                    if expected_schema_version != actual_schema_version {
+                        return ChatSchemaDiagnostics::mismatch(
+                            expected_schema_version,
+                            actual_schema_version,
+                        );
+                    }
+                }
+                ChatSchemaDiagnostics::compatible(expected_schema_version, actual_schema_version)
+            }
+            Err(error) => {
+                ChatSchemaDiagnostics::read_failed(expected_schema_version, error.to_string())
+            }
+        }
     }
 
     fn upsert_session_tx(
@@ -683,6 +719,23 @@ impl ChatRuntimeState {
             .import_backup(payload)
             .map_err(|error| error.to_string())
     }
+
+    pub fn get_schema_diagnostics(&self, expected_schema_version: Option<i64>) -> ChatSchemaDiagnostics {
+        self.storage.schema_diagnostics(expected_schema_version)
+    }
+
+    pub fn ensure_schema_compatible(
+        &self,
+        expected_schema_version: Option<i64>,
+    ) -> Result<(), String> {
+        let diagnostics = self.get_schema_diagnostics(expected_schema_version);
+        if diagnostics.compatible {
+            return Ok(());
+        }
+
+        Err(serde_json::to_string(&diagnostics)
+            .unwrap_or_else(|_| "schema compatibility check failed".to_string()))
+    }
 }
 
 fn now_iso() -> String {
@@ -922,5 +975,37 @@ mod tests {
         let page = storage.get_messages_page(None, None, 10, 0).unwrap();
         assert_eq!(page.total, 2);
         assert_eq!(page.items.len(), 2);
+    }
+
+    #[test]
+    fn test_schema_version_written_on_init() {
+        let storage = ChatRuntimeStorage::in_memory().unwrap();
+        let schema_version = storage.read_schema_version().unwrap();
+        assert_eq!(
+            schema_version,
+            crate::chat_runtime::migrations::CHAT_DB_SCHEMA_VERSION
+        );
+    }
+
+    #[test]
+    fn test_schema_diagnostics_mismatch() {
+        let storage = ChatRuntimeStorage::in_memory().unwrap();
+        let diagnostics = storage.schema_diagnostics(Some(999));
+        assert!(!diagnostics.compatible);
+        assert_eq!(diagnostics.reason_code.as_deref(), Some("schema-mismatch"));
+        assert_eq!(diagnostics.expected_schema_version, Some(999));
+    }
+
+    #[test]
+    fn test_schema_diagnostics_compatible() {
+        let storage = ChatRuntimeStorage::in_memory().unwrap();
+        let diagnostics = storage.schema_diagnostics(Some(
+            crate::chat_runtime::migrations::CHAT_DB_SCHEMA_VERSION,
+        ));
+        assert!(diagnostics.compatible);
+        assert_eq!(
+            diagnostics.actual_schema_version,
+            Some(crate::chat_runtime::migrations::CHAT_DB_SCHEMA_VERSION)
+        );
     }
 }

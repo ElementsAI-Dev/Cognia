@@ -20,7 +20,18 @@ import {
   getMcpToolRefs,
   generateMcpStaticPrompt,
 } from '@/lib/context';
+import { composeContextPrompt, type ContextPromptSection } from '@/lib/context/prompt-composer';
 import type { ToolOutputRef } from '@/types/system/context';
+
+const CONTEXT_SECTION_BUDGETS: Record<string, number> = {
+  terminal: 6000,
+  skills: 8000,
+  mcp: 8000,
+  'context-tools': 3000,
+  'base-system-prompt': 24000,
+};
+
+const TERMINAL_CONTEXT_MAX_AGE_MS = 10 * 60 * 1000;
 
 /**
  * Extended config for context-aware execution
@@ -52,7 +63,8 @@ export interface ContextAwareAgentResult extends AgentResult {
 function wrapToolWithContextPersistence(
   name: string,
   tool: AgentTool,
-  onPersisted?: (ref: ToolOutputRef, toolCall: ToolCall) => void
+  onPersisted?: (ref: ToolOutputRef, toolCall: ToolCall) => void,
+  longOutputThreshold?: number
 ): AgentTool {
   return {
     ...tool,
@@ -65,6 +77,7 @@ function wrapToolWithContextPersistence(
         toolName: name,
         toolCallId: `${name}-${Date.now()}`,
         tags: ['tool-result'],
+        longOutputThreshold,
       });
       
       // If written to file, notify and return formatted reference
@@ -97,7 +110,7 @@ export async function executeContextAwareAgent(
 ): Promise<ContextAwareAgentResult> {
   const {
     enableContextFiles = true,
-    maxInlineOutputSize: _maxInlineOutputSize,
+    maxInlineOutputSize = 4000,
     injectContextTools = true,
     onToolOutputPersisted,
     tools = {},
@@ -126,7 +139,8 @@ export async function executeContextAwareAgent(
             tokensSaved += parseInt(originalTokens, 10) - inlineTokens;
           }
           onToolOutputPersisted?.(ref, _toolCall);
-        }
+        },
+        maxInlineOutputSize
       );
     }
   }
@@ -137,14 +151,14 @@ export async function executeContextAwareAgent(
     enhancedTools = { ...enhancedTools, ...contextTools };
   }
   
-  // Enhance system prompt with context tools documentation and available resources
-  let enhancedSystemPrompt = systemPrompt;
+  // Enhance system prompt with deterministic section composition.
+  const promptSections: ContextPromptSection[] = [];
   if (injectContextTools) {
-    const promptParts: string[] = [];
-    if (systemPrompt) promptParts.push(systemPrompt);
-
-    // Add context tools documentation
-    promptParts.push(getContextToolsPrompt());
+    promptSections.push({
+      source: 'context-tools',
+      content: getContextToolsPrompt(),
+      priority: 40,
+    });
 
     // Add terminal sessions awareness (best-effort, non-blocking)
     try {
@@ -159,7 +173,21 @@ export async function executeContextAwareAgent(
             isActive: true,
           }))
         );
-        if (terminalPrompt) promptParts.push(terminalPrompt);
+
+        if (terminalPrompt) {
+          const latestAccessMs = Math.max(
+            ...sessions.map((session) => session.accessedAt.getTime())
+          );
+
+          promptSections.push({
+            source: 'terminal',
+            content: terminalPrompt,
+            priority: 15,
+            ephemeral: true,
+            createdAt: latestAccessMs,
+            maxAgeMs: TERMINAL_CONTEXT_MAX_AGE_MS,
+          });
+        }
       }
     } catch {
       // Terminal sessions unavailable — skip silently
@@ -170,7 +198,13 @@ export async function executeContextAwareAgent(
       const skillRefs = await getSkillRefs();
       if (skillRefs.length > 0) {
         const skillsPrompt = generateSkillsStaticPrompt(skillRefs);
-        if (skillsPrompt) promptParts.push(skillsPrompt);
+        if (skillsPrompt) {
+          promptSections.push({
+            source: 'skills',
+            content: skillsPrompt,
+            priority: 20,
+          });
+        }
       }
     } catch {
       // Skills context unavailable — skip silently
@@ -181,14 +215,33 @@ export async function executeContextAwareAgent(
       const mcpRefs = await getMcpToolRefs();
       if (mcpRefs.length > 0) {
         const mcpPrompt = generateMcpStaticPrompt(mcpRefs);
-        if (mcpPrompt) promptParts.push(mcpPrompt);
+        if (mcpPrompt) {
+          promptSections.push({
+            source: 'mcp',
+            content: mcpPrompt,
+            priority: 30,
+          });
+        }
       }
     } catch {
       // MCP context unavailable — skip silently
     }
-
-    enhancedSystemPrompt = promptParts.join('\n\n');
   }
+
+  if (systemPrompt) {
+    promptSections.push({
+      source: 'base-system-prompt',
+      content: systemPrompt,
+      priority: 50,
+      dedupeKey: 'base-system-prompt',
+      redact: false,
+    });
+  }
+
+  const enhancedSystemPrompt =
+    composeContextPrompt(promptSections, {
+      sectionBudgets: CONTEXT_SECTION_BUDGETS,
+    }) || systemPrompt;
   
   // Execute with enhanced config
   const result = await executeAgent(prompt, {

@@ -16,3 +16,4 @@ export * from './translators';
 export * from './presets';
 export * from './agent-trace-bridge';
 export * from './config-normalizer';
+export * from './session-extension-errors';

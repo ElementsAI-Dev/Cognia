@@ -35,3 +35,47 @@ pub struct ChatMessagesPage {
     pub total: usize,
     pub has_more: bool,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatSchemaDiagnostics {
+    pub compatible: bool,
+    pub expected_schema_version: Option<i64>,
+    pub actual_schema_version: Option<i64>,
+    pub reason_code: Option<String>,
+    pub reason: Option<String>,
+}
+
+impl ChatSchemaDiagnostics {
+    pub fn compatible(expected_schema_version: Option<i64>, actual_schema_version: i64) -> Self {
+        Self {
+            compatible: true,
+            expected_schema_version,
+            actual_schema_version: Some(actual_schema_version),
+            reason_code: None,
+            reason: None,
+        }
+    }
+
+    pub fn mismatch(expected_schema_version: i64, actual_schema_version: i64) -> Self {
+        Self {
+            compatible: false,
+            expected_schema_version: Some(expected_schema_version),
+            actual_schema_version: Some(actual_schema_version),
+            reason_code: Some("schema-mismatch".to_string()),
+            reason: Some(format!(
+                "expected schema version {expected_schema_version}, got {actual_schema_version}"
+            )),
+        }
+    }
+
+    pub fn read_failed(expected_schema_version: Option<i64>, message: String) -> Self {
+        Self {
+            compatible: false,
+            expected_schema_version,
+            actual_schema_version: None,
+            reason_code: Some("schema-read-failed".to_string()),
+            reason: Some(message),
+        }
+    }
+}

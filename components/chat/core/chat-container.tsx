@@ -157,6 +157,7 @@ import {
   detectPhaseTransition,
   extractSubQuestions,
   isLearningModeV2Enabled,
+  resolveLearningResumeOutcome,
 } from '@/lib/learning';
 import { detectSpeedLearningMode, isSpeedLearningIntent } from '@/lib/learning/speedpass';
 import { RoutingIndicator } from '../ui/routing-indicator';
@@ -167,12 +168,14 @@ import { PROVIDERS } from '@/types/provider';
 import type { ChatMode, UIMessage, ChatViewMode } from '@/types';
 import type { ToolInvocationPart } from '@/types/core/message';
 import type { AcpPermissionOption, AcpPermissionResponse, AcpMcpServerConfig } from '@/types/agent/external-agent';
+import type { LearningSubMode } from '@/types/core/session';
 import { getPluginEventHooks, getPluginLifecycleHooks } from '@/lib/plugin';
 import { toast } from 'sonner';
 import { useSummary } from '@/hooks/chat';
 import { FlowChatCanvas } from '../flow';
 import { ErrorBoundaryProvider } from '@/components/providers/core/error-boundary-provider';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
+import { useSpeedPassStore } from '@/stores/learning/speedpass-store';
 
 const log = loggers.chat;
 
@@ -296,6 +299,13 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const updateLearningEngagement = useLearningStore((state) => state.updateEngagement);
   const recordLearningAnswer = useLearningStore((state) => state.recordAnswer);
   const endLearningSession = useLearningStore((state) => state.endLearningSession);
+  const learningSessions = useLearningStore((state) => state.sessions);
+  const activeLearningSessionId = useLearningStore((state) => state.activeSessionId);
+
+  const speedPassTutorials = useSpeedPassStore((state) => state.tutorials);
+  const speedPassStudySessions = useSpeedPassStore((state) => state.studySessions);
+  const speedPassCurrentTutorialId = useSpeedPassStore((state) => state.currentTutorialId);
+  const speedPassCurrentSessionId = useSpeedPassStore((state) => state.currentSessionId);
 
   // Artifact store for auto-creating artifacts from AI responses
   const autoCreateFromContent = useArtifactStore((state) => state.autoCreateFromContent);
@@ -537,7 +547,11 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     return mcpServers
       .filter((server) => server.status.type === 'connected')
       .map((server) => {
-        if (server.config.connectionType === 'sse' && server.config.url) {
+        if (
+          (server.config.connectionType === 'sse' ||
+            server.config.connectionType === 'streamableHttp') &&
+          server.config.url
+        ) {
           return {
             type: 'sse',
             name: server.name,
@@ -903,7 +917,45 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     configOptions: externalConfigOptions,
     setConfigOption: setExternalConfigOption,
     isExecuting: isExternalAgentExecuting,
+    activeAgentValidity,
   } = useExternalAgent();
+
+  const resolveExternalBranchReasonCode = useCallback(
+    (errorMessage?: string) => {
+      if (activeAgentValidity?.lastBranchReasonCode) {
+        return activeAgentValidity.lastBranchReasonCode;
+      }
+
+      const normalized = (errorMessage || '').toLowerCase();
+      if (normalized.includes('session') && normalized.includes('not support')) {
+        return 'extension_unsupported' as const;
+      }
+      if (normalized.includes('permission')) {
+        return 'permission_denied' as const;
+      }
+      if (normalized.includes('health')) {
+        return 'health_check_failed' as const;
+      }
+      if (
+        normalized.includes('desktop') ||
+        normalized.includes('tauri') ||
+        normalized.includes('stdio')
+      ) {
+        return 'transport_blocked' as const;
+      }
+      if (normalized.includes('protocol')) {
+        return 'protocol_unsupported' as const;
+      }
+      if (normalized.includes('timeout') || normalized.includes('timed out')) {
+        return 'external_unavailable' as const;
+      }
+      if (normalized.includes('initial') || normalized.includes('connect')) {
+        return 'initialization_failed' as const;
+      }
+      return 'execution_failed' as const;
+    },
+    [activeAgentValidity?.lastBranchReasonCode]
+  );
 
   const mapAcpOptions = useCallback(
     (options?: AcpPermissionOption[]) =>
@@ -1144,6 +1196,44 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     setError(null);
   }, [createSession]);
 
+  const resolveLearningEntry = useCallback(
+    (targetSessionId: string | null | undefined) => {
+      if (!targetSessionId) {
+        return { shouldShowStartDialog: true as const, resumeOutcome: undefined };
+      }
+
+      const targetSession = getSession(targetSessionId);
+      const subMode: LearningSubMode = targetSession?.learningContext?.subMode || 'socratic';
+      const resumeOutcome = resolveLearningResumeOutcome({
+        subMode,
+        chatSessionId: targetSessionId,
+        context: targetSession?.learningContext?.resumeContext,
+        learningSession: getLearningSessionByChat(targetSessionId),
+        learningSessions,
+        activeLearningSessionId,
+        tutorials: speedPassTutorials,
+        studySessions: speedPassStudySessions,
+        currentTutorialId: speedPassCurrentTutorialId,
+        currentSpeedPassSessionId: speedPassCurrentSessionId,
+      });
+
+      return {
+        shouldShowStartDialog: resumeOutcome.outcome === 'reset-required' as const,
+        resumeOutcome,
+      };
+    },
+    [
+      getSession,
+      getLearningSessionByChat,
+      learningSessions,
+      activeLearningSessionId,
+      speedPassTutorials,
+      speedPassStudySessions,
+      speedPassCurrentTutorialId,
+      speedPassCurrentSessionId,
+    ]
+  );
+
   /**
    * Switch the current chat mode (chat / agent / research / learning).
    * If the session already has messages and the mode is changing, a confirmation
@@ -1153,6 +1243,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
    */
   const handleModeChange = useCallback(
     (mode: ChatMode) => {
+      let targetSessionId: string | null = session?.id || null;
       if (session) {
         // Check if there are messages - if so, show confirmation dialog
         if (messages.length > 0 && mode !== currentMode) {
@@ -1162,22 +1253,39 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
         }
         updateSession(session.id, { mode });
       } else {
-        createSession({ mode });
+        const createdSession = createSession({ mode });
+        targetSessionId = createdSession.id;
       }
       // Show learning start dialog when switching to learning mode
       if (mode === 'learning') {
-        const currentSessionId = session?.id;
-        const hasLearningSession = currentSessionId
-          ? getLearningSessionByChat(currentSessionId)
-          : null;
-        if (!hasLearningSession) {
+        const learningEntry = resolveLearningEntry(targetSessionId);
+        if (learningEntry.resumeOutcome?.recoveredContext && targetSessionId) {
+          const targetSession = getSession(targetSessionId);
+          updateSession(targetSessionId, {
+            learningContext: {
+              subMode: learningEntry.resumeOutcome.recoveredContext.subMode,
+              speedpassContext: targetSession?.learningContext?.speedpassContext,
+              resumeContext: learningEntry.resumeOutcome.recoveredContext,
+            },
+          });
+        }
+
+        if (learningEntry.shouldShowStartDialog) {
           setShowLearningStartDialog(true);
         } else {
           setShowLearningPanel(true);
         }
       }
     },
-    [session, updateSession, createSession, getLearningSessionByChat, messages.length, currentMode]
+    [
+      session,
+      updateSession,
+      createSession,
+      messages.length,
+      currentMode,
+      resolveLearningEntry,
+      getSession,
+    ]
   );
 
   /**
@@ -1192,21 +1300,43 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       if (!session || !pendingTargetMode) return;
 
       // Create new session with the target mode
-      switchModeWithNewSession(session.id, pendingTargetMode, {
+      const createdSession = switchModeWithNewSession(session.id, pendingTargetMode, {
         carryContext: options.carryContext,
         summary: options.summary,
       });
 
       // Show learning start dialog when switching to learning mode
       if (pendingTargetMode === 'learning') {
-        setShowLearningStartDialog(true);
+        const learningEntry = resolveLearningEntry(createdSession.id);
+        if (learningEntry.resumeOutcome?.recoveredContext) {
+          const createdSnapshot = getSession(createdSession.id);
+          updateSession(createdSession.id, {
+            learningContext: {
+              subMode: learningEntry.resumeOutcome.recoveredContext.subMode,
+              speedpassContext: createdSnapshot?.learningContext?.speedpassContext,
+              resumeContext: learningEntry.resumeOutcome.recoveredContext,
+            },
+          });
+        }
+        if (learningEntry.shouldShowStartDialog) {
+          setShowLearningStartDialog(true);
+        } else {
+          setShowLearningPanel(true);
+        }
       }
 
       // Reset state
       setPendingTargetMode(null);
       setShowModeSwitchDialog(false);
     },
-    [session, pendingTargetMode, switchModeWithNewSession]
+    [
+      session,
+      pendingTargetMode,
+      switchModeWithNewSession,
+      resolveLearningEntry,
+      getSession,
+      updateSession,
+    ]
   );
 
   // Handle mode switch cancel
@@ -1731,6 +1861,29 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
               updateSession(currentSessionId, {
                 externalAgentSessionId: externalResult.sessionId,
                 externalAgentInstructionHash: agentInstructionStack.instructionHash,
+                externalRoutingDiagnostics: {
+                  route: 'external',
+                  policy: externalChatFailurePolicy,
+                  reasonCode: activeAgentValidity?.lastBranchReasonCode ?? 'ok',
+                  reason:
+                    activeAgentValidity?.lastBranchReason ||
+                    'External execution succeeded',
+                  externalAgentId,
+                  at: new Date(),
+                },
+              });
+            } else {
+              updateSession(currentSessionId, {
+                externalRoutingDiagnostics: {
+                  route: 'external',
+                  policy: externalChatFailurePolicy,
+                  reasonCode: activeAgentValidity?.lastBranchReasonCode ?? 'ok',
+                  reason:
+                    activeAgentValidity?.lastBranchReason ||
+                    'External execution succeeded',
+                  externalAgentId,
+                  at: new Date(),
+                },
               });
             }
 
@@ -1741,9 +1894,20 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
             };
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'External agent execution failed';
+            const reasonCode = resolveExternalBranchReasonCode(errorMessage);
             if (externalChatFailurePolicy === 'strict') {
               toast.error('External agent execution failed.', {
                 description: errorMessage,
+              });
+              updateSession(currentSessionId, {
+                externalRoutingDiagnostics: {
+                  route: 'strict_failure',
+                  policy: 'strict',
+                  reasonCode,
+                  reason: errorMessage,
+                  externalAgentId,
+                  at: new Date(),
+                },
               });
               agentResult = {
                 success: false,
@@ -1760,6 +1924,16 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
                 sessionId: currentSessionId,
                 error: errorMessage,
               });
+              updateSession(currentSessionId, {
+                externalRoutingDiagnostics: {
+                  route: 'fallback',
+                  policy: 'fallback',
+                  reasonCode,
+                  reason: errorMessage,
+                  externalAgentId,
+                  at: new Date(),
+                },
+              });
 
               const fallbackResult = await runAgent(content);
               agentResult = {
@@ -1775,6 +1949,15 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
             }
           }
         } else {
+          updateSession(currentSessionId, {
+            externalRoutingDiagnostics: {
+              route: 'builtin',
+              policy: externalChatFailurePolicy,
+              reasonCode: 'ok',
+              reason: 'External agent not configured for current session',
+              at: new Date(),
+            },
+          });
           const builtInResult = await runAgent(content);
           agentResult = {
             success: builtInResult.success,
@@ -1838,6 +2021,8 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       addToolExecution,
       completeToolExecution,
       failToolExecution,
+      activeAgentValidity,
+      resolveExternalBranchReasonCode,
       externalChatFailurePolicy,
       runAgent,
       updateMessage,

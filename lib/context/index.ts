@@ -123,6 +123,14 @@ export {
   getContextToolsPrompt,
 } from './agent-context-tools';
 
+// Prompt composition
+export {
+  composeContextPrompt,
+  DEFAULT_CONTEXT_TRUNCATION_MARKER,
+  type ContextPromptSection,
+  type ComposeContextPromptOptions,
+} from './prompt-composer';
+
 // Cross-session context
 export {
   getRecentSessions,

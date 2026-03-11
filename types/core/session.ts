@@ -6,6 +6,7 @@ import type { UIMessage } from './message';
 import type { ProviderName } from '../provider/provider';
 import type { SessionCompressionOverrides, FrozenCompressionSummary } from '../system/compression';
 import type { ChatViewMode, FlowChatCanvasState, MultiModelConfig } from '../chat';
+import type { ExternalAgentBranchReasonCode } from '../agent/external-agent';
 
 export type { ProviderName, UIMessage, ChatViewMode, FlowChatCanvasState };
 
@@ -19,12 +20,36 @@ export interface LearningSpeedPassContext {
   targetScore?: number;
   examDate?: string;
   recommendedMode?: 'extreme' | 'speed' | 'comprehensive';
+  guidanceDepth?: 'high' | 'medium' | 'low';
+  practiceIntensity?: 'reduced' | 'balanced' | 'challenging';
   updatedAt?: Date;
+}
+
+export interface LearningResumeContext {
+  chatSessionId?: string;
+  subMode: LearningSubMode;
+  learningSessionId?: string;
+  learningPathId?: string;
+  tutorialId?: string;
+  tutorialSectionId?: string;
+  speedPassSessionId?: string;
+  noteIds?: string[];
+  lastStableAt?: Date | string;
 }
 
 export interface LearningContext {
   subMode: LearningSubMode;
   speedpassContext?: LearningSpeedPassContext;
+  resumeContext?: LearningResumeContext;
+}
+
+export interface ExternalAgentRoutingDiagnostics {
+  route: 'external' | 'fallback' | 'strict_failure' | 'builtin';
+  reasonCode?: ExternalAgentBranchReasonCode;
+  reason?: string;
+  policy?: 'fallback' | 'strict';
+  externalAgentId?: string;
+  at: Date;
 }
 
 export type ChatGoalStatus = 'active' | 'completed' | 'paused';
@@ -106,6 +131,8 @@ export interface Session {
   externalAgentSessionId?: string;
   // Hash of the external-agent instruction envelope used to create/reuse ACP session
   externalAgentInstructionHash?: string;
+  // Latest external routing branch diagnostics (strict/fallback/external outcome)
+  externalRoutingDiagnostics?: ExternalAgentRoutingDiagnostics;
 
   // Features
   enableTools?: boolean;
@@ -195,6 +222,7 @@ export interface CreateSessionInput {
   externalAgentId?: string;
   externalAgentSessionId?: string;
   externalAgentInstructionHash?: string;
+  externalRoutingDiagnostics?: ExternalAgentRoutingDiagnostics;
   systemPrompt?: string;
   projectId?: string;
   virtualEnvId?: string;
@@ -221,6 +249,7 @@ export interface UpdateSessionInput {
   externalAgentId?: string;
   externalAgentSessionId?: string;
   externalAgentInstructionHash?: string;
+  externalRoutingDiagnostics?: ExternalAgentRoutingDiagnostics;
   systemPrompt?: string;
   builtinPrompts?: Array<{ id: string; name: string; content: string; description?: string }>;
   temperature?: number;

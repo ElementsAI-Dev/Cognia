@@ -95,6 +95,23 @@ describe('useCustomModeStore', () => {
         expect(mode!.a2uiEnabled).toBe(true);
       });
 
+      it('should persist selected git tools in mode state', () => {
+        let mode: CustomModeConfig;
+        act(() => {
+          mode = useCustomModeStore.getState().createMode({
+            name: 'Git Mode',
+            tools: ['git_repo_inspect', 'git_changes', 'git_branch'],
+          });
+        });
+
+        expect(mode!.tools).toEqual(['git_repo_inspect', 'git_changes', 'git_branch']);
+        expect(useCustomModeStore.getState().customModes[mode!.id].tools).toEqual([
+          'git_repo_inspect',
+          'git_changes',
+          'git_branch',
+        ]);
+      });
+
       it('should add mode to store', () => {
         act(() => {
           useCustomModeStore.getState().createMode({ name: 'Test Mode' });
@@ -484,6 +501,7 @@ describe('useCustomModeStore', () => {
       expect(TOOL_CATEGORIES).toBeDefined();
       expect(TOOL_CATEGORIES.search).toBeDefined();
       expect(TOOL_CATEGORIES.file).toBeDefined();
+      expect(TOOL_CATEGORIES.git).toBeDefined();
       expect(TOOL_CATEGORIES.document).toBeDefined();
     });
 
@@ -492,6 +510,7 @@ describe('useCustomModeStore', () => {
       expect(ALL_AVAILABLE_TOOLS.length).toBeGreaterThan(0);
       expect(ALL_AVAILABLE_TOOLS).toContain('calculator');
       expect(ALL_AVAILABLE_TOOLS).toContain('web_search');
+      expect(ALL_AVAILABLE_TOOLS).toContain('git_repo_inspect');
     });
 
     it('should have available mode icons', () => {
@@ -587,6 +606,16 @@ describe('Tool Availability', () => {
     const result = checkToolAvailability(['calculator', 'rag_search'], {});
     expect(result.available).toContain('calculator');
     expect(result.available).toContain('rag_search');
+    expect(result.unavailable).toHaveLength(0);
+  });
+
+  it('should keep git tools available without API keys', () => {
+    const result = checkToolAvailability(['git_repo_inspect', 'git_changes'], {
+      tavily: false,
+      openai: false,
+    });
+    expect(result.available).toContain('git_repo_inspect');
+    expect(result.available).toContain('git_changes');
     expect(result.unavailable).toHaveLength(0);
   });
 });

@@ -102,7 +102,18 @@ interface AgentFormData {
   // Settings
   defaultPermissionMode: AcpPermissionMode;
   description: string;
+  timeoutMs: string;
+  retryMaxRetries: string;
+  retryDelayMs: string;
+  retryExponentialBackoff: boolean;
+  retryMaxDelayMs: string;
+  retryOnErrors: string;
 }
+
+const DEFAULT_TIMEOUT_MS = '300000';
+const DEFAULT_RETRY_MAX_RETRIES = '3';
+const DEFAULT_RETRY_DELAY_MS = '1000';
+const DEFAULT_RETRY_MAX_DELAY_MS = '30000';
 
 const DEFAULT_FORM_DATA: AgentFormData = {
   name: '',
@@ -115,6 +126,12 @@ const DEFAULT_FORM_DATA: AgentFormData = {
   networkApiKey: '',
   defaultPermissionMode: 'default',
   description: '',
+  timeoutMs: DEFAULT_TIMEOUT_MS,
+  retryMaxRetries: DEFAULT_RETRY_MAX_RETRIES,
+  retryDelayMs: DEFAULT_RETRY_DELAY_MS,
+  retryExponentialBackoff: true,
+  retryMaxDelayMs: DEFAULT_RETRY_MAX_DELAY_MS,
+  retryOnErrors: '',
 };
 
 // =============================================================================
@@ -157,27 +174,49 @@ function AgentEditorDialog({
   const { getAgent } = useExternalAgentStore();
 
   const [formData, setFormData] = useState<AgentFormData>(() => {
-    if (editingAgentId) {
-      const agent = getAgent(editingAgentId);
-      if (agent) {
-        return {
-          name: agent.name,
-          protocol: agent.protocol,
-          transport: agent.transport,
-          processCommand: agent.process?.command || '',
-          processArgs: agent.process?.args?.join(' ') || '',
-          processCwd: agent.process?.cwd || '',
-          networkEndpoint: agent.network?.endpoint || '',
-          networkApiKey: agent.network?.apiKey || '',
-          defaultPermissionMode: agent.defaultPermissionMode || 'default',
-          description: agent.description || '',
-        };
-      }
+    if (!editingAgentId) {
+      return DEFAULT_FORM_DATA;
     }
-    return DEFAULT_FORM_DATA;
+
+    const agent = getAgent(editingAgentId);
+    if (!agent) {
+      return DEFAULT_FORM_DATA;
+    }
+
+    return {
+      name: agent.name,
+      protocol: agent.protocol,
+      transport: agent.transport,
+      processCommand: agent.process?.command || '',
+      processArgs: agent.process?.args?.join(' ') || '',
+      processCwd: agent.process?.cwd || '',
+      networkEndpoint: agent.network?.endpoint || '',
+      networkApiKey: agent.network?.apiKey || '',
+      defaultPermissionMode: agent.defaultPermissionMode || 'default',
+      description: agent.description || '',
+      timeoutMs: String(agent.timeout ?? DEFAULT_TIMEOUT_MS),
+      retryMaxRetries: String(agent.retryConfig?.maxRetries ?? DEFAULT_RETRY_MAX_RETRIES),
+      retryDelayMs: String(agent.retryConfig?.retryDelay ?? DEFAULT_RETRY_DELAY_MS),
+      retryExponentialBackoff: agent.retryConfig?.exponentialBackoff ?? true,
+      retryMaxDelayMs: String(agent.retryConfig?.maxRetryDelay ?? DEFAULT_RETRY_MAX_DELAY_MS),
+      retryOnErrors: agent.retryConfig?.retryOnErrors?.join(', ') || '',
+    };
   });
 
   const handleSave = useCallback(() => {
+    const toNonNegativeInteger = (value: string, fallback: number): number => {
+      const parsed = Number.parseInt(value, 10);
+      if (Number.isNaN(parsed) || parsed < 0) {
+        return fallback;
+      }
+      return parsed;
+    };
+
+    const retryOnErrors = formData.retryOnErrors
+      .split(/\r?\n|,/)
+      .map((pattern) => pattern.trim())
+      .filter(Boolean);
+
     if (!formData.name.trim()) {
       toast.error(t('nameRequired'));
       return;
@@ -189,6 +228,23 @@ function AgentEditorDialog({
       transport: formData.transport,
       description: formData.description,
       defaultPermissionMode: formData.defaultPermissionMode,
+      timeout: toNonNegativeInteger(formData.timeoutMs, Number.parseInt(DEFAULT_TIMEOUT_MS, 10)),
+      retryConfig: {
+        maxRetries: toNonNegativeInteger(
+          formData.retryMaxRetries,
+          Number.parseInt(DEFAULT_RETRY_MAX_RETRIES, 10)
+        ),
+        retryDelay: toNonNegativeInteger(
+          formData.retryDelayMs,
+          Number.parseInt(DEFAULT_RETRY_DELAY_MS, 10)
+        ),
+        exponentialBackoff: formData.retryExponentialBackoff,
+        maxRetryDelay: toNonNegativeInteger(
+          formData.retryMaxDelayMs,
+          Number.parseInt(DEFAULT_RETRY_MAX_DELAY_MS, 10)
+        ),
+        retryOnErrors,
+      },
     };
 
     if (formData.transport === 'stdio') {
@@ -366,6 +422,87 @@ function AgentEditorDialog({
                 <SelectItem value="plan">{t('permissionPlan')}</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <Separator />
+          <div className="grid gap-2">
+            <Label htmlFor="timeoutMs">{t('executionTimeoutMs')}</Label>
+            <Input
+              id="timeoutMs"
+              type="number"
+              min={1000}
+              step={1000}
+              value={formData.timeoutMs}
+              onChange={(e) => setFormData({ ...formData, timeoutMs: e.target.value })}
+              placeholder={DEFAULT_TIMEOUT_MS}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="retryMaxRetries">{t('maxRetries')}</Label>
+              <Input
+                id="retryMaxRetries"
+                type="number"
+                min={0}
+                step={1}
+                value={formData.retryMaxRetries}
+                onChange={(e) => setFormData({ ...formData, retryMaxRetries: e.target.value })}
+                placeholder={DEFAULT_RETRY_MAX_RETRIES}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="retryDelayMs">{t('retryDelayMs')}</Label>
+              <Input
+                id="retryDelayMs"
+                type="number"
+                min={0}
+                step={100}
+                value={formData.retryDelayMs}
+                onChange={(e) => setFormData({ ...formData, retryDelayMs: e.target.value })}
+                placeholder={DEFAULT_RETRY_DELAY_MS}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="retryMaxDelayMs">{t('maxRetryDelayMs')}</Label>
+              <Input
+                id="retryMaxDelayMs"
+                type="number"
+                min={0}
+                step={100}
+                value={formData.retryMaxDelayMs}
+                onChange={(e) => setFormData({ ...formData, retryMaxDelayMs: e.target.value })}
+                placeholder={DEFAULT_RETRY_MAX_DELAY_MS}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="retryExponentialBackoff">{t('backoffStrategy')}</Label>
+              <Select
+                value={formData.retryExponentialBackoff ? 'true' : 'false'}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, retryExponentialBackoff: value === 'true' })
+                }
+              >
+                <SelectTrigger id="retryExponentialBackoff">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">{t('backoffExponential')}</SelectItem>
+                  <SelectItem value="false">{t('backoffFixedDelay')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="retryOnErrors">{t('retryErrorPatterns')}</Label>
+            <textarea
+              id="retryOnErrors"
+              className="min-h-20 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+              value={formData.retryOnErrors}
+              onChange={(e) => setFormData({ ...formData, retryOnErrors: e.target.value })}
+              placeholder={t('retryErrorPatternsPlaceholder')}
+            />
           </div>
         </div>
 
@@ -725,6 +862,24 @@ export function ExternalAgentSettings() {
                               <span className="text-muted-foreground">{t('transport')}:</span>
                               <span className="ml-2">{agent.transport}</span>
                             </div>
+                            <div>
+                              <span className="text-muted-foreground">{t('detailTimeout')}:</span>
+                              <span className="ml-2">{agent.timeout ?? 300000}ms</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">{t('detailRetry')}:</span>
+                              <span className="ml-2">
+                                {agent.retryConfig?.maxRetries ?? 3} @ {agent.retryConfig?.retryDelay ?? 1000}ms
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">{t('detailBackoff')}:</span>
+                              <span className="ml-2">
+                                {agent.retryConfig?.exponentialBackoff ?? true
+                                  ? t('backoffExponential')
+                                  : t('backoffFixed')}
+                              </span>
+                            </div>
                             {agent.process && (
                               <>
                                 <div>
@@ -786,6 +941,7 @@ export function ExternalAgentSettings() {
 
       {/* Agent Editor Dialog */}
       <AgentEditorDialog
+        key={`agent-editor-${editingAgentId ?? 'new'}-${editorOpen ? 'open' : 'closed'}`}
         open={editorOpen}
         onOpenChange={setEditorOpen}
         editingAgentId={editingAgentId}

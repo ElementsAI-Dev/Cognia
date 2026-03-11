@@ -369,7 +369,8 @@ export function MCPAppHost({
                 widgetSessionId,
                 originForBackend,
                 toolNameParam,
-                argsRecord
+                argsRecord,
+                message.id === null || message.id === undefined ? undefined : String(message.id)
               );
             postResponse(message.id, toolResult);
             return;
@@ -381,6 +382,10 @@ export function MCPAppHost({
                   serverId,
                   toolName,
                   sessionId: widgetSessionId,
+                  requestId:
+                    message.id === null || message.id === undefined
+                      ? undefined
+                      : String(message.id),
                   payload: params,
                 },
               })
@@ -395,6 +400,10 @@ export function MCPAppHost({
                   serverId,
                   toolName,
                   sessionId: widgetSessionId,
+                  requestId:
+                    message.id === null || message.id === undefined
+                      ? undefined
+                      : String(message.id),
                   payload: params,
                 },
               })
@@ -425,8 +434,17 @@ export function MCPAppHost({
           }
         }
       } catch (error) {
-        const errorMessage =
+        const rawErrorMessage =
           error instanceof Error ? error.message : 'MCP App bridge request failed';
+        const normalizedErrorMessage = rawErrorMessage.toLowerCase();
+        const errorMessage = normalizedErrorMessage.includes('timeout')
+          ? 'Widget tool call timed out. Falling back to standard tool output.'
+          : normalizedErrorMessage.includes('limit')
+            ? 'Widget tool call was rate limited. Falling back to standard tool output.'
+            : normalizedErrorMessage.includes('not allowed') ||
+                normalizedErrorMessage.includes('denied')
+              ? 'Widget tool call denied by policy. Falling back to standard tool output.'
+              : rawErrorMessage;
         setBridgeError(errorMessage);
         postResponse(message.id, null, {
           code: -32000,

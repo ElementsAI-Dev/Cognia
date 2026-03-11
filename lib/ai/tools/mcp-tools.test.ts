@@ -34,11 +34,15 @@ const createMockServerConfig = (): McpServerConfig => ({
   autoStart: false,
 });
 
-const createMockServer = (overrides: Partial<McpServerState> & Pick<McpServerState, 'id' | 'name' | 'status' | 'tools'>): McpServerState => ({
+const createMockServer = (
+  overrides: Omit<Partial<McpServerState>, 'connectionVersion'> &
+    Pick<McpServerState, 'id' | 'name' | 'status' | 'tools'> & { connectionVersion?: number }
+): McpServerState => ({
   config: createMockServerConfig(),
   resources: [],
   prompts: [],
   reconnectAttempts: 0,
+  connectionVersion: 1,
   ...overrides,
 });
 

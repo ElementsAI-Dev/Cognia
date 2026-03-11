@@ -31,6 +31,7 @@ import type { RAGSearchConfig } from '../tools/rag-search';
 import type { Skill } from '@/types/system/skill';
 import type { EmbeddingProvider } from '@/lib/vector/embedding';
 import { shellToolSystemPrompt as shellToolSystemPromptText } from '../tools/shell-tool';
+import { gitToolPromptSnippet as gitToolPromptSnippetText } from '../tools/git-tool';
 import { fileToolSystemPrompt, fileToolPromptSnippet } from '../tools/file-tool';
 import { documentToolSystemPrompt, documentToolPromptSnippet } from '../tools/document-tool';
 import {
@@ -67,6 +68,8 @@ export interface AgentToolsConfig {
   enableEnvironmentTools?: boolean;
   enableJupyterTools?: boolean;
   enableProcessTools?: boolean;
+  /** Enable structured Git tools (git_repo_inspect, git_changes, git_branch, git_history, git_remote, git_tag) */
+  enableGitTools?: boolean;
   /** Enable shell command execution tools (shell_execute) */
   enableShellTools?: boolean;
   /** Enable video generation tools (video_generate, video_status) */
@@ -705,6 +708,22 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
     Object.assign(tools, shellToolsDefs);
   }
 
+  // Structured Git tools
+  if (config.enableGitTools) {
+    const gitToolsDefs = getToolsFromRegistry(
+      [
+        'git_repo_inspect',
+        'git_changes',
+        'git_branch',
+        'git_history',
+        'git_remote',
+        'git_tag',
+      ],
+      registryConfig
+    );
+    Object.assign(tools, gitToolsDefs);
+  }
+
   // Video generation tools from registry
   if (config.enableVideoGeneration) {
     const videoTools = getToolsFromRegistry(
@@ -904,6 +923,7 @@ export function buildAgentSystemPrompt(config: {
   enableJupyterTools?: boolean;
   enableProcessTools?: boolean;
   processToolsDetailed?: boolean;
+  enableGitTools?: boolean;
   enableShellTools?: boolean;
   enableFileTools?: boolean;
   fileToolsDetailed?: boolean;
@@ -939,6 +959,11 @@ export function buildAgentSystemPrompt(config: {
   // Process tools prompt
   if (config.enableProcessTools) {
     parts.push(buildProcessToolsSystemPrompt(config.processToolsDetailed));
+  }
+
+  // Structured Git tools prompt
+  if (config.enableGitTools) {
+    parts.push(gitToolPromptSnippetText);
   }
 
   // Shell tools prompt

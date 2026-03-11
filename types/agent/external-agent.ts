@@ -33,6 +33,84 @@ export type ExternalAgentTransport =
   | 'sse'; // Server-Sent Events
 
 /**
+ * Canonical runtime branch/block reason codes for external-agent routing and diagnostics.
+ */
+export type ExternalAgentBranchReasonCode =
+  | 'ok'
+  | 'agent_not_found'
+  | 'configuration_missing'
+  | 'agent_disabled'
+  | 'protocol_unsupported'
+  | 'transport_blocked'
+  | 'initialization_failed'
+  | 'health_check_failed'
+  | 'external_unavailable'
+  | 'extension_unknown'
+  | 'extension_unsupported'
+  | 'session_resolution_failed'
+  | 'permission_denied'
+  | 'execution_failed'
+  | 'strict_failure'
+  | 'fallback_to_builtin';
+
+/**
+ * Support state for optional/unstable ACP extension methods.
+ */
+export type ExternalAgentSupportState = 'unknown' | 'supported' | 'unsupported';
+
+/**
+ * ACP session extension methods tracked for support probing.
+ */
+export type ExternalAgentSessionExtensionMethod =
+  | 'session/list'
+  | 'session/fork'
+  | 'session/resume';
+
+/**
+ * Support record for a specific extension method.
+ */
+export interface ExternalAgentExtensionSupportStatus {
+  state: ExternalAgentSupportState;
+  reasonCode?: ExternalAgentBranchReasonCode;
+  reason?: string;
+  lastCheckedAt?: Date;
+}
+
+/**
+ * Support map for tracked ACP session extension methods.
+ */
+export interface ExternalAgentSessionExtensionSupport {
+  'session/list': ExternalAgentExtensionSupportStatus;
+  'session/fork': ExternalAgentExtensionSupportStatus;
+  'session/resume': ExternalAgentExtensionSupportStatus;
+}
+
+/**
+ * Runtime validity snapshot for an external agent.
+ */
+export interface ExternalAgentValiditySnapshot {
+  executable: boolean;
+  checkedAt: Date;
+  source: 'config' | 'connect' | 'health' | 'execution';
+  blockingReasonCode?: ExternalAgentBranchReasonCode;
+  blockingReason?: string;
+  healthStatus?: 'unknown' | 'healthy' | 'unhealthy';
+  lastHealthCheckAt?: Date;
+  sessionExtensions: ExternalAgentSessionExtensionSupport;
+  negotiation?: {
+    protocol: ExternalAgentProtocol;
+    protocolVersion?: number;
+    agentInfo?: AcpImplementationInfo;
+    authMethods?: AcpAuthMethod[];
+    authRequired?: boolean;
+    agentCapabilities?: AcpAgentCapabilities;
+  };
+  lastBranchReasonCode?: ExternalAgentBranchReasonCode;
+  lastBranchReason?: string;
+  lastBranchAt?: Date;
+}
+
+/**
  * Connection status for external agents
  */
 export type ExternalAgentConnectionStatus =
@@ -894,6 +972,8 @@ export interface ExternalAgentConfig {
   tags?: string[];
   /** Custom metadata */
   metadata?: Record<string, unknown>;
+  /** Last known runtime validity snapshot (best-effort projection) */
+  validitySnapshot?: ExternalAgentValiditySnapshot;
 
   /** Creation timestamp */
   createdAt?: Date;
@@ -918,6 +998,7 @@ export interface CreateExternalAgentInput {
   retryConfig?: Partial<ExternalAgentRetryConfig>;
   tags?: string[];
   metadata?: Record<string, unknown>;
+  validitySnapshot?: ExternalAgentValiditySnapshot;
 }
 
 /**
@@ -936,6 +1017,7 @@ export interface UpdateExternalAgentInput {
   retryConfig?: Partial<ExternalAgentRetryConfig>;
   tags?: string[];
   metadata?: Record<string, unknown>;
+  validitySnapshot?: ExternalAgentValiditySnapshot;
 }
 
 // ============================================================================
@@ -1550,6 +1632,8 @@ export interface ExternalAgentInstance {
   capabilities?: AcpCapabilities;
   /** Available tools */
   tools?: AcpToolInfo[];
+  /** Runtime validity snapshot used for gating/projection */
+  validity?: ExternalAgentValiditySnapshot;
   /** Process ID (for stdio transport) */
   processId?: number;
   /** Last error */
@@ -1606,6 +1690,8 @@ export interface ExternalAgentDelegationResult {
   matchedRule?: ExternalAgentDelegationRule;
   /** Reason for decision */
   reason?: string;
+  /** Machine-readable branch reason code */
+  reasonCode?: ExternalAgentBranchReasonCode;
 }
 
 // ============================================================================

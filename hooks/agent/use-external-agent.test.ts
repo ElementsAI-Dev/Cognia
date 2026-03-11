@@ -8,6 +8,7 @@
 
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useExternalAgent } from './use-external-agent';
+import { createExternalAgentUnsupportedSessionExtensionError } from '@/lib/ai/agent/external/session-extension-errors';
 
 jest.mock('@/lib/utils', () => ({
   isTauri: jest.fn(() => true),
@@ -27,6 +28,7 @@ const mockIsConnected = jest.fn().mockReturnValue(false);
 const mockRespondToPermission = jest.fn().mockResolvedValue(undefined);
 const mockManagerGetAllAgents = jest.fn().mockReturnValue([]);
 const mockAddEventListener = jest.fn().mockReturnValue(() => {});
+const mockAddLifecycleListener = jest.fn().mockReturnValue(() => {});
 const mockGetSession = jest.fn();
 const mockSetSessionMode = jest.fn().mockResolvedValue(undefined);
 const mockSetSessionModel = jest.fn().mockResolvedValue(undefined);
@@ -59,6 +61,7 @@ const mockManager = {
   getAllAgents: mockManagerGetAllAgents,
   getAgent: mockManagerGetAgent,
   addEventListener: mockAddEventListener,
+  addLifecycleListener: mockAddLifecycleListener,
   getSession: mockGetSession,
   setSessionMode: mockSetSessionMode,
   setSessionModel: mockSetSessionModel,
@@ -83,6 +86,8 @@ const mockGetAllAgents = jest.fn();
 const mockGetAgent = jest.fn();
 const mockSetConnectionStatus = jest.fn();
 const mockGetConnectionStatus = jest.fn();
+const mockSetAgentValidity = jest.fn();
+const mockGetAgentValidity = jest.fn();
 const mockSetActiveAgent = jest.fn();
 const storeHookListeners = new Set<() => void>();
 type MockStoreState = {
@@ -92,9 +97,12 @@ type MockStoreState = {
   getAgent: typeof mockGetAgent;
   setConnectionStatus: typeof mockSetConnectionStatus;
   getConnectionStatus: typeof mockGetConnectionStatus;
+  setAgentValidity: typeof mockSetAgentValidity;
+  getAgentValidity: typeof mockGetAgentValidity;
   setActiveAgent: typeof mockSetActiveAgent;
   agents: Record<string, unknown>;
   connectionStatus: Record<string, string>;
+  agentValidity: Record<string, unknown>;
   activeAgentId: string | null;
   defaultPermissionMode: string;
   enabled: boolean;
@@ -117,9 +125,12 @@ const mockStoreState: MockStoreState = {
   getAgent: mockGetAgent,
   setConnectionStatus: mockSetConnectionStatus,
   getConnectionStatus: mockGetConnectionStatus,
+  setAgentValidity: mockSetAgentValidity,
+  getAgentValidity: mockGetAgentValidity,
   setActiveAgent: mockSetActiveAgent,
   agents: {} as Record<string, unknown>,
   connectionStatus: {} as Record<string, string>,
+  agentValidity: {} as Record<string, unknown>,
   activeAgentId: null as string | null,
   defaultPermissionMode: 'default',
   enabled: true,
@@ -136,6 +147,22 @@ const notifyStoreListeners = (previousState: MockStoreState) => {
 mockSetActiveAgent.mockImplementation((agentId: string | null) => {
   const previousState = { ...mockStoreState };
   mockStoreState.activeAgentId = agentId;
+  notifyStoreListeners(previousState);
+});
+mockSetConnectionStatus.mockImplementation((agentId: string, status: string) => {
+  const previousState = { ...mockStoreState };
+  mockStoreState.connectionStatus = {
+    ...mockStoreState.connectionStatus,
+    [agentId]: status,
+  };
+  notifyStoreListeners(previousState);
+});
+mockSetAgentValidity.mockImplementation((agentId: string, snapshot: unknown) => {
+  const previousState = { ...mockStoreState };
+  mockStoreState.agentValidity = {
+    ...mockStoreState.agentValidity,
+    [agentId]: snapshot,
+  };
   notifyStoreListeners(previousState);
 });
 mockStoreSetState.mockImplementation(
@@ -182,6 +209,8 @@ describe('useExternalAgent', () => {
     storeSubscribers.clear();
     mockStoreState.activeAgentId = null;
     mockStoreState.defaultPermissionMode = 'default';
+    mockStoreState.connectionStatus = {};
+    mockStoreState.agentValidity = {};
     mockGetAllAgents.mockReturnValue([]);
     mockAddAgent.mockImplementation(() => 'agent-created');
     mockGetAgent.mockImplementation((agentId: string) => {
@@ -197,10 +226,84 @@ describe('useExternalAgent', () => {
       }
       return undefined;
     });
-    mockGetConnectionStatus.mockReturnValue('disconnected');
+    mockGetConnectionStatus.mockImplementation(
+      (agentId: string) => mockStoreState.connectionStatus[agentId] || 'disconnected'
+    );
+    mockGetAgentValidity.mockImplementation(
+      (agentId: string) => mockStoreState.agentValidity[agentId]
+    );
     mockIsConnected.mockReturnValue(false);
     mockManagerGetAllAgents.mockReturnValue([]);
     mockManagerGetAgent.mockReturnValue(undefined);
+  });
+
+  describe('lifecycle synchronization', () => {
+    it('should sync lifecycle status and validity projection into store atomically', async () => {
+      const { result } = renderHook(() => useExternalAgent());
+
+      await waitFor(() => {
+        expect(mockAddLifecycleListener).toHaveBeenCalledTimes(1);
+      });
+
+      const listener = mockAddLifecycleListener.mock.calls[0][0] as (event: {
+        agentId: string;
+        connectionStatus: string;
+        status: string;
+        validity?: { executable: boolean; source: string; checkedAt: Date; sessionExtensions: Record<string, unknown> };
+      }) => void;
+
+      act(() => {
+        listener({
+          agentId: 'agent-1',
+          connectionStatus: 'reconnecting',
+          status: 'initializing',
+          validity: {
+            executable: false,
+            source: 'connect',
+            checkedAt: new Date('2026-03-10T00:00:00.000Z'),
+            sessionExtensions: {},
+          },
+        });
+      });
+
+      expect(mockStoreSetState).toHaveBeenCalled();
+      expect(mockStoreState.connectionStatus['agent-1']).toBe('reconnecting');
+      expect(mockStoreState.agentValidity['agent-1']).toMatchObject({
+        executable: false,
+        source: 'connect',
+      });
+      expect(result.current.error).toBeNull();
+    });
+
+    it('should surface timeout lifecycle errors for the active agent', async () => {
+      const { result } = renderHook(() => useExternalAgent());
+
+      await waitFor(() => {
+        expect(mockAddLifecycleListener).toHaveBeenCalledTimes(1);
+      });
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      const listener = mockAddLifecycleListener.mock.calls[0][0] as (event: {
+        agentId: string;
+        connectionStatus: string;
+        status: string;
+        lastError?: string;
+      }) => void;
+
+      act(() => {
+        listener({
+          agentId: 'agent-1',
+          connectionStatus: 'connected',
+          status: 'timeout',
+          lastError: 'timed out after 15000ms',
+        });
+      });
+
+      expect(result.current.error).toContain('timed out');
+    });
   });
 
   describe('plan/commands updates', () => {
@@ -295,6 +398,7 @@ describe('useExternalAgent', () => {
       expect(result.current.planStep).toBeNull();
       expect(result.current.streamingResponse).toBe('');
       expect(result.current.lastResult).toBeNull();
+      expect(result.current.activeAgentValidity).toBeNull();
     });
   });
 
@@ -557,6 +661,106 @@ describe('useExternalAgent', () => {
         systemPrompt: undefined,
       });
       expect(result.current.activeSession?.id).toBe('session-1');
+    });
+
+    it('should not set error for unsupported session/list and should sync active validity', async () => {
+      const unsupportedError = createExternalAgentUnsupportedSessionExtensionError('session/list');
+      mockListSessions.mockRejectedValueOnce(unsupportedError);
+      mockManagerGetAgent.mockReturnValue({
+        config: { id: 'agent-1' },
+        validity: {
+          executable: true,
+          source: 'connect',
+          checkedAt: new Date('2026-03-10T00:00:00.000Z'),
+          healthStatus: 'healthy',
+          sessionExtensions: {
+            'session/list': { state: 'unsupported', reasonCode: 'extension_unsupported' },
+            'session/fork': { state: 'unknown' },
+            'session/resume': { state: 'unknown' },
+          },
+        },
+      });
+
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      await act(async () => {
+        await expect(result.current.listSessions()).rejects.toThrow(unsupportedError);
+      });
+
+      expect(result.current.error).toBeNull();
+      expect(result.current.activeAgentValidity?.sessionExtensions['session/list']?.state).toBe(
+        'unsupported'
+      );
+    });
+
+    it('should set error for transient listSessions failures', async () => {
+      mockListSessions.mockRejectedValueOnce(new Error('network unavailable'));
+
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      await act(async () => {
+        await expect(result.current.listSessions()).rejects.toThrow('network unavailable');
+      });
+
+      expect(result.current.error).toBe('network unavailable');
+    });
+
+    it('should not set error for unsupported session/fork and should sync active validity', async () => {
+      const unsupportedError = new Error('Agent does not support session forking');
+      mockForkSession.mockRejectedValueOnce(unsupportedError);
+      mockManagerGetAgent.mockReturnValue({
+        config: { id: 'agent-1' },
+        validity: {
+          executable: true,
+          source: 'connect',
+          checkedAt: new Date('2026-03-10T00:00:00.000Z'),
+          healthStatus: 'healthy',
+          sessionExtensions: {
+            'session/list': { state: 'supported' },
+            'session/fork': { state: 'unsupported', reasonCode: 'extension_unsupported' },
+            'session/resume': { state: 'unknown' },
+          },
+        },
+      });
+
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      await act(async () => {
+        await expect(result.current.forkSession('session-1')).rejects.toThrow(unsupportedError);
+      });
+
+      expect(result.current.error).toBeNull();
+      expect(result.current.activeAgentValidity?.sessionExtensions['session/fork']?.state).toBe(
+        'unsupported'
+      );
+    });
+
+    it('should set error for resume session transient failures', async () => {
+      mockResumeSession.mockRejectedValueOnce(new Error('resume failed'));
+
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      await act(async () => {
+        await expect(result.current.resumeSession('session-1')).rejects.toThrow('resume failed');
+      });
+
+      expect(result.current.error).toBe('resume failed');
     });
   });
 
@@ -885,6 +1089,58 @@ describe('useExternalAgent', () => {
       });
 
       expect(result.current.error).toBeNull();
+    });
+
+    it('should not clear projected validity diagnostics when dismissing error', async () => {
+      const { result } = renderHook(() => useExternalAgent());
+
+      await waitFor(() => {
+        expect(mockAddLifecycleListener).toHaveBeenCalledTimes(1);
+      });
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      const listener = mockAddLifecycleListener.mock.calls[0][0] as (event: {
+        agentId: string;
+        connectionStatus: string;
+        status: string;
+        lastError?: string;
+        validity?: {
+          executable: boolean;
+          source: string;
+          checkedAt: Date;
+          blockingReasonCode?: string;
+          sessionExtensions: Record<string, unknown>;
+        };
+      }) => void;
+
+      act(() => {
+        listener({
+          agentId: 'agent-1',
+          connectionStatus: 'error',
+          status: 'failed',
+          lastError: 'health check failed',
+          validity: {
+            executable: false,
+            source: 'health',
+            checkedAt: new Date('2026-03-10T00:00:00.000Z'),
+            blockingReasonCode: 'health_check_failed',
+            sessionExtensions: {},
+          },
+        });
+      });
+
+      expect(result.current.activeAgentValidity?.blockingReasonCode).toBe('health_check_failed');
+      expect(result.current.error).toContain('health check failed');
+
+      act(() => {
+        result.current.clearError();
+      });
+
+      expect(result.current.error).toBeNull();
+      expect(result.current.activeAgentValidity?.blockingReasonCode).toBe('health_check_failed');
     });
   });
 });

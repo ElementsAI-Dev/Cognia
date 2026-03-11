@@ -3,7 +3,7 @@
  */
  
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { ExternalAgentSettings } from './external-agent-settings';
 
 jest.mock('@/lib/utils', () => ({
@@ -56,6 +56,19 @@ jest.mock('next-intl', () => ({
       endpoint: 'Endpoint URL',
       apiKey: 'API Key',
       apiKeyPlaceholder: 'Optional',
+      executionTimeoutMs: 'Execution Timeout (ms)',
+      maxRetries: 'Max Retries',
+      retryDelayMs: 'Retry Delay (ms)',
+      maxRetryDelayMs: 'Max Retry Delay (ms)',
+      backoffStrategy: 'Backoff Strategy',
+      backoffExponential: 'Exponential',
+      backoffFixedDelay: 'Fixed Delay',
+      backoffFixed: 'Fixed',
+      retryErrorPatterns: 'Retry Error Patterns (comma/newline separated)',
+      retryErrorPatternsPlaceholder: 'timeout, connection reset',
+      detailTimeout: 'Timeout',
+      detailRetry: 'Retry',
+      detailBackoff: 'Backoff',
       nameRequired: 'Name required',
       commandRequired: 'Command required',
       endpointRequired: 'Endpoint required',
@@ -417,6 +430,49 @@ describe('ExternalAgentSettings', () => {
       const addButton = screen.getByText('Add Agent');
       fireEvent.click(addButton);
       expect(screen.getByTestId('dialog')).toBeInTheDocument();
+    });
+
+    it('sends timeout and retry runtime config when saving agent', async () => {
+      render(<ExternalAgentSettings />);
+      fireEvent.click(screen.getByText('Add Agent'));
+
+      const dialog = screen.getByTestId('dialog-content');
+      fireEvent.change(screen.getByLabelText('Agent Name'), { target: { value: 'Retry Agent' } });
+      fireEvent.change(screen.getByLabelText('Command'), { target: { value: 'npx' } });
+      fireEvent.change(screen.getByLabelText('Execution Timeout (ms)'), {
+        target: { value: '120000' },
+      });
+      fireEvent.change(screen.getByLabelText('Max Retries'), {
+        target: { value: '5' },
+      });
+      fireEvent.change(screen.getByLabelText('Retry Delay (ms)'), {
+        target: { value: '250' },
+      });
+      fireEvent.change(screen.getByLabelText('Max Retry Delay (ms)'), {
+        target: { value: '2000' },
+      });
+      fireEvent.click(screen.getByTestId('select-item-false'));
+      fireEvent.change(screen.getByLabelText('Retry Error Patterns (comma/newline separated)'), {
+        target: { value: 'timeout, connection reset' },
+      });
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'add' }));
+
+      await waitFor(() => {
+        expect(mockAddAgent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: 'Retry Agent',
+            timeout: 120000,
+            retryConfig: expect.objectContaining({
+              maxRetries: 5,
+              retryDelay: 250,
+              exponentialBackoff: false,
+              maxRetryDelay: 2000,
+              retryOnErrors: ['timeout', 'connection reset'],
+            }),
+          })
+        );
+      });
     });
   });
 

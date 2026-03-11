@@ -74,6 +74,9 @@ export const createExternalAgentActionsSlice = (
         set((state) => ({
           agents: { ...state.agents, [id]: config },
           connectionStatus: { ...state.connectionStatus, [id]: 'disconnected' },
+          agentValidity: config.validitySnapshot
+            ? { ...state.agentValidity, [id]: config.validitySnapshot }
+            : state.agentValidity,
         }));
 
         return id;
@@ -98,6 +101,9 @@ export const createExternalAgentActionsSlice = (
         set((state) => ({
           agents: { ...state.agents, [config.id]: stored },
           connectionStatus: { ...state.connectionStatus, [config.id]: 'disconnected' },
+          agentValidity: config.validitySnapshot
+            ? { ...state.agentValidity, [config.id]: config.validitySnapshot }
+            : state.agentValidity,
         }));
 
         return config.id;
@@ -128,6 +134,7 @@ export const createExternalAgentActionsSlice = (
               ? { ...agent.retryConfig, ...updates.retryConfig } as StoredExternalAgentConfig['retryConfig']
               : agent.retryConfig,
             tags: updates.tags ?? agent.tags,
+            validitySnapshot: updates.validitySnapshot ?? agent.validitySnapshot,
             metadata: updates.metadata 
               ? { ...agent.metadata, ...updates.metadata } 
               : agent.metadata,
@@ -142,10 +149,12 @@ export const createExternalAgentActionsSlice = (
         set((state) => {
           const { [id]: _removed, ...rest } = state.agents;
           const { [id]: _removedStatus, ...restStatus } = state.connectionStatus;
+          const { [id]: _removedValidity, ...restValidity } = state.agentValidity;
 
           return {
             agents: rest,
             connectionStatus: restStatus,
+            agentValidity: restValidity,
             activeAgentId: state.activeAgentId === id ? null : state.activeAgentId,
             delegationRules: state.delegationRules.filter((r) => r.targetAgentId !== id),
           };
@@ -183,6 +192,19 @@ export const createExternalAgentActionsSlice = (
 
       getConnectionStatus: (id: string): ExternalAgentConnectionStatus => {
         return get().connectionStatus[id] || 'disconnected';
+      },
+
+      setAgentValidity: (id, snapshot): void => {
+        set((state) => ({
+          agentValidity: {
+            ...state.agentValidity,
+            [id]: snapshot,
+          },
+        }));
+      },
+
+      getAgentValidity: (id) => {
+        return get().agentValidity[id];
       },
 
       // ========================================
@@ -273,6 +295,7 @@ export const createExternalAgentActionsSlice = (
         set((state) => {
           const newAgents = { ...state.agents };
           const newStatus = { ...state.connectionStatus };
+          const newValidity = { ...state.agentValidity };
 
           for (const agent of agents) {
             const stored: StoredExternalAgentConfig = {
@@ -282,9 +305,12 @@ export const createExternalAgentActionsSlice = (
             };
             newAgents[agent.id] = stored;
             newStatus[agent.id] = 'disconnected';
+            if (agent.validitySnapshot) {
+              newValidity[agent.id] = agent.validitySnapshot;
+            }
           }
 
-          return { agents: newAgents, connectionStatus: newStatus };
+          return { agents: newAgents, connectionStatus: newStatus, agentValidity: newValidity };
         });
       },
 
@@ -296,6 +322,7 @@ export const createExternalAgentActionsSlice = (
         set({
           agents: {},
           connectionStatus: {},
+          agentValidity: {},
           activeAgentId: null,
           delegationRules: [],
         });

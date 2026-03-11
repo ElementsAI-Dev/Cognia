@@ -6,6 +6,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAgent, useConfiguredAgent } from './use-agent';
 import { z } from 'zod';
 import { useSkillStore } from '@/stores';
+import { useContext as useSystemContext } from '@/hooks/context';
 import {
   buildMultiSkillSystemPrompt,
   createSkillTools,
@@ -88,6 +89,10 @@ jest.mock('@/stores/chat', () => ({
   }),
 }));
 
+jest.mock('@/hooks/context', () => ({
+  useContext: jest.fn(() => ({ context: null })),
+}));
+
 jest.mock('@/lib/ai/agent/background-agent-manager', () => ({
   getBackgroundAgentManager: jest.fn(() => mockBackgroundManager),
 }));
@@ -98,6 +103,7 @@ const mockExecuteAgentLoop = jest.fn();
 const mockCreateAgent = jest.fn();
 const mockCreateAgentLoopCancellationToken = jest.fn();
 const mockUseSkillStore = useSkillStore as jest.MockedFunction<typeof useSkillStore>;
+const mockUseSystemContext = useSystemContext as jest.MockedFunction<typeof useSystemContext>;
 const mockBuildMultiSkillSystemPrompt =
   buildMultiSkillSystemPrompt as jest.MockedFunction<typeof buildMultiSkillSystemPrompt>;
 const mockCreateSkillTools = createSkillTools as jest.MockedFunction<typeof createSkillTools>;
@@ -144,6 +150,9 @@ describe('useAgent', () => {
     mockBuildMultiSkillSystemPrompt.mockReturnValue('');
     mockCreateSkillTools.mockReturnValue({});
     mockGetAutoLoadSkillsForTools.mockReturnValue([]);
+    mockUseSystemContext.mockReturnValue({
+      context: null,
+    } as unknown as ReturnType<typeof useSystemContext>);
   });
 
   describe('initialization', () => {
@@ -169,6 +178,96 @@ describe('useAgent', () => {
       );
 
       expect(result.current.isRunning).toBe(false);
+    });
+  });
+
+  describe('prompt composition', () => {
+    it('should preserve deterministic section order for context, skills, and base prompt', async () => {
+      mockUseSystemContext.mockReturnValue({
+        context: {
+          app: {
+            app_name: 'VSCode',
+            app_type: 'editor',
+          },
+          timestamp: Date.now(),
+        },
+      } as unknown as ReturnType<typeof useSystemContext>);
+
+      mockUseSkillStore.mockImplementation((selector) => {
+        const state = {
+          activeSkillIds: ['skill-1'],
+          skills: {
+            'skill-1': { id: 'skill-1', name: 'Skill One' },
+          },
+        };
+        return selector(state as never);
+      });
+      mockBuildMultiSkillSystemPrompt.mockReturnValue('## Skills Section\nSkill details');
+
+      mockExecuteAgent.mockResolvedValueOnce({
+        success: true,
+        finalResponse: 'ok',
+        steps: [],
+        totalSteps: 1,
+        duration: 10,
+      });
+
+      const { result } = renderHook(() =>
+        useAgent({
+          systemPrompt: '## Base Section\nBase prompt',
+          enableSystemContext: true,
+        })
+      );
+
+      await act(async () => {
+        await result.current.run('Test');
+      });
+
+      const callArgs = mockExecuteAgent.mock.calls[0][1] as { systemPrompt?: string };
+      const systemPrompt = callArgs.systemPrompt || '';
+      expect(systemPrompt.indexOf('## Current User Context')).toBeGreaterThanOrEqual(0);
+      expect(systemPrompt.indexOf('## Skills Section')).toBeGreaterThan(
+        systemPrompt.indexOf('## Current User Context')
+      );
+      expect(systemPrompt.indexOf('## Base Section')).toBeGreaterThan(
+        systemPrompt.indexOf('## Skills Section')
+      );
+    });
+
+    it('should exclude stale system context from composed prompt', async () => {
+      mockUseSystemContext.mockReturnValue({
+        context: {
+          app: {
+            app_name: 'VSCode',
+            app_type: 'editor',
+          },
+          timestamp: Date.now() - 15 * 60 * 1000,
+        },
+      } as unknown as ReturnType<typeof useSystemContext>);
+
+      mockExecuteAgent.mockResolvedValueOnce({
+        success: true,
+        finalResponse: 'ok',
+        steps: [],
+        totalSteps: 1,
+        duration: 10,
+      });
+
+      const { result } = renderHook(() =>
+        useAgent({
+          systemPrompt: 'Base prompt',
+          enableSystemContext: true,
+        })
+      );
+
+      await act(async () => {
+        await result.current.run('Test');
+      });
+
+      const callArgs = mockExecuteAgent.mock.calls[0][1] as { systemPrompt?: string };
+      const systemPrompt = callArgs.systemPrompt || '';
+      expect(systemPrompt).not.toContain('## Current User Context');
+      expect(systemPrompt).toContain('Base prompt');
     });
   });
 

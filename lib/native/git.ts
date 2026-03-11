@@ -111,6 +111,7 @@ import {
   checkpointList,
   checkpointRestore,
   checkpointDelete,
+  searchCommits,
 } from './git/index';
 
 // ==================== Service Object ====================
@@ -225,6 +226,9 @@ export const gitService = {
 
   // Commit detail
   showCommit,
+
+  // Commit search
+  searchCommits,
 
   // Abort operations
   mergeAbort,

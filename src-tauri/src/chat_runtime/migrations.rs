@@ -89,3 +89,40 @@ pub fn initialize_chat_schema(conn: &Connection) -> Result<(), rusqlite::Error> 
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn read_schema_version(conn: &Connection) -> String {
+        conn.query_row(
+            "SELECT value FROM meta WHERE key = 'schema_version'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .expect("schema version should be present")
+    }
+
+    #[test]
+    fn initialize_writes_current_schema_version() {
+        let conn = Connection::open_in_memory().expect("in-memory sqlite should open");
+        initialize_chat_schema(&conn).expect("schema initialization should succeed");
+
+        assert_eq!(read_schema_version(&conn), CHAT_DB_SCHEMA_VERSION.to_string());
+    }
+
+    #[test]
+    fn initialize_overwrites_stale_schema_version() {
+        let conn = Connection::open_in_memory().expect("in-memory sqlite should open");
+        initialize_chat_schema(&conn).expect("schema initialization should succeed");
+
+        conn.execute(
+            "UPDATE meta SET value = ?1 WHERE key = 'schema_version'",
+            params!["9999"],
+        )
+        .expect("schema version should be mutable in test setup");
+
+        initialize_chat_schema(&conn).expect("schema initialization should refresh version");
+        assert_eq!(read_schema_version(&conn), CHAT_DB_SCHEMA_VERSION.to_string());
+    }
+}

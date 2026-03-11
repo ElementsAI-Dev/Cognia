@@ -16,6 +16,11 @@ import type {
   ExternalAgentDelegationRule,
   ExternalAgentDelegationResult,
   ExternalAgentConnectionStatus,
+  ExternalAgentStatus,
+  ExternalAgentBranchReasonCode,
+  ExternalAgentSessionExtensionSupport,
+  ExternalAgentSupportState,
+  ExternalAgentValiditySnapshot,
   AcpCapabilities,
   AcpToolInfo,
   AcpPermissionMode,
@@ -34,10 +39,13 @@ import { AcpClientAdapter } from './acp-client';
 import { acpToolsToAgentTools } from './translators';
 import { createExternalAgentTraceBridge } from './agent-trace-bridge';
 import {
-  getUnsupportedProtocolReason,
-  isSupportedExternalAgentProtocol,
+  getExternalAgentExecutionBlock,
 } from './config-normalizer';
-import { isTauri } from '@/lib/utils';
+import {
+  createExternalAgentUnsupportedSessionExtensionError,
+  isExternalAgentMethodNotFoundError,
+  isExternalAgentSessionExtensionUnsupportedForMethod,
+} from './session-extension-errors';
 
 // ============================================================================
 // External Agent Manager
@@ -67,6 +75,50 @@ const DEFAULT_MANAGER_CONFIG: Required<ExternalAgentManagerConfig> = {
   connectionPooling: true,
 };
 
+const DEFAULT_RETRY_MAX_RETRIES = 3;
+const DEFAULT_RETRY_DELAY_MS = 1000;
+const DEFAULT_RETRY_MAX_DELAY_MS = 30000;
+const DEFAULT_EXECUTION_TIMEOUT_MS = 300000;
+
+interface RetryRuntimeConfig {
+  maxRetries: number;
+  retryDelay: number;
+  exponentialBackoff: boolean;
+  maxRetryDelay: number;
+  retryOnErrors: string[];
+}
+
+function createUnknownSessionExtensionSupport(): ExternalAgentSessionExtensionSupport {
+  return {
+    'session/list': { state: 'unknown' },
+    'session/fork': { state: 'unknown' },
+    'session/resume': { state: 'unknown' },
+  };
+}
+
+function createBaseValiditySnapshot(
+  source: ExternalAgentValiditySnapshot['source'] = 'config'
+): ExternalAgentValiditySnapshot {
+  return {
+    executable: false,
+    checkedAt: new Date(),
+    source,
+    healthStatus: 'unknown',
+    sessionExtensions: createUnknownSessionExtensionSupport(),
+  };
+}
+
+export interface ExternalAgentLifecycleEvent {
+  agentId: string;
+  connectionStatus: ExternalAgentConnectionStatus;
+  status: ExternalAgentStatus;
+  lastError?: string;
+  validity?: ExternalAgentValiditySnapshot;
+  branchReasonCode?: ExternalAgentBranchReasonCode;
+  branchReason?: string;
+  timestamp: Date;
+}
+
 /**
  * External Agent Manager
  *
@@ -82,6 +134,7 @@ export class ExternalAgentManager {
   private delegationRules: ExternalAgentDelegationRule[] = [];
   private healthCheckTimer?: ReturnType<typeof setInterval>;
   private eventListeners: Map<string, Set<(event: ExternalAgentEvent) => void>> = new Map();
+  private lifecycleListeners: Set<(event: ExternalAgentLifecycleEvent) => void> = new Set();
 
   private constructor(config: ExternalAgentManagerConfig = {}) {
     this.config = { ...DEFAULT_MANAGER_CONFIG, ...config };
@@ -161,32 +214,155 @@ export class ExternalAgentManager {
 
   async listSessions(agentId: string): Promise<Array<{ sessionId: string; title?: string; createdAt?: string; updatedAt?: string }>> {
     const adapter = this.adapters.get(agentId);
-    if (!adapter?.listSessions) {
-      throw new Error('Agent does not support session listing');
+    const instance = this.instances.get(agentId);
+    if (!adapter || !instance) {
+      throw new Error(`Agent not found: ${agentId}`);
     }
-    return adapter.listSessions();
+
+    const support = this.getSessionExtensionSupport(adapter, instance)['session/list'];
+    if (support.state === 'unsupported') {
+      throw createExternalAgentUnsupportedSessionExtensionError('session/list');
+    }
+    if (!adapter.listSessions) {
+      this.setSessionExtensionSupport(
+        agentId,
+        instance,
+        'session/list',
+        'unsupported',
+        'extension_unsupported',
+        'Agent does not support session listing'
+      );
+      throw createExternalAgentUnsupportedSessionExtensionError('session/list');
+    }
+
+    try {
+      const sessions = await adapter.listSessions();
+      this.setSessionExtensionSupport(agentId, instance, 'session/list', 'supported', 'ok');
+      return sessions;
+    } catch (error) {
+      if (
+        isExternalAgentMethodNotFoundError(error) ||
+        isExternalAgentSessionExtensionUnsupportedForMethod(error, 'session/list')
+      ) {
+        this.setSessionExtensionSupport(
+          agentId,
+          instance,
+          'session/list',
+          'unsupported',
+          'extension_unsupported',
+          'Agent does not support session listing'
+        );
+        throw createExternalAgentUnsupportedSessionExtensionError('session/list');
+      } else {
+        this.setSessionExtensionSupport(
+          agentId,
+          instance,
+          'session/list',
+          'unknown',
+          'extension_unknown',
+          this.normalizeErrorMessage(error)
+        );
+      }
+      throw error;
+    }
   }
 
   async forkSession(agentId: string, sessionId: string): Promise<ExternalAgentSession> {
     const adapter = this.adapters.get(agentId);
     const instance = this.instances.get(agentId);
     if (!adapter?.forkSession || !instance) {
-      throw new Error('Agent does not support session forking');
+      if (instance) {
+        this.setSessionExtensionSupport(
+          agentId,
+          instance,
+          'session/fork',
+          'unsupported',
+          'extension_unsupported',
+          'Agent does not support session forking'
+        );
+      }
+      throw createExternalAgentUnsupportedSessionExtensionError('session/fork');
     }
-    const forked = await adapter.forkSession(sessionId);
-    instance.sessions.set(forked.id, forked);
-    return forked;
+    try {
+      const forked = await adapter.forkSession(sessionId);
+      instance.sessions.set(forked.id, forked);
+      this.setSessionExtensionSupport(agentId, instance, 'session/fork', 'supported', 'ok');
+      return forked;
+    } catch (error) {
+      if (
+        isExternalAgentMethodNotFoundError(error) ||
+        isExternalAgentSessionExtensionUnsupportedForMethod(error, 'session/fork')
+      ) {
+        this.setSessionExtensionSupport(
+          agentId,
+          instance,
+          'session/fork',
+          'unsupported',
+          'extension_unsupported',
+          'Agent does not support session forking'
+        );
+        throw createExternalAgentUnsupportedSessionExtensionError('session/fork');
+      } else {
+        this.setSessionExtensionSupport(
+          agentId,
+          instance,
+          'session/fork',
+          'unknown',
+          'extension_unknown',
+          this.normalizeErrorMessage(error)
+        );
+      }
+      throw error;
+    }
   }
 
   async resumeSession(agentId: string, sessionId: string, options?: SessionCreateOptions): Promise<ExternalAgentSession> {
     const adapter = this.adapters.get(agentId);
     const instance = this.instances.get(agentId);
     if (!adapter?.resumeSession || !instance) {
-      throw new Error('Agent does not support session resume');
+      if (instance) {
+        this.setSessionExtensionSupport(
+          agentId,
+          instance,
+          'session/resume',
+          'unsupported',
+          'extension_unsupported',
+          'Agent does not support session resume'
+        );
+      }
+      throw createExternalAgentUnsupportedSessionExtensionError('session/resume');
     }
-    const resumed = await adapter.resumeSession(sessionId, options);
-    instance.sessions.set(resumed.id, resumed);
-    return resumed;
+    try {
+      const resumed = await adapter.resumeSession(sessionId, options);
+      instance.sessions.set(resumed.id, resumed);
+      this.setSessionExtensionSupport(agentId, instance, 'session/resume', 'supported', 'ok');
+      return resumed;
+    } catch (error) {
+      if (
+        isExternalAgentMethodNotFoundError(error) ||
+        isExternalAgentSessionExtensionUnsupportedForMethod(error, 'session/resume')
+      ) {
+        this.setSessionExtensionSupport(
+          agentId,
+          instance,
+          'session/resume',
+          'unsupported',
+          'extension_unsupported',
+          'Agent does not support session resume'
+        );
+        throw createExternalAgentUnsupportedSessionExtensionError('session/resume');
+      } else {
+        this.setSessionExtensionSupport(
+          agentId,
+          instance,
+          'session/resume',
+          'unknown',
+          'extension_unknown',
+          this.normalizeErrorMessage(error)
+        );
+      }
+      throw error;
+    }
   }
 
   getAuthMethods(agentId: string): AcpAuthMethod[] {
@@ -237,6 +413,314 @@ export class ExternalAgentManager {
     // protocolAdapterRegistry.register('http', () => new HttpClientAdapter());
   }
 
+  private normalizeErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return String(error);
+  }
+
+  private isAbortError(error: unknown): boolean {
+    const message = this.normalizeErrorMessage(error).toLowerCase();
+    return (
+      message.includes('aborted') ||
+      message.includes('cancelled') ||
+      message.includes('canceled')
+    );
+  }
+
+  private resolveRetryConfig(instance: ExternalAgentInstance): RetryRuntimeConfig {
+    const retryConfig = instance.config.retryConfig;
+    return {
+      maxRetries: Math.max(0, retryConfig?.maxRetries ?? DEFAULT_RETRY_MAX_RETRIES),
+      retryDelay: Math.max(0, retryConfig?.retryDelay ?? DEFAULT_RETRY_DELAY_MS),
+      exponentialBackoff: retryConfig?.exponentialBackoff ?? true,
+      maxRetryDelay: Math.max(0, retryConfig?.maxRetryDelay ?? DEFAULT_RETRY_MAX_DELAY_MS),
+      retryOnErrors: (retryConfig?.retryOnErrors ?? [])
+        .map((pattern) => pattern.trim().toLowerCase())
+        .filter((pattern) => pattern.length > 0),
+    };
+  }
+
+  private computeRetryDelayMs(config: RetryRuntimeConfig, retryAttempt: number): number {
+    if (config.retryDelay <= 0) {
+      return 0;
+    }
+    if (!config.exponentialBackoff) {
+      return Math.min(config.retryDelay, config.maxRetryDelay);
+    }
+    return Math.min(config.retryDelay * Math.pow(2, Math.max(0, retryAttempt - 1)), config.maxRetryDelay);
+  }
+
+  private isRetryableError(error: unknown, retryOnErrors: string[]): boolean {
+    if (this.isAbortError(error)) {
+      return false;
+    }
+
+    const message = this.normalizeErrorMessage(error).toLowerCase();
+    if (!message) {
+      return false;
+    }
+
+    if (retryOnErrors.some((pattern) => message.includes(pattern))) {
+      return true;
+    }
+
+    const nonRetryablePatterns = [
+      'unsupported protocol',
+      'agent not found',
+      'does not support',
+      'only available in the desktop',
+      'agent is disabled',
+      'configuration not found',
+      'maximum connections reached',
+    ];
+    if (nonRetryablePatterns.some((pattern) => message.includes(pattern))) {
+      return false;
+    }
+
+    const retryablePatterns = [
+      'timeout',
+      'timed out',
+      'temporary',
+      'temporarily',
+      'connection',
+      'network',
+      'socket',
+      'broken pipe',
+      'econn',
+      'enet',
+      'ehost',
+      '503',
+      '502',
+      '504',
+      '429',
+      'too many requests',
+      'unavailable',
+      'reset by peer',
+      'closed',
+    ];
+    return retryablePatterns.some((pattern) => message.includes(pattern));
+  }
+
+  private isTimeoutErrorMessage(message: string): boolean {
+    const normalized = message.toLowerCase();
+    return normalized.includes('timeout') || normalized.includes('timed out');
+  }
+
+  private async sleep(ms: number): Promise<void> {
+    if (ms <= 0) {
+      return;
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, ms));
+  }
+
+  private resolveExecutionTimeoutMs(
+    instance: ExternalAgentInstance,
+    options?: ExternalAgentExecutionOptions
+  ): number {
+    const timeout = options?.timeout ?? instance.config.timeout;
+    if (typeof timeout === 'number' && timeout > 0) {
+      return timeout;
+    }
+    return DEFAULT_EXECUTION_TIMEOUT_MS;
+  }
+
+  private resolveStreamIdleTimeoutMs(
+    instance: ExternalAgentInstance,
+    options?: ExternalAgentExecutionOptions
+  ): number {
+    const timeoutCandidate =
+      options?.timeout ?? instance.config.sessionIdleTimeout ?? instance.config.timeout;
+    if (typeof timeoutCandidate === 'number' && timeoutCandidate > 0) {
+      return timeoutCandidate;
+    }
+    return DEFAULT_EXECUTION_TIMEOUT_MS;
+  }
+
+  private async withTimeout<T>(
+    operation: Promise<T>,
+    timeoutMs: number,
+    timeoutMessage: string,
+    onTimeout?: () => Promise<void> | void
+  ): Promise<T> {
+    if (timeoutMs <= 0) {
+      return operation;
+    }
+
+    return new Promise<T>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        if (onTimeout) {
+          void Promise.resolve(onTimeout()).catch(() => undefined);
+        }
+        reject(new Error(timeoutMessage));
+      }, timeoutMs);
+
+      operation
+        .then((value) => {
+          clearTimeout(timeoutId);
+          resolve(value);
+        })
+        .catch((error) => {
+          clearTimeout(timeoutId);
+          reject(error);
+      });
+    });
+  }
+
+  private getSessionExtensionSupport(
+    adapter: ProtocolAdapter,
+    instance: ExternalAgentInstance
+  ): ExternalAgentSessionExtensionSupport {
+    return (
+      adapter.getSessionExtensionSupport?.() ||
+      instance.validity?.sessionExtensions ||
+      createUnknownSessionExtensionSupport()
+    );
+  }
+
+  private mapConnectionErrorToReasonCode(message: string): ExternalAgentBranchReasonCode {
+    const normalized = message.toLowerCase();
+    if (normalized.includes('protocol') && normalized.includes('unsupported')) {
+      return 'protocol_unsupported';
+    }
+    if (normalized.includes('desktop') || normalized.includes('tauri')) {
+      return 'transport_blocked';
+    }
+    if (normalized.includes('health') && normalized.includes('failed')) {
+      return 'health_check_failed';
+    }
+    if (normalized.includes('timeout') || normalized.includes('timed out')) {
+      return 'external_unavailable';
+    }
+    return 'initialization_failed';
+  }
+
+  private setSessionExtensionSupport(
+    agentId: string,
+    instance: ExternalAgentInstance,
+    method: keyof ExternalAgentSessionExtensionSupport,
+    state: ExternalAgentSupportState,
+    reasonCode?: ExternalAgentBranchReasonCode,
+    reason?: string
+  ): void {
+    const current = instance.validity?.sessionExtensions || createUnknownSessionExtensionSupport();
+    const next: ExternalAgentSessionExtensionSupport = {
+      ...current,
+      [method]: {
+        state,
+        reasonCode,
+        reason,
+        lastCheckedAt: new Date(),
+      },
+    };
+
+    this.updateInstanceState(agentId, instance, {
+      validity: {
+        sessionExtensions: next,
+      },
+    });
+  }
+
+  private emitLifecycleEvent(agentId: string, instance: ExternalAgentInstance): void {
+    if (this.lifecycleListeners.size === 0) {
+      return;
+    }
+
+    const payload: ExternalAgentLifecycleEvent = {
+      agentId,
+      connectionStatus: instance.connectionStatus,
+      status: instance.status,
+      lastError: instance.lastError,
+      validity: instance.validity,
+      branchReasonCode: instance.validity?.lastBranchReasonCode,
+      branchReason: instance.validity?.lastBranchReason,
+      timestamp: new Date(),
+    };
+
+    for (const listener of this.lifecycleListeners) {
+      try {
+        listener(payload);
+      } catch (error) {
+        console.error('[ExternalAgentManager] Lifecycle listener error:', error);
+      }
+    }
+  }
+
+  private updateInstanceState(
+    agentId: string,
+    instance: ExternalAgentInstance,
+    updates: {
+      connectionStatus?: ExternalAgentConnectionStatus;
+      status?: ExternalAgentStatus;
+      lastError?: string;
+      validity?: Partial<ExternalAgentValiditySnapshot>;
+      branchReasonCode?: ExternalAgentBranchReasonCode;
+      branchReason?: string;
+    }
+  ): void {
+    let changed = false;
+
+    if (
+      updates.connectionStatus !== undefined &&
+      updates.connectionStatus !== instance.connectionStatus
+    ) {
+      instance.connectionStatus = updates.connectionStatus;
+      changed = true;
+    }
+
+    if (updates.status !== undefined && updates.status !== instance.status) {
+      instance.status = updates.status;
+      changed = true;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updates, 'lastError')) {
+      if (updates.lastError !== instance.lastError) {
+        instance.lastError = updates.lastError;
+        changed = true;
+      }
+    }
+
+    if (updates.validity) {
+      const base = instance.validity ?? createBaseValiditySnapshot();
+      const merged: ExternalAgentValiditySnapshot = {
+        ...base,
+        ...updates.validity,
+        checkedAt: updates.validity.checkedAt ?? new Date(),
+        sessionExtensions:
+          updates.validity.sessionExtensions ??
+          base.sessionExtensions ??
+          createUnknownSessionExtensionSupport(),
+      };
+
+      if (updates.branchReasonCode || updates.branchReason) {
+        merged.lastBranchReasonCode = updates.branchReasonCode;
+        merged.lastBranchReason = updates.branchReason;
+        merged.lastBranchAt = new Date();
+      }
+
+      instance.validity = merged;
+      instance.config.validitySnapshot = merged;
+      changed = true;
+    } else if (updates.branchReasonCode || updates.branchReason) {
+      const base = instance.validity ?? createBaseValiditySnapshot();
+      const merged: ExternalAgentValiditySnapshot = {
+        ...base,
+        lastBranchReasonCode: updates.branchReasonCode,
+        lastBranchReason: updates.branchReason,
+        lastBranchAt: new Date(),
+        checkedAt: new Date(),
+      };
+      instance.validity = merged;
+      instance.config.validitySnapshot = merged;
+      changed = true;
+    }
+
+    if (changed) {
+      this.emitLifecycleEvent(agentId, instance);
+    }
+  }
+
   // ============================================================================
   // Agent Lifecycle
   // ============================================================================
@@ -260,11 +744,24 @@ export class ExternalAgentManager {
     }
 
     // Create instance
+    const blockAssessment = getExternalAgentExecutionBlock(config);
+    const initialValidity: ExternalAgentValiditySnapshot = {
+      ...createBaseValiditySnapshot('config'),
+      executable: !blockAssessment,
+      checkedAt: new Date(),
+      source: 'config',
+      blockingReasonCode: blockAssessment?.code,
+      blockingReason: blockAssessment?.reason,
+      negotiation: {
+        protocol: config.protocol,
+      },
+    };
     const instance: ExternalAgentInstance = {
       config,
       connectionStatus: 'disconnected',
       status: 'idle',
       sessions: new Map(),
+      validity: initialValidity,
       connectionAttempts: 0,
       stats: {
         totalExecutions: 0,
@@ -277,6 +774,7 @@ export class ExternalAgentManager {
 
     this.instances.set(config.id, instance);
     this.adapters.set(config.id, adapter);
+    this.emitLifecycleEvent(config.id, instance);
 
     // Connect if enabled
     if (config.enabled) {
@@ -314,41 +812,152 @@ export class ExternalAgentManager {
       throw new Error(`Agent not found: ${agentId}`);
     }
 
-    if (!isSupportedExternalAgentProtocol(instance.config.protocol)) {
-      const reason = getUnsupportedProtocolReason(instance.config.protocol);
-      instance.connectionStatus = 'error';
-      instance.status = 'failed';
-      instance.lastError = reason;
-      throw new Error(reason);
+    const blockAssessment = getExternalAgentExecutionBlock(instance.config);
+    if (blockAssessment) {
+      this.updateInstanceState(agentId, instance, {
+        connectionStatus: 'error',
+        status: 'failed',
+        lastError: blockAssessment.reason,
+        validity: {
+          executable: false,
+          source: 'connect',
+          blockingReasonCode: blockAssessment.code,
+          blockingReason: blockAssessment.reason,
+        },
+        branchReasonCode: blockAssessment.code,
+        branchReason: blockAssessment.reason,
+      });
+      throw new Error(blockAssessment.reason);
     }
 
-    if (instance.config.transport === 'stdio' && !isTauri()) {
-      const reason = 'stdio transport is only available in the desktop (Tauri) runtime.';
-      instance.connectionStatus = 'error';
-      instance.status = 'failed';
-      instance.lastError = reason;
-      throw new Error(reason);
+    adapter.clearSessionExtensionSupportCache?.();
+    this.updateInstanceState(agentId, instance, {
+      connectionStatus: 'connecting',
+      status: 'initializing',
+      validity: {
+        source: 'connect',
+        executable: true,
+        checkedAt: new Date(),
+        blockingReasonCode: undefined,
+        blockingReason: undefined,
+        sessionExtensions: this.getSessionExtensionSupport(adapter, instance),
+      },
+      branchReasonCode: 'ok',
+      branchReason: 'Connecting external agent',
+    });
+
+    const retryConfig = this.resolveRetryConfig(instance);
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
+      instance.connectionAttempts++;
+      instance.lastConnectionAttempt = new Date();
+
+      if (attempt > 0) {
+        this.updateInstanceState(agentId, instance, {
+          connectionStatus: 'reconnecting',
+        });
+      }
+
+      try {
+        const connectTimeout = this.resolveExecutionTimeoutMs(instance);
+        await this.withTimeout(
+          adapter.connect(instance.config),
+          connectTimeout,
+          `Connection timed out after ${connectTimeout}ms`
+        );
+        this.updateInstanceState(agentId, instance, {
+          connectionStatus: 'connected',
+          status: 'ready',
+          lastError: undefined,
+          validity: {
+            executable: true,
+            source: 'connect',
+            checkedAt: new Date(),
+            healthStatus: 'healthy',
+            lastHealthCheckAt: new Date(),
+            blockingReasonCode: undefined,
+            blockingReason: undefined,
+            negotiation: {
+              protocol: instance.config.protocol,
+              ...adapter.getAcpInitializationMetadata?.(),
+              authRequired: adapter.isAuthenticationRequired?.() ?? false,
+            },
+            sessionExtensions: this.getSessionExtensionSupport(adapter, instance),
+          },
+          branchReasonCode: 'ok',
+          branchReason: 'External agent connected',
+        });
+        instance.capabilities = adapter.capabilities;
+        instance.tools = adapter.tools;
+
+        console.log('[ExternalAgentManager] Connected to agent:', agentId);
+        return;
+      } catch (error) {
+        lastError = error;
+        const errorMessage = this.normalizeErrorMessage(error);
+        const reasonCode = this.mapConnectionErrorToReasonCode(errorMessage);
+        this.updateInstanceState(agentId, instance, {
+          lastError: errorMessage,
+          validity: {
+            executable: false,
+            source: 'connect',
+            checkedAt: new Date(),
+            blockingReasonCode: reasonCode,
+            blockingReason: errorMessage,
+            healthStatus: reasonCode === 'health_check_failed' ? 'unhealthy' : instance.validity?.healthStatus,
+            sessionExtensions: this.getSessionExtensionSupport(adapter, instance),
+          },
+          branchReasonCode: reasonCode,
+          branchReason: errorMessage,
+        });
+
+        const shouldRetry =
+          attempt < retryConfig.maxRetries &&
+          this.isRetryableError(error, retryConfig.retryOnErrors);
+
+        if (!shouldRetry) {
+          this.updateInstanceState(agentId, instance, {
+            connectionStatus: 'error',
+            status: 'failed',
+            validity: {
+              executable: false,
+              source: 'connect',
+              checkedAt: new Date(),
+            },
+          });
+          throw error;
+        }
+
+        const retryDelay = this.computeRetryDelayMs(retryConfig, attempt + 1);
+        console.warn(
+          `[ExternalAgentManager] Connect attempt ${attempt + 1} failed for ${agentId}. Retrying in ${retryDelay}ms...`,
+          errorMessage
+        );
+
+        try {
+          await adapter.disconnect();
+        } catch {
+          // Ignore cleanup errors between retry attempts.
+        }
+        await this.sleep(retryDelay);
+      }
     }
 
-    instance.connectionAttempts++;
-    instance.lastConnectionAttempt = new Date();
-    instance.connectionStatus = 'connecting';
-
-    try {
-      await adapter.connect(instance.config);
-      instance.connectionStatus = 'connected';
-      instance.capabilities = adapter.capabilities;
-      instance.tools = adapter.tools;
-      instance.status = 'ready';
-      instance.lastError = undefined;
-
-      console.log('[ExternalAgentManager] Connected to agent:', agentId);
-    } catch (error) {
-      instance.connectionStatus = 'error';
-      instance.status = 'failed';
-      instance.lastError = error instanceof Error ? error.message : String(error);
-      throw error;
-    }
+    this.updateInstanceState(agentId, instance, {
+      connectionStatus: 'error',
+      status: 'failed',
+      validity: {
+        executable: false,
+        source: 'connect',
+        checkedAt: new Date(),
+      },
+      branchReasonCode: 'external_unavailable',
+      branchReason: 'Failed to connect external agent',
+    });
+    throw (lastError instanceof Error
+      ? lastError
+      : new Error(`Failed to connect external agent "${agentId}"`));
   }
 
   /**
@@ -363,8 +972,18 @@ export class ExternalAgentManager {
     }
 
     if (instance) {
-      instance.connectionStatus = 'disconnected';
-      instance.status = 'idle';
+      this.updateInstanceState(agentId, instance, {
+        connectionStatus: 'disconnected',
+        status: 'idle',
+        validity: {
+          executable: false,
+          source: 'connect',
+          checkedAt: new Date(),
+          healthStatus: 'unknown',
+        },
+        branchReasonCode: 'external_unavailable',
+        branchReason: 'External agent disconnected',
+      });
       instance.sessions.clear();
     }
 
@@ -375,6 +994,8 @@ export class ExternalAgentManager {
    * Reconnect to an external agent
    */
   async reconnect(agentId: string): Promise<void> {
+    const adapter = this.adapters.get(agentId);
+    adapter?.clearSessionExtensionSupportCache?.();
     await this.disconnect(agentId);
     await this.connect(agentId);
   }
@@ -437,13 +1058,23 @@ export class ExternalAgentManager {
     if (!session && preferredSessionId && adapter.resumeSession) {
       try {
         session = await adapter.resumeSession(preferredSessionId, sessionOptions);
-      } catch {
+      } catch (error) {
+        this.updateInstanceState(instance.config.id, instance, {
+          branchReasonCode: 'session_resolution_failed',
+          branchReason: this.normalizeErrorMessage(error),
+        });
         session = undefined;
       }
     }
 
     if (!session) {
       session = await adapter.createSession(sessionOptions);
+      if (preferredSessionId) {
+        this.updateInstanceState(instance.config.id, instance, {
+          branchReasonCode: 'session_resolution_failed',
+          branchReason: `Preferred external session "${preferredSessionId}" unavailable; created a new session.`,
+        });
+      }
     }
 
     instance.sessions.set(session.id, session);
@@ -565,11 +1196,10 @@ export class ExternalAgentManager {
     }
 
     if (!adapter.isConnected()) {
-      // Try to connect
       await this.connect(agentId);
     }
 
-    instance.status = 'executing';
+    this.updateInstanceState(agentId, instance, { status: 'executing' });
     instance.stats.totalExecutions++;
     const startTime = Date.now();
 
@@ -590,11 +1220,34 @@ export class ExternalAgentManager {
       timestamp: new Date(),
     };
 
+    const idleTimeoutMs = this.resolveStreamIdleTimeoutMs(instance, options);
     let streamSuccess = true;
     let streamError: string | undefined;
 
     try {
-      for await (const event of adapter.prompt(session.id, message, options)) {
+      const streamIterator = adapter
+        .prompt(session.id, message, options)
+        [Symbol.asyncIterator]();
+
+      while (true) {
+        const nextResult = await this.withTimeout(
+          streamIterator.next(),
+          idleTimeoutMs,
+          `External agent stream idle timeout after ${idleTimeoutMs}ms`,
+          async () => {
+            try {
+              await adapter.cancel(session.id);
+            } catch {
+              // Ignore cancellation errors during timeout fallback.
+            }
+          }
+        );
+
+        if (nextResult.done) {
+          break;
+        }
+
+        const event = nextResult.value;
         if (event.type === 'session_start' && event.tools) {
           instance.tools = event.tools;
         }
@@ -623,11 +1276,34 @@ export class ExternalAgentManager {
 
       if (streamSuccess) {
         instance.stats.successfulExecutions++;
-        instance.status = 'ready';
+        this.updateInstanceState(agentId, instance, {
+          status: 'ready',
+          lastError: undefined,
+          validity: {
+            executable: true,
+            source: 'execution',
+            checkedAt: new Date(),
+            healthStatus: 'healthy',
+            lastHealthCheckAt: new Date(),
+          },
+          branchReasonCode: 'ok',
+          branchReason: 'External agent streaming execution completed',
+        });
       } else {
         instance.stats.failedExecutions++;
-        instance.status = 'failed';
-        instance.lastError = streamError ?? 'External agent execution failed';
+        this.updateInstanceState(agentId, instance, {
+          status: 'failed',
+          lastError: streamError ?? 'External agent execution failed',
+          validity: {
+            executable: false,
+            source: 'execution',
+            checkedAt: new Date(),
+            blockingReasonCode: 'execution_failed',
+            blockingReason: streamError ?? 'External agent execution failed',
+          },
+          branchReasonCode: 'execution_failed',
+          branchReason: streamError ?? 'External agent execution failed',
+        });
       }
       const latestSession = adapter.getSession?.(session.id);
       if (latestSession) {
@@ -636,8 +1312,21 @@ export class ExternalAgentManager {
       instance.tools = adapter.tools ?? instance.tools;
     } catch (error) {
       instance.stats.failedExecutions++;
-      instance.status = 'failed';
-      instance.lastError = error instanceof Error ? error.message : String(error);
+      const errorMessage = this.normalizeErrorMessage(error);
+      const timeout = this.isTimeoutErrorMessage(errorMessage);
+      this.updateInstanceState(agentId, instance, {
+        status: timeout ? 'timeout' : 'failed',
+        lastError: errorMessage,
+        validity: {
+          executable: false,
+          source: 'execution',
+          checkedAt: new Date(),
+          blockingReasonCode: timeout ? 'external_unavailable' : 'execution_failed',
+          blockingReason: errorMessage,
+        },
+        branchReasonCode: timeout ? 'external_unavailable' : 'execution_failed',
+        branchReason: errorMessage,
+      });
       await traceBridge.onError(error);
       throw error;
     }
@@ -662,7 +1351,7 @@ export class ExternalAgentManager {
       await this.connect(agentId);
     }
 
-    instance.status = 'executing';
+    this.updateInstanceState(agentId, instance, { status: 'executing' });
     instance.stats.totalExecutions++;
     const startTime = Date.now();
 
@@ -683,15 +1372,100 @@ export class ExternalAgentManager {
       timestamp: new Date(),
     };
 
+    const retryConfig = this.resolveRetryConfig(instance);
+    const executionTimeoutMs = this.resolveExecutionTimeoutMs(instance, options);
+
     try {
-      const wrappedOptions: ExternalAgentExecutionOptions = {
-        ...options,
-        onEvent: (event) => {
-          options?.onEvent?.(event);
-          void traceBridge.onEvent(event);
-        },
-      };
-      const result = await adapter.execute(session.id, message, wrappedOptions);
+      let result: ExternalAgentResult | null = null;
+      let lastError: unknown;
+
+      for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
+        if (options?.signal?.aborted) {
+          throw new Error('External agent execution was aborted');
+        }
+
+        try {
+          if (!adapter.isConnected()) {
+            await this.connect(agentId);
+          }
+
+          const wrappedOptions: ExternalAgentExecutionOptions = {
+            ...options,
+            onEvent: (event) => {
+              options?.onEvent?.(event);
+              void traceBridge.onEvent(event);
+            },
+          };
+
+          const attemptResult = await this.withTimeout(
+            adapter.execute(session.id, message, wrappedOptions),
+            executionTimeoutMs,
+            `External agent execution timed out after ${executionTimeoutMs}ms`,
+            async () => {
+              try {
+                await adapter.cancel(session.id);
+              } catch {
+                // Ignore cancellation errors during timeout fallback.
+              }
+            }
+          );
+
+          if (
+            !attemptResult.success &&
+            attempt < retryConfig.maxRetries &&
+            this.isRetryableError(
+              attemptResult.errorCode || attemptResult.error || 'External agent execution failed',
+              retryConfig.retryOnErrors
+            )
+          ) {
+            const retryDelay = this.computeRetryDelayMs(retryConfig, attempt + 1);
+            lastError = new Error(
+              attemptResult.error || attemptResult.errorCode || 'External agent execution failed'
+            );
+            console.warn(
+              `[ExternalAgentManager] Execute attempt ${attempt + 1} returned recoverable failure for ${agentId}. Retrying in ${retryDelay}ms...`
+            );
+            await this.sleep(retryDelay);
+            continue;
+          }
+
+          result = attemptResult;
+          break;
+        } catch (error) {
+          lastError = error;
+          const shouldRetry =
+            attempt < retryConfig.maxRetries &&
+            this.isRetryableError(error, retryConfig.retryOnErrors) &&
+            !(options?.signal?.aborted ?? false);
+
+          if (!shouldRetry) {
+            throw error;
+          }
+
+          const retryDelay = this.computeRetryDelayMs(retryConfig, attempt + 1);
+          console.warn(
+            `[ExternalAgentManager] Execute attempt ${attempt + 1} failed for ${agentId}. Retrying in ${retryDelay}ms...`,
+            this.normalizeErrorMessage(error)
+          );
+
+          if (!adapter.isConnected() && this.config.autoReconnect) {
+            try {
+              await this.connect(agentId);
+            } catch {
+              // Continue retry loop with original error.
+            }
+          }
+
+          await this.sleep(retryDelay);
+        }
+      }
+
+      if (!result) {
+        throw (lastError instanceof Error
+          ? lastError
+          : new Error(`External agent execution failed for ${agentId}`));
+      }
+
       await traceBridge.onComplete(result);
 
       const responseTime = Date.now() - startTime;
@@ -701,11 +1475,34 @@ export class ExternalAgentManager {
 
       if (result.success) {
         instance.stats.successfulExecutions++;
-        instance.status = 'ready';
+        this.updateInstanceState(agentId, instance, {
+          status: 'ready',
+          lastError: undefined,
+          validity: {
+            executable: true,
+            source: 'execution',
+            checkedAt: new Date(),
+            healthStatus: 'healthy',
+            lastHealthCheckAt: new Date(),
+          },
+          branchReasonCode: 'ok',
+          branchReason: 'External agent execution completed',
+        });
       } else {
         instance.stats.failedExecutions++;
-        instance.status = 'failed';
-        instance.lastError = result.error ?? 'External agent execution failed';
+        this.updateInstanceState(agentId, instance, {
+          status: 'failed',
+          lastError: result.error ?? 'External agent execution failed',
+          validity: {
+            executable: false,
+            source: 'execution',
+            checkedAt: new Date(),
+            blockingReasonCode: 'execution_failed',
+            blockingReason: result.error ?? 'External agent execution failed',
+          },
+          branchReasonCode: 'execution_failed',
+          branchReason: result.error ?? 'External agent execution failed',
+        });
       }
 
       // Update stats
@@ -720,8 +1517,21 @@ export class ExternalAgentManager {
       return result;
     } catch (error) {
       instance.stats.failedExecutions++;
-      instance.status = 'failed';
-      instance.lastError = error instanceof Error ? error.message : String(error);
+      const errorMessage = this.normalizeErrorMessage(error);
+      const timeout = this.isTimeoutErrorMessage(errorMessage);
+      this.updateInstanceState(agentId, instance, {
+        status: timeout ? 'timeout' : 'failed',
+        lastError: errorMessage,
+        validity: {
+          executable: false,
+          source: 'execution',
+          checkedAt: new Date(),
+          blockingReasonCode: timeout ? 'external_unavailable' : 'execution_failed',
+          blockingReason: errorMessage,
+        },
+        branchReasonCode: timeout ? 'external_unavailable' : 'execution_failed',
+        branchReason: errorMessage,
+      });
       await traceBridge.onError(error);
       throw error;
     }
@@ -738,7 +1548,11 @@ export class ExternalAgentManager {
 
     const instance = this.instances.get(agentId);
     if (instance) {
-      instance.status = 'ready';
+      this.updateInstanceState(agentId, instance, {
+        status: 'ready',
+        branchReasonCode: 'ok',
+        branchReason: 'External execution cancelled by caller',
+      });
     }
   }
 
@@ -878,6 +1692,7 @@ export class ExternalAgentManager {
           targetAgentId: rule.targetAgentId,
           matchedRule: rule,
           reason: `Matched rule: ${rule.name}`,
+          reasonCode: 'ok',
         };
       }
     }
@@ -885,6 +1700,7 @@ export class ExternalAgentManager {
     return {
       shouldDelegate: false,
       reason: 'No matching delegation rule',
+      reasonCode: 'external_unavailable',
     };
   }
 
@@ -1023,12 +1839,38 @@ export class ExternalAgentManager {
 
       try {
         const healthy = await adapter.healthCheck();
+        this.updateInstanceState(agentId, instance, {
+          validity: {
+            source: 'health',
+            checkedAt: new Date(),
+            executable: healthy,
+            healthStatus: healthy ? 'healthy' : 'unhealthy',
+            lastHealthCheckAt: new Date(),
+            blockingReasonCode: healthy ? undefined : 'health_check_failed',
+            blockingReason: healthy ? undefined : 'External agent health check failed',
+          },
+          branchReasonCode: healthy ? 'ok' : 'health_check_failed',
+          branchReason: healthy ? 'External agent health check succeeded' : 'External agent health check failed',
+        });
         if (!healthy && this.config.autoReconnect) {
           console.warn('[ExternalAgentManager] Agent unhealthy, reconnecting:', agentId);
           await this.reconnect(agentId);
         }
       } catch (error) {
         console.error('[ExternalAgentManager] Health check failed:', agentId, error);
+        this.updateInstanceState(agentId, instance, {
+          validity: {
+            source: 'health',
+            checkedAt: new Date(),
+            executable: false,
+            healthStatus: 'unhealthy',
+            lastHealthCheckAt: new Date(),
+            blockingReasonCode: 'health_check_failed',
+            blockingReason: this.normalizeErrorMessage(error),
+          },
+          branchReasonCode: 'health_check_failed',
+          branchReason: this.normalizeErrorMessage(error),
+        });
         if (this.config.autoReconnect) {
           await this.reconnect(agentId);
         }
@@ -1041,11 +1883,45 @@ export class ExternalAgentManager {
    */
   async checkAgentHealth(agentId: string): Promise<boolean> {
     const adapter = this.adapters.get(agentId);
+    const instance = this.instances.get(agentId);
     if (!adapter) return false;
 
     try {
-      return await adapter.healthCheck();
-    } catch {
+      const healthy = await adapter.healthCheck();
+      if (instance) {
+        this.updateInstanceState(agentId, instance, {
+          validity: {
+            source: 'health',
+            checkedAt: new Date(),
+            executable: healthy,
+            healthStatus: healthy ? 'healthy' : 'unhealthy',
+            lastHealthCheckAt: new Date(),
+            blockingReasonCode: healthy ? undefined : 'health_check_failed',
+            blockingReason: healthy ? undefined : 'External agent health check failed',
+          },
+          branchReasonCode: healthy ? 'ok' : 'health_check_failed',
+          branchReason: healthy
+            ? 'External agent health check succeeded'
+            : 'External agent health check failed',
+        });
+      }
+      return healthy;
+    } catch (error) {
+      if (instance) {
+        this.updateInstanceState(agentId, instance, {
+          validity: {
+            source: 'health',
+            checkedAt: new Date(),
+            executable: false,
+            healthStatus: 'unhealthy',
+            lastHealthCheckAt: new Date(),
+            blockingReasonCode: 'health_check_failed',
+            blockingReason: this.normalizeErrorMessage(error),
+          },
+          branchReasonCode: 'health_check_failed',
+          branchReason: this.normalizeErrorMessage(error),
+        });
+      }
       return false;
     }
   }
@@ -1053,6 +1929,18 @@ export class ExternalAgentManager {
   // ============================================================================
   // Event Handling
   // ============================================================================
+
+  /**
+   * Subscribe to lifecycle/status updates across all agents.
+   */
+  addLifecycleListener(
+    listener: (event: ExternalAgentLifecycleEvent) => void
+  ): () => void {
+    this.lifecycleListeners.add(listener);
+    return () => {
+      this.lifecycleListeners.delete(listener);
+    };
+  }
 
   /**
    * Add event listener for an agent
@@ -1112,6 +2000,7 @@ export class ExternalAgentManager {
     this.adapters.clear();
     this.delegationRules = [];
     this.eventListeners.clear();
+    this.lifecycleListeners.clear();
   }
 }
 

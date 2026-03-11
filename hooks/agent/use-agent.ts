@@ -36,6 +36,10 @@ import {
   type ContextAwareAgentResult,
 } from '@/lib/ai/agent';
 import { loggers } from '@/lib/logger';
+import {
+  composeContextPrompt,
+  type ContextPromptSection,
+} from '@/lib/context/prompt-composer';
 
 const log = loggers.agent;
 import type { McpToolSelectionConfig, ToolUsageRecord } from '@/types/mcp';
@@ -48,6 +52,14 @@ import {
 import { useBackgroundAgentStore } from '@/stores/agent';
 import { getBackgroundAgentManager } from '@/lib/ai/agent/background-agent-manager';
 import type { BackgroundAgent } from '@/types/agent/background-agent';
+
+const SYSTEM_CONTEXT_MAX_AGE_MS = 2 * 60 * 1000;
+
+const PROMPT_SECTION_BUDGETS: Record<string, number> = {
+  'system-context': 3000,
+  skills: 12000,
+  'base-system-prompt': 24000,
+};
 
 export interface UseAgentOptions {
   systemPrompt?: string;
@@ -154,10 +166,10 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   // Get system context (window, app, file, browser, editor)
   const { context: systemContext } = useSystemContext();
 
-  // Format system context for AI prompt injection
-  const systemContextPrompt = useMemo(() => {
+  // Build system context section for prompt composition
+  const systemContextSection = useMemo<ContextPromptSection | null>(() => {
     const enableSysContext = options.enableSystemContext ?? true;
-    if (!enableSysContext || !systemContext) return '';
+    if (!enableSysContext || !systemContext) return null;
 
     const parts: string[] = [];
 
@@ -194,9 +206,16 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
       }
     }
 
-    if (parts.length === 0) return '';
+    if (parts.length === 0) return null;
 
-    return `## Current User Context\n${parts.join('\n')}\n`;
+    return {
+      source: 'system-context',
+      content: `## Current User Context\n${parts.join('\n')}\n`,
+      priority: 10,
+      createdAt: systemContext.timestamp,
+      ephemeral: true,
+      maxAgeMs: SYSTEM_CONTEXT_MAX_AGE_MS,
+    };
   }, [systemContext, options.enableSystemContext]);
 
   // Get agent optimization settings for Skills-MCP auto-loading
@@ -284,27 +303,37 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     return buildRAGConfigFromSettings(vectorSettings, embeddingApiKey);
   }, [enableRAG, vectorSettings, providerSettings]);
 
-  // Combine system prompt with skills and system context
+  // Compose deterministic system prompt with context sections.
   const effectiveSystemPrompt = useMemo(() => {
-    const parts: string[] = [];
+    const sections: ContextPromptSection[] = [];
 
-    // Add system context first (most relevant)
-    if (systemContextPrompt) {
-      parts.push(systemContextPrompt);
+    if (systemContextSection) {
+      sections.push(systemContextSection);
     }
 
-    // Add skills prompt
     if (skillsSystemPrompt) {
-      parts.push(skillsSystemPrompt);
+      sections.push({
+        source: 'skills',
+        content: skillsSystemPrompt,
+        priority: 20,
+      });
     }
 
-    // Add base system prompt
     if (systemPrompt) {
-      parts.push(systemPrompt);
+      sections.push({
+        source: 'base-system-prompt',
+        content: systemPrompt,
+        priority: 50,
+        dedupeKey: 'base-system-prompt',
+        redact: false,
+      });
     }
 
-    return parts.join('\n\n---\n\n');
-  }, [systemPrompt, skillsSystemPrompt, systemContextPrompt]);
+    return composeContextPrompt(sections, {
+      separator: '\n\n---\n\n',
+      sectionBudgets: PROMPT_SECTION_BUDGETS,
+    });
+  }, [systemPrompt, skillsSystemPrompt, systemContextSection]);
 
   const [isRunning, setIsRunning] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -388,10 +417,30 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   const buildConfig = useCallback((): Omit<AgentConfig, 'provider' | 'model' | 'apiKey'> & {
     systemPrompt?: string;
   } => {
-    // Combine base prompt with auto-loaded skills for MCP tools
-    const enhancedPrompt = mcpAutoLoadedSkillsPrompt
-      ? `${effectiveSystemPrompt}\n\n---\n\n## Auto-Loaded Skills for MCP Tools\n${mcpAutoLoadedSkillsPrompt}`
-      : effectiveSystemPrompt;
+    // Combine base composed prompt with optional auto-loaded MCP skills.
+    const promptSections: ContextPromptSection[] = [];
+    if (effectiveSystemPrompt) {
+      promptSections.push({
+        source: 'base-system-prompt',
+        content: effectiveSystemPrompt,
+        priority: 50,
+        dedupeKey: 'use-agent-effective-system-prompt',
+        redact: false,
+      });
+    }
+
+    if (mcpAutoLoadedSkillsPrompt) {
+      promptSections.push({
+        source: 'skills',
+        content: `## Auto-Loaded Skills for MCP Tools\n${mcpAutoLoadedSkillsPrompt}`,
+        priority: 25,
+      });
+    }
+
+    const enhancedPrompt = composeContextPrompt(promptSections, {
+      separator: '\n\n---\n\n',
+      sectionBudgets: PROMPT_SECTION_BUDGETS,
+    });
     
     return {
       systemPrompt: enhancedPrompt,

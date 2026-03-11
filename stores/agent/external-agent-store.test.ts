@@ -420,6 +420,65 @@ describe('useExternalAgentStore', () => {
     });
   });
 
+  describe('Validity Snapshot Projection', () => {
+    it('stores and returns runtime validity snapshot by agent id', () => {
+      let agentId: string;
+      act(() => {
+        agentId = useExternalAgentStore.getState().addAgent({
+          name: 'Validity Agent',
+          protocol: 'acp',
+          transport: 'stdio',
+        });
+      });
+
+      const snapshot = {
+        executable: false,
+        checkedAt: new Date('2026-03-10T00:00:00.000Z'),
+        source: 'connect' as const,
+        blockingReasonCode: 'transport_blocked' as const,
+        blockingReason: 'stdio requires desktop runtime',
+        sessionExtensions: {
+          'session/list': { state: 'unknown' as const },
+          'session/fork': { state: 'unknown' as const },
+          'session/resume': { state: 'unknown' as const },
+        },
+      };
+
+      act(() => {
+        useExternalAgentStore.getState().setAgentValidity(agentId!, snapshot);
+      });
+
+      expect(useExternalAgentStore.getState().getAgentValidity(agentId!)).toEqual(snapshot);
+    });
+
+    it('removes validity snapshot when removing the agent', () => {
+      let agentId: string;
+      act(() => {
+        agentId = useExternalAgentStore.getState().addAgent({
+          name: 'Validity Agent',
+          protocol: 'acp',
+          transport: 'stdio',
+        });
+        useExternalAgentStore.getState().setAgentValidity(agentId!, {
+          executable: true,
+          checkedAt: new Date('2026-03-10T00:00:00.000Z'),
+          source: 'connect',
+          sessionExtensions: {
+            'session/list': { state: 'supported' },
+            'session/fork': { state: 'supported' },
+            'session/resume': { state: 'supported' },
+          },
+        });
+      });
+
+      act(() => {
+        useExternalAgentStore.getState().removeAgent(agentId!);
+      });
+
+      expect(useExternalAgentStore.getState().getAgentValidity(agentId!)).toBeUndefined();
+    });
+  });
+
   describe('Active Agent', () => {
     it('should set active agent', () => {
       let agentId: string;

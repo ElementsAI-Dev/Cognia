@@ -196,7 +196,8 @@ describe('MCPAppHost runtime', () => {
         'session-1',
         'https://widget.example.com',
         'read_file',
-        { path: '/tmp/a.txt' }
+        { path: '/tmp/a.txt' },
+        'req-1'
       );
     });
   });

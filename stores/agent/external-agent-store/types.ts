@@ -2,6 +2,7 @@ import type {
   ExternalAgentConfig,
   ExternalAgentConnectionStatus,
   ExternalAgentDelegationRule,
+  ExternalAgentValiditySnapshot,
   CreateExternalAgentInput,
   UpdateExternalAgentInput,
 } from '@/types/agent/external-agent';
@@ -44,6 +45,8 @@ export interface ExternalAgentState {
   agents: Record<string, StoredExternalAgentConfig>;
   /** Connection status for each agent */
   connectionStatus: Record<string, ExternalAgentConnectionStatus>;
+  /** Runtime validity snapshot for each agent (projected from manager/hook) */
+  agentValidity: Record<string, ExternalAgentValiditySnapshot>;
   /** Currently active agent ID */
   activeAgentId: string | null;
   /** Delegation rules */
@@ -89,6 +92,8 @@ export interface ExternalAgentActions {
   // Connection status
   setConnectionStatus: (id: string, status: ExternalAgentConnectionStatus) => void;
   getConnectionStatus: (id: string) => ExternalAgentConnectionStatus;
+  setAgentValidity: (id: string, snapshot: ExternalAgentValiditySnapshot) => void;
+  getAgentValidity: (id: string) => ExternalAgentValiditySnapshot | undefined;
 
   // Active agent
   setActiveAgent: (id: string | null) => void;

@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import { isTauri } from '@/lib/utils';
 import type {
   CreateExternalAgentInput,
+  ExternalAgentBranchReasonCode,
   ExternalAgentConfig,
   ExternalAgentProtocol,
   ExternalAgentTransport,
@@ -14,7 +15,14 @@ const DEFAULT_RETRY_CONFIG = {
   maxRetries: 3,
   retryDelay: 1000,
   exponentialBackoff: true,
+  maxRetryDelay: 30000,
+  retryOnErrors: [] as string[],
 };
+
+export interface ExternalAgentExecutionBlockAssessment {
+  code: ExternalAgentBranchReasonCode;
+  reason: string;
+}
 
 export function isSupportedExternalAgentProtocol(
   protocol: ExternalAgentProtocol
@@ -43,14 +51,31 @@ export function getExternalAgentExecutionBlockReason(
   config: ExternalAgentConfig,
   runtimeIsTauri = isTauri()
 ): string | null {
+  const assessment = getExternalAgentExecutionBlock(config, runtimeIsTauri);
+  return assessment?.reason ?? null;
+}
+
+export function getExternalAgentExecutionBlock(
+  config: ExternalAgentConfig,
+  runtimeIsTauri = isTauri()
+): ExternalAgentExecutionBlockAssessment | null {
   if (!config.enabled) {
-    return 'Agent is disabled.';
+    return {
+      code: 'agent_disabled',
+      reason: 'Agent is disabled.',
+    };
   }
   if (!isSupportedExternalAgentProtocol(config.protocol)) {
-    return getUnsupportedProtocolReason(config.protocol);
+    return {
+      code: 'protocol_unsupported',
+      reason: getUnsupportedProtocolReason(config.protocol),
+    };
   }
   if (!isTransportSupportedOnCurrentPlatform(config.transport, runtimeIsTauri)) {
-    return 'The stdio transport requires the desktop (Tauri) runtime.';
+    return {
+      code: 'transport_blocked',
+      reason: 'The stdio transport requires the desktop (Tauri) runtime.',
+    };
   }
   return null;
 }
@@ -105,6 +130,8 @@ export function normalizeExternalAgentConfigInput(
       retryDelay: input.retryConfig?.retryDelay ?? DEFAULT_RETRY_CONFIG.retryDelay,
       exponentialBackoff:
         input.retryConfig?.exponentialBackoff ?? DEFAULT_RETRY_CONFIG.exponentialBackoff,
+      maxRetryDelay: input.retryConfig?.maxRetryDelay ?? DEFAULT_RETRY_CONFIG.maxRetryDelay,
+      retryOnErrors: input.retryConfig?.retryOnErrors ?? DEFAULT_RETRY_CONFIG.retryOnErrors,
     },
     tags: input.tags,
     metadata,

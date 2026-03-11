@@ -1,8 +1,29 @@
 use serde_json::Value as JsonValue;
 use tauri::State;
 
-use crate::chat_runtime::models::{ChatBackupPayload, ChatImportResult, ChatMessagesPage};
+use crate::chat_runtime::models::{
+    ChatBackupPayload, ChatImportResult, ChatMessagesPage, ChatSchemaDiagnostics,
+};
 use crate::chat_runtime::storage::ChatRuntimeState;
+
+fn validate_schema(
+    schema_version: Option<i64>,
+    runtime_state: &State<'_, ChatRuntimeState>,
+) -> Result<(), String> {
+    runtime_state.ensure_schema_compatible(schema_version)
+}
+
+#[allow(non_snake_case)]
+#[tauri::command]
+pub async fn chat_db_get_schema_info(
+    schemaVersion: Option<i64>,
+    traceId: Option<String>,
+    __trace_id: Option<String>,
+    runtime_state: State<'_, ChatRuntimeState>,
+) -> Result<ChatSchemaDiagnostics, String> {
+    let _ = (traceId, __trace_id);
+    Ok(runtime_state.get_schema_diagnostics(schemaVersion))
+}
 
 #[allow(non_snake_case)]
 #[tauri::command]
@@ -13,7 +34,8 @@ pub async fn chat_db_upsert_session(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<bool, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.upsert_session(session)?;
     Ok(true)
 }
@@ -27,7 +49,8 @@ pub async fn chat_db_upsert_sessions_batch(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<usize, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.upsert_sessions_batch(sessions)
 }
 
@@ -39,7 +62,8 @@ pub async fn chat_db_list_sessions(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<Vec<JsonValue>, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.list_sessions()
 }
 
@@ -52,7 +76,8 @@ pub async fn chat_db_delete_session(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<bool, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.delete_session(&sessionId)?;
     Ok(true)
 }
@@ -65,7 +90,8 @@ pub async fn chat_db_clear_sessions(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<bool, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.clear_sessions()?;
     Ok(true)
 }
@@ -78,7 +104,8 @@ pub async fn chat_db_clear_domain_data(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<bool, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.clear_domain_data()?;
     Ok(true)
 }
@@ -92,7 +119,8 @@ pub async fn chat_db_upsert_messages_batch(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<usize, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.upsert_messages_batch(messages)
 }
 
@@ -104,7 +132,8 @@ pub async fn chat_db_list_messages(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<Vec<JsonValue>, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.list_messages()
 }
 
@@ -120,7 +149,8 @@ pub async fn chat_db_get_messages_page(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<ChatMessagesPage, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.get_messages_page(
         sessionId,
         branchId,
@@ -138,7 +168,8 @@ pub async fn chat_db_delete_messages_by_session(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<bool, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.delete_messages_by_session(&sessionId)?;
     Ok(true)
 }
@@ -152,7 +183,8 @@ pub async fn chat_db_upsert_project(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<bool, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.upsert_project(project)?;
     Ok(true)
 }
@@ -165,7 +197,8 @@ pub async fn chat_db_list_projects(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<Vec<JsonValue>, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.list_projects()
 }
 
@@ -178,7 +211,8 @@ pub async fn chat_db_delete_project(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<bool, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.delete_project(&projectId)?;
     Ok(true)
 }
@@ -192,7 +226,8 @@ pub async fn chat_db_upsert_knowledge_files_batch(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<usize, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.upsert_knowledge_files_batch(knowledgeFiles)
 }
 
@@ -204,7 +239,8 @@ pub async fn chat_db_list_knowledge_files(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<Vec<JsonValue>, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.list_knowledge_files()
 }
 
@@ -217,7 +253,8 @@ pub async fn chat_db_upsert_summary(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<bool, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.upsert_summary(summary)?;
     Ok(true)
 }
@@ -230,7 +267,8 @@ pub async fn chat_db_list_summaries(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<Vec<JsonValue>, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.list_summaries()
 }
 
@@ -243,7 +281,8 @@ pub async fn chat_db_delete_summary(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<bool, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.delete_summary(&summaryId)?;
     Ok(true)
 }
@@ -257,7 +296,8 @@ pub async fn chat_db_delete_summaries_by_session(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<bool, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.delete_summaries_by_session(&sessionId)?;
     Ok(true)
 }
@@ -270,7 +310,8 @@ pub async fn chat_db_export_backup(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<ChatBackupPayload, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.export_backup()
 }
 
@@ -283,6 +324,9 @@ pub async fn chat_db_import_backup(
     __trace_id: Option<String>,
     runtime_state: State<'_, ChatRuntimeState>,
 ) -> Result<ChatImportResult, String> {
-    let _ = (schemaVersion, traceId, __trace_id);
+    validate_schema(schemaVersion, &runtime_state)?;
+    let _ = (traceId, __trace_id);
     runtime_state.import_backup(payload)
 }
+
+

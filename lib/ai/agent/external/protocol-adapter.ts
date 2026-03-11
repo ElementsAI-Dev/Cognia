@@ -17,9 +17,12 @@ import type {
   AcpPermissionResponse,
   AcpPermissionMode,
   AcpAuthMethod,
+  AcpImplementationInfo,
+  AcpAgentCapabilities,
   AcpSessionModelState,
   AcpConfigOption,
   ExternalAgentConnectionStatus,
+  ExternalAgentSessionExtensionSupport,
 } from '@/types/agent/external-agent';
 
 /**
@@ -159,6 +162,26 @@ export interface ProtocolAdapter {
    * Optional: Authenticate with the agent (ACP)
    */
   authenticate?: (methodId: string, credentials?: Record<string, unknown>) => Promise<void>;
+
+  /**
+   * Optional: Expose ACP initialization metadata from negotiated handshake.
+   */
+  getAcpInitializationMetadata?: () => {
+    protocolVersion?: number;
+    agentInfo?: AcpImplementationInfo;
+    agentCapabilities?: AcpAgentCapabilities;
+    authMethods?: AcpAuthMethod[];
+  };
+
+  /**
+   * Optional: Expose support state for unstable ACP session extension methods.
+   */
+  getSessionExtensionSupport?: () => ExternalAgentSessionExtensionSupport;
+
+  /**
+   * Optional: Reset cached extension-support probes for a new connection lifecycle.
+   */
+  clearSessionExtensionSupportCache?: () => void;
 
   /**
    * Cancel an ongoing execution

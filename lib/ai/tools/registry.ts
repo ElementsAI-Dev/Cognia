@@ -173,6 +173,26 @@ import {
   shellExecuteInputSchema,
   executeShellCommand,
 } from './shell-tool';
+import {
+  gitRepoInspectInputSchema,
+  gitChangesInputSchema,
+  gitBranchInputSchema,
+  gitHistoryInputSchema,
+  gitRemoteInputSchema,
+  gitTagInputSchema,
+  executeGitRepoInspect,
+  executeGitChanges,
+  executeGitBranch,
+  executeGitHistory,
+  executeGitRemote,
+  executeGitTag,
+  type GitRepoInspectInput,
+  type GitChangesInput,
+  type GitBranchInput,
+  type GitHistoryInput,
+  type GitRemoteInput,
+  type GitTagInput,
+} from './git-tool';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ToolFunction = (...args: any[]) => any;
@@ -885,6 +905,61 @@ Use file tools for file creation/deletion instead.`,
     requiresApproval: true,
     category: 'system',
     create: () => executeShellCommand,
+  });
+
+  // Structured Git tools
+  registry.register({
+    name: 'git_repo_inspect',
+    description: 'Structured repository inspection. Actions: is_repo, status, full_status.',
+    parameters: gitRepoInspectInputSchema,
+    requiresApproval: false,
+    category: 'system',
+    create: () => (input: unknown) => executeGitRepoInspect(input as GitRepoInspectInput),
+  });
+
+  registry.register({
+    name: 'git_changes',
+    description: 'Structured working-tree changes. Actions: stage, stage_all, unstage, commit, discard, stash.',
+    parameters: gitChangesInputSchema,
+    requiresApproval: true,
+    category: 'system',
+    create: () => (input: unknown) => executeGitChanges(input as GitChangesInput),
+  });
+
+  registry.register({
+    name: 'git_branch',
+    description: 'Structured branch management. Actions: list, create, delete, checkout, merge, rename, merge_abort.',
+    parameters: gitBranchInputSchema,
+    requiresApproval: true,
+    category: 'system',
+    create: () => (input: unknown) => executeGitBranch(input as GitBranchInput),
+  });
+
+  registry.register({
+    name: 'git_history',
+    description: 'Structured history and diff queries. Actions: log, diff, diff_between, diff_file, show_commit, search.',
+    parameters: gitHistoryInputSchema,
+    requiresApproval: false,
+    category: 'system',
+    create: () => (input: unknown) => executeGitHistory(input as GitHistoryInput),
+  });
+
+  registry.register({
+    name: 'git_remote',
+    description: 'Structured remote operations. Actions: list, add, remove, fetch, pull, push.',
+    parameters: gitRemoteInputSchema,
+    requiresApproval: true,
+    category: 'system',
+    create: () => (input: unknown) => executeGitRemote(input as GitRemoteInput),
+  });
+
+  registry.register({
+    name: 'git_tag',
+    description: 'Structured tag operations. Actions: list, create, delete, push.',
+    parameters: gitTagInputSchema,
+    requiresApproval: true,
+    category: 'system',
+    create: () => (input: unknown) => executeGitTag(input as GitTagInput),
   });
 
   // Artifact tools

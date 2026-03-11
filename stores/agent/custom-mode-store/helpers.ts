@@ -17,7 +17,7 @@ export function analyzeModeDescription(request: ModeGenerationRequest): Generate
   const patterns = {
     coding: {
       keywords: ['code', 'programming', 'developer', 'coding', '代码', '编程', '开发'],
-      tools: ['calculator', 'file_read', 'file_write'],
+      tools: ['calculator', 'file_read', 'file_write', 'git_repo_inspect', 'git_changes'],
       icon: 'Code2',
       category: 'technical' as CustomModeCategory,
       outputFormat: 'code' as const,

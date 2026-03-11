@@ -5,6 +5,7 @@ import type { ExternalAgentStore } from './types';
 
 export const selectAgents = (state: ExternalAgentStore) => state.agents;
 export const selectConnectionStatus = (state: ExternalAgentStore) => state.connectionStatus;
+export const selectAgentValidity = (state: ExternalAgentStore) => state.agentValidity;
 export const selectActiveAgentId = (state: ExternalAgentStore) => state.activeAgentId;
 export const selectDelegationRules = (state: ExternalAgentStore) => state.delegationRules;
 export const selectEnabled = (state: ExternalAgentStore) => state.enabled;
@@ -42,6 +43,9 @@ export const selectActiveAgent = (state: ExternalAgentStore) => {
   if (!state.activeAgentId) return undefined;
   return selectAgentById(state.activeAgentId)(state);
 };
+
+export const selectAgentValidityById = (id: string) => (state: ExternalAgentStore) =>
+  state.agentValidity[id];
 
 // Runtime selectors
 export const selectRunningAgents = (state: ExternalAgentStore) =>

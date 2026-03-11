@@ -5,7 +5,7 @@ import { createExternalAgentActionsSlice } from './slices/actions.slice';
 import type { ExternalAgentStore } from './types';
 import { getUnsupportedProtocolReason } from '@/lib/ai/agent/external/config-normalizer';
 
-const EXTERNAL_AGENT_STORE_VERSION = 3;
+const EXTERNAL_AGENT_STORE_VERSION = 4;
 
 type PersistedExternalAgentState = Partial<
   Pick<
@@ -13,6 +13,7 @@ type PersistedExternalAgentState = Partial<
     | 'agents'
     | 'delegationRules'
     | 'activeAgentId'
+    | 'agentValidity'
     | 'enabled'
     | 'defaultPermissionMode'
     | 'autoConnectOnStartup'
@@ -65,6 +66,7 @@ export const useExternalAgentStore = create<ExternalAgentStore>()(
         return {
           ...state,
           agents: migratePersistedAgents(state.agents),
+          agentValidity: state.agentValidity ?? {},
           chatFailurePolicy: state.chatFailurePolicy ?? 'fallback',
         } as ExternalAgentStore;
       },
@@ -72,6 +74,7 @@ export const useExternalAgentStore = create<ExternalAgentStore>()(
         agents: state.agents,
         delegationRules: state.delegationRules,
         activeAgentId: state.activeAgentId,
+        agentValidity: state.agentValidity,
         enabled: state.enabled,
         defaultPermissionMode: state.defaultPermissionMode,
         autoConnectOnStartup: state.autoConnectOnStartup,

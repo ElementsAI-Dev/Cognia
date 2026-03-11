@@ -14,7 +14,15 @@ import {
 } from './manager';
 import { protocolAdapterRegistry } from './protocol-adapter';
 import { createExternalAgentTraceBridge } from './agent-trace-bridge';
-import type { ExternalAgentConfig, ExternalAgentDelegationRule } from '@/types/agent/external-agent';
+import {
+  ExternalAgentUnsupportedSessionExtensionError,
+  isExternalAgentUnsupportedSessionExtensionError,
+} from './session-extension-errors';
+import type {
+  ExternalAgentConfig,
+  ExternalAgentDelegationRule,
+  ExternalAgentInstance,
+} from '@/types/agent/external-agent';
 
 // Mock dependencies
 jest.mock('@/lib/utils', () => ({
@@ -56,10 +64,13 @@ describe('ExternalAgentManager', () => {
     updatedAt: new Date(),
   });
 
-  const buildInstance = (id: string) => ({
-    config: buildConfig(id),
-    connectionStatus: 'connected' as const,
-    status: 'ready' as const,
+  const buildInstance = (id: string): ExternalAgentInstance => ({
+    config: {
+      ...buildConfig(id),
+      enabled: true,
+    },
+    connectionStatus: 'connected',
+    status: 'ready',
     capabilities: {},
     tools: [] as Array<{ id: string; name: string }>,
     sessions: new Map(),
@@ -447,6 +458,50 @@ describe('ExternalAgentManager', () => {
       expect(typeof unsubscribe).toBe('function');
       unsubscribe();
     });
+
+    it('should publish lifecycle updates when connection state changes', async () => {
+      const manager = ExternalAgentManager.getInstance({ healthCheckInterval: 0 });
+      const instance = buildInstance('agent-1');
+      instance.config.transport = 'http';
+      instance.connectionStatus = 'disconnected';
+      instance.status = 'idle';
+
+      const adapter = {
+        connect: jest.fn().mockResolvedValue(undefined),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+        capabilities: { streaming: true },
+        tools: [{ id: 'tool-1', name: 'tool-1' }],
+      };
+
+      const internal = manager as unknown as {
+        adapters: Map<string, typeof adapter>;
+        instances: Map<string, typeof instance>;
+      };
+      internal.adapters.set('agent-1', adapter);
+      internal.instances.set('agent-1', instance);
+
+      const lifecycleListener = jest.fn();
+      const unsubscribe = manager.addLifecycleListener(lifecycleListener);
+
+      await manager.connect('agent-1');
+
+      expect(lifecycleListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentId: 'agent-1',
+          connectionStatus: 'connecting',
+          status: 'initializing',
+        })
+      );
+      expect(lifecycleListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentId: 'agent-1',
+          connectionStatus: 'connected',
+          status: 'ready',
+        })
+      );
+
+      unsubscribe();
+    });
   });
 
   describe('dispose', () => {
@@ -469,17 +524,228 @@ describe('ExternalAgentManager', () => {
     });
   });
 
+  describe('retry and timeout resilience', () => {
+    it('should retry connect on recoverable errors and eventually succeed', async () => {
+      const manager = ExternalAgentManager.getInstance({ healthCheckInterval: 0 });
+      const instance = buildInstance('agent-1');
+      instance.config.transport = 'http';
+      instance.config.retryConfig = {
+        maxRetries: 2,
+        retryDelay: 0,
+        exponentialBackoff: false,
+        retryOnErrors: ['connection failed'],
+      };
+
+      const adapter = {
+        connect: jest
+          .fn()
+          .mockRejectedValueOnce(new Error('Connection failed: temporary outage'))
+          .mockResolvedValue(undefined),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+        capabilities: { streaming: true },
+        tools: [{ id: 'tool-1', name: 'tool-1' }],
+      };
+
+      const internal = manager as unknown as {
+        adapters: Map<string, typeof adapter>;
+        instances: Map<string, typeof instance>;
+      };
+      internal.adapters.set('agent-1', adapter);
+      internal.instances.set('agent-1', instance);
+
+      await manager.connect('agent-1');
+
+      expect(adapter.connect).toHaveBeenCalledTimes(2);
+      expect(instance.connectionStatus).toBe('connected');
+      expect(instance.status).toBe('ready');
+    });
+
+    it('should retry execute when adapter returns recoverable failure result', async () => {
+      const manager = ExternalAgentManager.getInstance({ healthCheckInterval: 0 });
+      const session = {
+        id: 'session-retry',
+        agentId: 'agent-1',
+        status: 'active',
+        permissionMode: 'default',
+        capabilities: {},
+        tools: [],
+        messages: [],
+        createdAt: new Date(),
+        lastActivityAt: new Date(),
+      };
+
+      const adapter = {
+        isConnected: jest.fn().mockReturnValue(true),
+        createSession: jest.fn().mockResolvedValue(session),
+        execute: jest
+          .fn()
+          .mockResolvedValueOnce({
+            success: false,
+            sessionId: session.id,
+            finalResponse: '',
+            messages: [],
+            steps: [],
+            toolCalls: [],
+            duration: 3,
+            error: 'temporary timeout',
+          })
+          .mockResolvedValueOnce({
+            success: true,
+            sessionId: session.id,
+            finalResponse: 'ok',
+            messages: [],
+            steps: [],
+            toolCalls: [],
+            duration: 5,
+          }),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+      };
+      const instance = buildInstance('agent-1');
+      instance.config.transport = 'http';
+      instance.config.retryConfig = {
+        maxRetries: 1,
+        retryDelay: 0,
+        exponentialBackoff: false,
+        retryOnErrors: ['temporary timeout'],
+      };
+
+      const internal = manager as unknown as {
+        adapters: Map<string, typeof adapter>;
+        instances: Map<string, typeof instance>;
+      };
+      internal.adapters.set('agent-1', adapter);
+      internal.instances.set('agent-1', instance);
+
+      const result = await manager.execute('agent-1', 'retry me');
+
+      expect(adapter.execute).toHaveBeenCalledTimes(2);
+      expect(result.success).toBe(true);
+      expect(instance.status).toBe('ready');
+      expect(instance.stats.successfulExecutions).toBe(1);
+      expect(instance.stats.failedExecutions).toBe(0);
+    });
+
+    it('should cancel session when execute times out', async () => {
+      const manager = ExternalAgentManager.getInstance({ healthCheckInterval: 0 });
+      const session = {
+        id: 'session-timeout',
+        agentId: 'agent-1',
+        status: 'active',
+        permissionMode: 'default',
+        capabilities: {},
+        tools: [],
+        messages: [],
+        createdAt: new Date(),
+        lastActivityAt: new Date(),
+      };
+
+      const adapter = {
+        isConnected: jest.fn().mockReturnValue(true),
+        createSession: jest.fn().mockResolvedValue(session),
+        execute: jest.fn().mockImplementation(() => new Promise<never>(() => undefined)),
+        cancel: jest.fn().mockResolvedValue(undefined),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+      };
+      const instance = buildInstance('agent-1');
+      instance.config.transport = 'http';
+      instance.config.timeout = 10;
+      instance.config.retryConfig = {
+        maxRetries: 0,
+        retryDelay: 0,
+        exponentialBackoff: false,
+      };
+
+      const internal = manager as unknown as {
+        adapters: Map<string, typeof adapter>;
+        instances: Map<string, typeof instance>;
+      };
+      internal.adapters.set('agent-1', adapter);
+      internal.instances.set('agent-1', instance);
+
+      await expect(manager.execute('agent-1', 'timeout me')).rejects.toThrow(
+        'External agent execution timed out'
+      );
+      expect(adapter.cancel).toHaveBeenCalledWith('session-timeout');
+      expect(instance.status).toBe('timeout');
+    });
+
+    it('should stop stalled streaming execution via idle timeout', async () => {
+      const manager = ExternalAgentManager.getInstance({ healthCheckInterval: 0 });
+      const session = {
+        id: 'session-stream-timeout',
+        agentId: 'agent-1',
+        status: 'active',
+        permissionMode: 'default',
+        capabilities: {},
+        tools: [],
+        messages: [],
+        createdAt: new Date(),
+        lastActivityAt: new Date(),
+      };
+
+      const adapter = {
+        isConnected: jest.fn().mockReturnValue(true),
+        createSession: jest.fn().mockResolvedValue(session),
+        cancel: jest.fn().mockResolvedValue(undefined),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+        prompt: jest.fn(async function* () {
+          await new Promise<void>(() => undefined);
+        }),
+      };
+      const instance = buildInstance('agent-1');
+      instance.config.transport = 'http';
+      instance.config.sessionIdleTimeout = 10;
+
+      const internal = manager as unknown as {
+        adapters: Map<string, typeof adapter>;
+        instances: Map<string, typeof instance>;
+      };
+      internal.adapters.set('agent-1', adapter);
+      internal.instances.set('agent-1', instance);
+
+      await expect(
+        (async () => {
+          for await (const _event of manager.executeStreaming('agent-1', 'stream timeout')) {
+            // no-op
+          }
+        })()
+      ).rejects.toThrow('idle timeout');
+      expect(adapter.cancel).toHaveBeenCalledWith('session-stream-timeout');
+      expect(instance.status).toBe('timeout');
+    });
+  });
+
   describe('ACP session extensions', () => {
     it('should throw when listSessions is unsupported', async () => {
       const manager = ExternalAgentManager.getInstance({ healthCheckInterval: 0 });
       const internal = manager as unknown as {
         adapters: Map<string, { listSessions?: () => Promise<unknown[]>; disconnect?: () => Promise<void> }>;
+        instances: Map<string, ReturnType<typeof buildInstance>>;
       };
       internal.adapters.set('agent-1', { disconnect: jest.fn().mockResolvedValue(undefined) });
+      internal.instances.set('agent-1', buildInstance('agent-1'));
 
       await expect(manager.listSessions('agent-1')).rejects.toThrow(
         'Agent does not support session listing'
       );
+    });
+
+    it('should throw typed unsupported error when listSessions is unavailable', async () => {
+      const manager = ExternalAgentManager.getInstance({ healthCheckInterval: 0 });
+      const internal = manager as unknown as {
+        adapters: Map<string, { listSessions?: () => Promise<unknown[]>; disconnect?: () => Promise<void> }>;
+        instances: Map<string, ReturnType<typeof buildInstance>>;
+      };
+      internal.adapters.set('agent-1', { disconnect: jest.fn().mockResolvedValue(undefined) });
+      internal.instances.set('agent-1', buildInstance('agent-1'));
+
+      await expect(manager.listSessions('agent-1')).rejects.toBeInstanceOf(
+        ExternalAgentUnsupportedSessionExtensionError
+      );
+      await expect(manager.listSessions('agent-1')).rejects.toMatchObject({
+        method: 'session/list',
+        code: 'extension_unsupported',
+      });
     });
 
     it('should delegate listSessions to adapter', async () => {
@@ -490,11 +756,13 @@ describe('ExternalAgentManager', () => {
           listSessions?: () => Promise<Array<{ sessionId: string }>>;
           disconnect?: () => Promise<void>;
         }>;
+        instances: Map<string, ReturnType<typeof buildInstance>>;
       };
       internal.adapters.set('agent-1', {
         listSessions,
         disconnect: jest.fn().mockResolvedValue(undefined),
       });
+      internal.instances.set('agent-1', buildInstance('agent-1'));
 
       const sessions = await manager.listSessions('agent-1');
 
@@ -586,6 +854,35 @@ describe('ExternalAgentManager', () => {
       await expect(manager.resumeSession('agent-1', 'session-1')).rejects.toThrow(
         'Agent does not support session resume'
       );
+    });
+
+    it('should map adapter method-not-found to typed unsupported fork error', async () => {
+      const manager = ExternalAgentManager.getInstance({ healthCheckInterval: 0 });
+      const forkSession = jest
+        .fn()
+        .mockRejectedValue(new Error('-32601: Method not found'));
+      const internal = manager as unknown as {
+        adapters: Map<string, {
+          forkSession?: (sessionId: string) => Promise<unknown>;
+          disconnect?: () => Promise<void>;
+        }>;
+        instances: Map<string, ReturnType<typeof buildInstance>>;
+      };
+      internal.adapters.set('agent-1', {
+        forkSession,
+        disconnect: jest.fn().mockResolvedValue(undefined),
+      });
+      internal.instances.set('agent-1', buildInstance('agent-1'));
+
+      let caught: unknown;
+      try {
+        await manager.forkSession('agent-1', 'session-1');
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(isExternalAgentUnsupportedSessionExtensionError(caught, 'session/fork')).toBe(true);
+      expect(caught).toBeInstanceOf(ExternalAgentUnsupportedSessionExtensionError);
     });
   });
 
@@ -1043,6 +1340,91 @@ describe('ExternalAgentManager', () => {
       await iterator.next();
       await iterator.next();
       expect(instance.tools).toEqual([{ id: 'tool-after-stream', name: 'after-stream' }]);
+    });
+  });
+
+  describe('validity reason mapping', () => {
+    it('marks stdio transport as blocked outside desktop runtime', async () => {
+      const manager = ExternalAgentManager.getInstance({ healthCheckInterval: 0 });
+      const instance = buildInstance('agent-stdio');
+      instance.connectionStatus = 'disconnected';
+      instance.status = 'idle';
+      instance.config.transport = 'stdio';
+
+      const adapter = {
+        connect: jest.fn().mockResolvedValue(undefined),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+      };
+
+      const internal = manager as unknown as {
+        adapters: Map<string, typeof adapter>;
+        instances: Map<string, typeof instance>;
+      };
+      internal.adapters.set('agent-stdio', adapter);
+      internal.instances.set('agent-stdio', instance);
+
+      await expect(manager.connect('agent-stdio')).rejects.toThrow('desktop (Tauri) runtime');
+      expect(adapter.connect).not.toHaveBeenCalled();
+      expect(instance.connectionStatus).toBe('error');
+      expect(instance.validity?.blockingReasonCode).toBe('transport_blocked');
+      expect(instance.validity?.lastBranchReasonCode).toBe('transport_blocked');
+    });
+
+    it('maps timeout-like connection failures to external_unavailable reason code', async () => {
+      const manager = ExternalAgentManager.getInstance({ healthCheckInterval: 0 });
+      const instance = buildInstance('agent-http');
+      instance.connectionStatus = 'disconnected';
+      instance.status = 'idle';
+      instance.config.transport = 'http';
+      instance.config.retryConfig = {
+        maxRetries: 0,
+        retryDelay: 0,
+        exponentialBackoff: false,
+      };
+
+      const adapter = {
+        connect: jest.fn().mockRejectedValue(new Error('Request timed out while connecting')),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+      };
+
+      const internal = manager as unknown as {
+        adapters: Map<string, typeof adapter>;
+        instances: Map<string, typeof instance>;
+      };
+      internal.adapters.set('agent-http', adapter);
+      internal.instances.set('agent-http', instance);
+
+      await expect(manager.connect('agent-http')).rejects.toThrow('timed out');
+      expect(instance.validity?.blockingReasonCode).toBe('external_unavailable');
+      expect(instance.validity?.lastBranchReasonCode).toBe('external_unavailable');
+    });
+
+    it('clears cached extension support during reconnect lifecycle', async () => {
+      const manager = ExternalAgentManager.getInstance({ healthCheckInterval: 0 });
+      const instance = buildInstance('agent-reconnect');
+      instance.connectionStatus = 'connected';
+      instance.status = 'ready';
+      instance.config.transport = 'http';
+
+      const adapter = {
+        connect: jest.fn().mockResolvedValue(undefined),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+        isConnected: jest.fn().mockReturnValue(true),
+        clearSessionExtensionSupportCache: jest.fn(),
+      };
+
+      const internal = manager as unknown as {
+        adapters: Map<string, typeof adapter>;
+        instances: Map<string, typeof instance>;
+      };
+      internal.adapters.set('agent-reconnect', adapter);
+      internal.instances.set('agent-reconnect', instance);
+
+      await manager.reconnect('agent-reconnect');
+
+      expect(adapter.clearSessionExtensionSupportCache).toHaveBeenCalled();
+      expect(adapter.disconnect).toHaveBeenCalled();
+      expect(adapter.connect).toHaveBeenCalled();
     });
   });
 });
