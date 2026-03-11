@@ -6,7 +6,7 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useLearningMode, useIsLearningMode } from './use-learning-mode';
-import { useLearningStore } from '@/stores/learning';
+import { useLearningStore, useSpeedPassStore } from '@/stores/learning';
 import { useSessionStore } from '@/stores/chat';
 
 // Mock the stores
@@ -14,6 +14,7 @@ jest.mock('@/stores/learning');
 jest.mock('@/stores/chat');
 
 const mockUseLearningStore = useLearningStore as jest.MockedFunction<typeof useLearningStore>;
+const mockUseSpeedPassStore = useSpeedPassStore as jest.MockedFunction<typeof useSpeedPassStore>;
 const mockUseSessionStore = useSessionStore as jest.MockedFunction<typeof useSessionStore>;
 
 describe('useLearningMode', () => {
@@ -65,9 +66,27 @@ describe('useLearningMode', () => {
     getActiveSession: jest.fn(),
   };
 
+  const mockSpeedPassStore = {
+    tutorials: {},
+    currentTutorialId: null,
+    studySessions: {},
+    currentSessionId: null,
+    isLoading: false,
+    error: null,
+    userProfile: null,
+    globalStats: {
+      averageAccuracy: 0,
+      currentStreak: 0,
+    },
+    setCurrentTutorial: jest.fn(),
+    resumeStudySession: jest.fn(),
+    setError: jest.fn(),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseLearningStore.mockReturnValue(mockLearningStore);
+    mockUseSpeedPassStore.mockReturnValue(mockSpeedPassStore as ReturnType<typeof useSpeedPassStore>);
     mockUseSessionStore.mockReturnValue(mockSessionStore as ReturnType<typeof useSessionStore>);
   });
 
@@ -108,6 +127,29 @@ describe('useLearningMode', () => {
       const { result } = renderHook(() => useLearningMode());
 
       expect(result.current.config).toEqual(mockLearningStore.config);
+    });
+
+    it('should expose canonical lifecycle state and progress snapshot', () => {
+      const mockSession = {
+        id: 'learning-1',
+        sessionId: 'session-1',
+        topic: 'Lifecycle Topic',
+        currentPhase: 'questioning' as const,
+        progress: 65,
+        subQuestions: [],
+        learningGoals: [],
+        totalHintsProvided: 0,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+      };
+      mockLearningStore.getLearningSessionByChat.mockReturnValue(mockSession);
+
+      const { result } = renderHook(() => useLearningMode());
+
+      expect(result.current.lifecycleState).toBe('active');
+      expect(result.current.progressSnapshot.percent).toBe(65);
+      expect(result.current.resumeOutcome).toBeDefined();
+      expect(result.current.actionAvailability.complete.enabled).toBe(true);
     });
   });
 

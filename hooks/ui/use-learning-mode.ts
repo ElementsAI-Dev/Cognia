@@ -6,12 +6,23 @@
  * Provides easy access to learning mode functionality for React components.
  */
 
-import { useCallback, useMemo } from 'react';
-import { useLearningStore } from '@/stores/learning';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+  useLearningStore,
+  useSpeedPassStore,
+  selectLearningActionAvailability,
+  selectLearningLifecycleState,
+  selectLearningProgressSnapshot,
+  selectLearningResumeOutcome,
+} from '@/stores/learning';
 import { useSessionStore } from '@/stores/chat';
 import {
   buildLearningSystemPrompt,
   buildAdaptiveLearningPrompt,
+  buildLearningRecoverableError,
+  buildLearningResumeContext,
+  computeAdaptiveLearningProfile,
+  computeSpeedPassAdaptiveProfile,
   analyzeLearnerResponse,
   analyzeLearnerResponseWithAI,
   detectPhaseTransition,
@@ -38,6 +49,16 @@ import type {
   LearningModeConfig,
   PromptTemplate,
 } from '@/types/learning';
+import type {
+  AdaptiveLearningProfile,
+  LearningLifecycleActionAvailability,
+  LearningLifecycleActionId,
+  LearningLifecycleState,
+  LearningProgressSnapshot,
+  LearningRecoverableError,
+  LearningResumeOutcome,
+} from '@/types/learning/lifecycle';
+import type { LearningSubMode } from '@/types/core/session';
 
 export interface UseLearningModeReturn {
   // State
@@ -48,11 +69,21 @@ export interface UseLearningModeReturn {
   subQuestions: LearningSubQuestion[];
   learningGoals: LearningGoal[];
   config: LearningModeConfig;
+  lifecycleState: LearningLifecycleState;
+  progressSnapshot: LearningProgressSnapshot;
+  resumeOutcome: LearningResumeOutcome;
+  actionAvailability: Record<LearningLifecycleActionId, LearningLifecycleActionAvailability>;
+  adaptiveProfile: AdaptiveLearningProfile | null;
+  recoverableError: LearningRecoverableError | null;
 
   // Session management
   startLearning: (input: StartLearningInput) => LearningSession;
   endLearning: (summary?: string, takeaways?: string[]) => void;
   resetLearning: () => void;
+  resumeLearningFromContext: () => LearningResumeOutcome;
+  useFallbackLearningContext: () => LearningResumeOutcome;
+  resetLearningContext: () => void;
+  clearRecoverableError: () => void;
 
   // Phase management
   advancePhase: () => void;
@@ -128,19 +159,34 @@ export interface UseLearningModeReturn {
 
 export function useLearningMode(): UseLearningModeReturn {
   const learningStore = useLearningStore();
+  const speedPassStore = useSpeedPassStore();
   const sessionStore = useSessionStore();
+  const persistResumeRef = useRef<string>('');
+
+  const activeSessionId = sessionStore.activeSessionId;
+  const activeChatSession = useMemo(
+    () => (activeSessionId ? sessionStore.sessions.find((session) => session.id === activeSessionId) : undefined),
+    [activeSessionId, sessionStore.sessions]
+  );
+  const currentSubMode: LearningSubMode = activeChatSession?.learningContext?.subMode || 'socratic';
+  const activeTutorial = speedPassStore.currentTutorialId
+    ? speedPassStore.tutorials[speedPassStore.currentTutorialId]
+    : undefined;
+  const activeSpeedPassSession = speedPassStore.currentSessionId
+    ? speedPassStore.studySessions[speedPassStore.currentSessionId]
+    : undefined;
+  const resumeContext = activeChatSession?.learningContext?.resumeContext;
 
   // Get current learning session based on active chat session
   const learningSession = useMemo(() => {
-    const activeSessionId = sessionStore.activeSessionId;
     if (!activeSessionId) return undefined;
     return learningStore.getLearningSessionByChat(activeSessionId);
-  }, [sessionStore.activeSessionId, learningStore]);
+  }, [activeSessionId, learningStore]);
 
   // Derived state
   const isLearningActive = !!learningSession && !learningSession.completedAt;
   const currentPhase = learningSession?.currentPhase;
-  const progress = learningSession?.progress ?? 0;
+  const progress = learningSession?.progress ?? activeTutorial?.progress ?? 0;
   const subQuestions = useMemo(
     () => learningSession?.subQuestions ?? [],
     [learningSession?.subQuestions]
@@ -149,17 +195,221 @@ export function useLearningMode(): UseLearningModeReturn {
     () => learningSession?.learningGoals ?? [],
     [learningSession?.learningGoals]
   );
+  const updateSession =
+    typeof sessionStore.updateSession === 'function' ? sessionStore.updateSession : undefined;
+
+  const recoverableError = useMemo<LearningRecoverableError | null>(() => {
+    if (learningStore.error) {
+      return buildLearningRecoverableError({
+        stage: 'state_persistence',
+        code: 'LEARNING_STORE_ERROR',
+        message: learningStore.error,
+        retryable: true,
+        fallbackAction: 'retry',
+      });
+    }
+    if (speedPassStore.error) {
+      return buildLearningRecoverableError({
+        stage: 'content_generation',
+        code: 'SPEEDPASS_STORE_ERROR',
+        message: speedPassStore.error,
+        retryable: true,
+        fallbackAction: 'retry',
+      });
+    }
+    return null;
+  }, [learningStore.error, speedPassStore.error]);
+
+  const lifecycleSelectorInput = useMemo(
+    () => ({
+      subMode: currentSubMode,
+      chatSessionId: activeSessionId || undefined,
+      resumeContext,
+      learningSession,
+      learningSessions: learningStore.sessions,
+      activeLearningSessionId: learningStore.activeSessionId,
+      activeTutorial,
+      tutorials: speedPassStore.tutorials,
+      speedPassSession: activeSpeedPassSession,
+      studySessions: speedPassStore.studySessions,
+      currentTutorialId: speedPassStore.currentTutorialId,
+      currentSpeedPassSessionId: speedPassStore.currentSessionId,
+      isPreparing: learningStore.isLoading || speedPassStore.isLoading,
+      recoverableError,
+    }),
+    [
+      currentSubMode,
+      activeSessionId,
+      resumeContext,
+      learningSession,
+      learningStore.sessions,
+      learningStore.activeSessionId,
+      learningStore.isLoading,
+      activeTutorial,
+      speedPassStore.tutorials,
+      activeSpeedPassSession,
+      speedPassStore.studySessions,
+      speedPassStore.currentTutorialId,
+      speedPassStore.currentSessionId,
+      speedPassStore.isLoading,
+      recoverableError,
+    ]
+  );
+
+  const resumeOutcome = useMemo(
+    () => selectLearningResumeOutcome(lifecycleSelectorInput),
+    [lifecycleSelectorInput]
+  );
+  const lifecycleState = useMemo(
+    () => selectLearningLifecycleState(lifecycleSelectorInput),
+    [lifecycleSelectorInput]
+  );
+  const progressSnapshot = useMemo(
+    () => selectLearningProgressSnapshot(lifecycleSelectorInput, lifecycleState),
+    [lifecycleSelectorInput, lifecycleState]
+  );
+  const actionAvailability = useMemo(
+    () => selectLearningActionAvailability(lifecycleSelectorInput, lifecycleState, resumeOutcome),
+    [lifecycleSelectorInput, lifecycleState, resumeOutcome]
+  );
+
+  const adaptiveProfile = useMemo<AdaptiveLearningProfile | null>(() => {
+    if (currentSubMode === 'socratic' && learningSession) {
+      return computeAdaptiveLearningProfile({
+        session: learningSession,
+        config: {
+          enableAdaptiveDifficulty: learningStore.config.enableAdaptiveDifficulty,
+          difficultyAdjustThreshold: learningStore.config.difficultyAdjustThreshold,
+        },
+      });
+    }
+
+    if (currentSubMode === 'speedpass') {
+      const speedPassAdaptive = computeSpeedPassAdaptiveProfile({
+        preferredMode:
+          activeChatSession?.learningContext?.speedpassContext?.recommendedMode ||
+          speedPassStore.userProfile?.preferredMode ||
+          'speed',
+        averageAccuracy: speedPassStore.globalStats.averageAccuracy,
+        currentStreak: speedPassStore.globalStats.currentStreak,
+      });
+
+      const modeToDifficulty: Record<typeof speedPassAdaptive.recommendedMode, LearningSession['currentDifficulty']> = {
+        comprehensive: 'beginner',
+        speed: 'intermediate',
+        extreme: 'advanced',
+      };
+
+      return {
+        guidanceDepth: speedPassAdaptive.guidanceDepth,
+        practiceIntensity: speedPassAdaptive.practiceIntensity,
+        targetDifficulty: modeToDifficulty[speedPassAdaptive.recommendedMode],
+        reasonCodes: speedPassAdaptive.reasonCodes,
+        guardrails: {
+          minDifficulty: modeToDifficulty[speedPassStore.userProfile?.preferredMode || 'speed'],
+          maxDifficulty:
+            speedPassStore.userProfile?.preferredMode === 'comprehensive'
+              ? 'intermediate'
+              : speedPassStore.userProfile?.preferredMode === 'speed'
+                ? 'advanced'
+                : 'expert',
+          steppedAdjustment: true,
+        },
+      };
+    }
+
+    return null;
+  }, [
+    currentSubMode,
+    learningSession,
+    learningStore.config.enableAdaptiveDifficulty,
+    learningStore.config.difficultyAdjustThreshold,
+    activeChatSession?.learningContext?.speedpassContext?.recommendedMode,
+    speedPassStore.userProfile?.preferredMode,
+    speedPassStore.globalStats.averageAccuracy,
+    speedPassStore.globalStats.currentStreak,
+  ]);
+
+  const stableResumeContext = useMemo(() => {
+    if (!activeSessionId) {
+      return undefined;
+    }
+    if (lifecycleState === 'idle' || lifecycleState === 'preparing') {
+      return undefined;
+    }
+    return buildLearningResumeContext({
+      chatSessionId: activeSessionId,
+      subMode: currentSubMode,
+      learningSession,
+      activeTutorial,
+      speedPassSession: activeSpeedPassSession,
+    });
+  }, [
+    activeSessionId,
+    lifecycleState,
+    currentSubMode,
+    learningSession,
+    activeTutorial,
+    activeSpeedPassSession,
+  ]);
+
+  useEffect(() => {
+    if (!updateSession || !activeChatSession || !stableResumeContext) {
+      return;
+    }
+
+    const nextSnapshot = JSON.stringify({
+      ...stableResumeContext,
+      lastStableAt:
+        stableResumeContext.lastStableAt instanceof Date
+          ? stableResumeContext.lastStableAt.toISOString()
+          : stableResumeContext.lastStableAt,
+    });
+    const currentSnapshot = JSON.stringify({
+      ...(activeChatSession.learningContext?.resumeContext || {}),
+      lastStableAt:
+        activeChatSession.learningContext?.resumeContext?.lastStableAt instanceof Date
+          ? activeChatSession.learningContext.resumeContext.lastStableAt.toISOString()
+          : activeChatSession.learningContext?.resumeContext?.lastStableAt,
+    });
+
+    if (nextSnapshot === currentSnapshot || persistResumeRef.current === nextSnapshot) {
+      return;
+    }
+
+    updateSession(activeChatSession.id, {
+      learningContext: {
+        subMode: currentSubMode,
+        speedpassContext: activeChatSession.learningContext?.speedpassContext,
+        resumeContext: stableResumeContext,
+      },
+    });
+    persistResumeRef.current = nextSnapshot;
+  }, [activeChatSession, currentSubMode, stableResumeContext, updateSession]);
 
   // Session management
   const startLearning = useCallback(
     (input: StartLearningInput) => {
-      const activeSessionId = sessionStore.activeSessionId;
       if (!activeSessionId) {
         throw new Error('No active chat session');
       }
-      return learningStore.startLearningSession(activeSessionId, input);
+      const created = learningStore.startLearningSession(activeSessionId, input);
+      if (updateSession && activeChatSession) {
+        updateSession(activeChatSession.id, {
+          learningContext: {
+            subMode: 'socratic',
+            speedpassContext: activeChatSession.learningContext?.speedpassContext,
+            resumeContext: buildLearningResumeContext({
+              chatSessionId: activeSessionId,
+              subMode: 'socratic',
+              learningSession: created,
+            }),
+          },
+        });
+      }
+      return created;
     },
-    [sessionStore.activeSessionId, learningStore]
+    [activeSessionId, learningStore, updateSession, activeChatSession]
   );
 
   const endLearning = useCallback(
@@ -176,6 +426,72 @@ export function useLearningMode(): UseLearningModeReturn {
       learningStore.deleteLearningSession(learningSession.id);
     }
   }, [learningSession, learningStore]);
+
+  const applyRecoveredContext = useCallback(
+    (outcome: LearningResumeOutcome, allowFallback: boolean): LearningResumeOutcome => {
+      if (outcome.outcome === 'reset-required') {
+        return outcome;
+      }
+      if (outcome.outcome === 'fallback' && !allowFallback) {
+        return outcome;
+      }
+      const recoveredContext = outcome.recoveredContext;
+      if (!recoveredContext) {
+        return outcome;
+      }
+
+      if (recoveredContext.learningSessionId) {
+        learningStore.setActiveSession(recoveredContext.learningSessionId);
+      }
+      if (recoveredContext.tutorialId) {
+        speedPassStore.setCurrentTutorial(recoveredContext.tutorialId);
+      }
+      if (recoveredContext.speedPassSessionId) {
+        const recoveredSession = speedPassStore.studySessions[recoveredContext.speedPassSessionId];
+        if (recoveredSession?.status === 'paused') {
+          speedPassStore.resumeStudySession(recoveredSession.id);
+        }
+      }
+
+      if (updateSession && activeChatSession) {
+        updateSession(activeChatSession.id, {
+          learningContext: {
+            subMode: recoveredContext.subMode,
+            speedpassContext: activeChatSession.learningContext?.speedpassContext,
+            resumeContext: recoveredContext,
+          },
+        });
+      }
+
+      return outcome;
+    },
+    [learningStore, speedPassStore, updateSession, activeChatSession]
+  );
+
+  const resumeLearningFromContext = useCallback(() => {
+    return applyRecoveredContext(resumeOutcome, false);
+  }, [applyRecoveredContext, resumeOutcome]);
+
+  const useFallbackLearningContext = useCallback(() => {
+    return applyRecoveredContext(resumeOutcome, true);
+  }, [applyRecoveredContext, resumeOutcome]);
+
+  const resetLearningContext = useCallback(() => {
+    if (updateSession && activeChatSession) {
+      updateSession(activeChatSession.id, {
+        learningContext: {
+          subMode: currentSubMode,
+          speedpassContext: activeChatSession.learningContext?.speedpassContext,
+          resumeContext: undefined,
+        },
+      });
+    }
+  }, [updateSession, activeChatSession, currentSubMode]);
+
+  const clearRecoverableError = useCallback(() => {
+    learningStore.clearError();
+    speedPassStore.setError(null);
+  }, [learningStore, speedPassStore]);
 
   // Phase management
   const advancePhase = useCallback(() => {
@@ -361,13 +677,24 @@ export function useLearningMode(): UseLearningModeReturn {
   const getAdaptivePrompt = useCallback(
     (options?: { scenario?: string; understandingLevel?: string; customContext?: string }) => {
       if (!learningSession) return '';
+      const adaptiveContext = adaptiveProfile
+        ? [
+            `Adaptive guidance depth: ${adaptiveProfile.guidanceDepth}`,
+            `Adaptive practice intensity: ${adaptiveProfile.practiceIntensity}`,
+            `Adaptive target difficulty: ${adaptiveProfile.targetDifficulty}`,
+            `Adaptive reason codes: ${adaptiveProfile.reasonCodes.join(', ')}`,
+            `Difficulty guardrails: ${adaptiveProfile.guardrails.minDifficulty} -> ${adaptiveProfile.guardrails.maxDifficulty}`,
+          ].join('\n')
+        : '';
+
       return buildAdaptiveLearningPrompt(learningSession, {
         ...(options as Parameters<typeof buildAdaptiveLearningPrompt>[1]),
         config: learningStore.config,
         customTemplates: learningStore.promptTemplates,
+        customContext: [options?.customContext, adaptiveContext].filter(Boolean).join('\n\n'),
       });
     },
-    [learningSession, learningStore.config, learningStore.promptTemplates]
+    [learningSession, learningStore.config, learningStore.promptTemplates, adaptiveProfile]
   );
 
   // Celebration and encouragement
@@ -449,11 +776,21 @@ export function useLearningMode(): UseLearningModeReturn {
     subQuestions,
     learningGoals,
     config: learningStore.config,
+    lifecycleState,
+    progressSnapshot,
+    resumeOutcome,
+    actionAvailability,
+    adaptiveProfile,
+    recoverableError,
 
     // Session management
     startLearning,
     endLearning,
     resetLearning,
+    resumeLearningFromContext,
+    useFallbackLearningContext,
+    resetLearningContext,
+    clearRecoverableError,
 
     // Phase management
     advancePhase,

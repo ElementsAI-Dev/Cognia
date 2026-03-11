@@ -27,11 +27,11 @@ import {
   createExtremeModeEngine,
   formatCountdown,
   getUrgencyLevel,
-  calculateProgress as calcTutorialProgress,
   estimateCompletionTime,
   getNextSection,
   optimizeSectionOrder,
 } from '@/lib/learning/speedpass';
+import { buildLearningProgressSnapshot, resolveLearningLifecycleState } from '@/lib/learning';
 import type { ExtremeModeOverview } from '@/lib/learning/speedpass';
 import {
   ArrowLeft,
@@ -65,6 +65,9 @@ export default function TutorialDetailClient() {
   const store = useSpeedPassStore();
   const tutorial = store.tutorials[tutorialId] as SpeedLearningTutorial | undefined;
   const textbook = tutorial ? store.textbooks[tutorial.textbookId] : null;
+  const activeSpeedPassSession = store.currentSessionId
+    ? store.studySessions[store.currentSessionId]
+    : undefined;
 
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [completedSections, setCompletedSections] = useState<Set<string>>(new Set());
@@ -180,17 +183,43 @@ export default function TutorialDetailClient() {
     return () => clearInterval(interval);
   }, [extremeEngine]);
 
-  // Calculate progress using tutorial-generator utility
-  const progress = useMemo(() => {
-    if (!tutorial) return 0;
-    return calcTutorialProgress(tutorial);
-  }, [tutorial]);
-
   // Estimated remaining time
   const estimatedRemainingMinutes = useMemo(() => {
     if (!tutorial) return 0;
     return estimateCompletionTime(tutorial);
   }, [tutorial]);
+
+  const lifecycleState = useMemo(
+    () =>
+      resolveLearningLifecycleState({
+        subMode: 'speedpass',
+        speedPassSession: activeSpeedPassSession,
+        activeTutorial: tutorial,
+        isPreparing: store.isLoading,
+        recoverableError: store.error
+          ? {
+              stage: 'content_generation',
+              code: 'SPEEDPASS_TUTORIAL_ERROR',
+              message: store.error,
+              retryable: true,
+              fallbackAction: 'retry',
+              occurredAt: new Date(),
+            }
+          : null,
+      }),
+    [activeSpeedPassSession, tutorial, store.isLoading, store.error]
+  );
+
+  const progressSnapshot = useMemo(
+    () =>
+      buildLearningProgressSnapshot({
+        subMode: 'speedpass',
+        lifecycleState,
+        activeTutorial: tutorial,
+        speedPassSession: activeSpeedPassSession,
+      }),
+    [lifecycleState, tutorial, activeSpeedPassSession]
+  );
 
   // Handle section completion
   const handleCompleteSection = useCallback(() => {
@@ -300,14 +329,15 @@ export default function TutorialDetailClient() {
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-sm text-muted-foreground">{tTutorial('progressLabel')}</p>
-              <p className="font-semibold">{progress}%</p>
+              <p className="font-semibold">{progressSnapshot.percent}%</p>
               {estimatedRemainingMinutes > 0 && (
                 <p className="text-xs text-muted-foreground">
                   {tTutorial('remainingMinutes', { minutes: estimatedRemainingMinutes })}
                 </p>
               )}
+              <p className="text-xs text-muted-foreground">{progressSnapshot.statusLabel}</p>
             </div>
-            <Progress value={progress} className="w-32" />
+            <Progress value={progressSnapshot.percent} className="w-32" />
           </div>
         </div>
 

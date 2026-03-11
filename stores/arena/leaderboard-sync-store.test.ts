@@ -11,6 +11,7 @@ import {
   selectIsLeaderboardSyncing,
   selectHasPendingSubmissions,
   selectIsOnline,
+  selectLeaderboardFreshnessState,
 } from './leaderboard-sync-store';
 import { DEFAULT_LEADERBOARD_SYNC_SETTINGS } from '@/types/arena';
 
@@ -160,6 +161,7 @@ describe('useLeaderboardSyncStore', () => {
       expect(result.current.status).toBe('success');
       expect(result.current.leaderboard.length).toBeGreaterThan(0);
       expect(result.current.lastFetchAt).not.toBeNull();
+      expect(selectLeaderboardFreshnessState(result.current)).toBe('fresh');
     });
 
     it('should use cache for repeated requests', async () => {
@@ -221,6 +223,7 @@ describe('useLeaderboardSyncStore', () => {
 
       expect(result.current.isOnline).toBe(false);
       expect(result.current.status).toBe('offline');
+      expect(selectLeaderboardFreshnessState(result.current)).toBe('offline');
 
       act(() => {
         result.current.setOnlineStatus(true);
@@ -388,6 +391,22 @@ describe('useLeaderboardSyncStore', () => {
     it('should select isOnline correctly', () => {
       const { result } = renderHook(() => useLeaderboardSyncStore());
       expect(selectIsOnline(result.current)).toBe(true);
+    });
+
+    it('should derive stale freshness state when last sync is old', () => {
+      const { result } = renderHook(() => useLeaderboardSyncStore());
+      act(() => {
+        useLeaderboardSyncStore.setState({
+          status: 'success',
+          isOnline: true,
+          settings: {
+            ...result.current.settings,
+            freshnessThresholdMinutes: 1,
+          },
+          lastSuccessfulSyncAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+        });
+      });
+      expect(selectLeaderboardFreshnessState(useLeaderboardSyncStore.getState())).toBe('stale');
     });
   });
 });

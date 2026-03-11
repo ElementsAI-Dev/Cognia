@@ -21,3 +21,10 @@ export {
   selectActiveSession,
   selectWrongQuestionsCount,
 } from './speedpass-store';
+
+export {
+  selectLearningResumeOutcome,
+  selectLearningLifecycleState,
+  selectLearningProgressSnapshot,
+  selectLearningActionAvailability,
+} from './lifecycle-selectors';

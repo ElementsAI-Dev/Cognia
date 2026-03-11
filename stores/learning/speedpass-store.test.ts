@@ -746,6 +746,16 @@ describe('SpeedPass Store', () => {
             difficulty: 0.5,
             knowledgePointIds: ['kp1'],
           } as unknown as TextbookQuestion,
+          {
+            id: 'q3',
+            textbookId: mockTextbookId,
+            sourceType: 'exam',
+            questionType: 'choice',
+            content: 'Question 3',
+            solution: { answer: 'C', steps: [] },
+            difficulty: 0.9,
+            knowledgePointIds: ['kp1'],
+          } as unknown as TextbookQuestion,
         ]);
       });
     });
@@ -812,6 +822,49 @@ describe('SpeedPass Store', () => {
       expect(completedQuiz.totalScore).toBeDefined();
       expect(Object.keys(useSpeedPassStore.getState().wrongQuestions).length).toBeGreaterThan(0);
       expect(Object.keys(useSpeedPassStore.getState().eventStatements).length).toBeGreaterThan(0);
+    });
+
+    it('should apply adaptive profile defaults when manual difficulty is omitted', () => {
+      act(() => {
+        useSpeedPassStore.getState().updateGlobalStats({
+          averageAccuracy: 92,
+          currentStreak: 5,
+        });
+      });
+
+      let quiz: Quiz = {} as Quiz;
+      act(() => {
+        quiz = useSpeedPassStore.getState().createQuiz({
+          textbookId: mockTextbookId,
+          questionCount: 1,
+        });
+      });
+
+      expect(quiz.questions.length).toBeGreaterThan(0);
+      expect(
+        quiz.questions.every((question) => question.sourceQuestion.difficulty >= 0.66)
+      ).toBe(true);
+    });
+
+    it('should honor lockDifficulty guardrail when adaptive profile is provided', () => {
+      let quiz: Quiz = {} as Quiz;
+      act(() => {
+        quiz = useSpeedPassStore.getState().createQuiz({
+          textbookId: mockTextbookId,
+          questionCount: 2,
+          difficulty: 'easy',
+          adaptiveProfile: {
+            lockDifficulty: true,
+            quizDifficulty: 'hard',
+            practiceIntensity: 'challenging',
+          },
+        });
+      });
+
+      expect(quiz.questions.length).toBeGreaterThan(0);
+      expect(
+        quiz.questions.every((question) => question.sourceQuestion.difficulty <= 0.33)
+      ).toBe(true);
     });
   });
 

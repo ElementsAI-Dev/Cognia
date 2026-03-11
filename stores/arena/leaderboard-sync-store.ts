@@ -8,6 +8,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import {
   DEFAULT_LEADERBOARD_SYNC_SETTINGS,
+  deriveLeaderboardFreshnessState,
   generateLeaderboardCacheKey,
   isCacheValid,
 } from '@/types/arena';
@@ -28,6 +29,7 @@ import {
   RateLimitError,
   generateMockLeaderboard,
 } from '@/lib/ai/arena/leaderboard-api';
+import { loggers } from '@/lib/logger';
 
 // ============================================
 // Store Interface
@@ -80,6 +82,10 @@ interface LeaderboardSyncStore extends LeaderboardSyncState {
 
 const initialSyncState: LeaderboardSyncState = {
   status: 'idle',
+  freshnessState: 'stale',
+  lastAttemptAt: null,
+  lastSuccessfulSyncAt: null,
+  lastError: null,
   lastFetchAt: null,
   lastSubmitAt: null,
   error: null,
@@ -130,13 +136,29 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
             }
           }
 
-          return { settings: newSettings };
+          return {
+            settings: newSettings,
+            freshnessState: deriveLeaderboardFreshnessState({
+              status: state.status,
+              isOnline: state.isOnline,
+              lastSuccessfulSyncAt: state.lastSuccessfulSyncAt,
+              freshnessThresholdMinutes: newSettings.freshnessThresholdMinutes,
+            }),
+          };
         });
       },
 
       resetSettings: () => {
         get().stopAutoRefresh();
-        set({ settings: { ...DEFAULT_LEADERBOARD_SYNC_SETTINGS } });
+        set((state) => ({
+          settings: { ...DEFAULT_LEADERBOARD_SYNC_SETTINGS },
+          freshnessState: deriveLeaderboardFreshnessState({
+            status: state.status,
+            isOnline: state.isOnline,
+            lastSuccessfulSyncAt: state.lastSuccessfulSyncAt,
+            freshnessThresholdMinutes: DEFAULT_LEADERBOARD_SYNC_SETTINGS.freshnessThresholdMinutes,
+          }),
+        }));
       },
 
       // ============================================
@@ -145,27 +167,37 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
 
       fetchLeaderboard: async (params = {}, force = false) => {
         const { settings, status, isOnline } = get();
+        const attemptAt = new Date().toISOString();
 
         // Check if sync is enabled
         if (!settings.enabled) {
           return null;
         }
 
-        // Check online status
-        if (!isOnline) {
-          set({
-            status: 'offline',
-            error: {
-              code: 'OFFLINE',
-              message: 'No internet connection',
-              timestamp: new Date().toISOString(),
-            },
-          });
+        // Check if already fetching
+        if (status === 'fetching') {
           return null;
         }
 
-        // Check if already fetching
-        if (status === 'fetching') {
+        // Check online status
+        if (!isOnline) {
+          const offlineError: LeaderboardSyncError = {
+            code: 'OFFLINE',
+            message: 'No internet connection',
+            timestamp: attemptAt,
+          };
+          set({
+            status: 'offline',
+            error: offlineError,
+            lastError: offlineError,
+            lastAttemptAt: attemptAt,
+            freshnessState: 'offline',
+          });
+          loggers.ui.warn('arena_leaderboard_sync_failed', {
+            event: 'sync_failed',
+            reason: 'offline',
+            attemptAt,
+          });
           return null;
         }
 
@@ -181,9 +213,20 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
           const cacheKey = generateLeaderboardCacheKey(fetchParams);
           const cached = get().cache.get(cacheKey);
           if (isCacheValid(cached)) {
-            set({
-              leaderboard: cached!.data,
-              currentParams: fetchParams,
+            set((state) => {
+              const lastSuccessfulSyncAt = state.lastSuccessfulSyncAt || cached!.meta.updatedAt;
+              return {
+                status: 'success',
+                leaderboard: cached!.data,
+                currentParams: fetchParams,
+                lastSuccessfulSyncAt,
+                freshnessState: deriveLeaderboardFreshnessState({
+                  status: 'success',
+                  isOnline: state.isOnline,
+                  lastSuccessfulSyncAt,
+                  freshnessThresholdMinutes: state.settings.freshnessThresholdMinutes,
+                }),
+              };
             });
             return {
               success: true,
@@ -194,7 +237,19 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
           }
         }
 
-        set({ status: 'fetching', error: null, currentParams: fetchParams });
+        set({
+          status: 'fetching',
+          error: null,
+          currentParams: fetchParams,
+          lastAttemptAt: attemptAt,
+          freshnessState: 'syncing',
+        });
+        loggers.ui.info('arena_leaderboard_sync_started', {
+          event: 'sync_started',
+          params: fetchParams,
+          force,
+          attemptAt,
+        });
 
         try {
           // Use mock data if no API URL configured
@@ -213,6 +268,7 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
           }
 
           if (response.success) {
+            const syncAt = new Date().toISOString();
             // Update cache
             const cacheKey = generateLeaderboardCacheKey(fetchParams);
             const cacheEntry: LeaderboardCacheEntry = {
@@ -220,7 +276,7 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
               data: response.data,
               pagination: response.pagination,
               meta: response.meta,
-              cachedAt: new Date().toISOString(),
+              cachedAt: syncAt,
               expiresAt: new Date(
                 Date.now() + settings.cacheDurationMinutes * 60 * 1000
               ).toISOString(),
@@ -232,17 +288,44 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
             set({
               status: 'success',
               leaderboard: response.data,
-              lastFetchAt: new Date().toISOString(),
+              lastFetchAt: syncAt,
+              lastSuccessfulSyncAt: syncAt,
+              lastError: null,
               cache: newCache,
+              freshnessState: deriveLeaderboardFreshnessState({
+                status: 'success',
+                isOnline: true,
+                lastSuccessfulSyncAt: syncAt,
+                freshnessThresholdMinutes: settings.freshnessThresholdMinutes,
+              }),
+            });
+            loggers.ui.info('arena_leaderboard_sync_succeeded', {
+              event: 'sync_succeeded',
+              itemCount: response.data.length,
+              syncAt,
             });
           } else {
+            const responseError: LeaderboardSyncError = {
+              code: 'FETCH_FAILED',
+              message: response.error || 'Failed to fetch leaderboard',
+              timestamp: new Date().toISOString(),
+            };
             set({
               status: 'error',
-              error: {
-                code: 'FETCH_FAILED',
-                message: response.error || 'Failed to fetch leaderboard',
-                timestamp: new Date().toISOString(),
-              },
+              error: responseError,
+              lastError: responseError,
+              freshnessState: deriveLeaderboardFreshnessState({
+                status: 'error',
+                isOnline: true,
+                lastSuccessfulSyncAt: get().lastSuccessfulSyncAt,
+                freshnessThresholdMinutes: settings.freshnessThresholdMinutes,
+              }),
+            });
+            loggers.ui.warn('arena_leaderboard_sync_failed', {
+              event: 'sync_failed',
+              reason: 'fetch_failed',
+              errorCode: responseError.code,
+              message: responseError.message,
             });
           }
 
@@ -265,7 +348,26 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
             syncError.message = error.message;
           }
 
-          set({ status: 'error', error: syncError });
+          set({
+            status: 'error',
+            error: syncError,
+            lastError: syncError,
+            freshnessState: deriveLeaderboardFreshnessState({
+              status: 'error',
+              isOnline: get().isOnline,
+              lastSuccessfulSyncAt: get().lastSuccessfulSyncAt,
+              freshnessThresholdMinutes: settings.freshnessThresholdMinutes,
+            }),
+          });
+          loggers.ui.error(
+            'arena_leaderboard_sync_failed',
+            error,
+            {
+              event: 'sync_failed',
+              errorCode: syncError.code,
+              message: syncError.message,
+            }
+          );
           return null;
         }
       },
@@ -278,7 +380,15 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
       cancelFetch: () => {
         const client = getLeaderboardApiClient();
         client.cancelRequest('leaderboard');
-        set({ status: 'idle' });
+        set((state) => ({
+          status: 'idle',
+          freshnessState: deriveLeaderboardFreshnessState({
+            status: 'idle',
+            isOnline: state.isOnline,
+            lastSuccessfulSyncAt: state.lastSuccessfulSyncAt,
+            freshnessThresholdMinutes: state.settings.freshnessThresholdMinutes,
+          }),
+        }));
       },
 
       // ============================================
@@ -305,16 +415,25 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
           return false;
         }
 
-        set({ status: 'submitting' });
+        set({
+          status: 'submitting',
+          freshnessState: 'syncing',
+        });
 
         try {
           // Use mock response if no API URL configured
           if (!settings.apiBaseUrl) {
             await new Promise((resolve) => setTimeout(resolve, 300));
-            set({
+            set((state) => ({
               status: 'success',
               lastSubmitAt: new Date().toISOString(),
-            });
+              freshnessState: deriveLeaderboardFreshnessState({
+                status: 'success',
+                isOnline: state.isOnline,
+                lastSuccessfulSyncAt: state.lastSuccessfulSyncAt,
+                freshnessThresholdMinutes: state.settings.freshnessThresholdMinutes,
+              }),
+            }));
             return true;
           }
 
@@ -327,10 +446,16 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
           const response = await client.submitPreferences({ preferences });
 
           if (response.success) {
-            set({
+            set((state) => ({
               status: 'success',
               lastSubmitAt: new Date().toISOString(),
-            });
+              freshnessState: deriveLeaderboardFreshnessState({
+                status: 'success',
+                isOnline: state.isOnline,
+                lastSuccessfulSyncAt: state.lastSuccessfulSyncAt,
+                freshnessThresholdMinutes: state.settings.freshnessThresholdMinutes,
+              }),
+            }));
             return true;
           } else {
             // Queue for retry
@@ -344,17 +469,28 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
                 lastAttemptAt: new Date().toISOString(),
                 lastError: response.error,
               };
-              set((state) => ({
+            set((state) => ({
+              status: 'error',
+              pendingSubmissions: [...state.pendingSubmissions, submission],
+              error: {
+                code: 'SUBMIT_FAILED',
+                message: response.error || 'Failed to submit preferences',
+                timestamp: new Date().toISOString(),
+              },
+              lastError: {
+                code: 'SUBMIT_FAILED',
+                message: response.error || 'Failed to submit preferences',
+                timestamp: new Date().toISOString(),
+              },
+              freshnessState: deriveLeaderboardFreshnessState({
                 status: 'error',
-                pendingSubmissions: [...state.pendingSubmissions, submission],
-                error: {
-                  code: 'SUBMIT_FAILED',
-                  message: response.error || 'Failed to submit preferences',
-                  timestamp: new Date().toISOString(),
-                },
-              }));
-            }
-            return false;
+                isOnline: state.isOnline,
+                lastSuccessfulSyncAt: state.lastSuccessfulSyncAt,
+                freshnessThresholdMinutes: state.settings.freshnessThresholdMinutes,
+              }),
+            }));
+          }
+          return false;
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -381,6 +517,17 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
               message: errorMessage,
               timestamp: new Date().toISOString(),
             },
+            lastError: {
+              code: 'SUBMIT_ERROR',
+              message: errorMessage,
+              timestamp: new Date().toISOString(),
+            },
+            freshnessState: deriveLeaderboardFreshnessState({
+              status: 'error',
+              isOnline: get().isOnline,
+              lastSuccessfulSyncAt: get().lastSuccessfulSyncAt,
+              freshnessThresholdMinutes: get().settings.freshnessThresholdMinutes,
+            }),
           });
           return false;
         }
@@ -504,9 +651,17 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
 
         // Update status
         if (!isOnline) {
-          set({ status: 'offline' });
+          set({ status: 'offline', freshnessState: 'offline' });
         } else if (get().status === 'offline') {
-          set({ status: 'idle' });
+          set((state) => ({
+            status: 'idle',
+            freshnessState: deriveLeaderboardFreshnessState({
+              status: 'idle',
+              isOnline: true,
+              lastSuccessfulSyncAt: state.lastSuccessfulSyncAt,
+              freshnessThresholdMinutes: state.settings.freshnessThresholdMinutes,
+            }),
+          }));
         }
       },
 
@@ -515,7 +670,17 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
       // ============================================
 
       clearError: () => {
-        set({ error: null, status: 'idle' });
+        set((state) => ({
+          error: null,
+          lastError: null,
+          status: 'idle',
+          freshnessState: deriveLeaderboardFreshnessState({
+            status: 'idle',
+            isOnline: state.isOnline,
+            lastSuccessfulSyncAt: state.lastSuccessfulSyncAt,
+            freshnessThresholdMinutes: state.settings.freshnessThresholdMinutes,
+          }),
+        }));
       },
     }),
     {
@@ -524,6 +689,10 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
       partialize: (state) => ({
         settings: state.settings,
         pendingSubmissions: state.pendingSubmissions,
+        lastAttemptAt: state.lastAttemptAt,
+        lastSuccessfulSyncAt: state.lastSuccessfulSyncAt,
+        lastError: state.lastError,
+        freshnessState: state.freshnessState,
         lastFetchAt: state.lastFetchAt,
         lastSubmitAt: state.lastSubmitAt,
         currentParams: state.currentParams,
@@ -531,13 +700,26 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
+          state.settings = {
+            ...DEFAULT_LEADERBOARD_SYNC_SETTINGS,
+            ...state.settings,
+          };
           // Re-initialize transient state
           state.cache = new Map();
           state.leaderboard = [];
           state.status = 'idle';
           state.error = null;
+          state.lastAttemptAt = state.lastAttemptAt ?? null;
+          state.lastSuccessfulSyncAt = state.lastSuccessfulSyncAt ?? state.lastFetchAt ?? null;
+          state.lastError = state.lastError ?? null;
           state.isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
           state._autoRefreshTimer = null;
+          state.freshnessState = deriveLeaderboardFreshnessState({
+            status: state.status,
+            isOnline: state.isOnline,
+            lastSuccessfulSyncAt: state.lastSuccessfulSyncAt,
+            freshnessThresholdMinutes: state.settings.freshnessThresholdMinutes,
+          });
 
           // Start auto-refresh if enabled
           if (state.settings.enabled && state.settings.autoRefresh) {
@@ -566,6 +748,17 @@ export const selectHasPendingSubmissions = (state: LeaderboardSyncStore) =>
   state.pendingSubmissions.length > 0;
 export const selectIsOnline = (state: LeaderboardSyncStore) => state.isOnline;
 export const selectLastFetchAt = (state: LeaderboardSyncStore) => state.lastFetchAt;
+export const selectLastAttemptAt = (state: LeaderboardSyncStore) => state.lastAttemptAt;
+export const selectLastSuccessfulSyncAt = (state: LeaderboardSyncStore) =>
+  state.lastSuccessfulSyncAt;
+export const selectLastSyncError = (state: LeaderboardSyncStore) => state.lastError;
+export const selectLeaderboardFreshnessState = (state: LeaderboardSyncStore) =>
+  deriveLeaderboardFreshnessState({
+    status: state.status,
+    isOnline: state.isOnline,
+    lastSuccessfulSyncAt: state.lastSuccessfulSyncAt,
+    freshnessThresholdMinutes: state.settings.freshnessThresholdMinutes,
+  });
 
 // ============================================
 // Online/Offline Event Listeners

@@ -25,6 +25,11 @@ jest.mock('@/hooks/arena', () => ({
     error: null,
     startBattle: mockStartBattle,
     getAvailableModels: () => mockAvailableModels,
+    getLaunchReadiness: (prompt: string, models: ModelOption[]) => ({
+      canStart: prompt.trim().length > 0 && models.length >= 2,
+      reasons: [],
+      checkedAt: new Date().toISOString(),
+    }),
   }),
   useSmartModelPair: () => ({
     getSmartModelPair: () => mockSelectedModels.length > 0 ? mockSelectedModels : mockAvailableModels.slice(0, 2),

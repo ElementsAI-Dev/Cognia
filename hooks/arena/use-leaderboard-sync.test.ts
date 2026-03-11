@@ -24,6 +24,10 @@ const mockLeaderboardSyncStore = {
   isSyncing: false,
   hasPendingSubmissions: false,
   isOnline: true,
+  freshnessState: 'fresh',
+  lastAttemptAt: null,
+  lastSuccessfulSyncAt: null,
+  lastSyncError: null,
   lastFetchAt: null,
   fetchLeaderboard: jest.fn(),
   refreshLeaderboard: jest.fn(),
@@ -56,6 +60,10 @@ jest.mock('@/stores/arena', () => ({
   selectIsLeaderboardSyncing: (state: typeof mockLeaderboardSyncStore) => state.isSyncing,
   selectHasPendingSubmissions: (state: typeof mockLeaderboardSyncStore) => state.hasPendingSubmissions,
   selectIsOnline: (state: typeof mockLeaderboardSyncStore) => state.isOnline,
+  selectLeaderboardFreshnessState: (state: typeof mockLeaderboardSyncStore) => state.freshnessState,
+  selectLastAttemptAt: (state: typeof mockLeaderboardSyncStore) => state.lastAttemptAt,
+  selectLastSuccessfulSyncAt: (state: typeof mockLeaderboardSyncStore) => state.lastSuccessfulSyncAt,
+  selectLastSyncError: (state: typeof mockLeaderboardSyncStore) => state.lastSyncError,
   selectLastFetchAt: (state: typeof mockLeaderboardSyncStore) => state.lastFetchAt,
 }));
 
@@ -79,6 +87,10 @@ describe('useLeaderboardSync', () => {
       expect(result.current.isOnline).toBe(true);
       expect(result.current.isEnabled).toBe(true);
       expect(result.current.canFetch).toBe(true);
+      expect(result.current.freshnessState).toBe('fresh');
+      expect(result.current.lastAttemptAt).toBeNull();
+      expect(result.current.lastSuccessfulSyncAt).toBeNull();
+      expect(result.current.lastSyncError).toBeNull();
     });
 
     it('should accept options', () => {
@@ -319,6 +331,8 @@ describe('useLeaderboardData', () => {
     expect(result.current.status).toBe('idle');
     expect(result.current.error).toBeNull();
     expect(result.current.lastFetchAt).toBeNull();
+    expect(result.current.lastSuccessfulSyncAt).toBeNull();
+    expect(result.current.freshnessState).toBe('fresh');
   });
 });
 

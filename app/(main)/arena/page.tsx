@@ -5,14 +5,15 @@
  * Features leaderboard, heatmap, history, and quick battle
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Scale, Trophy, Grid3X3, History, Zap, Settings, BarChart3, Eye, EyeOff, Wifi, WifiOff, Shuffle, Clock } from 'lucide-react';
+import { Scale, Trophy, Grid3X3, History, Zap, Settings, BarChart3, Eye, EyeOff, Wifi, WifiOff, Shuffle, Clock, RefreshCw } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { loggers } from '@/lib/logger';
 import {
   ArenaLeaderboard,
   ArenaHeatmap,
@@ -35,7 +36,7 @@ import {
 import { useArena, useLeaderboardSync, useLeaderboardOnlineStatus } from '@/hooks/arena';
 import { getRandomPrompts, getRecentBattlePrompts } from '@/lib/arena';
 import type { ArenaPrompt } from '@/lib/arena';
-import type { ArenaBattle, ModelSelection } from '@/types/arena';
+import type { ArenaBattle, ArenaLaunchOptionsSnapshot, ModelSelection } from '@/types/arena';
 import Link from 'next/link';
 
 export default function ArenaPage() {
@@ -47,6 +48,8 @@ export default function ArenaPage() {
   const [quickPrompt, setQuickPrompt] = useState('');
   const [suggestedPrompts, setSuggestedPrompts] = useState<ArenaPrompt[]>(() => getRandomPrompts(4));
   const [rematchModels, setRematchModels] = useState<ModelSelection[] | undefined>(undefined);
+  const [rematchOptions, setRematchOptions] = useState<Partial<ArenaLaunchOptionsSnapshot> | undefined>(undefined);
+  const recoveryLoggedRef = useRef<string | null>(null);
 
   const battles = useArenaStore(selectBattles);
   const totalBattles = useArenaStore(selectTotalBattleCount);
@@ -55,11 +58,18 @@ export default function ArenaPage() {
   const activeBattleId = useArenaStore(selectActiveBattleId);
   const arenaSettings = useArenaStore(selectArenaSettings);
   const setActiveBattle = useArenaStore((state) => state.setActiveBattle);
+  const getBattle = useArenaStore((state) => state.getBattle);
+  const recordRecovery = useArenaStore((state) => state.recordRecovery);
   const getActiveBattle = useArenaStore((state) => state.getActiveBattle);
   const { continueTurn, canContinue } = useArena();
 
   // Leaderboard sync - auto-fetch when leaderboard tab is active
-  const { isSyncing: leaderboardSyncing } = useLeaderboardSync({
+  const {
+    isSyncing: leaderboardSyncing,
+    freshnessState,
+    lastSuccessfulSyncAt,
+    refreshLeaderboard,
+  } = useLeaderboardSync({
     autoFetch: activeTab === 'leaderboard',
   });
   const { isOnline } = useLeaderboardOnlineStatus();
@@ -79,8 +89,48 @@ export default function ArenaPage() {
         displayName: c.displayName,
       }))
     );
+    setRematchOptions({
+      blindMode: battle.mode === 'blind',
+      conversationMode: battle.conversationMode || 'single',
+      maxTurns: battle.maxTurns,
+      temperature: battle.modelParameters?.temperature,
+      maxTokens: battle.modelParameters?.maxTokens,
+      taskCategory: battle.taskCategoryOverride,
+    });
     setShowArenaDialog(true);
   }, []);
+
+  // Recover active battle deterministically and clear stale references.
+  useEffect(() => {
+    if (!activeBattleId) {
+      recoveryLoggedRef.current = null;
+      return;
+    }
+    if (recoveryLoggedRef.current === activeBattleId) {
+      return;
+    }
+
+    const battle = getBattle(activeBattleId);
+    if (!battle) {
+      setActiveBattle(null);
+      recordRecovery('skipped', activeBattleId);
+      loggers.ui.warn('arena_recovery_skipped', {
+        event: 'recovery_skipped',
+        reason: 'stale_active_battle',
+        battleId: activeBattleId,
+      });
+      recoveryLoggedRef.current = activeBattleId;
+      return;
+    }
+
+    recordRecovery('applied', activeBattleId);
+    loggers.ui.info('arena_recovery_applied', {
+      event: 'recovery_applied',
+      battleId: activeBattleId,
+      completed: Boolean(battle.completedAt),
+    });
+    recoveryLoggedRef.current = activeBattleId;
+  }, [activeBattleId, getBattle, recordRecovery, setActiveBattle]);
 
   const currentBattleId = selectedBattleId || activeBattleId;
 
@@ -131,10 +181,34 @@ export default function ArenaPage() {
                 <><WifiOff className="h-3 w-3 text-red-500" /> {t('offline')}</>
               )}
             </Badge>
+            <Badge variant="outline" className="gap-1">
+              {leaderboardSyncing ? (
+                <><RefreshCw className="h-3 w-3 animate-spin" /> {t('leaderboard.sync.syncing')}</>
+              ) : (
+                <>{t(`leaderboard.sync.${freshnessState}`)}</>
+              )}
+            </Badge>
+            {lastSuccessfulSyncAt && (
+              <Badge variant="outline">
+                {t('leaderboard.sync.lastUpdated', {
+                  time: new Date(lastSuccessfulSyncAt).toLocaleTimeString(),
+                })}
+              </Badge>
+            )}
           </div>
           <Button onClick={() => setShowArenaDialog(true)} className="gap-2">
             <Zap className="h-4 w-4" />
             {t('startBattle')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => void refreshLeaderboard()}
+            disabled={!isOnline || leaderboardSyncing}
+          >
+            <RefreshCw className={cn('h-4 w-4', leaderboardSyncing && 'animate-spin')} />
+            {t('leaderboard.sync.refresh')}
           </Button>
           <Button variant="outline" size="icon" asChild>
             <Link href="/settings?section=arena">
@@ -275,13 +349,18 @@ export default function ArenaPage() {
         open={showArenaDialog}
         onOpenChange={(open) => {
           setShowArenaDialog(open);
-          if (!open) setRematchModels(undefined);
+          if (!open) {
+            setRematchModels(undefined);
+            setRematchOptions(undefined);
+          }
         }}
         initialPrompt={quickPrompt}
         initialModels={rematchModels}
+        initialOptions={rematchOptions}
         onBattleComplete={() => {
           setQuickPrompt('');
           setRematchModels(undefined);
+          setRematchOptions(undefined);
         }}
       />
 

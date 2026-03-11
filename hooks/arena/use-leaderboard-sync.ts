@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useArenaStore } from '@/stores/arena';
 import {
   useLeaderboardSyncStore,
+  selectLeaderboardFreshnessState,
   selectLeaderboardSyncStatus,
   selectLeaderboard,
   selectLeaderboardSyncSettings,
@@ -14,9 +15,13 @@ import {
   selectIsLeaderboardSyncing,
   selectHasPendingSubmissions,
   selectIsOnline,
+  selectLastAttemptAt,
   selectLastFetchAt,
+  selectLastSuccessfulSyncAt,
+  selectLastSyncError,
 } from '@/stores/arena';
 import type {
+  LeaderboardFreshnessState,
   LeaderboardFetchParams,
   LeaderboardSyncSettings,
   RemoteModelRating,
@@ -55,6 +60,10 @@ export interface UseLeaderboardSyncReturn {
   isSyncing: boolean;
   hasPendingSubmissions: boolean;
   lastFetchAt: string | null;
+  lastAttemptAt: string | null;
+  lastSuccessfulSyncAt: string | null;
+  freshnessState: LeaderboardFreshnessState;
+  lastSyncError: ReturnType<typeof selectLastSyncError>;
 
   // Actions
   fetchLeaderboard: (params?: LeaderboardFetchParams, force?: boolean) => Promise<void>;
@@ -99,6 +108,10 @@ export function useLeaderboardSync(
   const hasPendingSubmissions = useLeaderboardSyncStore(selectHasPendingSubmissions);
   const isOnline = useLeaderboardSyncStore(selectIsOnline);
   const lastFetchAt = useLeaderboardSyncStore(selectLastFetchAt);
+  const lastAttemptAt = useLeaderboardSyncStore(selectLastAttemptAt);
+  const lastSuccessfulSyncAt = useLeaderboardSyncStore(selectLastSuccessfulSyncAt);
+  const freshnessState = useLeaderboardSyncStore(selectLeaderboardFreshnessState);
+  const lastSyncError = useLeaderboardSyncStore(selectLastSyncError);
 
   // Store actions
   const storeFetchLeaderboard = useLeaderboardSyncStore((s) => s.fetchLeaderboard);
@@ -260,6 +273,10 @@ export function useLeaderboardSync(
       isSyncing,
       hasPendingSubmissions,
       lastFetchAt,
+      lastAttemptAt,
+      lastSuccessfulSyncAt,
+      freshnessState,
+      lastSyncError,
 
       // Actions
       fetchLeaderboard,
@@ -288,6 +305,10 @@ export function useLeaderboardSync(
       isSyncing,
       hasPendingSubmissions,
       lastFetchAt,
+      lastAttemptAt,
+      lastSuccessfulSyncAt,
+      freshnessState,
+      lastSyncError,
       fetchLeaderboard,
       refreshLeaderboard,
       submitLocalPreferences,
@@ -316,8 +337,10 @@ export function useLeaderboardData() {
   const status = useLeaderboardSyncStore(selectLeaderboardSyncStatus);
   const error = useLeaderboardSyncStore(selectLeaderboardSyncError);
   const lastFetchAt = useLeaderboardSyncStore(selectLastFetchAt);
+  const lastSuccessfulSyncAt = useLeaderboardSyncStore(selectLastSuccessfulSyncAt);
+  const freshnessState = useLeaderboardSyncStore(selectLeaderboardFreshnessState);
 
-  return { leaderboard, status, error, lastFetchAt };
+  return { leaderboard, status, error, lastFetchAt, lastSuccessfulSyncAt, freshnessState };
 }
 
 /**

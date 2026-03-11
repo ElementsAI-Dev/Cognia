@@ -40,6 +40,7 @@ import {
   serializeSpeedPassEventStatements,
 } from '@/lib/learning/speedpass/xapi-event-adapter';
 import { isLearningInteropV2Enabled } from '@/lib/learning/feature-flags';
+import { computeSpeedPassAdaptiveProfile } from '@/lib/learning';
 import { speedpassRuntime } from '@/lib/native/speedpass-runtime';
 import { isTauri } from '@/lib/utils';
 import { loggers } from '@/lib/logger';
@@ -309,6 +310,10 @@ const initialState = {
 };
 
 const log = loggers.store;
+
+function clampCount(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
 
 type PersistedSpeedPassFields = Pick<
   SpeedPassState,
@@ -988,6 +993,22 @@ export const useSpeedPassStore = create<SpeedPassState>()(
           const knowledgePoints = state.textbookKnowledgePoints[input.textbookId] || [];
           const questions = state.textbookQuestions[input.textbookId] || [];
           const chapters = state.textbookChapters[input.textbookId] || [];
+          const computedAdaptiveProfile = computeSpeedPassAdaptiveProfile({
+            preferredMode: input.mode,
+            averageAccuracy: state.globalStats.averageAccuracy,
+            currentStreak: state.globalStats.currentStreak,
+          });
+          const adaptiveProfile = input.adaptiveProfile
+            ? {
+                guidanceDepth: input.adaptiveProfile.guidanceDepth || computedAdaptiveProfile.guidanceDepth,
+                practiceIntensity:
+                  input.adaptiveProfile.practiceIntensity || computedAdaptiveProfile.practiceIntensity,
+                tutorialDepth: input.adaptiveProfile.tutorialDepth || computedAdaptiveProfile.tutorialDepth,
+              }
+            : computedAdaptiveProfile;
+          const resolvedMode = input.adaptiveProfile
+            ? input.mode
+            : computedAdaptiveProfile.recommendedMode;
 
           // Use the library's generateTutorial for richer content
           // (summaries, key points, memory tips, common mistakes)
@@ -996,7 +1017,12 @@ export const useSpeedPassStore = create<SpeedPassState>()(
             chapters,
             knowledgePoints,
             questions,
-            mode: input.mode,
+            mode: resolvedMode,
+            adaptiveProfile: {
+              guidanceDepth: adaptiveProfile.guidanceDepth,
+              practiceIntensity: adaptiveProfile.practiceIntensity,
+              tutorialDepth: adaptiveProfile.tutorialDepth,
+            },
             userId: resolveSpeedPassUserId(input.userId || state.userProfile?.id),
             courseId: resolveSpeedPassCourseId(state, input.textbookId, input.courseId),
           });
@@ -1295,6 +1321,29 @@ export const useSpeedPassStore = create<SpeedPassState>()(
       createQuiz: (input) => {
         const state = get();
         const questions = state.textbookQuestions[input.textbookId] || [];
+        const adaptiveProfile =
+          input.adaptiveProfile ||
+          computeSpeedPassAdaptiveProfile({
+            preferredMode: state.userProfile?.preferredMode || 'speed',
+            averageAccuracy: state.globalStats.averageAccuracy,
+            currentStreak: state.globalStats.currentStreak,
+          });
+        const resolvedDifficulty =
+          input.adaptiveProfile?.lockDifficulty && input.difficulty
+            ? input.difficulty
+            : input.difficulty && input.difficulty !== 'mixed'
+              ? input.difficulty
+              : adaptiveProfile.quizDifficulty;
+        const resolvedQuestionCount = clampCount(
+          input.questionCount +
+            (adaptiveProfile.practiceIntensity === 'challenging'
+              ? 2
+              : adaptiveProfile.practiceIntensity === 'reduced'
+                ? -2
+                : 0),
+          3,
+          50
+        );
 
         // Filter questions based on input criteria
         let filteredQuestions = questions;
@@ -1323,13 +1372,13 @@ export const useSpeedPassStore = create<SpeedPassState>()(
           );
         }
 
-        if (input.difficulty && input.difficulty !== 'mixed') {
+        if (resolvedDifficulty && resolvedDifficulty !== 'mixed') {
           const difficultyRange = {
             easy: [0, 0.33],
             medium: [0.33, 0.66],
             hard: [0.66, 1],
           };
-          const [min, max] = difficultyRange[input.difficulty];
+          const [min, max] = difficultyRange[resolvedDifficulty];
           filteredQuestions = filteredQuestions.filter(
             (q) => q.difficulty >= min && q.difficulty <= max
           );
@@ -1337,12 +1386,12 @@ export const useSpeedPassStore = create<SpeedPassState>()(
 
         // Shuffle and select questions
         const shuffled = [...filteredQuestions].sort(() => Math.random() - 0.5);
-        const selectedQuestions = shuffled.slice(0, input.questionCount);
+        const selectedQuestions = shuffled.slice(0, resolvedQuestionCount);
 
         const quiz: Quiz = {
           id: nanoid(),
           userId: resolveSpeedPassUserId(state.userProfile?.id),
-          title: `${input.questionCount}道题测验`,
+          title: `${selectedQuestions.length}道题测验`,
           knowledgePointIds: input.knowledgePointIds || [],
           questionCount: selectedQuestions.length,
           timeLimit: input.timeLimit,

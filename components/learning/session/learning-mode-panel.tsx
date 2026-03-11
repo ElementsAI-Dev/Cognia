@@ -89,11 +89,19 @@ export const LearningModePanel = memo(function LearningModePanel({
     learningSession,
     isLearningActive,
     currentPhase,
-    progress,
+    lifecycleState,
+    progressSnapshot,
+    resumeOutcome,
+    actionAvailability,
+    recoverableError,
     subQuestions,
     learningGoals,
     advancePhase,
     endLearning,
+    resumeLearningFromContext,
+    useFallbackLearningContext,
+    resetLearningContext,
+    clearRecoverableError,
     getStatusLine,
     getCelebrationMessage,
     getEncouragement,
@@ -200,6 +208,27 @@ export const LearningModePanel = memo(function LearningModePanel({
         )}
         <GraduationCap className="h-12 w-12 text-muted-foreground mb-4" />
         <p className="text-muted-foreground text-center">{t('noActiveSession')}</p>
+        {(resumeOutcome.outcome === 'fallback' || resumeOutcome.outcome === 'reset-required') && (
+          <div className="mt-4 w-full rounded-lg border border-border bg-muted/30 p-3">
+            <p className="text-xs text-muted-foreground">{resumeOutcome.reason}</p>
+            <div className="mt-2 flex gap-2">
+              {resumeOutcome.outcome === 'fallback' && (
+                <Button
+                  size="sm"
+                  onClick={useFallbackLearningContext}
+                  disabled={!actionAvailability.resume.enabled}
+                >
+                  Use fallback
+                </Button>
+              )}
+              {resumeOutcome.outcome === 'reset-required' && (
+                <Button size="sm" variant="destructive" onClick={resetLearningContext}>
+                  Reset context
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </Card>
     );
   }
@@ -232,11 +261,39 @@ export const LearningModePanel = memo(function LearningModePanel({
                 studyMinutes: todayProgress.studyMinutes,
                 targetMinutes: todayProgress.targetMinutes,
               })
-            : getStatusLine()}
+            : `${getStatusLine()} · ${lifecycleState}`}
         </p>
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col gap-2 overflow-hidden p-0">
+        {recoverableError && (
+          <Card className="mx-4 mt-2 border-destructive/30">
+            <CardContent className="pt-3 space-y-2">
+              <p className="text-xs font-medium text-destructive">{recoverableError.message}</p>
+              <div className="flex items-center gap-2">
+                {recoverableError.retryable && (
+                  <Button size="sm" variant="outline" onClick={resumeLearningFromContext}>
+                    Retry
+                  </Button>
+                )}
+                {resumeOutcome.outcome === 'fallback' && (
+                  <Button size="sm" variant="outline" onClick={useFallbackLearningContext}>
+                    Use fallback
+                  </Button>
+                )}
+                {recoverableError.fallbackAction === 'reset' && (
+                  <Button size="sm" variant="destructive" onClick={resetLearningContext}>
+                    Reset
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" onClick={clearRecoverableError}>
+                  Dismiss
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="mx-4 mt-2 grid grid-cols-2 gap-2">
           <Button
             size="sm"
@@ -366,15 +423,15 @@ export const LearningModePanel = memo(function LearningModePanel({
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{t('progress')}</span>
-                  <span className="font-medium">{progress}%</span>
+                  <span className="font-medium">{progressSnapshot.percent}%</span>
                 </div>
-                <Progress value={progress} className="h-2" />
-                {progress >= 50 && progress < 100 && (
+                <Progress value={progressSnapshot.percent} className="h-2" />
+                {progressSnapshot.percent >= 50 && progressSnapshot.percent < 100 && (
                   <p className="text-xs text-green-600 italic">
                     {getEncouragement('goodProgress')}
                   </p>
                 )}
-                {progress === 100 && (
+                {progressSnapshot.percent === 100 && (
                   <p className="text-xs text-primary font-medium">
                     {getCelebrationMessage('session_complete')}
                   </p>
@@ -485,12 +542,23 @@ export const LearningModePanel = memo(function LearningModePanel({
               {/* Actions */}
               <div className="flex gap-2 pt-2 border-t mt-auto">
                 {currentPhase !== 'summary' && (
-                  <Button variant="outline" size="sm" className="flex-1" onClick={advancePhase}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={advancePhase}
+                    disabled={!actionAvailability.complete.enabled}
+                  >
                     <Play className="h-3 w-3 mr-1" />
                     {t('nextPhase')}
                   </Button>
                 )}
-                <Button variant="ghost" size="sm" onClick={handleEndLearning}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleEndLearning}
+                  disabled={!actionAvailability.complete.enabled}
+                >
                   <Pause className="h-3 w-3 mr-1" />
                   {t('endSession')}
                 </Button>

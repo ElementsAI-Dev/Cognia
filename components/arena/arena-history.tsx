@@ -494,7 +494,21 @@ function ArenaHistoryComponent({ className, onViewBattle, onRematch, maxItems = 
                 battle={battle}
                 locale={locale}
                 onView={onViewBattle ? () => onViewBattle(battle.id) : undefined}
-                onRematch={onRematch ? () => onRematch(battle) : undefined}
+                onRematch={
+                  onRematch
+                    ? () =>
+                        onRematch({
+                          ...battle,
+                          contestants: battle.contestants.map((contestant) => ({
+                            ...contestant,
+                            tokenCount: contestant.tokenCount
+                              ? { ...contestant.tokenCount }
+                              : undefined,
+                            messages: contestant.messages?.map((message) => ({ ...message })),
+                          })),
+                        })
+                    : undefined
+                }
                 onDelete={() => handleDelete(battle.id)}
               />
             ))

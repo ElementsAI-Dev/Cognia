@@ -64,6 +64,13 @@ const mockGetBTRatings = jest.fn(() => mockModelRatings.map((r) => ({
   ...r,
   btScore: r.rating / 1000,
 })));
+const mockRefreshRemoteLeaderboard = jest.fn();
+const mockLeaderboardSyncState = {
+  refreshLeaderboard: mockRefreshRemoteLeaderboard,
+  freshnessState: 'fresh',
+  lastSuccessfulSyncAt: null,
+  isOnline: true,
+};
 
 jest.mock('@/stores/arena', () => ({
   useArenaStore: (selector: (state: unknown) => unknown) => {
@@ -75,6 +82,11 @@ jest.mock('@/stores/arena', () => ({
     };
     return selector(mockState);
   },
+  useLeaderboardSyncStore: (selector: (state: typeof mockLeaderboardSyncState) => unknown) =>
+    selector(mockLeaderboardSyncState),
+  selectLeaderboardFreshnessState: (state: typeof mockLeaderboardSyncState) => state.freshnessState,
+  selectLastSuccessfulSyncAt: (state: typeof mockLeaderboardSyncState) => state.lastSuccessfulSyncAt,
+  selectIsOnline: (state: typeof mockLeaderboardSyncState) => state.isOnline,
 }));
 
 // Mock hooks/arena to avoid transitive ESM dependency chain (react-vega)

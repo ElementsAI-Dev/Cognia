@@ -38,6 +38,19 @@ export {
   formatStatusLine,
 } from './formatters';
 
+// Canonical lifecycle, resume, adaptive, progress, and error utilities
+export {
+  buildLearningRecoverableError,
+  resolveLearningLifecycleState,
+  resolveLearningResumeOutcome,
+  buildLearningProgressSnapshot,
+  buildLearningActionAvailability,
+  computeAdaptiveLearningProfile,
+  computeSpeedPassAdaptiveProfile,
+  buildLearningResumeContext,
+} from './lifecycle';
+export type { SpeedPassAdaptiveProfile } from './lifecycle';
+
 // Learning type detection (short-term vs long-term)
 export {
   detectLearningType,

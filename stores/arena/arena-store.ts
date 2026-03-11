@@ -51,6 +51,9 @@ interface ArenaState {
   // State
   battles: ArenaBattle[];
   activeBattleId: string | null;
+  lastRecoveryAt: Date | null;
+  lastRecoveryStatus: 'applied' | 'skipped' | null;
+  lastRecoveryBattleId: string | null;
   preferences: ArenaPreference[];
   modelRatings: ArenaModelRating[];
   settings: ArenaSettings;
@@ -65,12 +68,19 @@ interface ArenaState {
       mode?: ArenaBattleMode;
       conversationMode?: 'single' | 'multi';
       maxTurns?: number;
+      modelParameters?: ArenaBattle['modelParameters'];
+      taskCategoryOverride?: TaskCategory;
       taskClassification?: TaskClassification;
     }
   ) => ArenaBattle;
   getBattle: (battleId: string) => ArenaBattle | undefined;
   getActiveBattle: () => ArenaBattle | undefined;
   setActiveBattle: (battleId: string | null) => void;
+  recordRecovery: (
+    status: 'applied' | 'skipped',
+    battleId: string | null,
+    recoveredAt?: Date
+  ) => void;
   markBattleViewed: (battleId: string) => void;
   deleteBattle: (battleId: string) => void;
   clearBattleHistory: () => void;
@@ -159,6 +169,9 @@ export const useArenaStore = create<ArenaState>()(
     (set, get) => ({
       battles: [],
       activeBattleId: null,
+      lastRecoveryAt: null,
+      lastRecoveryStatus: null,
+      lastRecoveryBattleId: null,
       preferences: [],
       modelRatings: [],
       settings: DEFAULT_ARENA_SETTINGS,
@@ -173,6 +186,16 @@ export const useArenaStore = create<ArenaState>()(
           mode: options?.mode || settings.defaultMode,
           conversationMode: options?.conversationMode || settings.defaultConversationMode,
           maxTurns: options?.maxTurns || settings.defaultMaxTurns,
+          modelParameters: options?.modelParameters,
+          taskCategoryOverride: options?.taskCategoryOverride,
+          launchOptions: {
+            blindMode: (options?.mode || settings.defaultMode) === 'blind',
+            conversationMode: options?.conversationMode || settings.defaultConversationMode,
+            maxTurns: options?.maxTurns || settings.defaultMaxTurns,
+            temperature: options?.modelParameters?.temperature,
+            maxTokens: options?.modelParameters?.maxTokens,
+            taskCategory: options?.taskCategoryOverride,
+          },
           currentTurn: 1,
           contestants: contestants.map((c) => ({
             id: nanoid(),
@@ -210,6 +233,14 @@ export const useArenaStore = create<ArenaState>()(
         set({ activeBattleId: battleId });
       },
 
+      recordRecovery: (status, battleId, recoveredAt = new Date()) => {
+        set({
+          lastRecoveryStatus: status,
+          lastRecoveryBattleId: battleId,
+          lastRecoveryAt: recoveredAt,
+        });
+      },
+
       markBattleViewed: (battleId) => {
         set((state) => ({
           battles: state.battles.map((battle) => {
@@ -227,7 +258,13 @@ export const useArenaStore = create<ArenaState>()(
       },
 
       clearBattleHistory: () => {
-        set({ battles: [], activeBattleId: null });
+        set({
+          battles: [],
+          activeBattleId: null,
+          lastRecoveryAt: null,
+          lastRecoveryStatus: null,
+          lastRecoveryBattleId: null,
+        });
       },
 
       updateContestant: (battleId, contestantId, updates) => {
@@ -933,6 +970,9 @@ export const useArenaStore = create<ArenaState>()(
         set({
           battles: [],
           activeBattleId: null,
+          lastRecoveryAt: null,
+          lastRecoveryStatus: null,
+          lastRecoveryBattleId: null,
           preferences: [],
           modelRatings: [],
           voteHistory: [],
@@ -943,19 +983,34 @@ export const useArenaStore = create<ArenaState>()(
       name: 'cognia-arena',
       partialize: (state) => ({
         battles: state.battles,
+        activeBattleId: state.activeBattleId,
+        lastRecoveryAt: state.lastRecoveryAt,
+        lastRecoveryStatus: state.lastRecoveryStatus,
+        lastRecoveryBattleId: state.lastRecoveryBattleId,
         preferences: state.preferences,
         modelRatings: state.modelRatings,
         settings: state.settings,
       }),
       onRehydrateStorage: () => (state: ArenaState | undefined) => {
         if (state) {
+          state.activeBattleId = state.activeBattleId ?? null;
+          state.lastRecoveryAt = state.lastRecoveryAt
+            ? new Date(state.lastRecoveryAt)
+            : null;
+          state.lastRecoveryStatus = state.lastRecoveryStatus ?? null;
+          state.lastRecoveryBattleId = state.lastRecoveryBattleId ?? null;
           // Convert date strings back to Date objects
           state.battles = state.battles.map((b: ArenaBattle) => ({
             ...b,
             createdAt: new Date(b.createdAt),
+            updatedAt: b.updatedAt ? new Date(b.updatedAt) : undefined,
             completedAt: b.completedAt ? new Date(b.completedAt) : undefined,
             contestants: b.contestants.map((c: ArenaContestant) => ({
               ...c,
+              messages: c.messages?.map((m) => ({
+                ...m,
+                timestamp: new Date(m.timestamp),
+              })),
               startedAt: c.startedAt ? new Date(c.startedAt) : undefined,
               completedAt: c.completedAt ? new Date(c.completedAt) : undefined,
             })),
@@ -969,6 +1024,11 @@ export const useArenaStore = create<ArenaState>()(
             ...r,
             updatedAt: new Date(r.updatedAt),
           }));
+
+          // Guard against stale active battle references from older persisted state.
+          if (state.activeBattleId && !state.battles.some((b) => b.id === state.activeBattleId)) {
+            state.activeBattleId = null;
+          }
         }
       },
     }
@@ -980,6 +1040,8 @@ export const selectBattles = (state: ArenaState) => state.battles;
 export const selectActiveBattle = (state: ArenaState) =>
   state.activeBattleId ? state.battles.find((b) => b.id === state.activeBattleId) : undefined;
 export const selectActiveBattleId = (state: ArenaState) => state.activeBattleId;
+export const selectLastRecoveryStatus = (state: ArenaState) => state.lastRecoveryStatus;
+export const selectLastRecoveryAt = (state: ArenaState) => state.lastRecoveryAt;
 export const selectSettings = (state: ArenaState) => state.settings;
 export const selectModelRatings = (state: ArenaState) => state.modelRatings;
 export const selectPreferences = (state: ArenaState) => state.preferences;

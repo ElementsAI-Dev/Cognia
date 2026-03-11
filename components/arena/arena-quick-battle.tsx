@@ -5,7 +5,7 @@
  * Streamlined battle experience with auto-selected models
  */
 
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Zap, Shuffle, Settings2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -43,8 +43,9 @@ function ArenaQuickBattleComponent({
 
   const [blindMode, setBlindMode] = useState(true);
   const [multiTurn, setMultiTurn] = useState(false);
+  const [launchError, setLaunchError] = useState<string | null>(null);
 
-  const { isExecuting, error, startBattle } = useArena({
+  const { isExecuting, error, startBattle, getLaunchReadiness } = useArena({
     onBattleStart: () => {
       onBattleStart?.();
     },
@@ -54,15 +55,64 @@ function ArenaQuickBattleComponent({
   });
 
   const { getSmartModelPair, selectedModels, availableModels } = useSmartModelPair();
+  const candidateModels = useMemo(
+    () => (selectedModels.length >= 2 ? selectedModels : getSmartModelPair()),
+    [selectedModels, getSmartModelPair]
+  );
+  const launchReadiness = useMemo(
+    () => getLaunchReadiness(prompt, candidateModels),
+    [getLaunchReadiness, prompt, candidateModels]
+  );
+
+  const getReadinessMessage = useCallback(
+    (reason: NonNullable<ReturnType<typeof getLaunchReadiness>['reasons'][number]>) => {
+      switch (reason.code) {
+        case 'invalidPrompt':
+          return t('launchReadiness.invalidPrompt');
+        case 'insufficientModels':
+          return t('launchReadiness.insufficientModels');
+        case 'providerNotConfigured':
+          return t('launchReadiness.providerNotConfigured', { provider: reason.provider || '' });
+        case 'modelUnavailable':
+          return t('launchReadiness.modelUnavailable', { model: reason.model || '' });
+        case 'alreadyExecuting':
+          return t('launchReadiness.alreadyExecuting');
+        default:
+          return t('launchReadiness.generic');
+      }
+    },
+    [t]
+  );
+  const readinessMessage = useMemo(() => {
+    if (launchReadiness.canStart) return null;
+    const firstReason = launchReadiness.reasons[0];
+    return firstReason ? getReadinessMessage(firstReason) : null;
+  }, [getReadinessMessage, launchReadiness]);
+  const visibleLaunchError = launchReadiness.canStart ? null : launchError;
 
   const handleQuickBattle = useCallback(async () => {
-    if (!prompt.trim() || isExecuting || disabled) return;
+    if (isExecuting || disabled) return;
 
-    const models = getSmartModelPair();
-    if (models.length < 2) {
-      loggers.ui.error('Not enough models available for quick battle');
+    const models = candidateModels.length >= 2 ? candidateModels : getSmartModelPair();
+    const readiness = getLaunchReadiness(prompt, models);
+
+    if (!readiness.canStart) {
+      const firstReason = readiness.reasons[0];
+      if (firstReason) {
+        setLaunchError(getReadinessMessage(firstReason));
+      }
+      loggers.ui.warn('arena_launch_blocked', {
+        event: 'launch_blocked',
+        source: 'quick_battle',
+        reasonCodes: readiness.reasons.map((reason) => reason.code),
+      });
+      if (models.length < 2) {
+        loggers.ui.error('Not enough models available for quick battle');
+      }
       return;
     }
+
+    setLaunchError(null);
 
     await startBattle(
       prompt,
@@ -83,7 +133,10 @@ function ArenaQuickBattleComponent({
     prompt,
     isExecuting,
     disabled,
+    candidateModels,
+    getLaunchReadiness,
     getSmartModelPair,
+    getReadinessMessage,
     startBattle,
     sessionId,
     systemPrompt,
@@ -104,7 +157,7 @@ function ArenaQuickBattleComponent({
             size="icon"
             className={cn('h-8 w-8', className)}
             onClick={handleQuickBattle}
-            disabled={disabled || isExecuting || !prompt.trim()}
+            disabled={disabled || isExecuting || !launchReadiness.canStart}
           >
             {isExecuting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -124,7 +177,7 @@ function ArenaQuickBattleComponent({
         variant="outline"
         size="sm"
         onClick={handleQuickBattle}
-        disabled={disabled || isExecuting || !prompt.trim()}
+        disabled={disabled || isExecuting || !launchReadiness.canStart}
         className="gap-2"
       >
         {isExecuting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
@@ -190,7 +243,11 @@ function ArenaQuickBattleComponent({
               </div>
             </div>
 
-            {error && <p className="text-xs text-destructive">{error}</p>}
+            {(visibleLaunchError || error || readinessMessage) && (
+              <p className="text-xs text-destructive">
+                {visibleLaunchError || error || readinessMessage}
+              </p>
+            )}
           </div>
         </PopoverContent>
       </Popover>

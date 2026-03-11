@@ -8,3 +8,4 @@ export * from './knowledge-map';
 export * from './summary';
 export * from './animation-types';
 export * from './speedpass';
+export * from './lifecycle';

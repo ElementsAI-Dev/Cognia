@@ -51,15 +51,17 @@ import { cn } from '@/lib/utils';
 import { getProviderColor } from '@/lib/arena';
 import { useArena, useSmartModelPair } from '@/hooks/arena';
 import { useArenaStore } from '@/stores/arena';
+import { loggers } from '@/lib/logger';
 
 import { ARENA_MODEL_PRESETS } from '@/types/arena';
-import type { ModelSelection } from '@/types/arena';
+import type { ArenaLaunchOptionsSnapshot, ModelSelection } from '@/types/arena';
 
 interface ArenaDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialPrompt?: string;
   initialModels?: ModelSelection[];
+  initialOptions?: Partial<ArenaLaunchOptionsSnapshot>;
   sessionId?: string;
   systemPrompt?: string;
   onBattleStart?: () => void;
@@ -71,6 +73,7 @@ export function ArenaDialog({
   onOpenChange,
   initialPrompt = '',
   initialModels,
+  initialOptions,
   sessionId,
   systemPrompt,
   onBattleStart,
@@ -92,9 +95,10 @@ export function ArenaDialog({
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(2048);
   const [taskCategory, setTaskCategory] = useState<string>('auto');
+  const [launchError, setLaunchError] = useState<string | null>(null);
 
   const arenaSettings = useArenaStore((state) => state.settings);
-  const { isExecuting, error, startBattle, getAvailableModels } = useArena({
+  const { isExecuting, error, startBattle, getAvailableModels, getLaunchReadiness } = useArena({
     onBattleComplete: () => {
       onBattleComplete?.();
     },
@@ -117,16 +121,81 @@ export function ArenaDialog({
   useEffect(() => {
     if (!open) return;
     if (initialModels && initialModels.length >= 2) {
-      setSelectedModels(initialModels);
+      const rematchModels = initialModels.map((model) => ({
+        provider: model.provider,
+        model: model.model,
+        displayName: model.displayName,
+      }));
+      const sameSelection =
+        selectedModels.length === rematchModels.length &&
+        selectedModels.every(
+          (selected, index) =>
+            selected.provider === rematchModels[index]?.provider &&
+            selected.model === rematchModels[index]?.model
+        );
+      if (!sameSelection) {
+        setSelectedModels(rematchModels);
+      }
       autoSelectedRef.current = true;
-    } else if (arenaSettings.autoSelectModels && !autoSelectedRef.current) {
+      return;
+    }
+
+    if (arenaSettings.autoSelectModels && !autoSelectedRef.current) {
       const smartPair = getSmartModelPair();
       if (smartPair.length >= 2) {
         setSelectedModels(smartPair);
         autoSelectedRef.current = true;
       }
     }
-  }, [open, initialModels, arenaSettings.autoSelectModels, getSmartModelPair]);
+  }, [open, initialModels, selectedModels, arenaSettings.autoSelectModels, getSmartModelPair]);
+
+  // Pre-populate launch options from rematch seed
+  useEffect(() => {
+    if (!open) return;
+    setBlindMode(initialOptions?.blindMode ?? false);
+    const rematchConversationMode = initialOptions?.conversationMode || 'single';
+    setMultiTurn(rematchConversationMode === 'multi');
+    setMaxTurns(initialOptions?.maxTurns ?? 5);
+    setTemperature(initialOptions?.temperature ?? 0.7);
+    setMaxTokens(initialOptions?.maxTokens ?? 2048);
+    setTaskCategory(initialOptions?.taskCategory ?? 'auto');
+  }, [open, initialOptions]);
+
+  const launchReadiness = useMemo(
+    () => getLaunchReadiness(prompt, selectedModels),
+    [getLaunchReadiness, prompt, selectedModels]
+  );
+
+  useEffect(() => {
+    if (launchError && launchReadiness.canStart) {
+      setLaunchError(null);
+    }
+  }, [launchError, launchReadiness.canStart]);
+
+  const getReadinessMessage = useCallback(
+    (reason: NonNullable<ReturnType<typeof getLaunchReadiness>['reasons'][number]>) => {
+      switch (reason.code) {
+        case 'invalidPrompt':
+          return t('launchReadiness.invalidPrompt');
+        case 'insufficientModels':
+          return t('launchReadiness.insufficientModels');
+        case 'providerNotConfigured':
+          return t('launchReadiness.providerNotConfigured', { provider: reason.provider || '' });
+        case 'modelUnavailable':
+          return t('launchReadiness.modelUnavailable', { model: reason.model || '' });
+        case 'alreadyExecuting':
+          return t('launchReadiness.alreadyExecuting');
+        default:
+          return t('launchReadiness.generic');
+      }
+    },
+    [t]
+  );
+  const readinessMessage = useMemo(() => {
+    if (launchReadiness.canStart) return null;
+    const firstReason = launchReadiness.reasons[0];
+    return firstReason ? getReadinessMessage(firstReason) : null;
+  }, [getReadinessMessage, launchReadiness]);
 
   // Toggle model selection
   const toggleModel = useCallback((model: ModelSelection) => {
@@ -173,7 +242,20 @@ export function ArenaDialog({
 
   // Start the battle
   const handleStart = useCallback(async () => {
-    if (selectedModels.length < 2 || !prompt.trim()) return;
+    const readiness = getLaunchReadiness(prompt, selectedModels);
+    if (!readiness.canStart) {
+      const firstReason = readiness.reasons[0];
+      if (firstReason) {
+        setLaunchError(getReadinessMessage(firstReason));
+      }
+      loggers.ui.warn('arena_launch_blocked', {
+        event: 'launch_blocked',
+        source: 'arena_dialog',
+        reasonCodes: readiness.reasons.map((reason) => reason.code),
+      });
+      return;
+    }
+    setLaunchError(null);
 
     onBattleStart?.();
 
@@ -185,13 +267,15 @@ export function ArenaDialog({
       maxTurns: multiTurn ? maxTurns : undefined,
       temperature,
       maxTokens,
-      taskCategory: taskCategory !== 'auto' ? taskCategory : undefined,
+      taskCategory: taskCategory !== 'auto' ? (taskCategory as ArenaLaunchOptionsSnapshot['taskCategory']) : undefined,
     });
 
     onOpenChange(false);
   }, [
     selectedModels,
     prompt,
+    getLaunchReadiness,
+    getReadinessMessage,
     startBattle,
     sessionId,
     systemPrompt,
@@ -379,7 +463,7 @@ export function ArenaDialog({
                   <Settings2 className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm font-medium">{t('advancedOptions')}</span>
                 </div>
-                {showAdvanced ? (
+            {showAdvanced ? (
                   <ChevronUp className="h-4 w-4" />
                 ) : (
                   <ChevronDown className="h-4 w-4" />
@@ -497,9 +581,9 @@ export function ArenaDialog({
           </Collapsible>
 
           {/* Error display */}
-          {error && (
+          {(launchError || error || readinessMessage) && (
             <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-sm text-destructive">
-              {error}
+              {launchError || error || readinessMessage}
             </div>
           )}
         </div>
@@ -510,7 +594,7 @@ export function ArenaDialog({
           </Button>
           <Button
             onClick={handleStart}
-            disabled={isExecuting || selectedModels.length < 2 || !prompt.trim()}
+            disabled={isExecuting || !launchReadiness.canStart}
           >
             {isExecuting ? (
               <>

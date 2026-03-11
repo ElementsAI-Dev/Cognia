@@ -28,6 +28,11 @@ export interface TutorialGenerationInput {
   mode: SpeedLearningMode;
   teacherKeyPoints?: MatchedKnowledgePoint[];
   availableTimeMinutes?: number;
+  adaptiveProfile?: {
+    guidanceDepth?: 'high' | 'medium' | 'low';
+    practiceIntensity?: 'reduced' | 'balanced' | 'challenging';
+    tutorialDepth?: 'brief' | 'standard' | 'detailed';
+  };
   userId: string;
   courseId: string;
 }
@@ -80,6 +85,44 @@ const MODE_CONFIGS: Record<SpeedLearningMode, {
     importanceFilter: ['critical', 'high', 'medium'],
   },
 };
+
+function getAdjustedModeConfig(
+  mode: SpeedLearningMode,
+  adaptiveProfile?: TutorialGenerationInput['adaptiveProfile']
+): (typeof MODE_CONFIGS)[SpeedLearningMode] {
+  const base = MODE_CONFIGS[mode];
+  let sectionScale = 1;
+  let minuteScale = 1;
+  let exerciseScale = 1;
+
+  if (adaptiveProfile?.tutorialDepth === 'brief') {
+    sectionScale *= 0.8;
+    minuteScale *= 0.9;
+  } else if (adaptiveProfile?.tutorialDepth === 'detailed') {
+    sectionScale *= 1.2;
+    minuteScale *= 1.15;
+  }
+
+  if (adaptiveProfile?.guidanceDepth === 'high') {
+    minuteScale *= 1.1;
+  } else if (adaptiveProfile?.guidanceDepth === 'low') {
+    minuteScale *= 0.9;
+  }
+
+  if (adaptiveProfile?.practiceIntensity === 'reduced') {
+    exerciseScale *= 0.8;
+  } else if (adaptiveProfile?.practiceIntensity === 'challenging') {
+    exerciseScale *= 1.2;
+  }
+
+  return {
+    ...base,
+    maxSections: Math.max(3, Math.round(base.maxSections * sectionScale)),
+    maxExamplesPerSection: Math.max(1, Math.round(base.maxExamplesPerSection * sectionScale)),
+    maxExercisesPerSection: Math.max(0, Math.round(base.maxExercisesPerSection * exerciseScale)),
+    minutesPerSection: Math.max(4, Math.round(base.minutesPerSection * minuteScale)),
+  };
+}
 
 // ============================================================================
 // Utility Functions
@@ -236,11 +279,12 @@ export function generateTutorial(input: TutorialGenerationInput): TutorialGenera
     questions,
     mode,
     teacherKeyPoints,
+    adaptiveProfile,
     userId,
     courseId,
   } = input;
   
-  const config = MODE_CONFIGS[mode];
+  const config = getAdjustedModeConfig(mode, adaptiveProfile);
   
   // Filter knowledge points by importance
   let filteredKPs = knowledgePoints.filter((kp) =>

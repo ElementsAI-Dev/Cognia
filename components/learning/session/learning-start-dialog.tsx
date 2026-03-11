@@ -49,10 +49,11 @@ import type {
   LearningCategory,
   LearningPathDuration,
 } from '@/types/learning';
-import { detectLearningType, getTemplateById } from '@/lib/learning';
+import { buildLearningRecoverableError, detectLearningType, getTemplateById } from '@/lib/learning';
 import { detectSpeedLearningMode } from '@/lib/learning/speedpass';
 import { cn } from '@/lib/utils';
 import type { LearningSubMode } from '@/types/core/session';
+import type { LearningRecoverableError } from '@/types/learning/lifecycle';
 
 interface LearningStartDialogProps {
   open: boolean;
@@ -66,7 +67,16 @@ export const LearningStartDialog = memo(function LearningStartDialog({
   onStart,
 }: LearningStartDialogProps) {
   const t = useTranslations('learningMode');
-  const { startLearning, config } = useLearningMode();
+  const {
+    startLearning,
+    config,
+    adaptiveProfile,
+    recoverableError,
+    resumeOutcome,
+    useFallbackLearningContext,
+    resetLearningContext,
+    clearRecoverableError,
+  } = useLearningMode();
   const activeTemplateName = getTemplateById(config.activeTemplateId)?.name ?? 'Socratic Tutor';
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const updateSession = useSessionStore((state) => state.updateSession);
@@ -87,6 +97,13 @@ export const LearningStartDialog = memo(function LearningStartDialog({
   const [speedPassAvailableMinutes, setSpeedPassAvailableMinutes] = useState('');
   const [speedPassTargetScore, setSpeedPassTargetScore] = useState('');
   const [speedPassExamDate, setSpeedPassExamDate] = useState('');
+  const [localRecoverableError, setLocalRecoverableError] =
+    useState<LearningRecoverableError | null>(null);
+
+  const handleDismissRecoverableError = useCallback(() => {
+    setLocalRecoverableError(null);
+    clearRecoverableError();
+  }, [clearRecoverableError]);
 
   // Auto-detect learning type on topic blur
   const handleTopicBlur = useCallback(() => {
@@ -127,51 +144,67 @@ export const LearningStartDialog = memo(function LearningStartDialog({
 
   const handleStart = useCallback(() => {
     if (!topic.trim()) return;
+    setLocalRecoverableError(null);
 
-    if (pathType === 'socratic') {
-      startLearning({
-        topic: topic.trim(),
-        backgroundKnowledge: background.trim() || undefined,
-        learningGoals: goals.length > 0 ? goals : undefined,
-        preferredDifficulty: difficulty,
-        preferredStyle: learningStyle,
-        durationType,
-        category,
-        estimatedDuration: durationType === 'journey' ? estimatedDuration : undefined,
-        autoDetectType: false, // We've already detected
-      });
-    }
+    try {
+      if (pathType === 'socratic') {
+        startLearning({
+          topic: topic.trim(),
+          backgroundKnowledge: background.trim() || undefined,
+          learningGoals: goals.length > 0 ? goals : undefined,
+          preferredDifficulty: difficulty,
+          preferredStyle: learningStyle,
+          durationType,
+          category,
+          estimatedDuration: durationType === 'journey' ? estimatedDuration : undefined,
+          autoDetectType: false, // We've already detected
+        });
+      }
 
-    if (activeSessionId) {
-      const parsedAvailableMinutes = Number.parseInt(speedPassAvailableMinutes, 10);
-      const parsedTargetScore = Number.parseInt(speedPassTargetScore, 10);
-      const modeDetection = detectSpeedLearningMode(topic, {
-        availableTimeMinutes: Number.isFinite(parsedAvailableMinutes)
-          ? parsedAvailableMinutes
-          : undefined,
-        targetScore: Number.isFinite(parsedTargetScore) ? parsedTargetScore : undefined,
-      });
+      if (activeSessionId) {
+        const parsedAvailableMinutes = Number.parseInt(speedPassAvailableMinutes, 10);
+        const parsedTargetScore = Number.parseInt(speedPassTargetScore, 10);
+        const modeDetection = detectSpeedLearningMode(topic, {
+          availableTimeMinutes: Number.isFinite(parsedAvailableMinutes)
+            ? parsedAvailableMinutes
+            : undefined,
+          targetScore: Number.isFinite(parsedTargetScore) ? parsedTargetScore : undefined,
+        });
 
-      updateSession(activeSessionId, {
-        learningContext: {
-          subMode: pathType,
-          speedpassContext:
-            pathType === 'speedpass'
-              ? {
-                  sourceMessage: topic.trim(),
-                  availableTimeMinutes: Number.isFinite(parsedAvailableMinutes)
-                    ? parsedAvailableMinutes
-                    : undefined,
-                  targetScore: Number.isFinite(parsedTargetScore) ? parsedTargetScore : undefined,
-                  examDate: speedPassExamDate
-                    ? new Date(`${speedPassExamDate}T00:00:00`).toISOString()
-                    : undefined,
-                  recommendedMode: modeDetection.recommendedMode,
-                  updatedAt: new Date(),
-                }
-              : undefined,
-        },
-      });
+        updateSession(activeSessionId, {
+          learningContext: {
+            subMode: pathType,
+            speedpassContext:
+              pathType === 'speedpass'
+                ? {
+                    sourceMessage: topic.trim(),
+                    availableTimeMinutes: Number.isFinite(parsedAvailableMinutes)
+                      ? parsedAvailableMinutes
+                      : undefined,
+                    targetScore: Number.isFinite(parsedTargetScore) ? parsedTargetScore : undefined,
+                    examDate: speedPassExamDate
+                      ? new Date(`${speedPassExamDate}T00:00:00`).toISOString()
+                      : undefined,
+                    recommendedMode: modeDetection.recommendedMode,
+                    guidanceDepth: adaptiveProfile?.guidanceDepth,
+                    practiceIntensity: adaptiveProfile?.practiceIntensity,
+                    updatedAt: new Date(),
+                  }
+                : undefined,
+          },
+        });
+      }
+    } catch (error) {
+      setLocalRecoverableError(
+        buildLearningRecoverableError({
+          stage: 'initialization',
+          code: 'LEARNING_START_FAILED',
+          message: error instanceof Error ? error.message : 'Failed to start learning mode',
+          retryable: true,
+          fallbackAction: 'retry',
+        })
+      );
+      return;
     }
 
     // Reset form
@@ -207,6 +240,7 @@ export const LearningStartDialog = memo(function LearningStartDialog({
     speedPassAvailableMinutes,
     speedPassTargetScore,
     speedPassExamDate,
+    adaptiveProfile,
     updateSession,
     onOpenChange,
     onStart,
@@ -229,6 +263,7 @@ export const LearningStartDialog = memo(function LearningStartDialog({
     setSpeedPassAvailableMinutes('');
     setSpeedPassTargetScore('');
     setSpeedPassExamDate('');
+    setLocalRecoverableError(null);
   }, [onOpenChange]);
 
   return (
@@ -246,6 +281,31 @@ export const LearningStartDialog = memo(function LearningStartDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {resumeOutcome.outcome === 'fallback' && (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <p className="text-xs text-muted-foreground">{resumeOutcome.reason}</p>
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" variant="outline" onClick={useFallbackLearningContext}>
+                  Use fallback context
+                </Button>
+                <Button size="sm" variant="ghost" onClick={resetLearningContext}>
+                  Reset context
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {(localRecoverableError || recoverableError) && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+              <p className="text-xs text-destructive">
+                {localRecoverableError?.message || recoverableError?.message}
+              </p>
+              <Button size="sm" variant="ghost" className="mt-2" onClick={handleDismissRecoverableError}>
+                Dismiss
+              </Button>
+            </div>
+          )}
+
           {/* Topic */}
           <div className="space-y-2">
             <Label htmlFor="topic" className="flex items-center gap-2">

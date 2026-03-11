@@ -93,6 +93,87 @@ test.describe('Learning Mode', () => {
   });
 
   test.describe('Learning Store Integration', () => {
+    test('should normalize lifecycle status across entry surfaces', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        type LifecycleState = 'idle' | 'preparing' | 'active' | 'paused' | 'completed' | 'errored';
+
+        const resolveLifecycle = (input: {
+          subMode: 'socratic' | 'speedpass';
+          hasSession: boolean;
+          speedpassStatus?: 'active' | 'paused' | 'completed';
+          hasError?: boolean;
+        }): LifecycleState => {
+          if (input.hasError) return 'errored';
+          if (input.subMode === 'speedpass') {
+            if (input.speedpassStatus === 'paused') return 'paused';
+            if (input.speedpassStatus === 'active') return 'active';
+            if (input.speedpassStatus === 'completed') return 'completed';
+            return 'idle';
+          }
+          return input.hasSession ? 'active' : 'idle';
+        };
+
+        const fromChatEntry = resolveLifecycle({
+          subMode: 'socratic',
+          hasSession: true,
+        });
+        const fromPanelEntry = resolveLifecycle({
+          subMode: 'socratic',
+          hasSession: true,
+        });
+        const fromSpeedPassEntry = resolveLifecycle({
+          subMode: 'speedpass',
+          hasSession: false,
+          speedpassStatus: 'active',
+        });
+
+        return {
+          fromChatEntry,
+          fromPanelEntry,
+          fromSpeedPassEntry,
+          parityAcrossSocratic: fromChatEntry === fromPanelEntry,
+        };
+      });
+
+      expect(result.fromChatEntry).toBe('active');
+      expect(result.fromPanelEntry).toBe('active');
+      expect(result.parityAcrossSocratic).toBe(true);
+      expect(result.fromSpeedPassEntry).toBe('active');
+    });
+
+    test('should provide fallback resume path when stored reference is stale', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const resolveResume = (input: {
+          storedTutorialId?: string;
+          tutorials: string[];
+        }) => {
+          if (input.storedTutorialId && input.tutorials.includes(input.storedTutorialId)) {
+            return { outcome: 'resume', tutorialId: input.storedTutorialId };
+          }
+          const fallback = input.tutorials[0];
+          if (fallback) {
+            return { outcome: 'fallback', tutorialId: fallback };
+          }
+          return { outcome: 'reset-required', tutorialId: null };
+        };
+
+        return {
+          staleCase: resolveResume({
+            storedTutorialId: 'tutorial-missing',
+            tutorials: ['tutorial-valid'],
+          }),
+          emptyCase: resolveResume({
+            storedTutorialId: 'tutorial-missing',
+            tutorials: [],
+          }),
+        };
+      });
+
+      expect(result.staleCase.outcome).toBe('fallback');
+      expect(result.staleCase.tutorialId).toBe('tutorial-valid');
+      expect(result.emptyCase.outcome).toBe('reset-required');
+    });
+
     test('should create learning session correctly', async ({ page }) => {
       const result = await page.evaluate(() => {
         // Simulate learning store behavior

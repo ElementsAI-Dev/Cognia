@@ -6,7 +6,7 @@ import { renderHook } from '@testing-library/react';
 import { useArena } from './use-arena';
 
 // Mock stores
-jest.mock('@/stores', () => ({
+jest.mock('@/stores/settings', () => ({
   useSettingsStore: jest.fn((selector) => {
     const state = {
       defaultProvider: 'openai',
@@ -25,6 +25,16 @@ jest.mock('@/stores', () => ({
     };
     return selector(state);
   }),
+}));
+
+jest.mock('@/lib/logger', () => ({
+  loggers: {
+    ui: {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    },
+  },
 }));
 
 jest.mock('@/stores/arena', () => ({
@@ -135,6 +145,11 @@ describe('useArena', () => {
 
       expect(typeof result.current.startBattle).toBe('function');
     });
+
+    it('should provide getLaunchReadiness function', () => {
+      const { result } = renderHook(() => useArena());
+      expect(typeof result.current.getLaunchReadiness).toBe('function');
+    });
   });
 
   describe('getAvailableModels', () => {
@@ -164,6 +179,14 @@ describe('useArena', () => {
       const { result } = renderHook(() => useArena());
 
       expect(typeof result.current.cancelBattle).toBe('function');
+    });
+
+    it('returns blocked readiness when prompt is empty', () => {
+      const { result } = renderHook(() => useArena());
+
+      const readiness = result.current.getLaunchReadiness('', []);
+      expect(readiness.canStart).toBe(false);
+      expect(readiness.reasons.length).toBeGreaterThan(0);
     });
   });
 

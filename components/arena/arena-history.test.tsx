@@ -338,6 +338,40 @@ describe('ArenaHistory', () => {
     }
   });
 
+  it('passes an isolated rematch copy that does not mutate history records', async () => {
+    const battle = makeBattle({
+      id: 'b-copy',
+      prompt: 'Original prompt',
+      mode: 'blind',
+      conversationMode: 'multi',
+      maxTurns: 6,
+    });
+    mockBattles = [battle];
+    const onRematch = jest.fn();
+
+    render(<ArenaHistory onRematch={onRematch} />);
+
+    const rematchButton = screen
+      .getAllByRole('button')
+      .find((b) => b.querySelector('[data-testid="icon-rematch"]'));
+    expect(rematchButton).toBeDefined();
+
+    if (rematchButton) {
+      await userEvent.click(rematchButton);
+    }
+
+    expect(onRematch).toHaveBeenCalledTimes(1);
+    const rematchBattle = onRematch.mock.calls[0]?.[0] as ArenaBattle;
+    expect(rematchBattle).not.toBe(battle);
+    expect(rematchBattle.contestants[0]).not.toBe(battle.contestants[0]);
+
+    rematchBattle.prompt = 'Changed prompt';
+    rematchBattle.contestants[0].displayName = 'Changed model';
+
+    expect(battle.prompt).toBe('Original prompt');
+    expect(battle.contestants[0].displayName).toBe('Model a');
+  });
+
   it('does not render rematch button when onRematch is not provided', () => {
     mockBattles = [makeBattle({ id: 'b1', prompt: 'No rematch' })];
 

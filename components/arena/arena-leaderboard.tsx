@@ -5,7 +5,7 @@
  * Shows confidence intervals, win rates, and tier groupings
  */
 
-import { memo, useState, useMemo } from 'react';
+import { memo, useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Trophy,
@@ -43,7 +43,13 @@ import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { getRankBadgeClass, CATEGORY_IDS, exportLeaderboardData } from '@/lib/arena';
 import { groupIntoTiers } from '@/lib/ai/arena/bootstrap';
-import { useArenaStore } from '@/stores/arena';
+import {
+  useArenaStore,
+  useLeaderboardSyncStore,
+  selectLeaderboardFreshnessState,
+  selectLastSuccessfulSyncAt,
+  selectIsOnline,
+} from '@/stores/arena';
 import { useLeaderboardData } from '@/hooks/arena';
 import { remoteToLocalRating } from '@/types/arena';
 import type { ArenaModelRating, LeaderboardSortField, LeaderboardSortDirection } from '@/types/arena';
@@ -116,6 +122,10 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
   const getBTRatings = useArenaStore((state) => state.getBTRatings);
   const recalculateBTRatings = useArenaStore((state) => state.recalculateBTRatings);
   const settings = useArenaStore((state) => state.settings);
+  const refreshRemoteLeaderboard = useLeaderboardSyncStore((state) => state.refreshLeaderboard);
+  const freshnessState = useLeaderboardSyncStore(selectLeaderboardFreshnessState);
+  const lastSuccessfulSyncAt = useLeaderboardSyncStore(selectLastSuccessfulSyncAt);
+  const isOnline = useLeaderboardSyncStore(selectIsOnline);
 
   // Remote leaderboard data via sync hook
   const { leaderboard: remoteLeaderboard, status: syncStatus } = useLeaderboardData();
@@ -193,6 +203,10 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
   const handleExport = () => {
     exportLeaderboardData(sortedRatings, activeCategory);
   };
+
+  const handleRefreshRemote = useCallback(() => {
+    void refreshRemoteLeaderboard();
+  }, [refreshRemoteLeaderboard]);
 
   // Compute tier groupings from CI overlap
   const tierMap = useMemo(() => {
@@ -273,6 +287,16 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
               {t('leaderboard.sync.syncing')}
             </Badge>
           )}
+          <Badge variant="outline" className="text-xs">
+            {t(`leaderboard.sync.${freshnessState}`)}
+          </Badge>
+          {lastSuccessfulSyncAt && (
+            <Badge variant="outline" className="text-xs">
+              {t('leaderboard.sync.lastUpdated', {
+                time: new Date(lastSuccessfulSyncAt).toLocaleTimeString(),
+              })}
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -290,6 +314,21 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
               ))}
             </SelectContent>
           </Select>
+
+          {/* Remote refresh button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefreshRemote}
+                disabled={!isOnline || syncStatus === 'fetching'}
+              >
+                <RefreshCw className={cn('h-4 w-4', syncStatus === 'fetching' && 'animate-spin')} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('leaderboard.sync.refresh')}</TooltipContent>
+          </Tooltip>
 
           {/* Recalculate button */}
           <Tooltip>

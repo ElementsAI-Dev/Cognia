@@ -164,6 +164,8 @@ export interface ArenaBattle {
   modelParameters?: ArenaModelParameters;
   /** User-specified task category override */
   taskCategoryOverride?: TaskCategory;
+  /** Snapshot of launch options used to start this battle */
+  launchOptions?: ArenaLaunchOptionsSnapshot;
   /** Contestants in this battle */
   contestants: ArenaContestant[];
   /** Winner contestant ID */
@@ -370,6 +372,57 @@ export interface ModelSelection {
   provider: ProviderName;
   model: string;
   displayName: string;
+}
+
+/**
+ * Launch options snapshot used for battle/rematch continuity
+ */
+export interface ArenaLaunchOptionsSnapshot {
+  blindMode: boolean;
+  conversationMode: ArenaConversationMode;
+  maxTurns?: number;
+  temperature?: number;
+  maxTokens?: number;
+  taskCategory?: TaskCategory;
+}
+
+/**
+ * Machine-readable launch preflight blocking codes
+ */
+export type ArenaLaunchBlockReasonCode =
+  | 'invalidPrompt'
+  | 'insufficientModels'
+  | 'providerNotConfigured'
+  | 'modelUnavailable'
+  | 'alreadyExecuting';
+
+/**
+ * Single preflight block reason
+ */
+export interface ArenaLaunchBlockReason {
+  code: ArenaLaunchBlockReasonCode;
+  provider?: ProviderName;
+  model?: string;
+  message: string;
+}
+
+/**
+ * Launch readiness check result
+ */
+export interface ArenaLaunchReadiness {
+  canStart: boolean;
+  reasons: ArenaLaunchBlockReason[];
+  checkedAt: string;
+}
+
+/**
+ * Rematch seed passed from history into launch UI
+ */
+export interface ArenaRematchSeed {
+  sourceBattleId: string;
+  prompt: string;
+  models: ModelSelection[];
+  options: ArenaLaunchOptionsSnapshot;
 }
 
 /**

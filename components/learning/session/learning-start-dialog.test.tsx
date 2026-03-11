@@ -82,6 +82,12 @@ describe('LearningStartDialog', () => {
     (useLearningMode as jest.Mock).mockReturnValue({
       startLearning: mockStartLearning,
       isLearningActive: false,
+      adaptiveProfile: null,
+      recoverableError: null,
+      resumeOutcome: { outcome: 'resume', reason: 'Recovered', recoveredContext: { subMode: 'socratic' } },
+      useFallbackLearningContext: jest.fn(),
+      resetLearningContext: jest.fn(),
+      clearRecoverableError: jest.fn(),
       config: {
         activeTemplateId: 'builtin-socratic',
         promptLanguage: 'auto',

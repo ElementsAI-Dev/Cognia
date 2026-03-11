@@ -763,6 +763,11 @@ export interface StartSpeedLearningInput {
   teacherKeyPointIds?: string[];
   availableTimeMinutes?: number;
   examDate?: Date;
+  adaptiveProfile?: {
+    guidanceDepth?: 'high' | 'medium' | 'low';
+    practiceIntensity?: 'reduced' | 'balanced' | 'challenging';
+    tutorialDepth?: 'brief' | 'standard' | 'detailed';
+  };
 }
 
 export interface CreateQuizInput {
@@ -773,6 +778,12 @@ export interface CreateQuizInput {
   difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
   sources?: QuestionBankSource[];
   timeLimit?: number;
+  adaptiveProfile?: {
+    guidanceDepth?: 'high' | 'medium' | 'low';
+    practiceIntensity?: 'reduced' | 'balanced' | 'challenging';
+    quizDifficulty?: 'easy' | 'medium' | 'hard';
+    lockDifficulty?: boolean;
+  };
 }
 
 // ============================================================================

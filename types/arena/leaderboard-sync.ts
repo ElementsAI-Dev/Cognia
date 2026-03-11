@@ -245,6 +245,11 @@ export type LeaderboardSyncStatus =
   | 'offline';
 
 /**
+ * User-facing freshness state of leaderboard data
+ */
+export type LeaderboardFreshnessState = 'syncing' | 'fresh' | 'stale' | 'offline';
+
+/**
  * Leaderboard sync error
  */
 export interface LeaderboardSyncError {
@@ -302,6 +307,14 @@ export interface LeaderboardCacheEntry {
 export interface LeaderboardSyncState {
   /** Current sync status */
   status: LeaderboardSyncStatus;
+  /** User-facing freshness state */
+  freshnessState: LeaderboardFreshnessState;
+  /** Last sync attempt timestamp */
+  lastAttemptAt: string | null;
+  /** Last successful sync timestamp */
+  lastSuccessfulSyncAt: string | null;
+  /** Last sync error (if any) */
+  lastError: LeaderboardSyncError | null;
   /** Last successful fetch timestamp */
   lastFetchAt: string | null;
   /** Last successful submission timestamp */
@@ -350,6 +363,8 @@ export interface LeaderboardSyncSettings {
   requestTimeoutMs: number;
   /** Minimum battles to display in leaderboard */
   minBattlesThreshold: number;
+  /** Freshness threshold in minutes */
+  freshnessThresholdMinutes: number;
   /** Anonymous mode (don't send device ID) */
   anonymousMode: boolean;
 }
@@ -369,6 +384,7 @@ export const DEFAULT_LEADERBOARD_SYNC_SETTINGS: LeaderboardSyncSettings = {
   maxRetryAttempts: 3,
   requestTimeoutMs: 30000,
   minBattlesThreshold: 5,
+  freshnessThresholdMinutes: 15,
   anonymousMode: false,
 };
 
@@ -399,6 +415,41 @@ export function generateLeaderboardCacheKey(params: LeaderboardFetchParams): str
 export function isCacheValid(entry: LeaderboardCacheEntry | undefined): boolean {
   if (!entry) return false;
   return new Date(entry.expiresAt) > new Date();
+}
+
+/**
+ * Derive freshness state using status, connectivity, and last successful sync.
+ */
+export function deriveLeaderboardFreshnessState(args: {
+  status: LeaderboardSyncStatus;
+  isOnline: boolean;
+  lastSuccessfulSyncAt: string | null;
+  freshnessThresholdMinutes: number;
+  now?: number;
+}): LeaderboardFreshnessState {
+  const {
+    status,
+    isOnline,
+    lastSuccessfulSyncAt,
+    freshnessThresholdMinutes,
+    now = Date.now(),
+  } = args;
+
+  if (!isOnline || status === 'offline') {
+    return 'offline';
+  }
+
+  if (status === 'fetching' || status === 'submitting') {
+    return 'syncing';
+  }
+
+  if (!lastSuccessfulSyncAt) {
+    return 'stale';
+  }
+
+  const thresholdMs = Math.max(freshnessThresholdMinutes, 1) * 60 * 1000;
+  const ageMs = now - new Date(lastSuccessfulSyncAt).getTime();
+  return ageMs > thresholdMs ? 'stale' : 'fresh';
 }
 
 /**

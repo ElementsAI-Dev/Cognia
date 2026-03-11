@@ -11,7 +11,15 @@ import { streamText } from 'ai';
 import { classifyTaskRuleBased } from '@/lib/ai/generation/auto-router';
 import { ARENA_KNOWN_MODELS } from '@/lib/arena/constants';
 import { computeEstimatedCost } from '@/lib/arena/stats';
-import type { ArenaBattle, ArenaContestant, ArenaWinReason, ModelSelection } from '@/types/arena';
+import { loggers } from '@/lib/logger';
+import type { TaskCategory } from '@/types/provider/auto-router';
+import type {
+  ArenaBattle,
+  ArenaContestant,
+  ArenaLaunchReadiness,
+  ArenaWinReason,
+  ModelSelection,
+} from '@/types/arena';
 
 const abortControllers = new Map<string, AbortController>();
 
@@ -31,7 +39,7 @@ interface StartBattleOptions {
   maxTurns?: number;
   temperature?: number;
   maxTokens?: number;
-  taskCategory?: string;
+  taskCategory?: TaskCategory;
 }
 
 export function useArena(options: UseArenaOptions = {}) {
@@ -55,6 +63,109 @@ export function useArena(options: UseArenaOptions = {}) {
   const selectWinner = useArenaStore((state) => state.selectWinner);
   const declareTie = useArenaStore((state) => state.declareTie);
   const declareBothBad = useArenaStore((state) => state.declareBothBad);
+
+  /**
+   * Get available models from configured providers
+   */
+  const getAvailableModels = useCallback((): ModelSelection[] => {
+    const models: ModelSelection[] = [];
+
+    for (const preset of ARENA_KNOWN_MODELS) {
+      const settings = providerSettings[preset.provider];
+      if (settings?.apiKey || preset.provider === 'ollama') {
+        models.push(preset);
+      }
+    }
+
+    // Also discover additional models from provider settings
+    for (const [providerKey, settings] of Object.entries(providerSettings)) {
+      if (!settings?.apiKey && providerKey !== 'ollama') continue;
+      const customModels = (settings as unknown as Record<string, unknown>).availableModels;
+      if (Array.isArray(customModels)) {
+        for (const modelName of customModels) {
+          if (
+            typeof modelName === 'string' &&
+            !models.some((entry) => entry.provider === providerKey && entry.model === modelName)
+          ) {
+            models.push({
+              provider: providerKey as ProviderName,
+              model: modelName,
+              displayName: modelName,
+            });
+          }
+        }
+      }
+    }
+
+    return models;
+  }, [providerSettings]);
+
+  /**
+   * Centralized launch preflight check shared by quick-battle and dialog entry points.
+   */
+  const getLaunchReadiness = useCallback(
+    (prompt: string, models: ModelSelection[]): ArenaLaunchReadiness => {
+      const reasons: ArenaLaunchReadiness['reasons'] = [];
+      const availableModelIds = new Set(
+        getAvailableModels().map((model) => `${model.provider}:${model.model}`)
+      );
+      const blockedProviders = new Set<string>();
+      const blockedModels = new Set<string>();
+
+      if (!prompt.trim()) {
+        reasons.push({
+          code: 'invalidPrompt',
+          message: 'Prompt is required',
+        });
+      }
+
+      if (isExecuting) {
+        reasons.push({
+          code: 'alreadyExecuting',
+          message: 'Another arena battle is already executing',
+        });
+      }
+
+      if (models.length < 2) {
+        reasons.push({
+          code: 'insufficientModels',
+          message: 'At least 2 models are required for an arena battle',
+        });
+      }
+
+      for (const model of models) {
+        const providerKey = model.provider;
+        const providerConfig = providerSettings[providerKey];
+        const modelId = `${model.provider}:${model.model}`;
+
+        if (!providerConfig?.apiKey && providerKey !== 'ollama' && !blockedProviders.has(providerKey)) {
+          blockedProviders.add(providerKey);
+          reasons.push({
+            code: 'providerNotConfigured',
+            provider: providerKey,
+            message: `Provider ${providerKey} is not configured`,
+          });
+        }
+
+        if (!availableModelIds.has(modelId) && !blockedModels.has(modelId)) {
+          blockedModels.add(modelId);
+          reasons.push({
+            code: 'modelUnavailable',
+            provider: model.provider,
+            model: model.model,
+            message: `Model ${model.model} is unavailable`,
+          });
+        }
+      }
+
+      return {
+        canStart: reasons.length === 0,
+        reasons,
+        checkedAt: new Date().toISOString(),
+      };
+    },
+    [getAvailableModels, isExecuting, providerSettings]
+  );
 
   /**
    * Execute a single contestant's generation
@@ -186,8 +297,16 @@ export function useArena(options: UseArenaOptions = {}) {
       models: ModelSelection[],
       battleOptions?: StartBattleOptions
     ): Promise<ArenaBattle | null> => {
-      if (models.length < 2) {
-        setError('At least 2 models are required for an arena battle');
+      const readiness = getLaunchReadiness(prompt, models);
+      if (!readiness.canStart) {
+        const reasonCodes = readiness.reasons.map((reason) => reason.code);
+        setError(readiness.reasons[0]?.message || 'Unable to start arena battle');
+        loggers.ui.warn('arena_launch_blocked', {
+          event: 'launch_blocked',
+          reasonCodes,
+          reasonCount: readiness.reasons.length,
+          models: models.map((model) => `${model.provider}:${model.model}`),
+        });
         return null;
       }
 
@@ -195,32 +314,42 @@ export function useArena(options: UseArenaOptions = {}) {
       setError(null);
 
       try {
+        const trimmedPrompt = prompt.trim();
         // Classify the task
-        const taskClassification = classifyTaskRuleBased(prompt);
+        const taskClassification = classifyTaskRuleBased(trimmedPrompt);
+        const modelParams =
+          battleOptions?.temperature !== undefined || battleOptions?.maxTokens !== undefined
+            ? { temperature: battleOptions?.temperature, maxTokens: battleOptions?.maxTokens }
+            : undefined;
+
+        loggers.ui.info('arena_launch_started', {
+          event: 'launch_started',
+          modelCount: models.length,
+          blindMode: battleOptions?.blindMode ?? false,
+          conversationMode: battleOptions?.conversationMode || 'single',
+          sessionId: battleOptions?.sessionId ?? null,
+        });
 
         // Create the battle
-        const battle = createBattle(prompt, models, {
+        const battle = createBattle(trimmedPrompt, models, {
           sessionId: battleOptions?.sessionId,
           systemPrompt: battleOptions?.systemPrompt,
           mode: battleOptions?.blindMode ? 'blind' : 'normal',
           conversationMode: battleOptions?.conversationMode || 'single',
           maxTurns: battleOptions?.maxTurns || 5,
+          modelParameters: modelParams,
+          taskCategoryOverride: battleOptions?.taskCategory,
           taskClassification,
         });
 
         onBattleStart?.(battle);
-
-        // Prepare model parameters
-        const modelParams = battleOptions?.temperature !== undefined || battleOptions?.maxTokens !== undefined
-          ? { temperature: battleOptions?.temperature, maxTokens: battleOptions?.maxTokens }
-          : undefined;
 
         // Execute all contestants in parallel
         const executions = battle.contestants.map((contestant) =>
           executeContestant(
             battle.id,
             contestant,
-            prompt,
+            trimmedPrompt,
             battleOptions?.systemPrompt,
             modelParams
           )
@@ -238,12 +367,16 @@ export function useArena(options: UseArenaOptions = {}) {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         setError(errorMessage);
+        loggers.ui.error('arena_launch_failed', err, {
+          event: 'launch_failed',
+          modelCount: models.length,
+        });
         return null;
       } finally {
         setIsExecuting(false);
       }
     },
-    [createBattle, executeContestant, getBattle, onBattleStart, onBattleComplete]
+    [createBattle, executeContestant, getBattle, getLaunchReadiness, onBattleStart, onBattleComplete]
   );
 
   /**
@@ -291,39 +424,6 @@ export function useArena(options: UseArenaOptions = {}) {
     },
     [declareBothBad]
   );
-
-  /**
-   * Get available models from configured providers
-   */
-  const getAvailableModels = useCallback((): ModelSelection[] => {
-    const models: ModelSelection[] = [];
-
-    for (const preset of ARENA_KNOWN_MODELS) {
-      const settings = providerSettings[preset.provider];
-      if (settings?.apiKey || preset.provider === 'ollama') {
-        models.push(preset);
-      }
-    }
-
-    // Also discover additional models from provider settings
-    for (const [providerKey, settings] of Object.entries(providerSettings)) {
-      if (!settings?.apiKey && providerKey !== 'ollama') continue;
-      const customModels = (settings as unknown as Record<string, unknown>).availableModels;
-      if (Array.isArray(customModels)) {
-        for (const m of customModels) {
-          if (typeof m === 'string' && !models.some(e => e.provider === providerKey && e.model === m)) {
-            models.push({
-              provider: providerKey as ProviderName,
-              model: m,
-              displayName: m,
-            });
-          }
-        }
-      }
-    }
-
-    return models;
-  }, [providerSettings]);
 
   /**
    * Continue a multi-turn battle with a new user message
@@ -400,6 +500,7 @@ export function useArena(options: UseArenaOptions = {}) {
     pickTie,
     pickBothBad,
     getAvailableModels,
+    getLaunchReadiness,
 
     // Multi-turn
     continueTurn,

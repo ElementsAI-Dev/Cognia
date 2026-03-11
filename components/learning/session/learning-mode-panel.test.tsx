@@ -110,21 +110,55 @@ const mockLearningSession = {
   notes: [],
 };
 
+const buildBaseHookMock = () => ({
+  learningSession: mockLearningSession,
+  isLearningActive: true,
+  currentPhase: 'questioning' as LearningPhase,
+  progress: 45,
+  lifecycleState: 'active',
+  progressSnapshot: {
+    subMode: 'socratic',
+    lifecycleState: 'active',
+    percent: 45,
+    completedUnits: 3,
+    totalUnits: 8,
+    statusLabel: 'In progress',
+    updatedAt: new Date(),
+  },
+  resumeOutcome: {
+    outcome: 'resume',
+    reason: 'Recovered Socratic learning context.',
+    recoveredContext: { subMode: 'socratic' },
+  },
+  actionAvailability: {
+    start: { action: 'start', enabled: false },
+    resume: { action: 'resume', enabled: true },
+    pause: { action: 'pause', enabled: false },
+    complete: { action: 'complete', enabled: true },
+    reset: { action: 'reset', enabled: true },
+    retry: { action: 'retry', enabled: false },
+    'open-workspace': { action: 'open-workspace', enabled: false },
+  },
+  adaptiveProfile: null,
+  recoverableError: null,
+  advancePhase: jest.fn(),
+  endLearning: jest.fn(),
+  resumeLearningFromContext: jest.fn(),
+  useFallbackLearningContext: jest.fn(),
+  resetLearningContext: jest.fn(),
+  clearRecoverableError: jest.fn(),
+  getStatusLine: jest.fn(() => 'Learning in progress'),
+  getCelebrationMessage: jest.fn(() => 'Great job!'),
+  getEncouragement: jest.fn(() => 'Keep going!'),
+});
+
 describe('LearningModePanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useLearningMode as jest.Mock).mockReturnValue({
-      learningSession: mockLearningSession,
-      isLearningActive: true,
-      currentPhase: 'questioning' as LearningPhase,
-      progress: 45,
+      ...buildBaseHookMock(),
       subQuestions: mockSubQuestions,
       learningGoals: mockGoals,
-      advancePhase: jest.fn(),
-      endLearning: jest.fn(),
-      getStatusLine: jest.fn(() => 'Learning in progress'),
-      getCelebrationMessage: jest.fn(() => 'Great job!'),
-      getEncouragement: jest.fn(() => 'Keep going!'),
     });
     (useLearningStore as unknown as jest.Mock).mockReturnValue({
       getAchievements: () => [],
@@ -170,17 +204,9 @@ describe('LearningModePanel', () => {
 
     it('shows no goals message when empty', () => {
       (useLearningMode as jest.Mock).mockReturnValue({
-        learningSession: mockLearningSession,
-        isLearningActive: true,
-        currentPhase: 'questioning',
-        progress: 45,
+        ...buildBaseHookMock(),
         subQuestions: mockSubQuestions,
         learningGoals: [],
-        advancePhase: jest.fn(),
-        endLearning: jest.fn(),
-        getStatusLine: jest.fn(),
-        getCelebrationMessage: jest.fn(),
-        getEncouragement: jest.fn(),
       });
 
       render(<LearningModePanel />, { wrapper });
@@ -204,17 +230,9 @@ describe('LearningModePanel', () => {
 
     it('shows no sub-questions message when empty', () => {
       (useLearningMode as jest.Mock).mockReturnValue({
-        learningSession: mockLearningSession,
-        isLearningActive: true,
-        currentPhase: 'questioning',
-        progress: 45,
+        ...buildBaseHookMock(),
         subQuestions: [],
         learningGoals: mockGoals,
-        advancePhase: jest.fn(),
-        endLearning: jest.fn(),
-        getStatusLine: jest.fn(),
-        getCelebrationMessage: jest.fn(),
-        getEncouragement: jest.fn(),
       });
 
       render(<LearningModePanel />, { wrapper });
@@ -300,17 +318,23 @@ describe('LearningModePanel', () => {
   describe('Inactive Learning State', () => {
     it('handles inactive learning gracefully', () => {
       (useLearningMode as jest.Mock).mockReturnValue({
+        ...buildBaseHookMock(),
         learningSession: null,
         isLearningActive: false,
         currentPhase: null,
         progress: 0,
+        progressSnapshot: {
+          subMode: 'socratic',
+          lifecycleState: 'idle',
+          percent: 0,
+          completedUnits: 0,
+          totalUnits: 1,
+          statusLabel: 'Idle',
+          updatedAt: new Date(),
+        },
+        lifecycleState: 'idle',
         subQuestions: [],
         learningGoals: [],
-        advancePhase: jest.fn(),
-        endLearning: jest.fn(),
-        getStatusLine: jest.fn(),
-        getCelebrationMessage: jest.fn(),
-        getEncouragement: jest.fn(),
       });
 
       render(<LearningModePanel />, { wrapper });
