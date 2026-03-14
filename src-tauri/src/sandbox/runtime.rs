@@ -22,6 +22,7 @@ pub enum SandboxError {
     LanguageNotSupported(String),
 
     #[error("Execution timeout after {0} seconds")]
+    #[cfg_attr(not(test), allow(dead_code))]
     Timeout(u64),
 
     #[error("Execution failed: {0}")]
@@ -37,6 +38,7 @@ pub enum SandboxError {
     Io(#[from] std::io::Error),
 
     #[error("Resource limit exceeded: {0}")]
+    #[cfg_attr(not(test), allow(dead_code))]
     ResourceLimit(String),
 
     #[error("Security violation: {0}")]
@@ -698,27 +700,6 @@ impl SandboxManager {
             RuntimeType::Podman => self.podman.as_ref().map(|r| r as &dyn SandboxRuntime),
             RuntimeType::Native => self.native.as_ref().map(|r| r as &dyn SandboxRuntime),
         }
-    }
-
-    /// Get any available runtime in priority order (Docker > Podman > Native)
-    fn get_any_runtime(&self) -> Option<&dyn SandboxRuntime> {
-        self.get_runtime_by_type(RuntimeType::Docker)
-            .or_else(|| self.get_runtime_by_type(RuntimeType::Podman))
-            .or_else(|| self.get_runtime_by_type(RuntimeType::Native))
-    }
-
-    /// Get the best available runtime
-    fn get_runtime(&self, preferred: Option<RuntimeType>) -> Option<&dyn SandboxRuntime> {
-        // Try preferred runtime first
-        if let Some(pref) = preferred {
-            if let Some(runtime) = self.get_runtime_by_type(pref) {
-                return Some(runtime);
-            }
-        }
-
-        // Fall back to configured preference
-        self.get_runtime_by_type(self.config.preferred_runtime)
-            .or_else(|| self.get_any_runtime())
     }
 
     fn resolve_policy_profile(&self, profile_name: Option<&str>) -> SandboxPolicyProfile {

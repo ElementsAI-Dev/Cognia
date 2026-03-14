@@ -15,8 +15,6 @@ use self::client::ConvexHttpClient;
 use self::config::ConvexConfig;
 use self::error::ConvexError;
 
-pub use self::config::ConvexConfig as ConvexConfigType;
-
 /// Managed state for the Convex integration
 pub struct ConvexState {
     config: Arc<RwLock<ConvexConfig>>,

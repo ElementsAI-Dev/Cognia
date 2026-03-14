@@ -61,6 +61,7 @@ impl ConvexConfig {
         Ok(())
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn is_configured(&self) -> bool {
         self.enabled && !self.deployment_url.is_empty()
     }

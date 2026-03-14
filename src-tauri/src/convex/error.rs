@@ -6,6 +6,7 @@ pub enum ConvexError {
     Http(String),
 
     #[error("Connection error: {0}")]
+    #[allow(dead_code)]
     Connection(String),
 
     #[error("Configuration error: {0}")]
@@ -15,12 +16,15 @@ pub enum ConvexError {
     Serialization(String),
 
     #[error("Authentication error: {0}")]
+    #[allow(dead_code)]
     Auth(String),
 
     #[error("Lock error: {0}")]
+    #[allow(dead_code)]
     Lock(String),
 
     #[error("Subscriber error: {0}")]
+    #[allow(dead_code)]
     Subscriber(String),
 }
 

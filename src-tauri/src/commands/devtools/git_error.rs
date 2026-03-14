@@ -1,6 +1,7 @@
 //! Git Error Types
 //!
 //! Provides structured error handling for Git operations with user-friendly messages.
+#![cfg_attr(not(test), allow(dead_code))]
 
 use serde::{Deserialize, Serialize};
 use std::fmt;

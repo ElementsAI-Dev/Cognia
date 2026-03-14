@@ -235,10 +235,15 @@ pub mod methods {
     pub const LOGGING_SET_LEVEL: &str = "logging/setLevel";
 
     // MCP Apps UI bridge
+    #[cfg_attr(not(test), allow(dead_code))]
     pub const UI_INITIALIZE: &str = "ui/initialize";
+    #[cfg_attr(not(test), allow(dead_code))]
     pub const UI_NOTIFICATION_TOOL_INPUT: &str = "ui/notifications/tool-input";
+    #[cfg_attr(not(test), allow(dead_code))]
     pub const UI_NOTIFICATION_TOOL_RESULT: &str = "ui/notifications/tool-result";
+    #[cfg_attr(not(test), allow(dead_code))]
     pub const UI_MESSAGE: &str = "ui/message";
+    #[cfg_attr(not(test), allow(dead_code))]
     pub const UI_UPDATE_MODEL_CONTEXT: &str = "ui/update-model-context";
 
     // Notifications

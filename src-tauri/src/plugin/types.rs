@@ -1,6 +1,7 @@
 //! Plugin System Types
 //!
 //! Type definitions for the plugin system.
+#![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

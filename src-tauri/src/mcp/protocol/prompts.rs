@@ -6,6 +6,7 @@ use crate::mcp::types::{McpPrompt, PromptContent};
 
 /// Request params for prompts/list
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(not(test), allow(dead_code))]
 pub struct PromptsListParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,

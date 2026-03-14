@@ -161,6 +161,7 @@ pub struct InstallCheckResult {
 
 /// Provider configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct LocalProviderConfig {
     pub provider_id: LocalProviderId,
     pub base_url: String,

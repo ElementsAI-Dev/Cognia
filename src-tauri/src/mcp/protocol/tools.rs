@@ -7,6 +7,7 @@ use crate::mcp::types::{McpTool, ToolCallResult};
 
 /// Request params for tools/list
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(not(test), allow(dead_code))]
 pub struct ToolsListParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,

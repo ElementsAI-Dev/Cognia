@@ -693,6 +693,7 @@ pub struct MindMapData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct KnowledgeMapGenerationRequest {
     pub content: String,
     pub title: Option<String>,
@@ -702,6 +703,7 @@ pub struct KnowledgeMapGenerationRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct MindMapGenerationRequest {
     #[serde(alias = "knowledge_map_id")]
     pub knowledge_map_id: Option<String>,

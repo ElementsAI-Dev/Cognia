@@ -6,6 +6,7 @@ use crate::mcp::types::{McpResource, ResourceContent};
 
 /// Request params for resources/list
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[allow(dead_code)]
 pub struct ResourcesListParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
@@ -31,18 +32,21 @@ pub type ResourcesReadResponse = ResourceContent;
 
 /// Request params for resources/subscribe
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ResourcesSubscribeParams {
     pub uri: String,
 }
 
 /// Request params for resources/unsubscribe
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ResourcesUnsubscribeParams {
     pub uri: String,
 }
 
 /// Request params for resources/templates/list
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[allow(dead_code)]
 pub struct ResourcesTemplatesListParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
@@ -75,6 +79,7 @@ pub struct ResourcesTemplatesListResponse {
 
 /// Resource updated notification params
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ResourceUpdatedParams {
     pub uri: String,
 }

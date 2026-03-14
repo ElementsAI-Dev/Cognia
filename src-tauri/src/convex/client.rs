@@ -46,6 +46,7 @@ impl ConvexHttpClient {
         Ok(response.status().is_success())
     }
 
+    #[allow(dead_code)]
     pub async fn query(
         &self,
         function_path: &str,
@@ -78,6 +79,7 @@ impl ConvexHttpClient {
         Ok(result)
     }
 
+    #[allow(dead_code)]
     pub async fn mutation(
         &self,
         function_path: &str,
@@ -110,6 +112,7 @@ impl ConvexHttpClient {
         Ok(result)
     }
 
+    #[allow(dead_code)]
     pub async fn action(
         &self,
         function_path: &str,
@@ -143,6 +146,7 @@ impl ConvexHttpClient {
     }
 
     /// Call a Convex HTTP route (custom HTTP endpoints defined in convex/http.ts)
+    #[allow(dead_code)]
     pub async fn http_get(&self, path: &str) -> Result<JsonValue, ConvexError> {
         let response = self
             .client
@@ -164,6 +168,7 @@ impl ConvexHttpClient {
         Ok(result)
     }
 
+    #[allow(dead_code)]
     pub async fn http_post(&self, path: &str, body: JsonValue) -> Result<JsonValue, ConvexError> {
         let response = self
             .client
