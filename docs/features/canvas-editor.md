@@ -20,16 +20,22 @@ The Canvas experience is considered complete only when these guarantees hold:
    - Join/connect failures show explicit fallback messaging and do not crash editor shell.
 5. **Behavior-based release evidence**
    - Canvas acceptance uses real UI interaction tests for edit flow, AI diff accept/reject, and version restore.
+6. **Large-document editing continuity**
+   - Outline, breadcrumb, and direct navigation resolve to one canonical location model.
+   - Returning to a long document restores the latest compatible work point and preserves dirty-state semantics.
+   - Large-document safeguards visibly reduce noncritical work before typing and navigation become sluggish.
 
 ## Benchmark and Traceability
 
 - Benchmark source: `docs/reference/canvas-benchmark-scorecard.md`.
 - Spec requirement mapping: `openspec/changes/improve-canvas-feature-completeness/specs/canvas-completeness-assurance/spec.md`.
+- Long-document usability mapping: `openspec/changes/improve-existing-canvas-large-document-editing/specs/canvas-large-document-editing-usability/spec.md`.
 - Validation scripts:
   - `pnpm check:canvas-benchmark-traceability`
   - `pnpm check:canvas-e2e-quality`
 
 Each P0/P1 Canvas change must cite benchmark pattern IDs (`BP-01+`) in change artifacts.
+Long-document work specifically traces against `BP-06`, `BP-07`, and `BP-08`.
 
 ## Key Runtime Surfaces
 
@@ -38,10 +44,12 @@ Each P0/P1 Canvas change must cite benchmark pattern IDs (`BP-01+`) in change ar
 - Collaboration panel: `components/canvas/collaboration-panel.tsx`
 - Auto-save state sync: `hooks/canvas/use-canvas-auto-save.ts`
 - AI action orchestration: `hooks/canvas/use-canvas-actions.ts`
+- Large-document navigation/context orchestration: `hooks/canvas/use-canvas-monaco-setup.ts`
+- Large-document profile selection: `lib/canvas/utils.ts`
 - Persistence and version retention: `stores/artifact/artifact-store.ts`
 - Join entry route: `app/(main)/canvas/join/page.tsx`
 
 ## Keyboard and Testing Notes
 
 - Global toggle shortcut: `Ctrl + .` opens/closes Canvas panel.
-- Deterministic e2e hooks rely on stable selectors (`data-testid`) for panel controls, AI diff controls, document creation, and version restore actions.
+- Deterministic e2e hooks rely on stable selectors (`data-testid`) for panel controls, AI diff controls, document creation, version restore actions, large-document status indicators, and outline navigation controls.

@@ -43,6 +43,14 @@ jest.mock('@/lib/canvas/symbols/symbol-parser', () => ({
       if (symbols.length === 0) return null;
       return symbols[0];
     }),
+    getSymbolLocation: jest.fn((line: number, symbols: Array<{ name: string }>) => {
+      if (symbols.length === 0) return null;
+      return {
+        symbol: symbols[0],
+        path: ['myFunc'],
+        chain: symbols,
+      };
+    }),
     getSymbolIcon: jest.fn(() => '🔧'),
   },
 }));
@@ -245,6 +253,77 @@ describe('useCanvasMonacoSetup', () => {
       expect(result.current.currentSymbol).not.toBeNull();
       expect(result.current.currentSymbol?.name).toBe('myFunc');
     });
+
+    it('should expose canonical active location from the current cursor context', () => {
+      const { result } = renderHook(() =>
+        useCanvasMonacoSetup({ ...defaultOptions, content: 'function myFunc() {}' } as never)
+      );
+
+      act(() => {
+        jest.advanceTimersByTime(600);
+      });
+
+      expect((result.current as unknown as { activeLocation?: { path: string[]; source: string } }).activeLocation).toEqual(
+        expect.objectContaining({
+          path: ['myFunc'],
+          source: 'cursor',
+        })
+      );
+    });
+
+    it('should update activeLocation with the live cursor column after cursor movement', () => {
+      const { result } = renderHook(() =>
+        useCanvasMonacoSetup({ ...defaultOptions, content: 'function myFunc() {}' } as never)
+      );
+
+      act(() => {
+        jest.advanceTimersByTime(600);
+      });
+
+      const mockEditor = createMockEditor();
+      const mockMonaco = createMockMonaco();
+
+      act(() => {
+        result.current.handleEditorMount(mockEditor as never, mockMonaco as never);
+      });
+
+      act(() => {
+        mockEditor.emitCursorPositionChange({ position: { lineNumber: 1, column: 14 } });
+      });
+
+      expect((result.current as unknown as { activeLocation?: { column: number; lineNumber: number; source: string } }).activeLocation).toEqual(
+        expect.objectContaining({
+          source: 'cursor',
+          lineNumber: 1,
+          column: 14,
+        })
+      );
+    });
+
+    it('should defer symbol parsing more aggressively for very-large documents', () => {
+      const { result } = renderHook(() =>
+        useCanvasMonacoSetup({
+          ...defaultOptions,
+          content: 'function myFunc() {}',
+          performanceProfile: {
+            mode: 'very-large',
+            symbolParseDebounceMs: 1500,
+          },
+        } as never)
+      );
+
+      act(() => {
+        jest.advanceTimersByTime(600);
+      });
+
+      expect(result.current.symbols).toEqual([]);
+
+      act(() => {
+        jest.advanceTimersByTime(900);
+      });
+
+      expect(result.current.symbols).toHaveLength(1);
+    });
   });
 
   describe('setActiveTheme', () => {
@@ -362,6 +441,173 @@ describe('useCanvasMonacoSetup', () => {
       // Should register completion providers for languages with snippets
       expect(mockMonaco.languages.registerCompletionItemProvider).toHaveBeenCalled();
     });
+
+    it('should restore compatible editor context on mount', () => {
+      const { result } = renderHook(() =>
+        useCanvasMonacoSetup({
+          ...defaultOptions,
+          content: 'function myFunc() {}',
+          initialEditorContext: {
+            cursorLine: 10,
+            cursorColumn: 4,
+            selection: {
+              startLineNumber: 10,
+              startColumn: 1,
+              endLineNumber: 10,
+              endColumn: 8,
+            },
+            visibleRange: {
+              startLineNumber: 9,
+              endLineNumber: 14,
+              scrollTop: 240,
+            },
+          },
+        } as never)
+      );
+
+      const mockEditor = createMockEditor({ lineCount: 40 });
+      const mockMonaco = createMockMonaco();
+
+      act(() => {
+        result.current.handleEditorMount(mockEditor as never, mockMonaco as never);
+      });
+
+      expect(mockEditor.setPosition).toHaveBeenCalledWith({
+        lineNumber: 10,
+        column: 4,
+      });
+      expect(mockEditor.setSelection).toHaveBeenCalledWith({
+        startLineNumber: 10,
+        startColumn: 1,
+        endLineNumber: 10,
+        endColumn: 8,
+      });
+      expect(mockEditor.setScrollTop).toHaveBeenCalledWith(240);
+    });
+
+    it('should fall back to line 1 when restored context is outside the current document', () => {
+      const { result } = renderHook(() =>
+        useCanvasMonacoSetup({
+          ...defaultOptions,
+          content: 'function myFunc() {}',
+          initialEditorContext: {
+            cursorLine: 999,
+            cursorColumn: 99,
+            visibleRange: {
+              startLineNumber: 995,
+              endLineNumber: 999,
+              scrollTop: 640,
+            },
+          },
+        } as never)
+      );
+
+      const mockEditor = createMockEditor({ lineCount: 5 });
+      const mockMonaco = createMockMonaco();
+
+      act(() => {
+        result.current.handleEditorMount(mockEditor as never, mockMonaco as never);
+      });
+
+      expect(mockEditor.setPosition).toHaveBeenCalledWith({
+        lineNumber: 1,
+        column: 1,
+      });
+    });
+
+    it('retries restoring deferred editor context after content becomes available', () => {
+      const { result, rerender } = renderHook(
+        (props) => useCanvasMonacoSetup(props),
+        {
+          initialProps: {
+            ...defaultOptions,
+            content: '',
+            initialEditorContext: {
+              cursorLine: 10,
+              cursorColumn: 4,
+            },
+          } as never,
+        }
+      );
+
+      const mockEditor = createMockEditor({ lineCount: 1 });
+      const mockMonaco = createMockMonaco();
+
+      act(() => {
+        result.current.handleEditorMount(mockEditor as never, mockMonaco as never);
+      });
+
+      expect(mockEditor.setPosition).toHaveBeenCalledWith({
+        lineNumber: 1,
+        column: 1,
+      });
+
+      act(() => {
+        mockEditor.setLineCount(40);
+        rerender({
+          ...defaultOptions,
+          content: 'function myFunc() {}',
+          initialEditorContext: {
+            cursorLine: 10,
+            cursorColumn: 4,
+          },
+        } as never);
+      });
+
+      expect(mockEditor.setPosition).toHaveBeenLastCalledWith({
+        lineNumber: 10,
+        column: 4,
+      });
+    });
+
+    it('retries deferred restore when Monaco model content updates after rerender', () => {
+      const { result, rerender } = renderHook(
+        (props) => useCanvasMonacoSetup(props),
+        {
+          initialProps: {
+            ...defaultOptions,
+            content: '',
+            initialEditorContext: {
+              cursorLine: 10,
+              cursorColumn: 4,
+            },
+          } as never,
+        }
+      );
+
+      const mockEditor = createMockEditor({ lineCount: 1 });
+      const mockMonaco = createMockMonaco();
+
+      act(() => {
+        result.current.handleEditorMount(mockEditor as never, mockMonaco as never);
+      });
+
+      expect(mockEditor.setPosition).toHaveBeenCalledWith({
+        lineNumber: 1,
+        column: 1,
+      });
+
+      act(() => {
+        rerender({
+          ...defaultOptions,
+          content: 'function myFunc() {}',
+          initialEditorContext: {
+            cursorLine: 10,
+            cursorColumn: 4,
+          },
+        } as never);
+      });
+
+      act(() => {
+        mockEditor.setLineCount(40);
+        mockEditor.emitModelContentChange();
+      });
+
+      expect(mockEditor.setPosition).toHaveBeenLastCalledWith({
+        lineNumber: 10,
+        column: 4,
+      });
+    });
   });
 
   describe('handleEditorWillUnmount', () => {
@@ -414,6 +660,35 @@ describe('useCanvasMonacoSetup', () => {
       expect(mockEditor.focus).toHaveBeenCalled();
     });
 
+    it('should update canonical active location when navigating from the outline', () => {
+      const { result } = renderHook(() => useCanvasMonacoSetup(defaultOptions));
+
+      const mockEditor = createMockEditor();
+      const mockMonaco = createMockMonaco();
+
+      act(() => {
+        result.current.handleEditorMount(mockEditor as never, mockMonaco as never);
+      });
+
+      const symbol = {
+        name: 'testFunc',
+        kind: 'function' as const,
+        range: { startLine: 10, endLine: 20, startColumn: 1, endColumn: 1 },
+        selectionRange: { startLine: 10, endLine: 10, startColumn: 10, endColumn: 18 },
+      };
+
+      act(() => {
+        result.current.goToSymbol(symbol);
+      });
+
+      expect((result.current as unknown as { activeLocation?: { source: string; path: string[] } }).activeLocation).toEqual(
+        expect.objectContaining({
+          source: 'outline',
+          path: ['testFunc'],
+        })
+      );
+    });
+
     it('should do nothing when editor is not mounted', () => {
       const { result } = renderHook(() => useCanvasMonacoSetup(defaultOptions));
 
@@ -450,8 +725,13 @@ describe('useCanvasMonacoSetup', () => {
 });
 
 // Helper: create a mock Monaco editor
-function createMockEditor() {
+function createMockEditor({ lineCount = 20 }: { lineCount?: number } = {}) {
   const disposable = { dispose: jest.fn() };
+  let mutableLineCount = lineCount;
+  let onDidChangeCursorPositionHandler:
+    | ((event: { position: { lineNumber: number; column: number } }) => void)
+    | null = null;
+  let onDidChangeModelContentHandler: (() => void) | null = null;
   return {
     getValue: jest.fn(() => 'mock content'),
     setValue: jest.fn(),
@@ -465,14 +745,33 @@ function createMockEditor() {
     getModel: jest.fn(() => ({
       getValueInRange: jest.fn(() => 'selected'),
       getWordUntilPosition: jest.fn(() => ({ word: '', startColumn: 1, endColumn: 1 })),
+      getLineCount: jest.fn(() => mutableLineCount),
     })),
     executeEdits: jest.fn(),
     revealLineInCenter: jest.fn(),
     setPosition: jest.fn(),
+    setSelection: jest.fn(),
+    setScrollTop: jest.fn(),
     focus: jest.fn(),
-    onDidChangeCursorPosition: jest.fn(() => disposable),
-    onDidChangeModelContent: jest.fn(() => disposable),
+    onDidChangeCursorPosition: jest.fn((handler) => {
+      onDidChangeCursorPositionHandler = handler;
+      return disposable;
+    }),
+    onDidChangeModelContent: jest.fn((handler) => {
+      onDidChangeModelContentHandler = handler;
+      return disposable;
+    }),
     onDidChangeCursorSelection: jest.fn(() => disposable),
+    onDidScrollChange: jest.fn(() => disposable),
+    setLineCount: (nextLineCount: number) => {
+      mutableLineCount = nextLineCount;
+    },
+    emitModelContentChange: () => {
+      onDidChangeModelContentHandler?.();
+    },
+    emitCursorPositionChange: (event: { position: { lineNumber: number; column: number } }) => {
+      onDidChangeCursorPositionHandler?.(event);
+    },
   };
 }
 

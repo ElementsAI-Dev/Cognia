@@ -4,11 +4,53 @@
 import React from 'react';
 import { render, screen, act } from '@testing-library/react';
 import { CanvasPanel } from './canvas-panel';
+import type { CanvasEditorContext } from '@/types';
 
 // Mock stores
 const mockClosePanel = jest.fn();
 const mockUpdateCanvasDocument = jest.fn();
 const mockSaveCanvasVersion = jest.fn();
+const mockAddChunkedDocument = jest.fn();
+const mockRemoveChunkedDocument = jest.fn();
+const mockUpdateChunkedDocument = jest.fn();
+const mockUseCanvasAutoSave = jest.fn((options?: Record<string, unknown>) => ({
+  localContent: '',
+  setLocalContent: jest.fn(),
+  hasUnsavedChanges: false,
+  handleEditorChange: jest.fn(),
+  handleManualSave: jest.fn(),
+  discardChanges: jest.fn(),
+  lastSavedContentRef: { current: options?.savedContent ?? '' },
+}));
+const mockCanvasDocument = {
+  id: 'canvas-1',
+  title: 'Test Document',
+  content: 'const x = 1;',
+  type: 'code' as const,
+  language: 'javascript',
+  editorContext: {
+    saveState: 'saved',
+    performanceMode: 'standard',
+  } as CanvasEditorContext,
+};
+const mockCanvasMonacoSetupReturn = {
+  editorRef: { current: null },
+  handleEditorMount: jest.fn(),
+  symbols: [],
+  breadcrumb: [] as string[],
+  breadcrumbSymbols: [],
+  activeLocation: null as null | {
+    source: string;
+    path: string[];
+    lineNumber: number;
+    column: number;
+  },
+  availableThemes: ['vs-light', 'vs-dark'],
+  activeThemeId: 'vs-light',
+  setActiveTheme: jest.fn(),
+  goToSymbol: jest.fn(),
+  goToBreadcrumb: jest.fn(),
+};
 
 // Mock canvas hooks
 jest.mock('@/hooks/canvas', () => ({
@@ -52,16 +94,7 @@ jest.mock('@/hooks/canvas', () => ({
     loadedContent: '',
     loadChunk: jest.fn(),
   }),
-  useCanvasMonacoSetup: () => ({
-    editorRef: { current: null },
-    handleEditorMount: jest.fn(),
-    symbols: [],
-    breadcrumb: [],
-    availableThemes: ['vs-light', 'vs-dark'],
-    activeThemeId: 'vs-light',
-    setActiveTheme: jest.fn(),
-    goToSymbol: jest.fn(),
-  }),
+  useCanvasMonacoSetup: () => mockCanvasMonacoSetupReturn,
   useCollaborativeSession: () => ({
     session: null,
     participants: [],
@@ -71,15 +104,7 @@ jest.mock('@/hooks/canvas', () => ({
     shareSession: jest.fn(),
     joinSession: jest.fn(),
   }),
-  useCanvasAutoSave: () => ({
-    localContent: '',
-    setLocalContent: jest.fn(),
-    hasUnsavedChanges: false,
-    handleEditorChange: jest.fn(),
-    handleManualSave: jest.fn(),
-    discardChanges: jest.fn(),
-    lastSavedContentRef: { current: '' },
-  }),
+  useCanvasAutoSave: (options: Record<string, unknown>) => mockUseCanvasAutoSave(options),
   useCanvasKeyboardShortcuts: jest.fn(),
 }));
 
@@ -104,8 +129,10 @@ jest.mock('@/stores/canvas/keybinding-store', () => ({
 // Mock chunked document store
 jest.mock('@/stores/canvas/chunked-document-store', () => ({
   useChunkedDocumentStore: () => ({
-    addChunkedDocument: jest.fn(),
-    removeChunkedDocument: jest.fn(),
+    addChunkedDocument: mockAddChunkedDocument,
+    removeChunkedDocument: mockRemoveChunkedDocument,
+    updateDocument: mockUpdateChunkedDocument,
+    chunkedDocuments: {},
   }),
 }));
 
@@ -143,13 +170,7 @@ jest.mock('@/stores', () => ({
       closePanel: mockClosePanel,
       activeCanvasId: 'canvas-1',
       canvasDocuments: {
-        'canvas-1': {
-          id: 'canvas-1',
-          title: 'Test Document',
-          content: 'const x = 1;',
-          type: 'code',
-          language: 'javascript',
-        },
+        'canvas-1': mockCanvasDocument,
       },
       updateCanvasDocument: mockUpdateCanvasDocument,
       saveCanvasVersion: mockSaveCanvasVersion,
@@ -216,7 +237,10 @@ jest.mock('@/components/ui/scroll-area', () => ({
 }));
 
 jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+  Badge: ({
+    children,
+    ...props
+  }: React.HTMLAttributes<HTMLSpanElement>) => <span {...props}>{children}</span>,
 }));
 
 jest.mock('@/components/ui/tooltip', () => ({
@@ -233,8 +257,14 @@ jest.mock('@/components/ui/skeleton', () => ({
 }));
 
 jest.mock('@/components/ui/alert', () => ({
-  Alert: ({ children }: { children: React.ReactNode }) => <div role="alert">{children}</div>,
-  AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  Alert: ({
+    children,
+    ...props
+  }: React.HTMLAttributes<HTMLDivElement>) => <div role="alert" {...props}>{children}</div>,
+  AlertDescription: ({
+    children,
+    ...props
+  }: React.HTMLAttributes<HTMLParagraphElement>) => <p {...props}>{children}</p>,
 }));
 
 jest.mock('@/components/ui/alert-dialog', () => ({
@@ -310,7 +340,7 @@ jest.mock('@/components/designer', () => ({
 }));
 
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
+  useTranslations: () => (key: string, params?: Record<string, string | number>) => {
     const translations: Record<string, string> = {
       actionReview: 'Review',
       actionFix: 'Fix Issues',
@@ -341,8 +371,20 @@ jest.mock('next-intl', () => ({
       selectTargetLanguage: 'Select Target Language',
       selectLanguage: 'Select Language',
       translate: 'Translate',
+      saved: 'Saved',
+      autosaved: 'Autosaved',
+      largeDocumentMode: 'Large mode',
+      veryLargeDocumentMode: 'Very large mode',
+      performanceModeNotice: 'Performance mode active',
+      resumedEditing: 'Resumed editing context',
+      editorPosition: 'Ln {line}, Col {column}',
     };
-    return translations[key] || key;
+    const template = translations[key] || key;
+    if (!params) return template;
+    return Object.entries(params).reduce(
+      (value, [paramKey, paramValue]) => value.replace(`{${paramKey}}`, String(paramValue)),
+      template
+    );
   },
 }));
 
@@ -367,6 +409,18 @@ jest.mock('@/lib/ai/generation/canvas-actions', () => ({
 describe('CanvasPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseCanvasAutoSave.mockClear();
+    mockAddChunkedDocument.mockReset();
+    mockRemoveChunkedDocument.mockReset();
+    mockUpdateChunkedDocument.mockReset();
+    mockCanvasDocument.content = 'const x = 1;';
+    mockCanvasDocument.editorContext = {
+      saveState: 'saved',
+      performanceMode: 'standard',
+    };
+    mockCanvasMonacoSetupReturn.breadcrumb = [];
+    mockCanvasMonacoSetupReturn.breadcrumbSymbols = [];
+    mockCanvasMonacoSetupReturn.activeLocation = null;
   });
 
   it('renders when panel is open', async () => {
@@ -473,6 +527,61 @@ describe('CanvasPanel', () => {
       });
       const sheet = screen.getByTestId('sheet');
       expect(sheet).toBeInTheDocument();
+    });
+  });
+
+  describe('Large Document Status', () => {
+    it('renders stable status indicators and resume messaging for long-document editing', async () => {
+      mockCanvasDocument.editorContext = {
+        saveState: 'saved',
+        performanceMode: 'very-large',
+        lastRestoredAt: new Date('2026-03-12T15:00:00.000Z'),
+      };
+      mockCanvasMonacoSetupReturn.breadcrumb = ['MyClass', 'render'];
+      mockCanvasMonacoSetupReturn.activeLocation = {
+        source: 'cursor',
+        path: ['MyClass', 'render'],
+        lineNumber: 24,
+        column: 3,
+      };
+
+      await act(async () => {
+        render(<CanvasPanel />);
+      });
+
+      expect(screen.getByTestId('canvas-save-state')).toHaveTextContent('Saved');
+      expect(screen.getByTestId('canvas-structure-location')).toHaveTextContent('MyClass / render');
+      expect(screen.getByTestId('canvas-position-indicator')).toHaveTextContent('Ln 24, Col 3');
+      expect(screen.getByTestId('canvas-performance-mode')).toHaveTextContent('Very large mode');
+      expect(screen.getByTestId('canvas-resume-notice')).toBeInTheDocument();
+      expect(screen.getByTestId('canvas-performance-alert')).toBeInTheDocument();
+    });
+  });
+
+  describe('Chunked Document Cleanup', () => {
+    it('does not remove chunked documents for standard documents when none are loaded', async () => {
+      await act(async () => {
+        render(<CanvasPanel />);
+      });
+
+      expect(mockRemoveChunkedDocument).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Auto-save Baseline', () => {
+    it('uses an empty saved baseline for documents without saved versions', async () => {
+      mockCanvasDocument.content = 'const x = 1;';
+      delete (mockCanvasDocument as { versions?: unknown }).versions;
+
+      await act(async () => {
+        render(<CanvasPanel />);
+      });
+
+      expect(mockUseCanvasAutoSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          savedContent: '',
+        })
+      );
     });
   });
 });

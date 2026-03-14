@@ -5,7 +5,7 @@
  * Includes version history support
  */
 
-import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo, useDeferredValue } from 'react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import {
@@ -49,7 +49,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useArtifactStore, useSettingsStore } from '@/stores';
-import type { CanvasSuggestion } from '@/types';
+import type { CanvasEditorContext, CanvasSuggestion } from '@/types';
 import { cn } from '@/lib/utils';
 import { loggers } from '@/lib/logger';
 import { TRANSLATE_LANGUAGES, CANVAS_ACTIONS, FORMAT_ACTION_MAP } from '@/lib/canvas/constants';
@@ -78,7 +78,13 @@ import {
 } from '@/hooks/canvas';
 import { useChunkedDocumentStore } from '@/stores/canvas/chunked-document-store';
 import { useCanvasSettingsStore } from '@/stores/canvas/canvas-settings-store';
-import { isLargeDocument, getMonacoLanguage, calculateDocumentStats, isDesignerCompatible, exportCanvasDocument } from '@/lib/canvas/utils';
+import {
+  getCanvasPerformanceProfile,
+  getMonacoLanguage,
+  calculateDocumentStats,
+  isDesignerCompatible,
+  exportCanvasDocument,
+} from '@/lib/canvas/utils';
 import { symbolParser } from '@/lib/canvas/symbols/symbol-parser';
 import { themeRegistry } from '@/lib/canvas/themes/theme-registry';
 import { createEditorOptions } from '@/lib/monaco';
@@ -200,9 +206,20 @@ function CanvasPanelContent() {
   } = useCanvasSuggestions();
 
   // Auto-save hook
+  const savedBaselineContent = useMemo(() => {
+    if (!activeDocument) return '';
+
+    const currentVersion = activeDocument.versions?.find(
+      (version) => version.id === activeDocument.currentVersionId
+    );
+    const latestSavedVersion = activeDocument.versions?.[activeDocument.versions.length - 1];
+    return currentVersion?.content ?? latestSavedVersion?.content ?? '';
+  }, [activeDocument]);
+
   const autoSaveOptions: UseCanvasAutoSaveOptions = {
     documentId: activeCanvasId,
     content: activeDocument?.content || '',
+    savedContent: savedBaselineContent,
     onSave: saveCanvasVersion,
     onContentUpdate: (id, content) => updateCanvasDocument(id, { content }),
   };
@@ -229,9 +246,9 @@ function CanvasPanelContent() {
       return;
     }
     workbenchBindingRef.current?.update({
-      languageId: activeDocument ? getMonacoLanguage(activeDocument.language) : 'plaintext',
+      languageId: getMonacoLanguage(activeDocument.language),
     });
-  }, [activeCanvasId, activeDocument]);
+  }, [activeCanvasId, activeDocument?.language]);
 
   // AI actions hook - handles streaming, diff preview, action execution
   const handleActionContentChange = useCallback(
@@ -266,40 +283,93 @@ function CanvasPanelContent() {
   });
 
   // Canvas Monaco setup - integrates snippets, symbols, themes, plugins
+  const performanceProfile = useMemo(
+    () => getCanvasPerformanceProfile(localContent),
+    [localContent]
+  );
+
+  const handleEditorContextChange = useCallback(
+    (context: Record<string, unknown>) => {
+      if (!activeCanvasId) return;
+
+      updateCanvasDocument(activeCanvasId, {
+        editorContext: {
+          ...(context as Partial<CanvasEditorContext>),
+          performanceMode: performanceProfile.mode,
+        },
+      });
+    },
+    [activeCanvasId, performanceProfile.mode, updateCanvasDocument]
+  );
+
   const {
     symbols: documentSymbols,
     breadcrumb: symbolBreadcrumb,
+    breadcrumbSymbols,
+    activeLocation,
     availableThemes,
     activeThemeId: canvasThemeId,
     setActiveTheme: setCanvasTheme,
     handleEditorMount: onCanvasEditorMount,
     goToSymbol,
+    goToBreadcrumb,
     editorRef: canvasEditorRef,
   } = useCanvasMonacoSetup({
     documentId: activeCanvasId,
     language: activeDocument?.language || 'plaintext',
     content: localContent,
+    initialEditorContext: activeDocument?.editorContext || null,
+    performanceProfile,
+    onSelectionChange: setSelection,
+    onEditorContextChange: handleEditorContextChange,
   });
 
   // Show/hide symbol outline
   const [showSymbolOutline, setShowSymbolOutline] = useState(false);
 
   // Large file optimization
-  const { addChunkedDocument, removeChunkedDocument } = useChunkedDocumentStore();
-  useChunkLoader(activeCanvasId);
-  const isLargeFile = activeDocument ? isLargeDocument(activeDocument.content || '') : false;
+  const {
+    addChunkedDocument,
+    removeChunkedDocument,
+    updateDocument: updateChunkedDocument,
+    chunkedDocuments,
+  } = useChunkedDocumentStore();
+  useChunkLoader(performanceProfile.enableChunking ? activeCanvasId : null);
 
   // Initialize chunked document for large files
   useEffect(() => {
-    if (activeCanvasId && activeDocument && isLargeFile) {
-      addChunkedDocument(activeCanvasId, activeDocument.content || '');
+    if (activeCanvasId && activeDocument && performanceProfile.enableChunking) {
+      if (chunkedDocuments[activeCanvasId]) {
+        updateChunkedDocument(activeCanvasId, localContent);
+      } else {
+        addChunkedDocument(activeCanvasId, localContent);
+      }
     }
+    if (
+      activeCanvasId &&
+      !performanceProfile.enableChunking &&
+      chunkedDocuments[activeCanvasId]
+    ) {
+      removeChunkedDocument(activeCanvasId);
+    }
+  }, [
+    activeCanvasId,
+    activeDocument,
+    addChunkedDocument,
+    chunkedDocuments,
+    localContent,
+    performanceProfile.enableChunking,
+    removeChunkedDocument,
+    updateChunkedDocument,
+  ]);
+
+  useEffect(() => {
     return () => {
       if (activeCanvasId) {
         removeChunkedDocument(activeCanvasId);
       }
     };
-  }, [activeCanvasId, activeDocument, isLargeFile, addChunkedDocument, removeChunkedDocument]);
+  }, [activeCanvasId, removeChunkedDocument]);
 
   // Editor settings from persistent store
   const editorSettings = useCanvasSettingsStore((s) => s.settings.editor);
@@ -309,7 +379,49 @@ function CanvasPanelContent() {
   const canOpenInDesigner = activeDocument && isDesignerCompatible(activeDocument.language);
 
   // Calculate document statistics
-  const documentStats = useMemo(() => calculateDocumentStats(localContent), [localContent]);
+  const deferredLocalContent = useDeferredValue(localContent);
+  const documentStats = useMemo(
+    () =>
+      calculateDocumentStats(
+        performanceProfile.mode === 'very-large' ? deferredLocalContent : localContent
+      ),
+    [deferredLocalContent, localContent, performanceProfile.mode]
+  );
+
+  const effectiveLocation = activeLocation || activeDocument?.editorContext?.location || null;
+  const structureLocation = effectiveLocation?.path?.length
+    ? effectiveLocation.path.join(' / ')
+    : symbolBreadcrumb.length > 0
+      ? symbolBreadcrumb.join(' / ')
+      : null;
+  const displayPerformanceMode = activeDocument?.editorContext?.performanceMode || performanceProfile.mode;
+  const saveStateLabel = hasUnsavedChanges
+    ? t('unsaved')
+    : activeDocument?.editorContext?.saveState === 'autosaved'
+      ? t('autosaved')
+      : t('saved');
+  const performanceModeLabel =
+    displayPerformanceMode === 'very-large'
+      ? t('veryLargeDocumentMode')
+      : displayPerformanceMode === 'large'
+        ? t('largeDocumentMode')
+        : null;
+
+  useEffect(() => {
+    if (!activeCanvasId) return;
+    if (activeDocument?.editorContext?.performanceMode === performanceProfile.mode) return;
+
+    updateCanvasDocument(activeCanvasId, {
+      editorContext: {
+        performanceMode: performanceProfile.mode,
+      },
+    });
+  }, [
+    activeCanvasId,
+    activeDocument?.editorContext?.performanceMode,
+    performanceProfile.mode,
+    updateCanvasDocument,
+  ]);
 
   // Handle Designer code changes
   const handleDesignerCodeChange = useCallback(
@@ -403,6 +515,7 @@ function CanvasPanelContent() {
       }}
     >
       <SheetContent
+        key={activeCanvasId ?? 'canvas-list'}
         side="right"
         data-testid="canvas-panel"
         className="w-full sm:w-[600px] lg:w-[700px] p-0 flex flex-col"
@@ -615,6 +728,53 @@ function CanvasPanelContent() {
               </TooltipProvider>
             </div>
 
+            <div className="border-b px-4 py-2 bg-muted/20">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <Badge variant="outline" data-testid="canvas-save-state" className="text-[10px]">
+                  {saveStateLabel}
+                </Badge>
+                {structureLocation && (
+                  <span data-testid="canvas-structure-location" className="font-medium text-foreground/80">
+                    {structureLocation}
+                  </span>
+                )}
+                {effectiveLocation && (
+                  <span data-testid="canvas-position-indicator">
+                    {t('editorPosition', {
+                      line: effectiveLocation.lineNumber,
+                      column: effectiveLocation.column,
+                    })}
+                  </span>
+                )}
+                {performanceModeLabel && (
+                  <Badge
+                    variant="secondary"
+                    data-testid="canvas-performance-mode"
+                    className="text-[10px]"
+                  >
+                    {performanceModeLabel}
+                  </Badge>
+                )}
+              </div>
+              {activeDocument?.editorContext?.lastRestoredAt && (
+                <div
+                  data-testid="canvas-resume-notice"
+                  className="mt-1 text-xs text-muted-foreground"
+                >
+                  {t('resumedEditing')}
+                </div>
+              )}
+            </div>
+
+            {displayPerformanceMode !== 'standard' && (
+              <div className="px-4 py-2 border-b">
+                <Alert data-testid="canvas-performance-alert">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{t('performanceModeNotice')}</AlertDescription>
+                </Alert>
+              </div>
+            )}
+
             {actionScope && (
               <div
                 className="flex items-center gap-2 px-4 py-1.5 bg-muted/30 border-b"
@@ -793,7 +953,18 @@ function CanvasPanelContent() {
                 {symbolBreadcrumb.map((name, i) => (
                   <span key={`${name}-${i}`} className="flex items-center gap-1 shrink-0">
                     {i > 0 && <ChevronRight className="h-3 w-3" />}
-                    <span className="text-foreground/70">{name}</span>
+                    <button
+                      type="button"
+                      data-testid={`canvas-breadcrumb-item-${i}`}
+                      className="text-foreground/70 hover:text-foreground"
+                      onClick={() => {
+                        if (breadcrumbSymbols[i]) {
+                          goToBreadcrumb(i);
+                        }
+                      }}
+                    >
+                      {name}
+                    </button>
                   </span>
                 ))}
               </div>
@@ -812,6 +983,7 @@ function CanvasPanelContent() {
                     {documentSymbols.map((sym) => (
                       <button
                         key={`${sym.name}-${sym.range.startLine}`}
+                        data-testid={`canvas-symbol-${sym.name}`}
                         className="w-full text-left px-2 py-1 text-xs rounded hover:bg-muted/50 truncate flex items-center gap-1"
                         onClick={() => goToSymbol(sym)}
                       >
@@ -837,7 +1009,6 @@ function CanvasPanelContent() {
                   lineHeight: editorSettings.lineHeight,
                   tabSize: editorSettings.tabSize,
                   insertSpaces: editorSettings.insertSpaces,
-                  minimap: { enabled: editorSettings.minimap, scale: 1 },
                   lineNumbers: editorSettings.lineNumbers,
                   wordWrap: editorSettings.wordWrap ? 'on' : 'off',
                   renderWhitespace: editorSettings.renderWhitespace,
@@ -846,10 +1017,18 @@ function CanvasPanelContent() {
                   cursorStyle: editorSettings.cursorStyle,
                   smoothScrolling: editorSettings.smoothScrolling,
                   mouseWheelZoom: editorSettings.mouseWheelZoom,
-                  stickyScroll: { enabled: true, maxLineCount: 5 },
                   bracketPairColorization: { enabled: editorSettings.bracketPairColorization },
                   guides: editorSettings.guides,
                   inlineSuggest: { enabled: true },
+                  minimap: {
+                    enabled:
+                      performanceProfile.mode === 'very-large' ? false : editorSettings.minimap,
+                    scale: 1,
+                  },
+                  stickyScroll: {
+                    enabled: performanceProfile.showStickyScroll,
+                    maxLineCount: 5,
+                  },
                 }, {
                   editorSettings: globalEditorSettings,
                 })}
@@ -867,14 +1046,6 @@ function CanvasPanelContent() {
                     });
                   }
 
-                  // Track selection changes
-                  editor.onDidChangeCursorSelection((e) => {
-                    const model = editor.getModel();
-                    if (model) {
-                      const selectedText = model.getValueInRange(e.selection);
-                      setSelection(selectedText);
-                    }
-                  });
                 }}
               />
             </div>
@@ -919,6 +1090,7 @@ function CanvasPanelContent() {
                   <TooltipTrigger asChild>
                     <Toggle
                       size="sm"
+                      data-testid="canvas-symbol-outline-toggle"
                       pressed={showSymbolOutline}
                       onPressedChange={setShowSymbolOutline}
                       aria-label={t('symbolOutline')}
@@ -1064,75 +1236,79 @@ function CanvasPanelContent() {
             )}
 
             {/* Unsaved changes confirmation dialog */}
-            <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>{t('unsavedChanges')}</AlertDialogTitle>
-                  <AlertDialogDescription>{t('unsavedChangesDescription')}</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel data-testid="canvas-close-confirm-cancel">
-                    {t('cancel')}
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => {
-                      handleManualSave();
-                      closePanel();
-                    }}
-                    className="bg-primary"
-                    data-testid="canvas-close-confirm-save"
-                  >
-                    {t('saveAndClose')}
-                  </AlertDialogAction>
-                  <AlertDialogAction
-                    onClick={handleDiscardAndClose}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    data-testid="canvas-close-confirm-discard"
-                  >
-                    {t('discardAndClose')}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {showCloseConfirm && (
+              <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t('unsavedChanges')}</AlertDialogTitle>
+                    <AlertDialogDescription>{t('unsavedChangesDescription')}</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel data-testid="canvas-close-confirm-cancel">
+                      {t('cancel')}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        handleManualSave();
+                        closePanel();
+                      }}
+                      className="bg-primary"
+                      data-testid="canvas-close-confirm-save"
+                    >
+                      {t('saveAndClose')}
+                    </AlertDialogAction>
+                    <AlertDialogAction
+                      onClick={handleDiscardAndClose}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      data-testid="canvas-close-confirm-discard"
+                    >
+                      {t('discardAndClose')}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
 
             {/* Translate language selection dialog */}
-            <Dialog open={showTranslateDialog} onOpenChange={setShowTranslateDialog}>
-              <DialogContent className="w-[95vw] sm:max-w-[400px]">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Languages className="h-5 w-5" />
-                    {t('selectTargetLanguage')}
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <Select value={targetLanguage} onValueChange={setTargetLanguage}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('selectLanguage')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TRANSLATE_LANGUAGES.map((lang) => (
-                        <SelectItem key={lang.value} value={lang.value}>
-                          {lang.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setShowTranslateDialog(false)}>
-                      {t('cancel')}
-                    </Button>
-                    <Button onClick={() => handleTranslateRef.current()} disabled={isProcessing}>
-                      {isProcessing ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <Languages className="h-4 w-4 mr-2" />
-                      )}
-                      {t('translate')}
-                    </Button>
+            {showTranslateDialog && (
+              <Dialog open={showTranslateDialog} onOpenChange={setShowTranslateDialog}>
+                <DialogContent className="w-[95vw] sm:max-w-[400px]">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Languages className="h-5 w-5" />
+                      {t('selectTargetLanguage')}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <Select value={targetLanguage} onValueChange={setTargetLanguage}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('selectLanguage')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TRANSLATE_LANGUAGES.map((lang) => (
+                          <SelectItem key={lang.value} value={lang.value}>
+                            {lang.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setShowTranslateDialog(false)}>
+                        {t('cancel')}
+                      </Button>
+                      <Button onClick={() => handleTranslateRef.current()} disabled={isProcessing}>
+                        {isProcessing ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Languages className="h-4 w-4 mr-2" />
+                        )}
+                        {t('translate')}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
+            )}
           </>
         ) : (
           <CanvasDocumentList
@@ -1150,7 +1326,7 @@ function CanvasPanelContent() {
         )}
 
         {/* V0 Designer Panel */}
-        {activeDocument && canOpenInDesigner && (
+        {activeDocument && canOpenInDesigner && designerOpen && (
           <V0Designer
             open={designerOpen}
             onOpenChange={setDesignerOpen}

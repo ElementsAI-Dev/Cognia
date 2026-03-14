@@ -12,11 +12,13 @@ import {
   getFileExtension,
   generateSafeFilename,
   calculateDocumentStats,
+  getCanvasPerformanceProfile,
   isLargeDocument,
   truncateText,
   isDesignerCompatible,
   exportCanvasDocument,
   getConnectionStatusColor,
+  CANVAS_LARGE_DOCUMENT_THRESHOLDS,
 } from './utils';
 
 describe('Canvas Utils', () => {
@@ -202,6 +204,39 @@ describe('Canvas Utils', () => {
     it('should respect custom threshold', () => {
       expect(isLargeDocument('a'.repeat(1001), 1000)).toBe(true);
       expect(isLargeDocument('a'.repeat(999), 1000)).toBe(false);
+    });
+  });
+
+  describe('getCanvasPerformanceProfile', () => {
+    it('should keep small documents in standard mode', () => {
+      const profile = getCanvasPerformanceProfile('const small = true;');
+
+      expect(profile.mode).toBe('standard');
+      expect(profile.enableChunking).toBe(false);
+      expect(profile.outlineRefresh).toBe('eager');
+      expect(profile.symbolParseDebounceMs).toBe(500);
+    });
+
+    it('should switch to large mode when content crosses the large threshold', () => {
+      const profile = getCanvasPerformanceProfile(
+        'a'.repeat(CANVAS_LARGE_DOCUMENT_THRESHOLDS.largeChars + 1)
+      );
+
+      expect(profile.mode).toBe('large');
+      expect(profile.enableChunking).toBe(true);
+      expect(profile.outlineRefresh).toBe('deferred');
+      expect(profile.showDegradedModeNotice).toBe(true);
+    });
+
+    it('should switch to very-large mode when content crosses the very-large threshold', () => {
+      const profile = getCanvasPerformanceProfile(
+        'line\n'.repeat(CANVAS_LARGE_DOCUMENT_THRESHOLDS.veryLargeLines + 1)
+      );
+
+      expect(profile.mode).toBe('very-large');
+      expect(profile.outlineRefresh).toBe('manual');
+      expect(profile.showStickyScroll).toBe(false);
+      expect(profile.symbolParseDebounceMs).toBe(1500);
     });
   });
 

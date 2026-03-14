@@ -224,6 +224,80 @@ describe('useArtifactStore', () => {
       });
       expect(useArtifactStore.getState().canvasOpen).toBe(false);
     });
+
+    it('should merge canvas editor context updates without dropping existing fields', () => {
+      let docId!: string;
+      act(() => {
+        docId = useArtifactStore.getState().createCanvasDocument({
+          title: 'Context Doc',
+          content: 'const value = 1;',
+          language: 'typescript',
+          type: 'code',
+        });
+      });
+
+      act(() => {
+        useArtifactStore.getState().updateCanvasDocument(docId, {
+          editorContext: {
+            performanceMode: 'large',
+            location: {
+              source: 'outline',
+              path: ['MyClass', 'render'],
+              lineNumber: 24,
+              column: 3,
+            },
+          },
+        });
+      });
+
+      const savedAt = new Date('2026-03-12T15:00:00.000Z');
+
+      act(() => {
+        useArtifactStore.getState().updateCanvasDocument(docId, {
+          editorContext: {
+            lastSavedAt: savedAt,
+          },
+        });
+      });
+
+      expect(useArtifactStore.getState().canvasDocuments[docId].editorContext).toEqual(
+        expect.objectContaining({
+          performanceMode: 'large',
+          lastSavedAt: savedAt,
+          location: expect.objectContaining({
+            source: 'outline',
+            path: ['MyClass', 'render'],
+            lineNumber: 24,
+            column: 3,
+          }),
+        })
+      );
+    });
+
+    it('should not bump document updatedAt when only editor context changes', () => {
+      let docId!: string;
+      act(() => {
+        docId = useArtifactStore.getState().createCanvasDocument({
+          title: 'Context Timestamp Doc',
+          content: 'const value = 1;',
+          language: 'typescript',
+          type: 'code',
+        });
+      });
+
+      const originalUpdatedAt = useArtifactStore.getState().canvasDocuments[docId].updatedAt;
+
+      act(() => {
+        useArtifactStore.getState().updateCanvasDocument(docId, {
+          editorContext: {
+            cursorLine: 42,
+            cursorColumn: 7,
+          },
+        });
+      });
+
+      expect(useArtifactStore.getState().canvasDocuments[docId].updatedAt).toBe(originalUpdatedAt);
+    });
   });
 
   describe('canvas version history', () => {
@@ -301,6 +375,16 @@ describe('useArtifactStore', () => {
 
       expect(manualVersions.some((v) => v.description === 'Manual anchor')).toBe(true);
       expect(autoSaveVersions.length).toBeLessThanOrEqual(30);
+    });
+
+    it('should stamp editor context save metadata when saving a canvas version', () => {
+      act(() => {
+        useArtifactStore.getState().saveCanvasVersion(docId, 'Saved snapshot', false);
+      });
+
+      const context = useArtifactStore.getState().canvasDocuments[docId].editorContext;
+      expect(context?.lastSavedAt).toBeInstanceOf(Date);
+      expect(context?.saveState).toBe('saved');
     });
   });
 

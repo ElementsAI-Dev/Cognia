@@ -50,6 +50,7 @@ export interface LineRange {
 export interface SymbolLocation {
   symbol: DocumentSymbol;
   path: string[];
+  chain: DocumentSymbol[];
 }
 
 const SYMBOL_ICON_MAP: Record<SymbolKind, string> = {
@@ -143,6 +144,10 @@ export class SymbolParser {
       while ((match = pattern.regex.exec(content)) !== null) {
         const localLine = this.getLineNumber(content, match.index);
         const startLine = localLine + lineOffset - 1;
+        const localEndLine = pattern.hasChildren
+          ? this.findBlockEnd(lines, localLine - 1, pattern.kind)
+          : localLine - 1;
+        const endLine = localEndLine + lineOffset - 1;
         
         symbols.push({
           name: match[1],
@@ -150,8 +155,8 @@ export class SymbolParser {
           range: {
             startLine,
             startColumn: 1,
-            endLine: startLine,
-            endColumn: (lines[localLine - 1] || '').length + 1,
+            endLine,
+            endColumn: (lines[localEndLine] || '').length + 1,
           },
           selectionRange: {
             startLine,
@@ -239,24 +244,36 @@ export class SymbolParser {
     return result;
   }
 
-  getSymbolBreadcrumb(line: number, symbols: DocumentSymbol[]): string[] {
-    const path: string[] = [];
-    
-    const findPath = (syms: DocumentSymbol[]): boolean => {
+  getSymbolLocation(line: number, symbols: DocumentSymbol[]): SymbolLocation | null {
+    const chain: DocumentSymbol[] = [];
+
+    const findLocation = (syms: DocumentSymbol[]): boolean => {
       for (const symbol of syms) {
         if (line >= symbol.range.startLine && line <= symbol.range.endLine) {
-          path.push(symbol.name);
-          if (symbol.children) {
-            findPath(symbol.children);
+          chain.push(symbol);
+          if (symbol.children && findLocation(symbol.children)) {
+            return true;
           }
           return true;
         }
       }
+
       return false;
     };
-    
-    findPath(symbols);
-    return path;
+
+    if (!findLocation(symbols) || chain.length === 0) {
+      return null;
+    }
+
+    return {
+      symbol: chain[chain.length - 1],
+      path: chain.map((symbol) => symbol.name),
+      chain,
+    };
+  }
+
+  getSymbolBreadcrumb(line: number, symbols: DocumentSymbol[]): string[] {
+    return this.getSymbolLocation(line, symbols)?.path || [];
   }
 
   getSymbolIcon(kind: SymbolKind): string {
@@ -295,10 +312,10 @@ export class SymbolParser {
 
   private getChildPatterns(language: string): SymbolPattern[] {
     if (language === 'python') {
-      return [{ regex: /^\s+def\s+(\w+)/gm, kind: 'method' }];
+      return [{ regex: /^\s+def\s+(\w+)/gm, kind: 'method', hasChildren: true }];
     }
     return [
-      { regex: /(\w+)\s*\([^)]*\)\s*(?::\s*\w+)?\s*\{/g, kind: 'method' },
+      { regex: /(\w+)\s*\([^)]*\)\s*(?::\s*\w+)?\s*\{/g, kind: 'method', hasChildren: true },
       { regex: /(?:get|set)\s+(\w+)\s*\(/g, kind: 'property' },
       { regex: /(\w+)\s*:\s*\w+/g, kind: 'property' },
     ];

@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 export interface UseCanvasAutoSaveOptions {
   documentId: string | null;
   content: string;
+  savedContent?: string;
   onSave: (documentId: string, description?: string, isAutoSave?: boolean) => void;
   onContentUpdate: (documentId: string, content: string) => void;
   autoSaveDelay?: number;
@@ -27,6 +28,7 @@ export interface UseCanvasAutoSaveReturn {
 export function useCanvasAutoSave({
   documentId,
   content,
+  savedContent,
   onSave,
   onContentUpdate,
   autoSaveDelay = 30000,
@@ -54,14 +56,15 @@ export function useCanvasAutoSave({
     clearAutoSaveTimer();
 
     if (content !== undefined) {
+      const savedBaseline = savedContent ?? content;
       // Use microtask to avoid synchronous setState in effect
       queueMicrotask(() => {
         setLocalContentState(content);
-        lastSavedContentRef.current = content;
-        setHasUnsavedChanges(false);
+        lastSavedContentRef.current = savedBaseline;
+        setHasUnsavedChanges(content !== savedBaseline);
       });
     }
-  }, [documentId, content, clearAutoSaveTimer]);
+  }, [documentId, content, savedContent, clearAutoSaveTimer]);
 
   // Cleanup auto-save timer on unmount
   useEffect(() => {

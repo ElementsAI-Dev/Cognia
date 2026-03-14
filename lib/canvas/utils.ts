@@ -3,6 +3,7 @@
  */
 
 import type { CollaborationConnectionState } from '@/types/canvas/panel';
+import type { CanvasPerformanceMode } from '@/types';
 
 /**
  * Format a date relative to now (e.g., "just now", "5 minutes ago", "3 days ago")
@@ -129,10 +130,79 @@ export function countLines(content: string): number {
   return (content.match(/\n/g) || []).length + 1;
 }
 
+export const CANVAS_LARGE_DOCUMENT_THRESHOLDS = {
+  largeChars: 50000,
+  veryLargeChars: 200000,
+  largeLines: 1500,
+  veryLargeLines: 5000,
+} as const;
+
+export interface CanvasPerformanceProfile {
+  mode: CanvasPerformanceMode;
+  lineCount: number;
+  charCount: number;
+  enableChunking: boolean;
+  outlineRefresh: 'eager' | 'deferred' | 'manual';
+  symbolParseDebounceMs: number;
+  showStickyScroll: boolean;
+  showDegradedModeNotice: boolean;
+}
+
+export function getCanvasPerformanceProfile(content: string): CanvasPerformanceProfile {
+  const charCount = content.length;
+  const lineCount = countLines(content);
+
+  if (
+    charCount > CANVAS_LARGE_DOCUMENT_THRESHOLDS.veryLargeChars ||
+    lineCount > CANVAS_LARGE_DOCUMENT_THRESHOLDS.veryLargeLines
+  ) {
+    return {
+      mode: 'very-large',
+      lineCount,
+      charCount,
+      enableChunking: true,
+      outlineRefresh: 'manual',
+      symbolParseDebounceMs: 1500,
+      showStickyScroll: false,
+      showDegradedModeNotice: true,
+    };
+  }
+
+  if (
+    charCount > CANVAS_LARGE_DOCUMENT_THRESHOLDS.largeChars ||
+    lineCount > CANVAS_LARGE_DOCUMENT_THRESHOLDS.largeLines
+  ) {
+    return {
+      mode: 'large',
+      lineCount,
+      charCount,
+      enableChunking: true,
+      outlineRefresh: 'deferred',
+      symbolParseDebounceMs: 900,
+      showStickyScroll: true,
+      showDegradedModeNotice: true,
+    };
+  }
+
+  return {
+    mode: 'standard',
+    lineCount,
+    charCount,
+    enableChunking: false,
+    outlineRefresh: 'eager',
+    symbolParseDebounceMs: 500,
+    showStickyScroll: true,
+    showDegradedModeNotice: false,
+  };
+}
+
 /**
  * Check if a document is considered large (for optimization purposes)
  */
-export function isLargeDocument(content: string, threshold = 50000): boolean {
+export function isLargeDocument(
+  content: string,
+  threshold: number = CANVAS_LARGE_DOCUMENT_THRESHOLDS.largeChars
+): boolean {
   return content.length > threshold;
 }
 

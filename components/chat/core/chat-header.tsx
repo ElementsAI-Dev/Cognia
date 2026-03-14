@@ -738,6 +738,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
                 <Button
                   variant={panelOpen ? 'secondary' : 'ghost'}
                   size="icon"
+                  data-testid="chat-panel-toggle"
                   className="h-8 w-8 sm:w-auto sm:gap-1.5 sm:px-2"
                 >
                   <PanelRight className="h-4 w-4" />
@@ -747,7 +748,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuLabel>{t('sidePanel')}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => openPanel('canvas')}>
+                <DropdownMenuItem data-testid="chat-open-canvas-panel" onClick={() => openPanel('canvas')}>
                   <PanelRight className="mr-2 h-4 w-4" />
                   <div className="flex-1">
                     <span>{t('canvas')}</span>

@@ -11,6 +11,7 @@ import type {
   ArtifactType,
   ArtifactLanguage,
   ArtifactVersion,
+  CanvasEditorContext,
   CanvasDocument,
   CanvasDocumentVersion,
   CanvasSuggestion,
@@ -52,11 +53,60 @@ function rehydrateCanvasDocument(doc: CanvasDocument): CanvasDocument {
     ...doc,
     createdAt: ensureDate(doc.createdAt),
     updatedAt: ensureDate(doc.updatedAt),
+    editorContext: rehydrateCanvasEditorContext(doc.editorContext),
     versions: doc.versions?.map((v) => ({
       ...v,
       createdAt: ensureDate(v.createdAt),
     })),
   };
+}
+
+function rehydrateCanvasEditorContext(
+  context?: CanvasEditorContext
+): CanvasEditorContext | undefined {
+  if (!context) return undefined;
+
+  return {
+    ...context,
+    lastSavedAt: context.lastSavedAt ? ensureDate(context.lastSavedAt) : undefined,
+    lastRestoredAt: context.lastRestoredAt ? ensureDate(context.lastRestoredAt) : undefined,
+  };
+}
+
+function mergeCanvasEditorContext(
+  current?: CanvasEditorContext,
+  updates?: Partial<CanvasEditorContext>
+): CanvasEditorContext | undefined {
+  if (!current && !updates) return undefined;
+
+  const merged: CanvasEditorContext = {
+    ...(current || {}),
+    ...(updates || {}),
+    selection:
+      updates && 'selection' in updates
+        ? updates.selection
+          ? { ...(current?.selection || {}), ...updates.selection }
+          : updates.selection
+        : current?.selection,
+    visibleRange:
+      updates && 'visibleRange' in updates
+        ? updates.visibleRange
+          ? { ...(current?.visibleRange || {}), ...updates.visibleRange }
+          : updates.visibleRange
+        : current?.visibleRange,
+    location:
+      updates && 'location' in updates
+        ? updates.location
+          ? {
+              ...(current?.location || {}),
+              ...updates.location,
+              path: updates.location.path ?? current?.location?.path ?? [],
+            }
+          : updates.location
+        : current?.location,
+  };
+
+  return rehydrateCanvasEditorContext(merged);
 }
 
 /**
@@ -415,6 +465,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
 
       // Canvas actions
       createCanvasDocument: ({ sessionId, title, content, language, type }) => {
+        const createdAt = new Date();
         const doc: CanvasDocument = {
           id: nanoid(),
           sessionId: sessionId || 'standalone',
@@ -422,8 +473,11 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
           content,
           language,
           type,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt,
+          updatedAt: createdAt,
+          editorContext: {
+            saveState: 'saved',
+          },
           aiSuggestions: [],
         };
 
@@ -444,10 +498,21 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
           const doc = state.canvasDocuments[id];
           if (!doc) return state;
 
+          const contentChanged =
+            'content' in updates && updates.content !== undefined && updates.content !== doc.content;
+          const nonContextUpdateKeys = Object.keys(updates).filter((key) => key !== 'editorContext');
+          const mergedEditorContext =
+            'editorContext' in updates
+              ? mergeCanvasEditorContext(doc.editorContext, updates.editorContext)
+              : doc.editorContext;
+
           const updated = {
             ...doc,
             ...updates,
-            updatedAt: new Date(),
+            editorContext: contentChanged
+              ? mergeCanvasEditorContext(mergedEditorContext, { saveState: 'dirty' })
+              : mergedEditorContext,
+            updatedAt: nonContextUpdateKeys.length === 0 ? doc.updatedAt : new Date(),
           };
 
           // Track content changes
@@ -599,6 +664,10 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
             ...state.canvasDocuments,
             [documentId]: {
               ...doc,
+              editorContext: mergeCanvasEditorContext(doc.editorContext, {
+                lastSavedAt: version.createdAt,
+                saveState: isAutoSave ? 'autosaved' : 'saved',
+              }),
               versions: applyCanvasVersionRetention([...(doc.versions || []), version]),
               currentVersionId: version.id,
             },
@@ -638,6 +707,10 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
                 content: version.content,
                 title: version.title,
                 updatedAt: new Date(),
+                editorContext: mergeCanvasEditorContext(doc.editorContext, {
+                  lastRestoredAt: new Date(),
+                  saveState: 'saved',
+                }),
                 versions: applyCanvasVersionRetention([...doc.versions, currentVersion]),
                 currentVersionId: versionId,
               },

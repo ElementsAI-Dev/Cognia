@@ -73,6 +73,52 @@ export interface ArtifactVersion {
 }
 
 // Canvas-specific types (OpenAI-style editing)
+export type CanvasEditorNavigationSource =
+  | 'cursor'
+  | 'outline'
+  | 'breadcrumb'
+  | 'direct'
+  | 'search'
+  | 'restore';
+
+export type CanvasDocumentSaveState = 'saved' | 'autosaved' | 'dirty';
+
+export type CanvasPerformanceMode = 'standard' | 'large' | 'very-large';
+
+export interface CanvasEditorSelection {
+  startLineNumber: number;
+  startColumn: number;
+  endLineNumber: number;
+  endColumn: number;
+}
+
+export interface CanvasEditorVisibleRange {
+  startLineNumber: number;
+  endLineNumber: number;
+  scrollTop?: number;
+  scrollLeft?: number;
+}
+
+export interface CanvasEditorLocation {
+  source: CanvasEditorNavigationSource;
+  path: string[];
+  lineNumber: number;
+  column: number;
+  symbolName?: string;
+}
+
+export interface CanvasEditorContext {
+  cursorLine?: number;
+  cursorColumn?: number;
+  selection?: CanvasEditorSelection | null;
+  visibleRange?: CanvasEditorVisibleRange | null;
+  location?: CanvasEditorLocation | null;
+  lastSavedAt?: Date;
+  lastRestoredAt?: Date;
+  saveState?: CanvasDocumentSaveState;
+  performanceMode?: CanvasPerformanceMode;
+}
+
 export interface CanvasDocument {
   id: string;
   sessionId: string;
@@ -82,6 +128,7 @@ export interface CanvasDocument {
   type: 'code' | 'text';
   createdAt: Date;
   updatedAt: Date;
+  editorContext?: CanvasEditorContext;
   aiSuggestions?: CanvasSuggestion[];
   versions?: CanvasDocumentVersion[];
   currentVersionId?: string;

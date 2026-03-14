@@ -227,4 +227,58 @@ describe('useCanvasAutoSave', () => {
       expect(onContentUpdate).toHaveBeenLastCalledWith('doc-1', 'initial content');
     });
   });
+
+  describe('saved baseline continuity', () => {
+    it('should preserve dirty-state continuity across document switches using the last saved content baseline', async () => {
+      const { result, rerender } = renderHook(
+        (props) => useCanvasAutoSave(props),
+        {
+          initialProps: {
+            ...defaultOptions,
+            content: 'dirty draft',
+            savedContent: 'saved baseline',
+          },
+        }
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(result.current.localContent).toBe('dirty draft');
+      expect(result.current.hasUnsavedChanges).toBe(true);
+
+      await act(async () => {
+        rerender({
+          ...defaultOptions,
+          documentId: 'doc-2',
+          content: 'clean content',
+          savedContent: 'clean content',
+        });
+        await Promise.resolve();
+      });
+
+      expect(result.current.hasUnsavedChanges).toBe(false);
+
+      await act(async () => {
+        rerender({
+          ...defaultOptions,
+          documentId: 'doc-1',
+          content: 'dirty draft',
+          savedContent: 'saved baseline',
+        });
+        await Promise.resolve();
+      });
+
+      expect(result.current.localContent).toBe('dirty draft');
+      expect(result.current.hasUnsavedChanges).toBe(true);
+
+      act(() => {
+        result.current.discardChanges();
+      });
+
+      expect(result.current.localContent).toBe('saved baseline');
+      expect(result.current.hasUnsavedChanges).toBe(false);
+    });
+  });
 });

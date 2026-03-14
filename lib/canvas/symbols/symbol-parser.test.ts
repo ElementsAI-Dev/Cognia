@@ -288,6 +288,30 @@ class MyClass {
     });
   });
 
+  describe('getSymbolLocation', () => {
+    it('should return the active symbol and breadcrumb path for the current line', () => {
+      const code = `
+class MyClass {
+  myMethod() {
+    const x = 1;
+  }
+}
+`;
+      const symbols = parser.parseSymbols(code, 'javascript');
+      const location = parser.getSymbolLocation(3, symbols);
+
+      expect(location).not.toBeNull();
+      expect(location?.symbol.name).toBe('myMethod');
+      expect(location?.path).toEqual(['MyClass', 'myMethod']);
+      expect(location?.chain.map((symbol) => symbol.name)).toEqual(['MyClass', 'myMethod']);
+    });
+
+    it('should return null when the line is outside every symbol', () => {
+      const symbols = parser.parseSymbols('function test() {}', 'javascript');
+      expect(parser.getSymbolLocation(100, symbols)).toBeNull();
+    });
+  });
+
   describe('getSymbolIcon', () => {
     it('should return icon for function', () => {
       const icon = parser.getSymbolIcon('function');
@@ -410,6 +434,7 @@ class MyClass {
       expect(typeof symbolParser.findSymbolAtLine).toBe('function');
       expect(typeof symbolParser.getSymbolsInRange).toBe('function');
       expect(typeof symbolParser.getSymbolBreadcrumb).toBe('function');
+      expect(typeof symbolParser.getSymbolLocation).toBe('function');
       expect(typeof symbolParser.getSymbolIcon).toBe('function');
     });
   });

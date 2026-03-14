@@ -131,6 +131,9 @@ export const useChunkedDocumentStore = create<ChunkedDocumentState>()(
     updateDocument: (id: string, content: string) => {
       const existing = get().chunkedDocuments[id];
       if (!existing) return null;
+      if (optimizer.assembleContent(existing) === content) {
+        return existing;
+      }
 
       const { newDocument } = optimizer.computeChunkDiff(existing, content);
       const index = optimizer.buildIncrementalIndex(content);
