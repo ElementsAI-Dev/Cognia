@@ -7,6 +7,8 @@
 
 import { useCallback, useState } from 'react';
 import { useSettingsStore } from '@/stores';
+import { createProviderSettingsSnapshot } from '@/lib/ai/provider-consumption';
+import { resolveImageGenerationAccess } from '@/lib/ai/provider-consumption/capability-provider';
 import {
   generateImage,
   editImage,
@@ -68,11 +70,16 @@ export function useImageGeneration(
 
   const providerSettings = useSettingsStore((state) => state.providerSettings);
 
-  // Get OpenAI API key (required for DALL-E)
-  const getApiKey = useCallback((): string => {
-    const settings = providerSettings.openai;
-    return settings?.apiKey || '';
-  }, [providerSettings]);
+  const getImageGenerationAccess = useCallback(
+    () =>
+      resolveImageGenerationAccess(
+        createProviderSettingsSnapshot({
+          defaultProvider: '',
+          providerSettings,
+        })
+      ),
+    [providerSettings]
+  );
 
   // Generate images
   const generate = useCallback(
@@ -80,16 +87,16 @@ export function useImageGeneration(
       prompt: string,
       opts?: Partial<Omit<ImageGenerationOptions, 'prompt'>>
     ): Promise<GeneratedImage[] | null> => {
-      const apiKey = getApiKey();
-      if (!apiKey) {
-        setError('OpenAI API key is required for image generation');
+      const access = getImageGenerationAccess();
+      if (access.kind !== 'resolved') {
+        setError(access.reason);
         return null;
       }
 
       setIsLoading(true);
       setError(null);
       try {
-        const result = await generateImage(apiKey, {
+        const result = await generateImage(access.apiKey, {
           prompt,
           size: opts?.size || defaultSize,
           quality: opts?.quality || defaultQuality,
@@ -108,7 +115,7 @@ export function useImageGeneration(
         setIsLoading(false);
       }
     },
-    [getApiKey, defaultSize, defaultQuality, defaultStyle]
+    [getImageGenerationAccess, defaultSize, defaultQuality, defaultStyle]
   );
 
   // Edit images
@@ -119,16 +126,16 @@ export function useImageGeneration(
       mask?: File,
       opts?: { size?: '256x256' | '512x512' | '1024x1024'; n?: number }
     ): Promise<GeneratedImage[] | null> => {
-      const apiKey = getApiKey();
-      if (!apiKey) {
-        setError('OpenAI API key is required for image editing');
+      const access = getImageGenerationAccess();
+      if (access.kind !== 'resolved') {
+        setError(access.reason);
         return null;
       }
 
       setIsLoading(true);
       setError(null);
       try {
-        const result = await editImage(apiKey, {
+        const result = await editImage(access.apiKey, {
           image,
           prompt,
           mask,
@@ -146,7 +153,7 @@ export function useImageGeneration(
         setIsLoading(false);
       }
     },
-    [getApiKey]
+    [getImageGenerationAccess]
   );
 
   // Create variations
@@ -155,16 +162,16 @@ export function useImageGeneration(
       image: File,
       opts?: { size?: '256x256' | '512x512' | '1024x1024'; n?: number }
     ): Promise<GeneratedImage[] | null> => {
-      const apiKey = getApiKey();
-      if (!apiKey) {
-        setError('OpenAI API key is required for creating variations');
+      const access = getImageGenerationAccess();
+      if (access.kind !== 'resolved') {
+        setError(access.reason);
         return null;
       }
 
       setIsLoading(true);
       setError(null);
       try {
-        const result = await createImageVariation(apiKey, {
+        const result = await createImageVariation(access.apiKey, {
           image,
           size: opts?.size || '1024x1024',
           n: opts?.n || 1,
@@ -180,7 +187,7 @@ export function useImageGeneration(
         setIsLoading(false);
       }
     },
-    [getApiKey]
+    [getImageGenerationAccess]
   );
 
   // Clear images

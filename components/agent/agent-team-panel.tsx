@@ -36,6 +36,7 @@ import {
   LayoutGrid,
   LayoutList,
   Columns,
+  type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -61,6 +62,7 @@ import { AgentTeamConfigEditor } from './agent-team-config-editor';
 import { AgentTeamTaskBoard } from './agent-team-task-board';
 import { AgentTeamAnalytics } from './agent-team-analytics';
 import { AgentTeamResultCard } from './agent-team-result-card';
+import { LiveTracePanel } from './live-trace-panel';
 import {
   TEAM_STATUS_CONFIG,
   TEAMMATE_STATUS_CONFIG,
@@ -81,7 +83,7 @@ const AgentTeamGraph = lazy(() =>
 // ============================================================================
 
 function StatusIcon({ icon, className }: { icon: string; className?: string }) {
-  const iconMap: Record<string, React.ElementType> = {
+  const iconMap: Record<string, LucideIcon> = {
     Circle,
     Brain,
     Play,
@@ -202,18 +204,17 @@ function TaskItem({ task, teammates, onDelegateToBackground, isDelegating = fals
   const statusConfig = TASK_STATUS_CONFIG[task.status];
   const assignee = task.claimedBy ? teammates[task.claimedBy] : task.assignedTo ? teammates[task.assignedTo] : undefined;
   const taskMetadata = (task.metadata || {}) as Record<string, unknown>;
-  const delegationStatus =
-    typeof taskMetadata.delegationStatus === 'string'
-      ? taskMetadata.delegationStatus
-      : undefined;
-  const delegationError =
-    typeof taskMetadata.delegationError === 'string'
-      ? taskMetadata.delegationError
-      : undefined;
+  const delegationStatus = task.delegationRecord?.status ??
+    (typeof taskMetadata.delegationStatus === 'string' ? taskMetadata.delegationStatus : undefined);
+  const delegationReason = task.delegationRecord?.reason ??
+    (typeof taskMetadata.delegationReason === 'string' ? taskMetadata.delegationReason : undefined);
+  const delegationError = task.delegationRecord?.error ??
+    (typeof taskMetadata.delegationError === 'string' ? taskMetadata.delegationError : undefined);
   const canDelegate =
     !!onDelegateToBackground &&
     !isDelegating &&
     delegationStatus !== 'active' &&
+    delegationStatus !== 'awaiting_approval' &&
     task.status !== 'completed' &&
     task.status !== 'failed' &&
     task.status !== 'cancelled';
@@ -267,6 +268,12 @@ function TaskItem({ task, teammates, onDelegateToBackground, isDelegating = fals
       {delegationStatus && (
         <p className="mt-1 text-[10px] text-muted-foreground">
           Delegation: {delegationStatus}
+        </p>
+      )}
+
+      {delegationReason && (
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          {delegationReason}
         </p>
       )}
 
@@ -514,6 +521,18 @@ export function AgentTeamPanel({
                 <p className="text-xs text-muted-foreground">{activeTeam.description}</p>
               )}
 
+              {activeTeam.selectedExecutionPattern && (
+                <p className="text-[10px] text-muted-foreground">
+                  {activeTeam.selectedExecutionPattern}
+                </p>
+              )}
+
+              {activeTeam.routingAssessment?.reason && (
+                <p className="text-[10px] text-muted-foreground">
+                  {activeTeam.routingAssessment.reason}
+                </p>
+              )}
+
               {/* Progress */}
               {(activeTeam.status === 'executing' || activeTeam.status === 'planning') && (
                 <div className="space-y-1">
@@ -569,6 +588,22 @@ export function AgentTeamPanel({
                   {t('result.totalTokens', { count: activeTeam.totalTokenUsage.totalTokens.toLocaleString() })}
                 </p>
               )}
+
+              {activeTeam.executionReport?.summary?.nextActions?.length ? (
+                <div className="rounded-md border border-border/60 bg-muted/30 p-2 text-[10px] text-muted-foreground">
+                  {activeTeam.executionReport.summary.nextActions.map((action, index) => (
+                    <p key={`${action}-${index}`}>{action}</p>
+                  ))}
+                </div>
+              ) : null}
+
+              {activeTeam.executionReport?.checkpoints?.length ? (
+                <div className="rounded-md border border-border/60 bg-background/60 p-2 text-[10px] text-muted-foreground space-y-1">
+                  {activeTeam.executionReport.checkpoints.slice(-3).map((checkpoint) => (
+                    <p key={checkpoint.id}>{checkpoint.summary}</p>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <Separator />
@@ -710,6 +745,23 @@ export function AgentTeamPanel({
                 <AgentTeamTimeline teamId={activeTeam.id} />
               </CollapsibleContent>
             </Collapsible>
+
+            {activeTeam.executionReport?.traceSessionId && (
+              <>
+                <Separator />
+                <Collapsible>
+                  <CollapsibleTrigger className="flex w-full items-center justify-between py-1">
+                    <div className="flex items-center gap-2">
+                      <Eye className="size-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium">Live Trace</span>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-2">
+                    <LiveTracePanel sessionId={activeTeam.executionReport.traceSessionId} />
+                  </CollapsibleContent>
+                </Collapsible>
+              </>
+            )}
 
             <Separator />
 

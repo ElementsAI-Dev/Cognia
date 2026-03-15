@@ -8,6 +8,10 @@ import {
   formatModelId,
   type RegistryConfig,
 } from './provider-registry';
+import {
+  getLegacyProviderFacadeDiagnostics,
+  resetLegacyProviderFacadeDiagnostics,
+} from '@/lib/ai/provider-consumption';
 
 // Mock AI SDK providers
 jest.mock('@ai-sdk/openai', () => ({
@@ -46,6 +50,10 @@ jest.mock('@ai-sdk/cohere', () => ({
 }));
 
 describe('provider-registry', () => {
+  beforeEach(() => {
+    resetLegacyProviderFacadeDiagnostics();
+  });
+
   describe('createCogniaProviderRegistry', () => {
     const mockConfig: RegistryConfig = {
       providers: {
@@ -62,6 +70,22 @@ describe('provider-registry', () => {
       expect(registry.languageModel).toBeDefined();
       expect(registry.getAvailableProviders).toBeDefined();
       expect(registry.hasProvider).toBeDefined();
+    });
+
+    it('records migration diagnostics when building legacy registry providers', () => {
+      createCogniaProviderRegistry(mockConfig);
+
+      expect(getLegacyProviderFacadeDiagnostics()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            facadeId: 'core/provider-registry',
+            helperName: 'createProviderInstance',
+            providerId: 'openai',
+            routeProfile: 'legacy-compat',
+            count: 1,
+          }),
+        ])
+      );
     });
 
     it('should return available providers', () => {
@@ -317,6 +341,26 @@ describe('provider-registry', () => {
       });
 
       expect(registry.hasProvider('sambanova')).toBe(true);
+    });
+
+    it('should create zhipu provider (OpenAI compatible)', () => {
+      const registry = createCogniaProviderRegistry({
+        providers: {
+          zhipu: { apiKey: 'test-zhipu-key' },
+        },
+      });
+
+      expect(registry.hasProvider('zhipu')).toBe(true);
+    });
+
+    it('should create minimax provider (OpenAI compatible)', () => {
+      const registry = createCogniaProviderRegistry({
+        providers: {
+          minimax: { apiKey: 'test-minimax-key' },
+        },
+      });
+
+      expect(registry.hasProvider('minimax')).toBe(true);
     });
 
     it('should create ollama provider without API key', () => {

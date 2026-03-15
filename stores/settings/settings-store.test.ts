@@ -382,6 +382,25 @@ describe('useSettingsStore', () => {
   });
 
   describe('provider settings', () => {
+    it('initializes built-in zhipu and minimax provider settings from the shared catalog', () => {
+      const state = useSettingsStore.getState();
+
+      expect(state.providerSettings.zhipu).toEqual(
+        expect.objectContaining({
+          providerId: 'zhipu',
+          defaultModel: 'glm-4-flash',
+          enabled: false,
+        })
+      );
+      expect(state.providerSettings.minimax).toEqual(
+        expect.objectContaining({
+          providerId: 'minimax',
+          defaultModel: 'abab6.5s-chat',
+          enabled: false,
+        })
+      );
+    });
+
     it('should set provider settings', () => {
       act(() => {
         useSettingsStore.getState().setProviderSettings('openai', {

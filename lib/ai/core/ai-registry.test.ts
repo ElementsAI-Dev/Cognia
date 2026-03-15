@@ -7,6 +7,10 @@ import {
   MODEL_ALIASES,
   type AIRegistryConfig,
 } from './ai-registry';
+import {
+  getLegacyProviderFacadeDiagnostics,
+  resetLegacyProviderFacadeDiagnostics,
+} from '@/lib/ai/provider-consumption';
 
 // Mock provider modules
 jest.mock('@ai-sdk/openai', () => ({
@@ -22,6 +26,10 @@ jest.mock('@ai-sdk/google', () => ({
 }));
 
 describe('AI Registry', () => {
+  beforeEach(() => {
+    resetLegacyProviderFacadeDiagnostics();
+  });
+
   describe('MODEL_ALIASES', () => {
     it('should have aliases for all supported providers', () => {
       expect(MODEL_ALIASES.openai).toBeDefined();
@@ -57,6 +65,22 @@ describe('AI Registry', () => {
       expect(registry).toBeDefined();
       expect(registry.languageModel).toBeDefined();
       expect(registry.getAvailableProviders).toBeDefined();
+    });
+
+    it('records migration diagnostics when building AI registry providers', () => {
+      createAIRegistry(mockConfig);
+
+      expect(getLegacyProviderFacadeDiagnostics()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            facadeId: 'core/ai-registry',
+            helperName: 'createProviderInstance',
+            providerId: 'openai',
+            routeProfile: 'legacy-compat',
+            count: 1,
+          }),
+        ])
+      );
     });
 
     it('should return available providers', () => {

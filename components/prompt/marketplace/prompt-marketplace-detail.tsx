@@ -57,11 +57,13 @@ import {
 import { cn } from '@/lib/utils';
 import type {
   MarketplacePrompt,
+  InstalledMarketplacePrompt,
   PromptAuthor,
   PromptReview,
 } from '@/types/content/prompt-marketplace';
 import { QUALITY_TIER_INFO } from '@/types/content/prompt-marketplace';
 import { usePromptMarketplaceStore } from '@/stores/prompt/prompt-marketplace-store';
+import { usePromptTemplateStore } from '@/stores/prompt/prompt-template-store';
 import { PromptPreviewDialog } from './prompt-preview-dialog';
 import { toast } from '@/components/ui/sonner';
 
@@ -70,6 +72,7 @@ interface PromptMarketplaceDetailProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onViewAuthor?: (author: PromptAuthor) => void;
+  onContinueEditing?: (templateId: string) => void;
 }
 
 const EMPTY_REVIEWS: PromptReview[] = [];
@@ -79,6 +82,7 @@ export function PromptMarketplaceDetail({
   open,
   onOpenChange,
   onViewAuthor,
+  onContinueEditing,
 }: PromptMarketplaceDetailProps) {
   const t = useTranslations('promptMarketplace.detail');
   const format = useFormatter();
@@ -105,12 +109,16 @@ export function PromptMarketplaceDetail({
   const fetchPromptReviews = usePromptMarketplaceStore(state => state.fetchPromptReviews);
   const submitReviewAction = usePromptMarketplaceStore(state => state.submitReview);
   const markReviewHelpful = usePromptMarketplaceStore(state => state.markReviewHelpful);
+  const installation = usePromptMarketplaceStore(state =>
+    prompt ? state.userActivity.installed.find((item) => item.marketplaceId === prompt.id) : undefined
+  ) as InstalledMarketplacePrompt | undefined;
   const reviews = usePromptMarketplaceStore(state =>
     prompt ? state.reviews[prompt.id] || EMPTY_REVIEWS : EMPTY_REVIEWS
   );
   const hasReviewed = usePromptMarketplaceStore(state => 
     prompt ? state.userActivity.reviewed.includes(prompt.id) : false
   );
+  const selectTemplate = usePromptTemplateStore(state => state.selectTemplate);
 
   const handleInstall = useCallback(async () => {
     if (!prompt) return;
@@ -153,6 +161,17 @@ export function PromptMarketplaceDetail({
       toast.success(t('addedToFavorites'));
     }
   }, [prompt, isFavorite, addToFavorites, removeFromFavorites, t]);
+
+  const handleContinueEditing = useCallback(() => {
+    if (!installation?.localTemplateId) return;
+    if (onContinueEditing) {
+      onContinueEditing(installation.localTemplateId);
+      return;
+    }
+
+    selectTemplate(installation.localTemplateId);
+    toast.success('Selected linked local template');
+  }, [installation?.localTemplateId, onContinueEditing, selectTemplate]);
 
   const handleCopyContent = useCallback(async () => {
     if (!prompt) return;
@@ -217,6 +236,13 @@ export function PromptMarketplaceDetail({
   if (!prompt) return null;
 
   const tierInfo = QUALITY_TIER_INFO[prompt.qualityTier];
+  const workflowBadge = installation?.syncStatus === 'conflict'
+    ? 'Conflict'
+    : installation?.hasUpdate || installation?.syncStatus === 'update-available'
+      ? 'Update available'
+      : installation
+        ? 'Linked copy'
+        : null;
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -631,6 +657,18 @@ export function PromptMarketplaceDetail({
 
           {isInstalled ? (
             <>
+              {workflowBadge && (
+                <Badge variant="outline">{workflowBadge}</Badge>
+              )}
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={handleContinueEditing}
+                disabled={!installation?.localTemplateId}
+              >
+                <Play className="h-4 w-4" />
+                Continue Editing
+              </Button>
               <Button
                 variant="outline"
                 className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"

@@ -86,5 +86,34 @@ describe('buildCommand', () => {
 
     exitSpy.mockRestore();
   });
+
+  it('fails when manifest declares a blocked capability', async () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'plugin.json'),
+      JSON.stringify({
+        id: 'blocked-capability-plugin',
+        name: 'Blocked Capability Plugin',
+        version: '1.0.0',
+        type: 'frontend',
+        capabilities: ['skills'],
+        main: 'dist/index.js',
+      })
+    );
+    fs.writeFileSync(path.join(tempDir, 'index.ts'), 'export default {};');
+
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((code?: string | number | null) => {
+      throw new Error(`process.exit:${code}`);
+    });
+
+    await expect(
+      buildCommand({
+        output: 'dist',
+        minify: false,
+        sourcemap: false,
+      })
+    ).rejects.toThrow('process.exit:1');
+
+    exitSpy.mockRestore();
+  });
 });
 

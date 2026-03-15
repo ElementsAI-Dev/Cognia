@@ -45,10 +45,15 @@ import {
   Bookmark,
 } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
-import { NODE_CATEGORIES, NODE_TYPE_COLORS, type WorkflowNodeType } from '@/types/workflow/workflow-editor';
-import { NODE_ICONS, NODE_TAGS, NODE_TYPE_TAGS } from '@/lib/workflow-editor/constants';
+import { type WorkflowNodeType } from '@/types/workflow/workflow-editor';
+import {
+  getWorkflowNodeCatalogCategories,
+  getWorkflowNodeCatalogEntriesByTypes,
+  type WorkflowNodeCatalogEntry,
+} from '@/lib/workflow-editor';
+import { NODE_ICONS, NODE_TAGS } from '@/lib/workflow-editor/constants';
 import { NodeTemplatePanel } from './node-template-manager';
-import { useWorkflowEditorStore } from '@/stores/workflow';
+import { selectWorkflowNodeCatalogState, useWorkflowEditorStore } from '@/stores/workflow';
 
 // ICONS alias for backward compatibility with category icon lookups
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = NODE_ICONS as Record<string, React.ComponentType<{ className?: string }>>;
@@ -62,26 +67,24 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
   const t = useTranslations('workflowEditor');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('nodes');
-  const [expandedCategories, setExpandedCategories] = useState<string[]>(
-    NODE_CATEGORIES.map((c) => c.id)
+  const [expandedCategories, setExpandedCategories] = useState<string[]>(() =>
+    getWorkflowNodeCatalogCategories().map((category) => category.id)
   );
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   
   const {
     addNodeFromTemplate,
-    nodeTemplates,
     addNode,
+    nodeTemplates,
     recentNodes,
     favoriteNodes,
     addRecentNode,
     toggleFavoriteNode,
   } = useWorkflowEditorStore(
     useShallow((state) => ({
+      ...selectWorkflowNodeCatalogState(state),
       addNodeFromTemplate: state.addNodeFromTemplate,
-      nodeTemplates: state.nodeTemplates,
       addNode: state.addNode,
-      recentNodes: state.recentNodes,
-      favoriteNodes: state.favoriteNodes,
       addRecentNode: state.addRecentNode,
       toggleFavoriteNode: state.toggleFavoriteNode,
     }))
@@ -109,24 +112,10 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
 
   // Advanced filtering
   const filteredCategories = useMemo(() => {
-    return NODE_CATEGORIES.map((category) => ({
-      ...category,
-      nodes: category.nodes.filter((node) => {
-        // Text search
-        const matchesSearch = 
-          searchQuery === '' ||
-          node.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          node.description.toLowerCase().includes(searchQuery.toLowerCase());
-        
-        // Tag filter
-        const nodeTags = NODE_TYPE_TAGS[node.type] || [];
-        const matchesTags = 
-          selectedTags.length === 0 ||
-          selectedTags.some(tag => nodeTags.includes(tag));
-        
-        return matchesSearch && matchesTags;
-      }),
-    })).filter((category) => category.nodes.length > 0);
+    return getWorkflowNodeCatalogCategories({
+      searchQuery,
+      selectedTags,
+    });
   }, [searchQuery, selectedTags]);
 
   const handleDragStart = (e: React.DragEvent, type: WorkflowNodeType) => {
@@ -150,9 +139,9 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
     setSelectedTags([]);
   };
 
-  const renderNodeItem = (node: { type: WorkflowNodeType; name: string; description: string; icon: string }, showFavorite = true) => {
+  const renderNodeItem = (node: WorkflowNodeCatalogEntry, showFavorite = true) => {
     const NodeIcon = ICONS[node.icon] || Workflow;
-    const color = NODE_TYPE_COLORS[node.type];
+    const color = node.color;
     const isFavorite = favoriteNodes.includes(node.type);
 
     return (
@@ -219,18 +208,14 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
     );
   };
 
-  // Get all nodes flat for recent/favorites
-  const allNodes = useMemo(() => {
-    const nodes: { type: WorkflowNodeType; name: string; description: string; icon: string }[] = [];
-    NODE_CATEGORIES.forEach(cat => {
-      cat.nodes.forEach(node => {
-        if (!nodes.find(n => n.type === node.type)) {
-          nodes.push(node);
-        }
-      });
-    });
-    return nodes;
-  }, []);
+  const recentNodeEntries = useMemo(
+    () => getWorkflowNodeCatalogEntriesByTypes(recentNodes.slice(0, 6)),
+    [recentNodes]
+  );
+  const favoriteNodeEntries = useMemo(
+    () => getWorkflowNodeCatalogEntriesByTypes(favoriteNodes),
+    [favoriteNodes]
+  );
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className={cn('flex flex-col h-full min-h-0 bg-background border-r overflow-hidden', className)}>
@@ -367,19 +352,17 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
               <span className="text-xs font-medium text-muted-foreground">Recent</span>
             </div>
             <div className="flex flex-wrap gap-1 px-2">
-              {recentNodes.slice(0, 6).map(type => {
-                const node = allNodes.find(n => n.type === type);
-                if (!node) return null;
+              {recentNodeEntries.map((node) => {
                 const NodeIcon = ICONS[node.icon] || Workflow;
-                const color = NODE_TYPE_COLORS[node.type];
+                const color = node.color;
                 return (
-                  <TooltipProvider key={type}>
+                  <TooltipProvider key={node.id}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
                           draggable
-                          onDragStart={(e) => handleDragStart(e, type)}
-                          onDoubleClick={() => handleDoubleClick(type)}
+                          onDragStart={(e) => handleDragStart(e, node.type)}
+                          onDoubleClick={() => handleDoubleClick(node.type)}
                           className="p-2 rounded-md border hover:bg-accent transition-colors cursor-grab active:cursor-grabbing"
                           style={{ backgroundColor: `${color}10` }}
                         >
@@ -473,10 +456,7 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
                 <p className="text-xs">Click the heart icon on nodes to add</p>
               </div>
             ) : (
-              favoriteNodes.map(type => {
-                const node = allNodes.find(n => n.type === type);
-                return node ? renderNodeItem(node, true) : null;
-              })
+              favoriteNodeEntries.map((node) => renderNodeItem(node, true))
             )}
           </div>
         </ScrollArea>

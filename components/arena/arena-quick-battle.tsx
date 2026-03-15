@@ -54,7 +54,14 @@ function ArenaQuickBattleComponent({
     },
   });
 
-  const { getSmartModelPair, selectedModels, availableModels } = useSmartModelPair();
+  const {
+    getSmartModelPair,
+    selectedModels,
+    availableModels,
+    recommendationReason,
+    hasExhaustedCycle,
+    rotateMatchup,
+  } = useSmartModelPair();
   const candidateModels = useMemo(
     () => (selectedModels.length >= 2 ? selectedModels : getSmartModelPair()),
     [selectedModels, getSmartModelPair]
@@ -212,13 +219,28 @@ function ArenaQuickBattleComponent({
                   </Badge>
                 ))}
               </div>
+              {recommendationReason && (
+                <p className="text-[11px] text-muted-foreground">
+                  {recommendationReason}
+                </p>
+              )}
+              {hasExhaustedCycle && (
+                <p className="text-[10px] text-muted-foreground">
+                  {t('quickBattle.cyclingNotice')}
+                </p>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-6 text-xs gap-1 w-full"
                 onClick={() => {
-                  // Force re-render to get new recommendations
-                  getSmartModelPair();
+                  loggers.ui.info('arena_matchup_rotate_requested', {
+                    event: 'matchup_rotate_requested',
+                    source: 'quick_battle',
+                    currentModels: selectedModels.map((model) => `${model.provider}:${model.model}`),
+                    reason: recommendationReason,
+                  });
+                  rotateMatchup();
                 }}
               >
                 <Shuffle className="h-3 w-3" />

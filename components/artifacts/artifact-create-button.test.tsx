@@ -100,6 +100,20 @@ describe('ArtifactCreateButton', () => {
     );
   });
 
+  it('includes deterministic source metadata for manual artifact creation', () => {
+    render(<ArtifactCreateButton content="const x = 1;" language="javascript" messageId="msg-1" />);
+    fireEvent.click(screen.getByRole('button'));
+    expect(mockCreateArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          sourceOrigin: 'manual',
+          userInitiated: true,
+          sourceFingerprint: expect.any(String),
+        }),
+      })
+    );
+  });
+
   it('calls createArtifact when clicked (button variant)', () => {
     render(<ArtifactCreateButton content="const x = 1;" variant="button" />);
     fireEvent.click(screen.getByText('Create Artifact'));

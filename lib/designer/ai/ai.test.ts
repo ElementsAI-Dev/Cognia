@@ -17,6 +17,7 @@ import {
 } from './ai';
 
 import { generateText, generateObject } from 'ai';
+import { createFeatureProviderModel } from '@/lib/ai/provider-consumption';
 
 // Mock the AI SDK
 jest.mock('ai', () => ({
@@ -24,12 +25,14 @@ jest.mock('ai', () => ({
   generateObject: jest.fn(),
 }));
 
-jest.mock('@/lib/ai/core/client', () => ({
-  getProviderModel: jest.fn(() => ({})),
+jest.mock('@/lib/ai/provider-consumption', () => ({
+  ...jest.requireActual('@/lib/ai/provider-consumption'),
+  createFeatureProviderModel: jest.fn(() => ({})),
 }));
 
 const mockGenerateText = generateText as jest.MockedFunction<typeof generateText>;
 const mockGenerateObject = generateObject as jest.MockedFunction<typeof generateObject>;
+const mockCreateFeatureProviderModel = createFeatureProviderModel as jest.Mock;
 
 // Global beforeEach to ensure clean state for each test
 beforeEach(() => {
@@ -90,6 +93,36 @@ describe('getDesignerAIConfig', () => {
       openai: { apiKey: 'test-key', baseURL: 'https://custom.api.com' },
     });
     expect(result.baseURL).toBe('https://custom.api.com');
+  });
+
+  it('should resolve configured custom providers through shared consumption logic', () => {
+    const result = getDesignerAIConfig(
+      'custom-designer',
+      {
+        openai: { apiKey: 'test-key', defaultModel: 'gpt-4o-mini' },
+      },
+      {
+        'custom-designer': {
+          baseURL: 'https://custom.example.com/v1',
+          apiKey: 'sk-custom',
+          apiProtocol: 'openai',
+          defaultModel: 'custom-model',
+          enabled: true,
+        },
+      }
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        provider: 'custom-designer',
+        model: 'custom-model',
+        apiKey: 'sk-custom',
+        baseURL: 'https://custom.example.com/v1',
+        protocol: 'openai',
+        isCustomProvider: true,
+        useProxy: true,
+      })
+    );
   });
 });
 
@@ -203,7 +236,7 @@ describe('getAIStyleSuggestions', () => {
     };
     const result = await getAIStyleSuggestions('const x = 1;', config);
     expect(result.success).toBe(false);
-    expect(result.error).toContain('No API key');
+    expect(result.error).toBe('Add an API key before using this provider at runtime.');
   });
 
   it('should call generateObject with correct parameters', async () => {
@@ -223,6 +256,7 @@ describe('getAIStyleSuggestions', () => {
     const result = await getAIStyleSuggestions('export default function App() {}', config);
     
     expect(mockGenerateObject).toHaveBeenCalled();
+    expect(mockCreateFeatureProviderModel).toHaveBeenCalled();
     expect(result.success).toBe(true);
     expect(result.suggestions).toBeDefined();
     expect(result.suggestions?.length).toBeGreaterThan(0);
@@ -290,6 +324,7 @@ describe('editElementWithAI', () => {
     };
     const result = await editElementWithAI('code', 'div.container', 'make it blue', config);
     expect(result.success).toBe(false);
+    expect(result.error).toBe('Add an API key before using this provider at runtime.');
   });
 
   it('should return modified code', async () => {
@@ -326,6 +361,7 @@ describe('continueDesignConversation', () => {
     };
     const result = await continueDesignConversation('code', [], 'help', config);
     expect(result.success).toBe(false);
+    expect(result.error).toBe('Add an API key before using this provider at runtime.');
   });
 
   it('should return response with extracted code', async () => {
@@ -387,6 +423,7 @@ describe('generateComponentVariations', () => {
     };
     const result = await generateComponentVariations('code', 'style', 2, config);
     expect(result.success).toBe(false);
+    expect(result.error).toBe('Add an API key before using this provider at runtime.');
   });
 
   it('should return multiple variations', async () => {

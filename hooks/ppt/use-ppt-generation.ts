@@ -399,6 +399,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
   const defaultProviderRaw = useSettingsStore((state) => state.defaultProvider);
   const defaultProvider = defaultProviderRaw as ProviderName;
   const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const customProviders = useSettingsStore((state) => state.customProviders);
 
   // PPT Editor store
   const loadPresentation = usePPTEditorStore((state) => state.loadPresentation);
@@ -436,13 +437,13 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
 
   // Get API configuration
   const getAPIConfig = useCallback(() => {
-    return resolvePPTAIConfig(defaultProvider, providerSettings);
-  }, [defaultProvider, providerSettings]);
+    return resolvePPTAIConfig(defaultProvider, providerSettings, customProviders);
+  }, [defaultProvider, providerSettings, customProviders]);
 
   // Call AI API for generation using direct client (works in static export/desktop)
   const callAI = useCallback(
     async (systemPrompt: string, userPrompt: string, signal?: AbortSignal): Promise<string> => {
-      const config = resolvePPTAIConfig(defaultProvider, providerSettings);
+      const config = resolvePPTAIConfig(defaultProvider, providerSettings, customProviders);
       const modelInstance = createPPTModelInstance(config);
 
       const { text } = await generateText({
@@ -455,7 +456,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
 
       return text;
     },
-    [defaultProvider, providerSettings]
+    [defaultProvider, providerSettings, customProviders]
   );
 
   const createExecutor = useCallback(

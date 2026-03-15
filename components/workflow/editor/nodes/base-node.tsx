@@ -11,6 +11,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { NodePreviewTooltip } from '../utils/node-preview-tooltip';
 import { NodeQuickConfig } from '../utils/node-quick-config';
+import { resolveInsertionModeForNode } from '@/lib/workflow-editor';
 import {
   Workflow,
   AlertCircle,
@@ -22,6 +23,7 @@ import {
   Play,
   Power,
   Database,
+  Plus,
 } from 'lucide-react';
 import { NODE_ICONS } from '@/lib/workflow-editor/constants';
 import { useWorkflowEditorStore } from '@/stores/workflow';
@@ -65,6 +67,7 @@ export interface BaseNodeProps extends NodeProps {
 }
 
 function BaseNodeComponent({
+  id,
   data,
   selected,
   children,
@@ -81,28 +84,44 @@ function BaseNodeComponent({
   const StatusIcon = STATUS_ICONS[data.executionStatus];
   const color = NODE_TYPE_COLORS[nodeType];
   const isDisabled = Boolean(data.isDisabled);
+  const nodeId = data.id || id;
 
-  const { executeSingleNode, updateNode, isExecuting } = useWorkflowEditorStore(
+  const { executeSingleNode, updateNode, setInsertionIntent, isExecuting } = useWorkflowEditorStore(
     useShallow((state) => ({
       executeSingleNode: state.executeSingleNode,
       updateNode: state.updateNode,
+      setInsertionIntent: state.setInsertionIntent,
       isExecuting: state.isExecuting,
     }))
   );
 
   const handleTestRun = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (data.id && !isExecuting && !isDisabled) {
-      executeSingleNode(data.id);
+    if (nodeId && !isExecuting && !isDisabled) {
+      executeSingleNode(nodeId);
     }
-  }, [data.id, isExecuting, isDisabled, executeSingleNode]);
+  }, [executeSingleNode, isDisabled, isExecuting, nodeId]);
 
   const handleToggleDisable = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (data.id) {
-      updateNode(data.id, { isDisabled: !isDisabled });
+    if (nodeId) {
+      updateNode(nodeId, { isDisabled: !isDisabled });
     }
-  }, [data.id, isDisabled, updateNode]);
+  }, [isDisabled, nodeId, updateNode]);
+
+  const handleQuickAdd = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!nodeId || isDisabled || nodeType === 'end') {
+      return;
+    }
+
+    setInsertionIntent({
+      mode: resolveInsertionModeForNode(nodeType),
+      origin: 'node-exit',
+      sourceNodeId: nodeId,
+      openedAt: Date.now(),
+    });
+  }, [isDisabled, nodeId, nodeType, setInsertionIntent]);
 
   return (
     <NodePreviewTooltip data={data}>
@@ -193,6 +212,16 @@ function BaseNodeComponent({
                 title={isDisabled ? t('enableNode') : t('disableNode')}
               >
                 <Power className={cn('h-3 w-3', isDisabled ? 'text-red-500' : 'text-muted-foreground')} />
+              </button>
+            )}
+            {nodeType !== 'end' && (
+              <button
+                onClick={handleQuickAdd}
+                className="p-0.5 rounded hover:bg-accent cursor-pointer"
+                title={t('addNode')}
+                aria-label={t('addNode')}
+              >
+                <Plus className="h-3 w-3 text-primary" />
               </button>
             )}
           </div>

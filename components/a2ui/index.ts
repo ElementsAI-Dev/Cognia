@@ -61,6 +61,7 @@ export {
   A2UILoading,
   A2UIError,
   A2UIEmpty,
+  A2UIRichOutput,
   type A2UILoadingComponent,
   type A2UIErrorComponent,
   type A2UIEmptyComponent,

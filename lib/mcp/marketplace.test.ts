@@ -7,11 +7,14 @@ import {
   fetchClineMarketplace,
   fetchSmitheryMarketplace,
   fetchGlamaMarketplace,
+  fetchMcpMarketplaceDetail,
   downloadMcpServer,
   filterMarketplaceItems,
   getUniqueTags,
   formatDownloadCount,
   formatStarCount,
+  parseInstallationConfig,
+  getMcpMarketplaceItemKey,
 } from './marketplace';
 import type { McpMarketplaceItem, McpMarketplaceFilters } from '@/types/mcp/mcp-marketplace';
 
@@ -190,6 +193,102 @@ describe('MCP Marketplace API', () => {
       expect(result.items.length).toBeGreaterThanOrEqual(1);
       expect(result.source).toBe('all');
     });
+
+    it('tracks source health when aggregated fetch partially fails', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve([
+            {
+              mcpId: 'cline-server',
+              name: 'Cline Server',
+              author: 'author',
+              description: 'Desc',
+              githubUrl: '',
+              githubStars: 10,
+              downloadCount: 5,
+              tags: [],
+            },
+          ]),
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            servers: [
+              {
+                id: 'glama-server',
+                name: 'Glama Server',
+                author: 'glama',
+                description: 'Desc',
+                tags: [],
+              },
+            ],
+            total: 1,
+          }),
+      });
+
+      const result = await fetchMcpMarketplace('all');
+
+      expect(result.sourceHealth?.cline?.status).toBe('ok');
+      expect(result.sourceHealth?.smithery?.status).toBe('error');
+      expect(result.sourceHealth?.smithery?.errorCategory).toBe('auth');
+      expect(result.sourceHealth?.glama?.status).toBe('ok');
+    });
+  });
+
+  describe('fetchMcpMarketplaceDetail', () => {
+    it('uses the Smithery detail adapter for Smithery items', async () => {
+      const smitheryItem = createMockItem('clay-inc/clay-mcp', {
+        source: 'smithery',
+        remote: true,
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            qualifiedName: 'clay-inc/clay-mcp',
+            displayName: 'Clay MCP',
+            description: 'Remote MCP server',
+            homepage: 'https://example.com',
+            remote: true,
+            connections: [
+              {
+                type: 'http',
+                deploymentUrl: 'https://clay.example.com/mcp',
+                configSchema: {
+                  type: 'object',
+                },
+              },
+            ],
+            security: {
+              schemes: [{ type: 'apiKey', name: 'CLAY_API_KEY' }],
+            },
+          }),
+      });
+
+      const detail = await fetchMcpMarketplaceDetail(smitheryItem);
+
+      expect(detail.source).toBe('smithery');
+      expect(detail.itemKey).toBe(getMcpMarketplaceItemKey('smithery', 'clay-inc/clay-mcp'));
+      expect(detail.connectionConfig?.type).toBe('http');
+      expect(detail.connectionConfig?.url).toBe('https://clay.example.com/mcp');
+      expect(detail.requiresApiKey).toBe(true);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://registry.smithery.ai/servers/clay-inc/clay-mcp',
+        expect.objectContaining({
+          method: 'GET',
+        })
+      );
+    });
   });
 
   describe('downloadMcpServer', () => {
@@ -261,6 +360,65 @@ describe('MCP Marketplace API', () => {
       const result = await downloadMcpServer('test-server');
 
       expect(result.error).toBe('Internal server error. Please try again later.');
+    });
+  });
+
+  describe('parseInstallationConfig', () => {
+    it('normalizes HTTP deployment metadata into a streamableHttp install plan', () => {
+      const item = createMockItem('clay-inc/clay-mcp', {
+        source: 'smithery',
+        remote: true,
+      });
+
+      const config = parseInstallationConfig(item, {
+        itemKey: getMcpMarketplaceItemKey('smithery', 'clay-inc/clay-mcp'),
+        source: 'smithery',
+        mcpId: 'clay-inc/clay-mcp',
+        githubUrl: 'https://example.com',
+        name: 'Clay MCP',
+        author: 'Clay',
+        description: 'Remote MCP server',
+        readmeContent: '',
+        requiresApiKey: true,
+        connectionConfig: {
+          type: 'http',
+          url: 'https://clay.example.com/mcp',
+          configSchema: {
+            type: 'object',
+          },
+        },
+        envKeys: ['CLAY_API_KEY'],
+      });
+
+      expect(config.mode).toBe('automatic');
+      expect(config.validationStatus).toBe('valid');
+      expect(config.connectionType).toBe('streamableHttp');
+      expect(config.url).toBe('https://clay.example.com/mcp');
+      expect(config.fallbackToSse).toBe(true);
+      expect(config.envKeys).toEqual(['CLAY_API_KEY']);
+    });
+
+    it('returns a manual-only install plan when no valid automatic plan can be derived', () => {
+      const item = createMockItem('glama/server', {
+        source: 'glama',
+        remote: false,
+      });
+
+      const config = parseInstallationConfig(item, {
+        itemKey: getMcpMarketplaceItemKey('glama', 'glama/server'),
+        source: 'glama',
+        mcpId: 'glama/server',
+        githubUrl: '',
+        name: 'Glama Server',
+        author: 'Glama',
+        description: 'Directory entry only',
+        readmeContent: '',
+        requiresApiKey: false,
+      });
+
+      expect(config.mode).toBe('manual');
+      expect(config.validationStatus).toBe('invalid');
+      expect(config.validationError).toMatch(/unable to derive/i);
     });
   });
 

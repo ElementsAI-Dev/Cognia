@@ -4,6 +4,10 @@
   "version": "1.0.0",
   "description": "Provides custom chat modes for specialized AI interactions",
   "type": "python",
+  "engines": {
+    "cognia": ">=0.1.0",
+    "python": ">=3.10.0"
+  },
   "capabilities": ["tools", "modes"],
   "author": {
     "name": "Cognia Team"
@@ -11,6 +15,9 @@
   "pythonMain": "main.py",
   "pythonDependencies": [],
   "permissions": [],
-  "configSchema": {},
+  "configSchema": {
+    "type": "object",
+    "properties": {}
+  },
   "defaultConfig": {}
 }

@@ -5,6 +5,8 @@
  * Windows Task Scheduler, macOS launchd, and Linux systemd.
  */
 
+import type { SandboxConsumptionMetadata } from '@/types/system/sandbox';
+
 /** Unique identifier for system tasks */
 export type SystemTaskId = string;
 
@@ -116,6 +118,7 @@ export interface TaskRunResult {
   stderr?: string;
   error?: string;
   duration_ms?: number;
+  sandbox_metadata?: SandboxConsumptionMetadata;
 }
 
 /** System task definition */

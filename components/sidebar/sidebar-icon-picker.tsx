@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useTranslations } from 'next-intl';
 import * as LucideIcons from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 // curated list of icons suitable for chats/agents
 const ICON_NAMES = [
@@ -166,7 +167,7 @@ export function SidebarIconPicker({
           <ScrollArea className="h-75 pr-4">
             <div className="grid grid-cols-6 gap-2">
               {filteredIcons.map((name) => {
-                const Icon = LucideIcons[name as keyof typeof LucideIcons] as React.ElementType;
+                const Icon = LucideIcons[name as keyof typeof LucideIcons] as LucideIcon;
                 if (!Icon) return null;
                 return (
                   <Button

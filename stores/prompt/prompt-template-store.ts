@@ -8,6 +8,7 @@ import { nanoid } from 'nanoid';
 import type { McpPrompt } from '@/types/mcp';
 import {
   type PromptTemplate,
+  type PromptTemplateDraftSession,
   type PromptTemplateVersion,
   type PromptFeedback,
   type PromptTemplateStats,
@@ -26,6 +27,7 @@ import {
   type PromptTemplateOperationState,
   DEFAULT_PROMPT_TEMPLATE_CATEGORIES,
   DEFAULT_PROMPT_TEMPLATES,
+  NEW_PROMPT_TEMPLATE_DRAFT_SESSION_ID,
 } from '@/types/content/prompt-template';
 import {
   createOptimizationHistoryEntry,
@@ -39,6 +41,9 @@ const log = loggers.store;
 import { buildTemplateVariables } from '@/lib/prompts/template-utils';
 import { buildPromptTemplateIdentity } from '@/lib/prompts/prompt-template-identity';
 import { validatePromptTemplateInput } from '@/lib/prompts/prompt-template-validation';
+import {
+  derivePromptWorkflowState,
+} from '@/lib/prompts/marketplace-utils';
 
 interface PromptTemplateState {
   templates: PromptTemplate[];
@@ -46,6 +51,7 @@ interface PromptTemplateState {
   selectedTemplateId: string | null;
   isInitialized: boolean;
   operationStates: Record<string, PromptTemplateOperationState>;
+  draftSessions: Record<string, PromptTemplateDraftSession>;
 
   // Feedback & A/B Testing state
   feedback: Record<string, PromptFeedback[]>;
@@ -75,6 +81,15 @@ interface PromptTemplateState {
   getTemplatesByTags: (tags: string[]) => PromptTemplate[];
   getOperationState: (operationKey: string) => PromptTemplateOperationState | undefined;
   clearOperationState: (operationKey: string) => void;
+  saveDraftSession: (
+    id: string,
+    snapshot: CreatePromptTemplateInput,
+    origin: PromptTemplateDraftSession['origin']
+  ) => void;
+  getDraftSession: (id: string) => PromptTemplateDraftSession | undefined;
+  restoreDraftSession: (id: string) => PromptTemplateDraftSession | undefined;
+  discardDraftSession: (id: string) => void;
+  pruneDraftSessions: (now?: Date) => void;
 
   importTemplates: (
     payload: string | PromptTemplate[],
@@ -185,6 +200,8 @@ function calculateStats(feedbackList: PromptFeedback[]): PromptTemplateStats {
 
 const MAX_VERSION_HISTORY = 50;
 const DEFAULT_IMPORT_STRATEGY: PromptTemplateImportStrategy = 'skip';
+const MAX_DRAFT_SESSIONS = 10;
+const STALE_DRAFT_MS = 30 * 24 * 60 * 60 * 1000;
 
 function createOperationState(
   status: PromptTemplateOperationState['status'],
@@ -269,6 +286,73 @@ function pruneVersionHistory(history: PromptTemplateVersion[]): PromptTemplateVe
   return history.slice(history.length - MAX_VERSION_HISTORY);
 }
 
+function deriveDraftSessionReadiness(
+  id: string,
+  snapshot: CreatePromptTemplateInput,
+  fallbackTemplate?: PromptTemplate
+) {
+  const template: PromptTemplate = {
+    id,
+    name: snapshot.name ?? fallbackTemplate?.name ?? '',
+    description: snapshot.description ?? fallbackTemplate?.description,
+    content: snapshot.content ?? fallbackTemplate?.content ?? '',
+    category: snapshot.category ?? fallbackTemplate?.category,
+    tags: snapshot.tags ?? fallbackTemplate?.tags ?? [],
+    variables: snapshot.variables ?? fallbackTemplate?.variables ?? [],
+    targets: snapshot.targets ?? fallbackTemplate?.targets ?? ['chat'],
+    source: snapshot.source ?? fallbackTemplate?.source ?? 'user',
+    meta: snapshot.meta ?? fallbackTemplate?.meta,
+    usageCount: fallbackTemplate?.usageCount ?? 0,
+    createdAt: fallbackTemplate?.createdAt ?? new Date(),
+    updatedAt: new Date(),
+  };
+
+  const workflow = derivePromptWorkflowState({ template });
+  return workflow.publishReadiness;
+}
+
+function withDerivedWorkflow(template: PromptTemplate): PromptTemplate {
+  const workflow = derivePromptWorkflowState({ template });
+  if (!template.meta?.marketplace) {
+    return template;
+  }
+
+  return {
+    ...template,
+    meta: {
+      ...template.meta,
+      marketplace: {
+        ...template.meta.marketplace,
+        syncStatus: workflow.syncStatus,
+      },
+    },
+  };
+}
+
+function hydrateDraftSession(raw: PromptTemplateDraftSession): PromptTemplateDraftSession {
+  return {
+    ...raw,
+    createdAt: new Date(raw.createdAt),
+    updatedAt: new Date(raw.updatedAt),
+    lastRecoveredAt: raw.lastRecoveredAt ? new Date(raw.lastRecoveredAt) : undefined,
+  };
+}
+
+function pruneDraftSessionMap(
+  draftSessions: Record<string, PromptTemplateDraftSession>,
+  now: Date = new Date()
+): Record<string, PromptTemplateDraftSession> {
+  const validEntries = Object.entries(draftSessions)
+    .filter(([, session]) => now.getTime() - new Date(session.updatedAt).getTime() <= STALE_DRAFT_MS)
+    .sort(
+      (a, b) =>
+        new Date(b[1].updatedAt).getTime() - new Date(a[1].updatedAt).getTime()
+    )
+    .slice(0, MAX_DRAFT_SESSIONS);
+
+  return Object.fromEntries(validEntries);
+}
+
 export const usePromptTemplateStore = create<PromptTemplateState>()(
   persist(
     (set, get) => ({
@@ -277,6 +361,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
       selectedTemplateId: null,
       isInitialized: false,
       operationStates: {},
+      draftSessions: {},
       feedback: {},
       abTests: {},
       optimizationHistory: {},
@@ -318,7 +403,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
         }
 
         const now = new Date();
-        const template: PromptTemplate = {
+        const template: PromptTemplate = withDerivedWorkflow({
           id: nanoid(),
           name: input.name.trim(),
           description: input.description,
@@ -332,11 +417,16 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
           usageCount: 0,
           createdAt: now,
           updatedAt: now,
-        };
+        });
 
         set((state) => ({
           templates: [...state.templates, template],
           selectedTemplateId: template.id,
+          draftSessions: Object.fromEntries(
+            Object.entries(state.draftSessions).filter(
+              ([key]) => key !== NEW_PROMPT_TEMPLATE_DRAFT_SESSION_ID
+            )
+          ),
           operationStates: {
             ...state.operationStates,
             create: createOperationState('success', 'OK'),
@@ -387,7 +477,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
         if (mutationDecision.policy === 'fork-on-update') {
           const now = new Date();
           const nextContent = input.content ?? existing.content;
-          const forked: PromptTemplate = {
+          const forked: PromptTemplate = withDerivedWorkflow({
             ...existing,
             ...input,
             id: nanoid(),
@@ -400,11 +490,14 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
             lastUsedAt: undefined,
             createdAt: now,
             updatedAt: now,
-          };
+          });
 
           set((state) => ({
             templates: [...state.templates, forked],
             selectedTemplateId: forked.id,
+            draftSessions: Object.fromEntries(
+              Object.entries(state.draftSessions).filter(([key]) => key !== id)
+            ),
             operationStates: {
               ...state.operationStates,
               update: createOperationState('success', 'SOURCE_GUARDED', 'Source template forked.'),
@@ -440,8 +533,12 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
                   : (input.meta ?? tpl.meta),
               updatedAt: new Date(),
             };
+            updatedTemplate = withDerivedWorkflow(updatedTemplate);
             return updatedTemplate;
           }),
+          draftSessions: Object.fromEntries(
+            Object.entries(state.draftSessions).filter(([key]) => key !== id)
+          ),
           operationStates: {
             ...state.operationStates,
             update: createOperationState('success', 'OK'),
@@ -487,6 +584,9 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
         set((state) => ({
           templates: state.templates.filter((tpl) => tpl.id !== id),
           selectedTemplateId: state.selectedTemplateId === id ? null : state.selectedTemplateId,
+          draftSessions: Object.fromEntries(
+            Object.entries(state.draftSessions).filter(([key]) => key !== id)
+          ),
           operationStates: {
             ...state.operationStates,
             delete: createOperationState('success', 'OK'),
@@ -588,6 +688,61 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
         });
       },
 
+      saveDraftSession: (id, snapshot, origin) => {
+        const fallbackTemplate = get().getTemplate(id);
+        const session: PromptTemplateDraftSession = {
+          id,
+          templateId: id,
+          origin,
+          snapshot,
+          dirty: true,
+          publishReadiness: deriveDraftSessionReadiness(id, snapshot, fallbackTemplate),
+          createdAt: get().draftSessions[id]?.createdAt ?? new Date(),
+          updatedAt: new Date(),
+          lastRecoveredAt: get().draftSessions[id]?.lastRecoveredAt,
+        };
+
+        set((state) => ({
+          draftSessions: pruneDraftSessionMap({
+            ...state.draftSessions,
+            [id]: session,
+          }),
+        }));
+      },
+
+      getDraftSession: (id) => get().draftSessions[id],
+
+      restoreDraftSession: (id) => {
+        const session = get().draftSessions[id];
+        if (!session) return undefined;
+
+        const restoredSession = {
+          ...session,
+          lastRecoveredAt: new Date(),
+        };
+        set((state) => ({
+          draftSessions: {
+            ...state.draftSessions,
+            [id]: restoredSession,
+          },
+        }));
+        return restoredSession;
+      },
+
+      discardDraftSession: (id) => {
+        set((state) => ({
+          draftSessions: Object.fromEntries(
+            Object.entries(state.draftSessions).filter(([key]) => key !== id)
+          ),
+        }));
+      },
+
+      pruneDraftSessions: (now = new Date()) => {
+        set((state) => ({
+          draftSessions: pruneDraftSessionMap(state.draftSessions, now),
+        }));
+      },
+
       importTemplates: (payload, options) => {
         const strategy = options?.strategy ?? DEFAULT_IMPORT_STRATEGY;
         set((state) => ({
@@ -647,7 +802,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
 
           const conflict = findTemplateConflict(nextTemplates, normalized);
           if (!conflict) {
-            nextTemplates.push(normalized);
+            nextTemplates.push(withDerivedWorkflow(normalized));
             report.imported += 1;
             report.items.push({
               inputName: normalized.name,
@@ -672,11 +827,11 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
           }
 
           if (strategy === 'duplicate') {
-            const duplicate = withTimestamps({
+            const duplicate = withDerivedWorkflow(withTimestamps({
               ...normalized,
               id: nanoid(),
               name: `${normalized.name} (Imported)`,
-            });
+            }));
             nextTemplates.push(duplicate);
             report.duplicated += 1;
             report.items.push({
@@ -701,7 +856,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
 
           nextTemplates = nextTemplates.map((tpl) => {
             if (tpl.id !== conflict.id) return tpl;
-            return {
+            return withDerivedWorkflow({
               ...tpl,
               ...normalized,
               id: tpl.id,
@@ -720,7 +875,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
               updatedAt: new Date(),
               versionHistory: pruneVersionHistory([...(tpl.versionHistory || []), snapshot]),
               currentVersion: snapshot.version,
-            };
+            });
           });
 
           report.overwritten += 1;
@@ -885,14 +1040,17 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
         set((state) => ({
           templates: state.templates.map((tpl) =>
             tpl.id === id
-              ? ((restoredTemplate = {
+              ? ((restoredTemplate = withDerivedWorkflow({
                   ...tpl,
                   content: version.content,
                   variables: [...version.variables],
                   updatedAt: new Date(),
-                }),
+                })),
                 restoredTemplate)
               : tpl
+          ),
+          draftSessions: Object.fromEntries(
+            Object.entries(state.draftSessions).filter(([key]) => key !== id)
           ),
           operationStates: {
             ...state.operationStates,
@@ -1175,7 +1333,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
     }),
     {
       name: 'cognia-prompt-templates',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState: unknown, version: number) => {
         const state = persistedState as Record<string, unknown>;
@@ -1201,6 +1359,9 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
             state.isInitialized = false;
           }
         }
+        if (!state.draftSessions || typeof state.draftSessions !== 'object' || Array.isArray(state.draftSessions)) {
+          state.draftSessions = {};
+        }
         return state;
       },
       partialize: (state) => ({
@@ -1213,6 +1374,17 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
         categories: state.categories,
         selectedTemplateId: state.selectedTemplateId,
         isInitialized: state.isInitialized,
+        draftSessions: Object.fromEntries(
+          Object.entries(state.draftSessions).map(([key, session]) => [
+            key,
+            {
+              ...session,
+              createdAt: session.createdAt.toISOString(),
+              updatedAt: session.updatedAt.toISOString(),
+              lastRecoveredAt: session.lastRecoveredAt?.toISOString(),
+            },
+          ])
+        ),
         feedback: state.feedback,
         abTests: state.abTests,
         optimizationHistory: state.optimizationHistory,
@@ -1220,6 +1392,14 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
       onRehydrateStorage: () => (state) => {
         if (state?.templates) {
           state.templates = state.templates.map(hydrateTemplate);
+        }
+        if (state?.draftSessions) {
+          state.draftSessions = Object.fromEntries(
+            Object.entries(state.draftSessions).map(([key, session]) => [
+              key,
+              hydrateDraftSession(session as PromptTemplateDraftSession),
+            ])
+          );
         }
         // Rehydrate date fields in feedback
         if (state?.feedback) {

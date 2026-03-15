@@ -21,7 +21,9 @@
     "button": {
       "label": "可观测性",
       "tooltipTitle": "可观测性仪表板",
-      "tooltipDisabledHint": "在设置中启用以查看追踪"
+      "tooltipDisabledHint": "在设置中启用以查看追踪",
+      "tooltipHistoryHint": "历史记录仍可查看",
+      "tooltipIncompleteHint": "还有配置项未完成，新的远端采集暂时不会开始"
     },
 
     "dashboard": {
@@ -29,6 +31,8 @@
       "subtitle": "监控 AI 使用情况和性能",
       "disabledTitle": "可观测性已禁用",
       "disabledDescription": "在设置中启用可观测性以追踪 AI 操作、查看链路追踪和分析成本。",
+      "historyOnlyNotice": "虽然新的采集已关闭，但历史数据仍然可以查看。",
+      "incompleteNotice": "部分可观测集成尚未完成配置，新的远端采集暂时还不会开始。",
       "totalRequests": "总请求数",
       "totalTokens": "总 Token 数",
       "avgLatency": "平均延迟",
@@ -196,6 +200,8 @@
       "noSpans": "暂无 Span 记录",
       "metadata": "元数据",
       "openInLangfuse": "在 Langfuse 中打开",
+      "externalUnavailable": "Langfuse 外链暂不可用",
+      "externalUnavailableDescription": "请先在可观测性设置中完成 Langfuse 配置，再打开该追踪的外部链接。",
       "input": "输入",
       "output": "输出",
       "tokenUsage": {
@@ -209,6 +215,16 @@
     "settings": {
       "title": "可观测性",
       "description": "使用 Langfuse 和 OpenTelemetry 追踪 AI 操作、查看链路追踪和分析成本",
+      "stateTitle": "当前状态",
+      "stateDisabled": "采集已关闭",
+      "stateIncomplete": "配置仍需完善",
+      "stateReady": "可观测能力已就绪",
+      "stateHistoryOnly": "历史记录仍可查看",
+      "stateDisabledDescription": "启用可观测性采集后，才能开始收集新的远端遥测数据。",
+      "stateIncompleteDescription": "部分可观测集成尚未完成配置，当前还不能开始采集新数据。",
+      "stateReadyDescription": "当前可观测配置已经可以采集或展示支持的数据。",
+      "stateHistoryOnlyDescription": "虽然新的远端采集已关闭，但既有历史仍然可以查看。",
+      "historyHint": "本地已经存在使用记录或追踪历史。",
       "testConnection": "测试连接",
       "testingConnection": "正在测试连接...",
       "connectionSuccess": "连接成功！",
@@ -216,6 +232,16 @@
       "invalidCredentials": "API 密钥无效",
       "configureKeysFirst": "请先配置 API 密钥",
       "getApiKeys": "获取 API 密钥",
+      "capturePaused": "全局可观测性未启用，远端采集当前处于暂停状态。",
+      "incompleteLangfuse": "Langfuse 仍缺少必填凭据，暂时还不能使用。",
+      "incompleteOtel": "OpenTelemetry 仍缺少有效端点，暂时还不能使用。",
+      "agentTrace": {
+        "title": "Agent Trace 录制",
+        "description": "Agent Trace 的详细管理仍在独立工作区中，这里会同步显示当前状态。",
+        "enabled": "Agent Trace 录制已启用",
+        "disabled": "Agent Trace 录制已禁用",
+        "manage": "管理 Agent Trace"
+      },
       "langfuse": {
         "title": "Langfuse 集成",
         "description": "专为 AI 设计的可观测性，用于追踪、评估和分析",

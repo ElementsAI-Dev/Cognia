@@ -6,6 +6,15 @@
     "repositoryPath": "Repository Path",
     "repositoryPathPlaceholder": "Enter repository path...",
     "openRepository": "Open Repository",
+    "initializeRepository": "Initialize Repository",
+    "initializeRepositoryDescription": "Create a Git repository in the selected directory and start tracking it.",
+    "cloneRepository": "Clone Repository",
+    "cloneRepositoryDescription": "Clone a remote repository into a local directory and open it immediately.",
+    "trackedRepositories": "Tracked Repositories",
+    "cloneUrl": "Remote URL",
+    "clonePath": "Destination Path",
+    "cloneBranch": "Branch",
+    "cloneBranchPlaceholder": "main",
     "change": "Change",
     "selectRepository": "Select Git Repository",
     "repositoryOverview": "Repository Overview",
@@ -42,6 +51,9 @@
     "status": {
       "clean": "Clean",
       "dirty": "Modified",
+      "ahead": "Ahead",
+      "behind": "Behind",
+      "diverged": "Diverged",
       "detached": "Detached HEAD"
     },
     "tabs": {
@@ -87,7 +99,16 @@
       "delete": "Delete",
       "mergeBranch": "Merge Branch",
       "mergeBranchConfirm": "Merge '{source}' into '{target}'?",
-      "merge": "Merge"
+      "merge": "Merge",
+      "rename": "Rename",
+      "renameBranch": "Rename Branch",
+      "renameBranchDescription": "Rename the selected branch and refresh the branch list."
+    },
+    "recovery": {
+      "defaultMessage": "This repository needs recovery steps before normal Git actions can continue.",
+      "abortMerge": "Abort Merge",
+      "abortRevert": "Abort Revert",
+      "abortCherryPick": "Abort Cherry-pick"
     },
     "history": {
       "title": "Commit History",
@@ -207,10 +228,19 @@
       "repoPathHint": "Select or enter the path where you want to initialize Git.",
       "initialize": "Initialize"
     },
+    "trackedRepositories": "Tracked Repositories",
     "repoStatus": {
       "title": "Repository"
     },
     "loadingStatus": "Loading repository status...",
+    "status": {
+      "clean": "Clean",
+      "dirty": "Modified",
+      "ahead": "Ahead",
+      "behind": "Behind",
+      "diverged": "Diverged",
+      "detached": "Detached HEAD"
+    },
     "hasRemote": "Remote",
     "localOnly": "Local Only",
     "quickActions": {
@@ -230,7 +260,16 @@
       "changes": "Changes to commit",
       "message": "Commit Message",
       "messagePlaceholder": "Describe your changes...",
+      "stagedSummary": "{count} staged",
+      "unstagedSummary": "{count} unstaged",
+      "autoStageNotice": "All unstaged changes will be staged before committing.",
       "commit": "Commit"
+    },
+    "recovery": {
+      "defaultMessage": "This repository needs recovery before project Git actions can continue.",
+      "abortMerge": "Abort Merge",
+      "abortRevert": "Abort Revert",
+      "abortCherryPick": "Abort Cherry-pick"
     },
     "recentCommits": {
       "title": "Recent Commits"

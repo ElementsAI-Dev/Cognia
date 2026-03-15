@@ -9,6 +9,7 @@ import {
   createChatObservabilityManager,
   type ChatObservabilityConfig,
 } from '@/lib/ai/observability/chat-observability';
+import { buildObservabilitySettingsProjection } from '@/lib/observability';
 import { useSettingsStore } from '@/stores';
 import type { CoreMessage } from 'ai';
 
@@ -100,10 +101,15 @@ export function useChatObservability(config: ChatObservabilityConfig) {
  */
 export function useChatObservabilityConfig() {
   const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
+  const agentTraceSettings = useSettingsStore((state) => state.agentTraceSettings);
+  const projection = buildObservabilitySettingsProjection({
+    observabilitySettings,
+    agentTraceSettings,
+  });
 
   return {
-    enabled: observabilitySettings?.enabled ?? false,
-    enableLangfuse: observabilitySettings?.langfuseEnabled,
-    enableOpenTelemetry: observabilitySettings?.openTelemetryEnabled,
+    enabled: projection.runtimeCaptureEnabled,
+    enableLangfuse: projection.langfuse.active,
+    enableOpenTelemetry: projection.openTelemetry.active,
   };
 }

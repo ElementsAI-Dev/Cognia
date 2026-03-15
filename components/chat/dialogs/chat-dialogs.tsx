@@ -86,6 +86,7 @@ interface PresetProps {
   showPresetManager: boolean;
   setShowPresetManager: (open: boolean) => void;
   editingPresetId: string | null;
+  openCreateOnMount: boolean;
   onPresetSelect: (preset: Preset) => void;
 }
 
@@ -274,6 +275,7 @@ export function ChatDialogs(props: ChatDialogsProps) {
     showPresetManager,
     setShowPresetManager,
     editingPresetId,
+    openCreateOnMount,
     onPresetSelect,
 
     // Context settings
@@ -421,6 +423,7 @@ export function ChatDialogs(props: ChatDialogsProps) {
         open={showPresetManager}
         onOpenChange={setShowPresetManager}
         editPresetId={editingPresetId}
+        openCreateOnMount={openCreateOnMount}
         onPresetSelect={onPresetSelect}
       />
 

@@ -41,9 +41,12 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
-import { PROVIDERS, type ProviderConfig } from '@/types/provider';
 import { getCurrencyForLocale, CURRENCIES } from '@/types/system/usage';
-import { useProviderContext } from '@/components/providers/ai/provider-context';
+import {
+  buildProviderStateProjections,
+  getProviderSelectionGuidance,
+  type ProviderStateProjection,
+} from '@/lib/ai/providers/projection';
 import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 
 // Category definitions
@@ -55,24 +58,6 @@ const CATEGORY_CONFIG: Record<ProviderCategory, { label: string; icon: React.Rea
   aggregator: { label: 'Aggregator', icon: <Globe className="h-3 w-3" />, description: 'OpenRouter, Together AI' },
   specialized: { label: 'Fast', icon: <Zap className="h-3 w-3" />, description: 'Groq, Cerebras, DeepSeek' },
   local: { label: 'Local', icon: <Server className="h-3 w-3" />, description: 'Ollama' },
-};
-
-// Map provider IDs to categories
-const PROVIDER_CATEGORIES: Record<string, ProviderCategory> = {
-  openai: 'flagship',
-  anthropic: 'flagship',
-  google: 'flagship',
-  xai: 'flagship',
-  openrouter: 'aggregator',
-  togetherai: 'aggregator',
-  groq: 'specialized',
-  cerebras: 'specialized',
-  deepseek: 'specialized',
-  fireworks: 'specialized',
-  mistral: 'specialized',
-  cohere: 'specialized',
-  sambanova: 'specialized',
-  ollama: 'local',
 };
 
 // Recent model entry
@@ -139,7 +124,7 @@ export function ModelPickerDialog({
   const tChat = useTranslations('chat');
   const tCommon = useTranslations('common');
   const providerSettings = useSettingsStore((state) => state.providerSettings);
-  const { getProvider } = useProviderContext();
+  const customProviders = useSettingsStore((state) => state.customProviders);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ProviderCategory>('all');
   
@@ -148,25 +133,24 @@ export function ModelPickerDialog({
     return open ? getRecentModels() : [];
   }, [open]);
 
-  // Get enabled providers only
-  const enabledProviders = useMemo(() => {
-    return Object.entries(PROVIDERS).filter(([providerId]) => {
-      const settings = providerSettings[providerId];
-      // For Ollama, check if enabled; for others, check if enabled and has API key
-      if (providerId === 'ollama') {
-        return settings?.enabled !== false;
-      }
-      return settings?.enabled !== false && settings?.apiKey;
-    });
-  }, [providerSettings]);
+  const providerProjections = useMemo(
+    () => buildProviderStateProjections({ providerSettings, customProviders }),
+    [customProviders, providerSettings]
+  );
+
+  const selectableProviders = useMemo(
+    () => providerProjections.filter((projection) => projection.selectable),
+    [providerProjections]
+  );
 
   // Filter providers by category
   const filteredProviders = useMemo(() => {
-    return enabledProviders.filter(([providerId]) => {
+    return selectableProviders.filter((projection) => {
       if (category === 'all') return true;
-      return PROVIDER_CATEGORIES[providerId] === category;
+      if (projection.kind === 'custom') return false;
+      return projection.category === category;
     });
-  }, [enabledProviders, category]);
+  }, [category, selectableProviders]);
 
   // Search filter
   const searchResults = useMemo(() => {
@@ -174,19 +158,21 @@ export function ModelPickerDialog({
 
     const query = search.toLowerCase();
     return filteredProviders
-      .map(([providerId, provider]) => {
+      .map((provider) => {
         const matchedModels = provider.models.filter(
           (model) =>
             model.name.toLowerCase().includes(query) ||
             model.id.toLowerCase().includes(query) ||
-            provider.name.toLowerCase().includes(query)
+            provider.displayName.toLowerCase().includes(query)
         );
-        if (matchedModels.length > 0 || provider.name.toLowerCase().includes(query)) {
-          return [providerId, { ...provider, models: matchedModels.length > 0 ? matchedModels : provider.models }] as [string, ProviderConfig];
+        if (matchedModels.length > 0 || provider.displayName.toLowerCase().includes(query)) {
+          return {
+            ...provider,
+            models: matchedModels.length > 0 ? matchedModels : provider.models,
+          };
         }
         return null;
-      })
-      .filter((item): item is [string, ProviderConfig] => item !== null);
+      }).filter((item): item is ProviderStateProjection => item !== null);
   }, [filteredProviders, search]);
 
   // Handle model selection
@@ -205,24 +191,27 @@ export function ModelPickerDialog({
 
   // Get recent models that are still available
   const availableRecentModels = useMemo(() => {
-    return recentModels.filter((recent) => {
-      const provider = PROVIDERS[recent.provider];
-      const settings = providerSettings[recent.provider];
-      if (!provider || !settings) return false;
-      if (recent.provider === 'ollama') {
-        return settings.enabled !== false;
-      }
-      return settings.enabled !== false && settings.apiKey && provider.models.some((m) => m.id === recent.model);
-    });
-  }, [recentModels, providerSettings]);
+    const projectionMap = Object.fromEntries(
+      selectableProviders.map((projection) => [projection.id, projection])
+    );
 
-  // Get category icon
-  const getCategoryIcon = (providerId: string) => {
-    const provider = getProvider(providerId);
-    const icon = provider?.metadata.icon;
-    
-    return <ProviderIcon icon={icon} size={14} className="shrink-0" />;
-  };
+    return recentModels.filter((recent) => {
+      const provider = projectionMap[recent.provider];
+      return provider?.models.some((model) => model.id === recent.model) ?? false;
+    });
+  }, [recentModels, selectableProviders]);
+
+  const emptyStateMessage = useMemo(() => {
+    if (search.trim()) {
+      return `${t('noModels')}. ${t('configureProviders')}`;
+    }
+
+    if (selectableProviders.length > 0) {
+      return `${t('noModels')}. ${t('configureProviders')}`;
+    }
+
+    return getProviderSelectionGuidance(providerProjections) || `${t('noModels')}. ${t('configureProviders')}`;
+  }, [providerProjections, search, selectableProviders.length, t]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -276,7 +265,7 @@ export function ModelPickerDialog({
 
           <CommandList className="max-h-[400px] overflow-y-auto max-sm:max-h-[calc(100dvh-130px)]">
             <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
-              {t('noModels')}. {t('configureProviders')}
+              {emptyStateMessage}
             </CommandEmpty>
 
             {/* Auto Mode Toggle */}
@@ -329,7 +318,7 @@ export function ModelPickerDialog({
               <>
                 <CommandGroup heading={t('recentModels')}>
                   {availableRecentModels.slice(0, 3).map((recent) => {
-                    const provider = PROVIDERS[recent.provider];
+                    const provider = selectableProviders.find((projection) => projection.id === recent.provider);
                     const model = provider?.models.find((m) => m.id === recent.model);
                     if (!provider || !model) return null;
 
@@ -342,11 +331,16 @@ export function ModelPickerDialog({
                         onSelect={() => handleSelect(recent.provider, recent.model)}
                         className={cn('flex items-center gap-2 cursor-pointer max-sm:py-3 max-sm:px-3', isSelected && 'bg-accent')}
                       >
-                        <ProviderIcon providerId={recent.provider} size={16} className="shrink-0" />
+                        <ProviderIcon
+                          providerId={provider.kind === 'custom' ? undefined : recent.provider}
+                          icon={provider.icon}
+                          size={16}
+                          className="shrink-0"
+                        />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="font-medium text-sm truncate">{model.name}</span>
-                            <span className="text-xs text-muted-foreground">• {provider.name}</span>
+                            <span className="text-xs text-muted-foreground">• {provider.displayName}</span>
                           </div>
                         </div>
                         {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
@@ -359,27 +353,46 @@ export function ModelPickerDialog({
             )}
 
             {/* Provider Groups */}
-            {searchResults.map(([providerId, provider]) => (
-              <CommandGroup key={providerId} heading={
+            {searchResults.map((provider) => (
+              <CommandGroup key={provider.id} heading={
                 <div className="flex items-center gap-1.5">
-                  {getCategoryIcon(providerId)}
-                  <span>{provider.name}</span>
+                  <ProviderIcon
+                    providerId={provider.kind === 'custom' ? undefined : provider.id}
+                    icon={provider.icon}
+                    size={14}
+                    className="shrink-0"
+                  />
+                  <span>{provider.displayName}</span>
                   <span className="text-muted-foreground font-normal">
                     ({provider.models.length})
                   </span>
+                  {provider.codingPackage && (
+                    <Badge variant="outline">Coding</Badge>
+                  )}
                 </div>
               }>
-                {provider.models.map((model) => {
-                  const isSelected = currentProvider === providerId && currentModel === model.id && !isAutoMode;
+                {[...provider.models]
+                  .sort((left, right) => {
+                    if (left.id === provider.defaultModelId) return -1;
+                    if (right.id === provider.defaultModelId) return 1;
+                    return 0;
+                  })
+                  .map((model) => {
+                  const isSelected = currentProvider === provider.id && currentModel === model.id && !isAutoMode;
                   
                   return (
                     <CommandItem
-                      key={`${providerId}-${model.id}`}
-                      value={`${providerId}-${model.id}-${model.name}`}
-                      onSelect={() => handleSelect(providerId, model.id)}
+                      key={`${provider.id}-${model.id}`}
+                      value={`${provider.id}-${model.id}-${model.name}`}
+                      onSelect={() => handleSelect(provider.id, model.id)}
                       className={cn('flex items-center gap-2 cursor-pointer max-sm:py-3 max-sm:px-3', isSelected && 'bg-accent')}
                     >
-                      <ProviderIcon providerId={providerId} size={14} className="shrink-0" />
+                      <ProviderIcon
+                        providerId={provider.kind === 'custom' ? undefined : provider.id}
+                        icon={provider.icon}
+                        size={14}
+                        className="shrink-0"
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className="font-medium text-sm max-sm:text-base">{model.name}</span>

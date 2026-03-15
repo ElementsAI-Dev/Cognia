@@ -101,6 +101,7 @@ export function AgentTeamAnalytics({ teamId, className }: AgentTeamAnalyticsProp
       : 0;
 
     const totalDuration = team?.totalDuration || 0;
+    const reportSummary = team?.executionReport?.summary;
 
     // Per-teammate token breakdown
     const teammateTokens = teammates
@@ -139,6 +140,7 @@ export function AgentTeamAnalytics({ teamId, className }: AgentTeamAnalyticsProp
       totalDuration,
       teammateTokens,
       maxTeammateTokens,
+      reportSummary,
     };
   }, [team, teammates, tasks]);
 
@@ -240,6 +242,31 @@ export function AgentTeamAnalytics({ teamId, className }: AgentTeamAnalyticsProp
           )}
         </div>
       )}
+
+      {analytics.reportSummary && (
+        <div className="flex flex-wrap gap-2">
+          {analytics.reportSummary.delegatedTasks > 0 && (
+            <Badge variant="outline" className="text-[10px] gap-1">
+              {analytics.reportSummary.delegatedTasks} delegated
+            </Badge>
+          )}
+          {analytics.reportSummary.approvalsRequested > 0 && (
+            <Badge variant="outline" className="text-[10px] gap-1">
+              {analytics.reportSummary.approvalsRequested} approval
+            </Badge>
+          )}
+        </div>
+      )}
+
+      {analytics.reportSummary?.nextActions?.length ? (
+        <div className="rounded-md border bg-muted/30 p-2.5 space-y-1">
+          {analytics.reportSummary.nextActions.map((action) => (
+            <p key={action} className="text-[10px] text-muted-foreground">
+              {action}
+            </p>
+          ))}
+        </div>
+      ) : null}
 
       <Separator />
 

@@ -62,37 +62,77 @@ import type {
 } from '@/types/content/prompt-template';
 import { usePromptTemplateStore } from '@/stores';
 import { buildTemplateVariables } from '@/lib/prompts/template-utils';
+import { derivePromptWorkflowState } from '@/lib/prompts/marketplace-utils';
 
 interface PromptTemplateAdvancedEditorProps {
   template?: PromptTemplate;
+  draftSnapshot?: Partial<CreatePromptTemplateInput>;
   categories: string[];
   submitError?: string;
   onSubmit: (input: CreatePromptTemplateInput) => void;
   onCancel: () => void;
+  onSaveDraft?: (input: CreatePromptTemplateInput) => void;
   onRequestOptimization?: (content: string) => Promise<string>;
 }
 
 export function PromptTemplateAdvancedEditor({
   template,
+  draftSnapshot,
   categories,
   submitError,
   onSubmit,
   onCancel,
+  onSaveDraft,
   onRequestOptimization,
 }: PromptTemplateAdvancedEditorProps) {
   const t = useTranslations('promptTemplate.advancedEditor');
   const format = useFormatter();
   
   // Form state
-  const [name, setName] = useState(template?.name || '');
-  const [description, setDescription] = useState(template?.description || '');
-  const [content, setContent] = useState(template?.content || '');
-  const [category, setCategory] = useState(template?.category || 'custom');
-  const [tags, setTags] = useState<string[]>(template?.tags || []);
+  const initialSnapshot = useMemo(
+    () => ({
+      name: draftSnapshot?.name ?? template?.name ?? '',
+      description: draftSnapshot?.description ?? template?.description ?? '',
+      content: draftSnapshot?.content ?? template?.content ?? '',
+      category: draftSnapshot?.category ?? template?.category ?? 'custom',
+      tags: draftSnapshot?.tags ?? template?.tags ?? [],
+      variables: draftSnapshot?.variables ?? template?.variables ?? [],
+      targets: draftSnapshot?.targets ?? template?.targets ?? ['chat'],
+    }),
+    [
+      draftSnapshot?.category,
+      draftSnapshot?.content,
+      draftSnapshot?.description,
+      draftSnapshot?.name,
+      draftSnapshot?.tags,
+      draftSnapshot?.targets,
+      draftSnapshot?.variables,
+      template?.category,
+      template?.content,
+      template?.description,
+      template?.name,
+      template?.tags,
+      template?.targets,
+      template?.variables,
+    ]
+  );
+  const initialName = initialSnapshot.name;
+  const initialDescription = initialSnapshot.description;
+  const initialContent = initialSnapshot.content;
+  const initialCategory = initialSnapshot.category;
+  const initialTags = initialSnapshot.tags;
+  const initialVariables = initialSnapshot.variables;
+  const initialTargets = initialSnapshot.targets;
+
+  const [name, setName] = useState(initialName);
+  const [description, setDescription] = useState(initialDescription);
+  const [content, setContent] = useState(initialContent);
+  const [category, setCategory] = useState(initialCategory);
+  const [tags, setTags] = useState<string[]>(initialTags);
   const [tagInput, setTagInput] = useState('');
   
   // Variable editing
-  const [variables, setVariables] = useState<TemplateVariable[]>(template?.variables || []);
+  const [variables, setVariables] = useState<TemplateVariable[]>(initialVariables);
   const [variableValues, setVariableValues] = useState<Record<string, string>>({});
   
   // UI state
@@ -155,6 +195,40 @@ export function PromptTemplateAdvancedEditor({
     if (content.length > 50000) errors.push(t('contentTooLong'));
     return { isValid: errors.length === 0, errors };
   }, [name, content, t]);
+
+  const editorInput = useMemo<CreatePromptTemplateInput>(() => ({
+    name: name.trim(),
+    description: description.trim() || undefined,
+    content,
+    category,
+    tags,
+    variables,
+    targets: initialTargets,
+    source: template?.source ?? draftSnapshot?.source ?? 'user',
+    meta: template?.meta ?? draftSnapshot?.meta,
+  }), [category, content, description, draftSnapshot?.meta, draftSnapshot?.source, initialTargets, name, tags, template?.meta, template?.source, variables]);
+
+  const workflowState = useMemo(
+    () =>
+      derivePromptWorkflowState({
+        template: {
+          id: template?.id ?? '__advanced-editor__',
+          name: editorInput.name,
+          description: editorInput.description,
+          content: editorInput.content,
+          category: editorInput.category,
+          tags: editorInput.tags ?? [],
+          variables: editorInput.variables ?? [],
+          targets: editorInput.targets ?? ['chat'],
+          source: editorInput.source ?? 'user',
+          meta: editorInput.meta,
+          usageCount: template?.usageCount ?? 0,
+          createdAt: template?.createdAt ?? new Date(),
+          updatedAt: new Date(),
+        },
+      }),
+    [editorInput, template?.createdAt, template?.id, template?.usageCount]
+  );
   
   const handleAddTag = useCallback(() => {
     const trimmed = tagInput.trim().toLowerCase();
@@ -215,15 +289,15 @@ export function PromptTemplateAdvancedEditor({
       return;
     }
     
-    onSubmit({
-      name: name.trim(),
-      description: description.trim() || undefined,
-      content,
-      category,
-      tags,
-      variables,
-    });
-  }, [name, description, content, category, tags, variables, validation, onSubmit]);
+    onSubmit(editorInput);
+  }, [editorInput, validation, onSubmit]);
+
+  const handleCancel = useCallback(() => {
+    if (hasChanges && onSaveDraft) {
+      onSaveDraft(editorInput);
+    }
+    onCancel();
+  }, [editorInput, hasChanges, onCancel, onSaveDraft]);
   
   const formatDate = (date: Date) => {
     return format.dateTime(new Date(date), {
@@ -284,7 +358,7 @@ export function PromptTemplateAdvancedEditor({
             </Tooltip>
           )}
           
-          <Button variant="outline" size="sm" onClick={onCancel}>
+          <Button variant="outline" size="sm" onClick={handleCancel}>
             {t('cancel')}
           </Button>
           
@@ -307,6 +381,19 @@ export function PromptTemplateAdvancedEditor({
           <div className="flex flex-col h-full">
             {/* Metadata */}
             <div className="p-4 space-y-4 border-b">
+              <div className="rounded-lg border border-dashed border-border/70 bg-muted/30 px-3 py-2 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline">{workflowState.saveBehavior}</Badge>
+                  <Badge variant={workflowState.publishReadiness.isReady ? 'secondary' : 'outline'}>
+                    {workflowState.publishReadiness.isReady ? 'Publish ready' : 'Publish blocked'}
+                  </Badge>
+                </div>
+                {!workflowState.publishReadiness.isReady && (
+                  <p className="text-xs text-amber-700">
+                    {`Publish blockers: ${workflowState.publishReadiness.reasons.join(', ')}`}
+                  </p>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">{t('nameLabel')}</Label>

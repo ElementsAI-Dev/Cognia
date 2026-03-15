@@ -21,6 +21,8 @@
     "richMarkdownDesc": "完整格式，包含推理、工具和附件",
     "json": "JSON",
     "jsonDesc": "完整数据导出，可重新导入",
+    "portableArchive": "便携归档",
+    "portableArchiveDesc": "适用于回导和迁移的可往返聊天归档格式",
     "staticHtml": "静态 HTML",
     "staticHtmlDesc": "带样式的简单网页",
     "pdf": "PDF",

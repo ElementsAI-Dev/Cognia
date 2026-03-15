@@ -136,6 +136,8 @@ const createMockStoreState = (overrides = {}) => ({
   getTotalPages: jest.fn().mockReturnValue(1),
   getUniqueTags: jest.fn().mockReturnValue([]),
   getInstallStatus: jest.fn().mockReturnValue('not_installed'),
+  isItemInstalled: jest.fn().mockReturnValue(false),
+  getLinkedServerId: jest.fn().mockReturnValue(null),
   setInstallStatus: jest.fn(),
   setSmitheryApiKey: jest.fn(),
   getSourceCount: jest.fn().mockReturnValue(0),
@@ -236,6 +238,35 @@ describe('McpMarketplace', () => {
 
       fireEvent.click(screen.getByText('Dismiss'));
       expect(clearError).toHaveBeenCalled();
+    });
+  });
+
+  describe('source degradation', () => {
+    it('shows a degraded-source warning when some marketplace sources fail', () => {
+      const mockItems = [createMockItem('server-1')];
+      mockUseMcpMarketplaceStore.mockReturnValue(createMockStoreState({
+        catalog: {
+          ...createMockCatalog(mockItems),
+          sourceHealth: {
+            cline: { source: 'cline', status: 'ok', itemCount: 1, retryable: false },
+            smithery: {
+              source: 'smithery',
+              status: 'error',
+              itemCount: 0,
+              retryable: true,
+              errorCategory: 'auth',
+              errorMessage: 'Smithery API key required or invalid',
+            },
+          },
+        },
+        getFilteredItems: jest.fn().mockReturnValue(mockItems),
+        getPaginatedItems: jest.fn().mockReturnValue(mockItems),
+      }) as ReturnType<typeof useMcpMarketplaceStore>);
+
+      render(<McpMarketplace />);
+
+      expect(screen.getByText(/Smithery API key required or invalid/i)).toBeInTheDocument();
+      expect(screen.getByText(/smithery:/i)).toBeInTheDocument();
     });
   });
 

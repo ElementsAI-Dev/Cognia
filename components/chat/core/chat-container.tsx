@@ -135,6 +135,7 @@ import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
 import { getModelMaxTokens } from '@/lib/ai/model-limits';
 import { compressMessages } from '@/lib/ai/embedding/compression';
 import { loggers } from '@/lib/logger';
+import { createSessionUpdateFromPreset } from '@/lib/presets';
 
 import {
   useAIChat,
@@ -176,6 +177,7 @@ import { FlowChatCanvas } from '../flow';
 import { ErrorBoundaryProvider } from '@/components/providers/core/error-boundary-provider';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import { useSpeedPassStore } from '@/stores/learning/speedpass-store';
+import { useArenaStore } from '@/stores/arena';
 
 const log = loggers.chat;
 
@@ -249,6 +251,8 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   const activeSessionId = session?.id || null;
   const activeBranchId = session?.activeBranchId;
+  const arenaWorkflowDraftPrompt = useArenaStore((state) => state.workflowContext.draftPrompt);
+  const setArenaWorkflowDraftPrompt = useArenaStore((state) => state.setWorkflowDraftPrompt);
 
   // View mode state (list or flow canvas)
   const getViewMode = useSessionStore((state) => state.getViewMode);
@@ -365,6 +369,28 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const autoPlayInitializedRef = useRef(false);
   const { speak: speakChatReply } = useTTS({ source: 'chat' });
 
+  useEffect(() => {
+    if (viewMode === 'arena' && inputValue && inputValue !== arenaWorkflowDraftPrompt) {
+      setArenaWorkflowDraftPrompt(inputValue);
+      log.info('arena_workflow_handoff_to_embedded', {
+        event: 'workflow_handoff',
+        target: 'embedded_arena',
+        hasDraft: true,
+      });
+    }
+  }, [arenaWorkflowDraftPrompt, inputValue, setArenaWorkflowDraftPrompt, viewMode]);
+
+  useEffect(() => {
+    if (viewMode !== 'arena' && arenaWorkflowDraftPrompt && !inputValue) {
+      setInputValue(arenaWorkflowDraftPrompt);
+      log.info('arena_workflow_handoff_to_chat', {
+        event: 'workflow_handoff',
+        target: 'chat_input',
+        hasDraft: true,
+      });
+    }
+  }, [arenaWorkflowDraftPrompt, inputValue, viewMode]);
+
   // Derive streaming message ID for flow canvas
   const streamingMessageId = useMemo(() => {
     if (!isStreaming || messages.length === 0) return undefined;
@@ -426,6 +452,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   // Preset states
   const [showPresetManager, setShowPresetManager] = useState(false);
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
+  const [openPresetCreateOnMount, setOpenPresetCreateOnMount] = useState(false);
   const trackPresetUsage = usePresetStore((state) => state.usePreset);
   const getPreset = usePresetStore((state) => state.getPreset);
   const activePreset = session?.presetId ? getPreset(session.presetId) : null;
@@ -1403,27 +1430,17 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
    */
   const handleSelectPreset = useCallback(
     (preset: import('@/types/content/preset').Preset) => {
+      const sessionUpdate = createSessionUpdateFromPreset(preset);
       trackPresetUsage(preset.id);
 
       if (session) {
-        updateSession(session.id, {
-          provider: preset.provider === 'auto' ? 'openai' : preset.provider,
-          model: preset.model,
-          mode: preset.mode,
-          systemPrompt: preset.systemPrompt,
-          builtinPrompts: preset.builtinPrompts,
-          temperature: preset.temperature,
-          maxTokens: preset.maxTokens,
-          webSearchEnabled: preset.webSearchEnabled,
-          thinkingEnabled: preset.thinkingEnabled,
-          presetId: preset.id,
-        });
+        updateSession(session.id, sessionUpdate);
       } else {
         createSession({
-          provider: preset.provider === 'auto' ? 'openai' : preset.provider,
-          model: preset.model,
-          mode: preset.mode,
-          systemPrompt: preset.systemPrompt,
+          provider: sessionUpdate.provider,
+          model: sessionUpdate.model,
+          mode: sessionUpdate.mode,
+          systemPrompt: sessionUpdate.systemPrompt,
         });
       }
     },
@@ -1513,15 +1530,25 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     ]
   );
 
+  const handlePresetManagerOpenChange = useCallback((open: boolean) => {
+    setShowPresetManager(open);
+    if (!open) {
+      setEditingPresetId(null);
+      setOpenPresetCreateOnMount(false);
+    }
+  }, []);
+
   // Open preset manager (can be used by child components)
-  const _handleManagePresets = useCallback(() => {
+  const handleManagePresets = useCallback(() => {
     setEditingPresetId(null);
+    setOpenPresetCreateOnMount(false);
     setShowPresetManager(true);
   }, []);
 
   // Create new preset (can be used by child components)
-  const _handleCreatePreset = useCallback(() => {
+  const handleCreatePreset = useCallback(() => {
     setEditingPresetId(null);
+    setOpenPresetCreateOnMount(true);
     setShowPresetManager(true);
   }, []);
 
@@ -3145,7 +3172,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
           <ArenaChatView
             sessionId={activeSessionId || undefined}
             systemPrompt={activePreset?.systemPrompt}
-            initialPrompt={inputValue}
+            initialPrompt={arenaWorkflowDraftPrompt || inputValue}
           />
           </ErrorBoundaryProvider>
         </div>
@@ -3374,14 +3401,8 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
         onModelClick={() => setShowModelPicker(true)}
         onWorkflowClick={() => setShowWorkflowSelector(true)}
         onPresetChange={handleSelectPreset}
-        onCreatePreset={() => {
-          setEditingPresetId(null);
-          setShowPresetManager(true);
-        }}
-        onManagePresets={() => {
-          setEditingPresetId(null);
-          setShowPresetManager(true);
-        }}
+        onCreatePreset={handleCreatePreset}
+        onManagePresets={handleManagePresets}
         onOpenWorkflowPicker={() => setShowWorkflowPicker(true)}
         onOpenPromptOptimization={() => setShowPromptOptimizationHub(true)}
         onOpenArena={() => setShowArenaDialog(true)}
@@ -3442,8 +3463,9 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
         activePreset={activePreset}
         // Preset manager
         showPresetManager={showPresetManager}
-        setShowPresetManager={setShowPresetManager}
+        setShowPresetManager={handlePresetManagerOpenChange}
         editingPresetId={editingPresetId}
+        openCreateOnMount={openPresetCreateOnMount}
         onPresetSelect={handleSelectPreset}
         // Context settings
         showContextSettings={showContextSettings}

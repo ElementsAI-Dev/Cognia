@@ -9,6 +9,7 @@ import type {
   ChatImporter,
   ChatImportOptions,
   ChatImportError,
+  ChatImportWarning,
   ParsedConversation,
   ProviderInfo,
 } from '@/types/import/base';
@@ -20,6 +21,7 @@ import type {
   GeminiSimpleMessage,
   GeminiAIStudioExport,
 } from '@/types/import/gemini';
+import { buildPortableConversation, createImportWarning } from './import-portable';
 
 type GeminiData = GeminiTakeoutExport | GeminiSimpleExport | GeminiAIStudioExport;
 
@@ -43,7 +45,20 @@ function isTakeoutFormat(data: unknown): data is GeminiTakeoutExport {
   if (obj.conversations.length === 0) return true;
 
   const first = obj.conversations[0] as Record<string, unknown>;
-  return 'messages' in first && Array.isArray(first.messages);
+  if (
+    !('id' in first) ||
+    !('create_time' in first) ||
+    !('update_time' in first) ||
+    !('messages' in first) ||
+    !Array.isArray(first.messages)
+  ) {
+    return false;
+  }
+
+  if (first.messages.length === 0) return true;
+
+  const firstMessage = first.messages[0] as Record<string, unknown>;
+  return 'role' in firstMessage && 'content' in firstMessage;
 }
 
 /**
@@ -96,11 +111,17 @@ function mapGeminiRole(role: string): MessageRole {
   }
 }
 
-/**
- * Extract content from simple message format
- */
-function extractSimpleContent(message: GeminiSimpleMessage): string {
-  return message.content
+function extractSimplePayload(
+  message: GeminiSimpleMessage
+): {
+  content: string;
+  attachments?: UIMessage['attachments'];
+  warnings: ChatImportWarning[];
+} {
+  const warnings: ChatImportWarning[] = [];
+  const attachments: NonNullable<UIMessage['attachments']> = [];
+
+  const content = message.content
     .map((part) => {
       if (part.type === 'text' && part.text) {
         return part.text;
@@ -110,12 +131,32 @@ function extractSimpleContent(message: GeminiSimpleMessage): string {
         return `\`\`\`${lang}\n${part.text}\n\`\`\``;
       }
       if (part.type === 'image') {
+        attachments.push({
+          id: nanoid(),
+          name: 'Gemini image',
+          type: 'image',
+          url: part.data || `import://gemini/image/${nanoid()}`,
+          size: 0,
+          mimeType: 'image/*',
+        });
+        warnings.push(
+          createImportWarning(
+            'attachment_summary_only',
+            'Gemini image parts are imported as attachment summaries only.'
+          )
+        );
         return '[Image]';
       }
       return '';
     })
     .filter(Boolean)
     .join('\n\n');
+
+  return {
+    content,
+    attachments: attachments.length > 0 ? attachments : undefined,
+    warnings,
+  };
 }
 
 /**
@@ -124,7 +165,7 @@ function extractSimpleContent(message: GeminiSimpleMessage): string {
 function convertTakeoutConversation(
   conversation: GeminiConversation,
   options: ChatImportOptions
-): { session: Session; messages: UIMessage[] } {
+): { session: Session; messages: UIMessage[]; warnings: ChatImportWarning[] } {
   const now = new Date();
   const createdAt = options.preserveTimestamps && conversation.create_time
     ? new Date(conversation.create_time)
@@ -132,11 +173,41 @@ function convertTakeoutConversation(
   const updatedAt = options.preserveTimestamps && conversation.update_time
     ? new Date(conversation.update_time)
     : now;
+  const warnings: ChatImportWarning[] = [];
 
   const messages: UIMessage[] = conversation.messages.map((msg: GeminiMessage, index: number) => {
     const msgCreatedAt = options.preserveTimestamps && msg.timestamp
       ? new Date(msg.timestamp)
       : now;
+    const attachments = msg.metadata?.attachments?.map((attachment) => ({
+      id: nanoid(),
+      name: attachment.name,
+      type: attachment.type === 'code'
+        ? 'document'
+        : attachment.type === 'file'
+          ? 'file'
+          : attachment.type,
+      url: attachment.content || `import://gemini/${attachment.type}/${encodeURIComponent(attachment.name)}`,
+      size: attachment.size_bytes || 0,
+      mimeType: attachment.mime_type || 'application/octet-stream',
+    })) as UIMessage['attachments'] | undefined;
+    const sources = msg.metadata?.citations?.map((citation, citationIndex) => ({
+      id: `${conversation.id}-citation-${citationIndex}`,
+      title: citation.title,
+      url: citation.url || '',
+      snippet: citation.snippet || '',
+      relevance: 1,
+    }));
+
+    if (attachments && attachments.length > 0) {
+      warnings.push(
+        createImportWarning(
+          'attachment_summary_only',
+          'Gemini attachments are imported as portable summaries.',
+          { conversationId: conversation.id }
+        )
+      );
+    }
 
     return {
       id: options.generateNewIds ? nanoid() : `gemini-${conversation.id}-${index}`,
@@ -145,6 +216,8 @@ function convertTakeoutConversation(
       createdAt: msgCreatedAt,
       model: msg.metadata?.model_version || options.defaultModel,
       provider: options.defaultProvider,
+      attachments,
+      sources,
     };
   });
 
@@ -162,7 +235,7 @@ function convertTakeoutConversation(
     lastMessagePreview: validMessages[validMessages.length - 1]?.content.slice(0, 100),
   };
 
-  return { session, messages: validMessages };
+  return { session, messages: validMessages, warnings };
 }
 
 /**
@@ -171,20 +244,27 @@ function convertTakeoutConversation(
 function convertSimpleExport(
   data: GeminiSimpleExport,
   options: ChatImportOptions
-): { session: Session; messages: UIMessage[] } {
+): { session: Session; messages: UIMessage[]; warnings: ChatImportWarning[] } {
   const now = new Date();
   const createdAt = options.preserveTimestamps && data.exported_at
     ? new Date(data.exported_at)
     : now;
+  const warnings: ChatImportWarning[] = [];
 
-  const messages: UIMessage[] = data.messages.map((msg, index) => ({
-    id: options.generateNewIds ? nanoid() : `gemini-simple-${index}`,
-    role: mapGeminiRole(msg.role),
-    content: extractSimpleContent(msg),
-    createdAt: now,
-    model: options.defaultModel,
-    provider: options.defaultProvider,
-  }));
+  const messages: UIMessage[] = data.messages.map((msg, index) => {
+    const payload = extractSimplePayload(msg);
+    warnings.push(...payload.warnings);
+
+    return {
+      id: options.generateNewIds ? nanoid() : `gemini-simple-${index}`,
+      role: mapGeminiRole(msg.role),
+      content: payload.content,
+      createdAt: now,
+      model: options.defaultModel,
+      provider: options.defaultProvider,
+      attachments: payload.attachments,
+    };
+  });
 
   const validMessages = messages.filter((m) => m.content.trim().length > 0);
 
@@ -200,7 +280,7 @@ function convertSimpleExport(
     lastMessagePreview: validMessages[validMessages.length - 1]?.content.slice(0, 100),
   };
 
-  return { session, messages: validMessages };
+  return { session, messages: validMessages, warnings };
 }
 
 /**
@@ -209,15 +289,33 @@ function convertSimpleExport(
 function convertAIStudioExport(
   data: GeminiAIStudioExport,
   options: ChatImportOptions
-): { session: Session; messages: UIMessage[] } {
+): { session: Session; messages: UIMessage[]; warnings: ChatImportWarning[] } {
   const now = new Date();
   const model = data.model || options.defaultModel || 'gemini-pro';
+  const warnings: ChatImportWarning[] = [];
 
   const messages: UIMessage[] = data.messages.map((msg, index) => {
+    const attachments: NonNullable<UIMessage['attachments']> = [];
     const content = msg.parts
       .map((part) => {
         if (part.text) return part.text;
-        if (part.inlineData) return `[${part.inlineData.mimeType}]`;
+        if (part.inlineData) {
+          attachments.push({
+            id: nanoid(),
+            name: part.inlineData.mimeType,
+            type: 'file',
+            url: `import://gemini/inline/${nanoid()}`,
+            size: 0,
+            mimeType: part.inlineData.mimeType,
+          });
+          warnings.push(
+            createImportWarning(
+              'attachment_summary_only',
+              'Gemini AI Studio inline data is imported as an attachment summary only.'
+            )
+          );
+          return `[${part.inlineData.mimeType}]`;
+        }
         return '';
       })
       .filter(Boolean)
@@ -230,6 +328,7 @@ function convertAIStudioExport(
       createdAt: now,
       model,
       provider: options.defaultProvider,
+      attachments: attachments.length > 0 ? attachments : undefined,
     };
   });
 
@@ -247,7 +346,7 @@ function convertAIStudioExport(
     lastMessagePreview: validMessages[validMessages.length - 1]?.content.slice(0, 100),
   };
 
-  return { session, messages: validMessages };
+  return { session, messages: validMessages, warnings };
 }
 
 /**
@@ -286,12 +385,24 @@ export class GeminiImporter implements ChatImporter<GeminiData> {
         for (const conversation of data.conversations) {
           try {
             const result = convertTakeoutConversation(conversation, opts);
+            const compatibility = result.warnings.length > 0 ? 'partial' : 'official';
             conversations.push({
               session: result.session,
               messages: result.messages,
               metadata: {
                 sourceFormat: 'gemini',
                 originalId: conversation.id,
+                sourceType: 'official',
+                compatibility,
+                warnings: result.warnings,
+                portableConversation: buildPortableConversation({
+                  session: result.session,
+                  messages: result.messages,
+                  sourceFormat: 'gemini',
+                  sourceType: 'official',
+                  compatibility,
+                  warnings: result.warnings,
+                }),
               },
             });
           } catch (error) {
@@ -304,21 +415,48 @@ export class GeminiImporter implements ChatImporter<GeminiData> {
         }
       } else if (isSimpleFormat(data)) {
         const result = convertSimpleExport(data, opts);
+        const compatibility = result.warnings.length > 0 ? 'partial' : 'adapted';
         conversations.push({
           session: result.session,
           messages: result.messages,
           metadata: {
             sourceFormat: 'gemini',
+            sourceType: 'official',
+            compatibility,
+            warnings: result.warnings,
+            portableConversation: buildPortableConversation({
+              session: result.session,
+              messages: result.messages,
+              sourceFormat: 'gemini',
+              sourceType: 'official',
+              compatibility,
+              warnings: result.warnings,
+            }),
           },
         });
       } else if (isAIStudioFormat(data)) {
         const result = convertAIStudioExport(data, opts);
+        const compatibility = result.warnings.length > 0 ? 'partial' : 'official';
         conversations.push({
           session: result.session,
           messages: result.messages,
           metadata: {
             sourceFormat: 'gemini',
             modelInfo: data.model,
+            sourceType: 'official',
+            compatibility,
+            warnings: result.warnings,
+            portableConversation: buildPortableConversation({
+              session: result.session,
+              messages: result.messages,
+              sourceFormat: 'gemini',
+              sourceType: 'official',
+              compatibility,
+              warnings: result.warnings,
+              metadata: {
+                modelInfo: data.model,
+              },
+            }),
           },
         });
       }

@@ -35,12 +35,17 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import {
-  detectImportFormat,
   previewImport,
   importConversations,
   PLATFORM_INFO,
 } from '@/lib/storage';
-import type { ChatImportFormat, ChatImportOptions, ChatImportResult, ChatImportError } from '@/types';
+import type {
+  ChatImportFormat,
+  ChatImportOptions,
+  ChatImportPreviewResult,
+  ChatImportResult,
+  ChatImportWarning,
+} from '@/types';
 
 interface ChatImportDialogProps {
   open: boolean;
@@ -50,17 +55,7 @@ interface ChatImportDialogProps {
 
 type ImportStep = 'select' | 'preview' | 'importing' | 'complete';
 
-interface PreviewData {
-  conversations: Array<{
-    id: string;
-    title: string;
-    messageCount: number;
-    createdAt: Date;
-    preview: string;
-  }>;
-  totalMessages: number;
-  errors: ChatImportError[];
-}
+type PreviewData = ChatImportPreviewResult;
 
 const DEFAULT_OPTIONS: ChatImportOptions = {
   mergeStrategy: 'merge',
@@ -75,6 +70,10 @@ const FORMAT_LABELS: Record<ChatImportFormat, string> = {
   chatgpt: 'ChatGPT',
   claude: 'Claude',
   gemini: 'Gemini',
+  portable: 'Portable Archive',
+  'markdown-transcript': 'Markdown Transcript',
+  'csv-transcript': 'CSV Transcript',
+  'json-transcript': 'JSON Transcript',
   cognia: 'Cognia',
   unknown: 'Unknown',
 };
@@ -123,28 +122,25 @@ export function ChatImportDialog({
       setFileContent(content);
       setFileName(file.name);
 
-      // Parse and detect format
-      let data: unknown;
-      try {
-        data = JSON.parse(content);
-      } catch {
-        setError(t('errors.invalidJson'));
-        setIsLoading(false);
-        return;
-      }
+      const previewResult = await previewImport(content, options);
+      setFormat(previewResult.format);
 
-      const detectedFormat = detectImportFormat(data);
-      setFormat(detectedFormat);
-
-      if (detectedFormat === 'chatgpt' || detectedFormat === 'claude' || detectedFormat === 'gemini') {
-        // Generate preview for supported formats
-        const previewResult = await previewImport(content, options);
+      if (
+        previewResult.format !== 'unknown' &&
+        previewResult.format !== 'cognia' &&
+        previewResult.conversations.length > 0
+      ) {
         setPreview(previewResult);
         setStep('preview');
-      } else if (detectedFormat === 'cognia') {
+      } else if (previewResult.format === 'cognia') {
         setError(t('errors.useCogniaImport'));
       } else {
-        setError(t('errors.unknownFormat'));
+        const firstError = previewResult.errors[0]?.message;
+        if (firstError === 'Invalid JSON format') {
+          setError(t('errors.invalidJson'));
+        } else {
+          setError(t('errors.unknownFormat'));
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.readFailed'));
@@ -208,7 +204,7 @@ export function ChatImportDialog({
               <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
                 <input
                   type="file"
-                  accept=".json"
+                  accept=".json,.md,.markdown,.csv,.txt"
                   onChange={handleFileSelect}
                   className="hidden"
                   id="import-file"
@@ -260,6 +256,12 @@ export function ChatImportDialog({
                 <span className="text-muted-foreground">
                   {preview.conversations.length} {t('conversations')}, {preview.totalMessages} {t('messages')}
                 </span>
+              </div>
+
+              <div className="rounded-lg border p-3 text-sm">
+                <p className="font-medium">
+                  {t('compatibility')}: <span className="capitalize">{preview.detection.compatibility}</span>
+                </p>
               </div>
 
               <ScrollArea className="h-[200px] rounded-lg border p-2">
@@ -339,6 +341,17 @@ export function ChatImportDialog({
                   </AlertDescription>
                 </Alert>
               )}
+
+              {preview.warningDetails.length > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  <p className="font-medium">{t('warnings')}:</p>
+                  <ul className="list-disc list-inside mt-1">
+                    {preview.warningDetails.slice(0, 5).map((warning: ChatImportWarning, i: number) => (
+                      <li key={`${warning.code}-${i}`}>{warning.message}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 
@@ -383,12 +396,14 @@ export function ChatImportDialog({
                 </Alert>
               )}
 
-              {result.warnings.length > 0 && (
+              {(result.warningDetails?.length || result.warnings.length) > 0 && (
                 <div className="text-sm text-muted-foreground">
                   <p className="font-medium">{t('warnings')}:</p>
                   <ul className="list-disc list-inside mt-1">
-                    {result.warnings.slice(0, 5).map((warning, i) => (
-                      <li key={i}>{warning}</li>
+                    {(result.warningDetails?.slice(0, 5) || result.warnings.slice(0, 5)).map((warning, i) => (
+                      <li key={typeof warning === 'string' ? `${warning}-${i}` : `${warning.code}-${i}`}>
+                        {typeof warning === 'string' ? warning : warning.message}
+                      </li>
                     ))}
                   </ul>
                 </div>

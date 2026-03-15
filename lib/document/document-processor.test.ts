@@ -16,6 +16,16 @@ import {
   compareDocuments,
   isBinaryType,
 } from './document-processor';
+import {
+  parseWord,
+  parseExcel,
+} from './parsers/office-parser';
+import { parsePresentation } from './parsers/presentation-parser';
+import {
+  parseOpenDocumentText,
+  parseOpenDocumentSpreadsheet,
+  parseOpenDocumentPresentation,
+} from './parsers/open-document-parser';
 
 jest.mock('@/lib/ai/embedding/chunking', () => ({
   chunkDocument: jest.fn((content: string) => {
@@ -55,6 +65,44 @@ jest.mock('./parsers/presentation-parser', () => ({
     metadata: { title: 'Demo Deck', author: 'Tester' },
   })),
   extractPresentationEmbeddableContent: jest.fn((result: { text: string }) => result.text),
+}));
+
+jest.mock('./parsers/office-parser', () => ({
+  parseWord: jest.fn(async () => ({
+    text: 'Parsed Word content',
+    html: '<p>Parsed Word content</p>',
+    messages: [],
+    images: [],
+    metadata: { title: 'Word Title', author: 'Tester' },
+  })),
+  extractWordEmbeddableContent: jest.fn((result: { text: string }) => result.text),
+  parseExcel: jest.fn(async () => ({
+    text: '## Sheet: Sheet1\nValue',
+    sheets: [{ name: 'Sheet1', data: [['Value']], rowCount: 1, columnCount: 1 }],
+    sheetNames: ['Sheet1'],
+  })),
+  extractExcelEmbeddableContent: jest.fn((result: { text: string }) => result.text),
+}));
+
+jest.mock('./parsers/open-document-parser', () => ({
+  parseOpenDocumentText: jest.fn(async () => ({
+    text: 'Parsed ODT content',
+    html: '<p>Parsed ODT content</p>',
+    messages: [],
+    images: [],
+    metadata: { title: 'OpenDocument Text', author: 'Tester' },
+  })),
+  parseOpenDocumentSpreadsheet: jest.fn(async () => ({
+    text: '## Sheet: ODS Sheet\nValue',
+    sheets: [{ name: 'ODS Sheet', data: [['Value']], rowCount: 1, columnCount: 1 }],
+    sheetNames: ['ODS Sheet'],
+  })),
+  parseOpenDocumentPresentation: jest.fn(async () => ({
+    text: '## Slide 1\nParsed ODP slide',
+    slideCount: 1,
+    slides: [{ slideNumber: 1, title: 'Parsed ODP slide', text: 'Parsed ODP slide' }],
+    metadata: { title: 'ODP Deck', author: 'Tester' },
+  })),
 }));
 
 jest.mock('./parsers/rtf-parser', () => ({
@@ -324,6 +372,31 @@ describe('processDocument', () => {
 });
 
 describe('processDocumentAsync', () => {
+  beforeEach(() => {
+    jest.mocked(parseWord).mockClear();
+    jest.mocked(parseExcel).mockClear();
+    jest.mocked(parsePresentation).mockClear();
+    jest.mocked(parseOpenDocumentText).mockClear();
+    jest.mocked(parseOpenDocumentSpreadsheet).mockClear();
+    jest.mocked(parseOpenDocumentPresentation).mockClear();
+  });
+
+  it('processes macro-enabled word files via office parser', async () => {
+    const result = await processDocumentAsync('doc-async-word', 'template.docm', new ArrayBuffer(8));
+
+    expect(parseWord).toHaveBeenCalled();
+    expect(result.type).toBe('word');
+    expect(result.content).toContain('Parsed Word content');
+  });
+
+  it('processes macro-enabled excel files via office parser', async () => {
+    const result = await processDocumentAsync('doc-async-excel', 'financials.xlsm', new ArrayBuffer(8));
+
+    expect(parseExcel).toHaveBeenCalled();
+    expect(result.type).toBe('excel');
+    expect(result.content).toContain('Sheet1');
+  });
+
   it('processes presentation files via presentation parser', async () => {
     const result = await processDocumentAsync('doc-async-1', 'slides.pptx', new ArrayBuffer(8));
 
@@ -354,10 +427,50 @@ describe('processDocumentAsync', () => {
     expect(result.metadata.language).toBe('epub');
   });
 
+  it('processes open document text files via dedicated parser', async () => {
+    const result = await processDocumentAsync('doc-async-odt', 'notes.odt', new ArrayBuffer(8));
+
+    expect(parseOpenDocumentText).toHaveBeenCalled();
+    expect(result.type).toBe('word');
+    expect(result.content).toContain('Parsed ODT content');
+  });
+
+  it('processes open document spreadsheets via dedicated parser', async () => {
+    const result = await processDocumentAsync('doc-async-ods', 'budget.ods', new ArrayBuffer(8));
+
+    expect(parseOpenDocumentSpreadsheet).toHaveBeenCalled();
+    expect(result.type).toBe('excel');
+    expect(result.content).toContain('ODS Sheet');
+  });
+
+  it('processes open document presentations via dedicated parser', async () => {
+    const result = await processDocumentAsync('doc-async-odp', 'roadmap.odp', new ArrayBuffer(8));
+
+    expect(parseOpenDocumentPresentation).toHaveBeenCalled();
+    expect(result.type).toBe('presentation');
+    expect(result.content).toContain('Parsed ODP slide');
+  });
+
   it('throws actionable error for legacy ppt files', async () => {
     await expect(
       processDocumentAsync('doc-async-4', 'legacy.ppt', new ArrayBuffer(8))
     ).rejects.toThrow('convert to .pptx');
+  });
+
+  it('throws actionable error for unreadable macro-enabled word files', async () => {
+    jest.mocked(parseWord).mockRejectedValueOnce(new Error('zip failure'));
+
+    await expect(
+      processDocumentAsync('doc-async-docm-error', 'protected.docm', new ArrayBuffer(8))
+    ).rejects.toThrow('password protected or corrupted');
+  });
+
+  it('throws actionable error for unreadable macro-enabled presentation files', async () => {
+    jest.mocked(parsePresentation).mockRejectedValueOnce(new Error('zip failure'));
+
+    await expect(
+      processDocumentAsync('doc-async-pptm-error', 'protected.pptm', new ArrayBuffer(8))
+    ).rejects.toThrow('password protected or corrupted');
   });
 
   it('falls back to sync processing for unknown types', async () => {
@@ -744,6 +857,18 @@ describe('new document type detection', () => {
   it('detects presentation files', () => {
     expect(detectDocumentType('slides.pptx')).toBe('presentation');
     expect(detectDocumentType('deck.ppt')).toBe('presentation');
+  });
+
+  it('detects macro-enabled office files', () => {
+    expect(detectDocumentType('template.docm')).toBe('word');
+    expect(detectDocumentType('financials.xlsm')).toBe('excel');
+    expect(detectDocumentType('deck.pptm')).toBe('presentation');
+  });
+
+  it('detects open document formats', () => {
+    expect(detectDocumentType('notes.odt')).toBe('word');
+    expect(detectDocumentType('sheet.ods')).toBe('excel');
+    expect(detectDocumentType('slides.odp')).toBe('presentation');
   });
 
   it('detects RTF files', () => {

@@ -11,7 +11,10 @@
 
 import { streamText } from 'ai';
 import { nanoid } from 'nanoid';
-import { getProviderModel } from '@/lib/ai/core/client';
+import {
+  createFeatureProviderModelFromRuntimeConfig,
+  createFeatureRoutePolicy,
+} from '@/lib/ai/provider-consumption';
 import {
   cleanAICodeResponse,
   continueDesignConversation as continueDesignConversationBase,
@@ -275,20 +278,21 @@ export async function* streamConversation(
   userMessage: string,
   config: DesignerAIConfig
 ): AsyncGenerator<ConversationStreamUpdate> {
-  if (!config.apiKey && config.provider !== 'ollama') {
-    yield {
-      type: 'error',
-      content: `No API key configured for ${config.provider}`,
-    };
-    return;
-  }
-
   try {
-    const model = getProviderModel(
-      config.provider,
-      config.model,
-      config.apiKey || '',
-      config.baseURL
+    const model = createFeatureProviderModelFromRuntimeConfig(
+      createFeatureRoutePolicy('general-text', {
+        featureId: 'designer-ai-conversation',
+        selectionMode: 'explicit-provider',
+        providerId: config.provider,
+        model: config.model,
+        fallbackMode: 'none',
+      }),
+      {
+        providerId: config.provider,
+        model: config.model,
+        apiKey: config.apiKey || '',
+        baseURL: config.baseURL,
+      }
     );
 
     // Build context

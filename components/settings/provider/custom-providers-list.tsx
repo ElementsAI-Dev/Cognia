@@ -21,7 +21,7 @@ type AnyCustomProvider = TypesCustomProviderSettings | StoreCustomProviderSettin
 
 interface CustomProvidersListProps {
   providers: Record<string, AnyCustomProvider>;
-  testResults: Record<string, 'success' | 'error' | null>;
+  testResults: Record<string, 'success' | 'error' | 'limited' | null>;
   testMessages: Record<string, string | null>;
   testingProviders: Record<string, boolean>;
   onTestProvider: (providerId: string) => void;
@@ -56,7 +56,7 @@ export const CustomProvidersListItem = React.memo(function CustomProvidersListIt
 }: {
   providerId: string;
   provider: AnyCustomProvider;
-  testResult: 'success' | 'error' | null;
+  testResult: 'success' | 'error' | 'limited' | null;
   testMessage: string | null;
   isTesting: boolean;
   onTest: () => void;
@@ -79,6 +79,11 @@ export const CustomProvidersListItem = React.memo(function CustomProvidersListIt
               {t('verificationStaleShort')}
             </Badge>
           )}
+          {testResult === 'limited' && (
+            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-400">
+              {t('verificationLimitedShort')}
+            </Badge>
+          )}
           {testResult === 'success' && <Check className="h-4 w-4 text-green-500" />}
           {testResult === 'error' && <AlertCircle className="h-4 w-4 text-destructive" />}
         </div>
@@ -87,7 +92,11 @@ export const CustomProvidersListItem = React.memo(function CustomProvidersListIt
           <p
             className={cn(
               'text-xs',
-              testResult === 'error' ? 'text-destructive' : 'text-muted-foreground'
+              testResult === 'error'
+                ? 'text-destructive'
+                : testResult === 'limited'
+                  ? 'text-amber-600'
+                  : 'text-muted-foreground'
             )}
           >
             {testMessage}

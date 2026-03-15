@@ -31,12 +31,14 @@ export function useArtifactPanelState() {
     panelView,
     activeArtifactId,
     artifacts,
+    artifactWorkspace,
   } = useArtifactStore(
     useShallow((state) => ({
       panelOpen: state.panelOpen,
       panelView: state.panelView,
       activeArtifactId: state.activeArtifactId,
       artifacts: state.artifacts,
+      artifactWorkspace: state.artifactWorkspace,
     }))
   );
 
@@ -48,6 +50,7 @@ export function useArtifactPanelState() {
     createCanvasDocument,
     setActiveCanvas,
     openPanel,
+    setArtifactWorkspaceReturnContext,
   } = useArtifactStore(
     useShallow((state) => ({
       closePanel: state.closePanel,
@@ -56,6 +59,7 @@ export function useArtifactPanelState() {
       createCanvasDocument: state.createCanvasDocument,
       setActiveCanvas: state.setActiveCanvas,
       openPanel: state.openPanel,
+      setArtifactWorkspaceReturnContext: state.setArtifactWorkspaceReturnContext,
     }))
   );
 
@@ -116,6 +120,10 @@ export function useArtifactPanelState() {
   // Handlers
   const handleOpenInCanvas = useCallback(() => {
     if (activeArtifact) {
+      setArtifactWorkspaceReturnContext({
+        ...artifactWorkspace,
+        activeArtifactId: activeArtifact.id,
+      });
       const docId = createCanvasDocument({
         title: activeArtifact.title,
         content: activeArtifact.content,
@@ -125,7 +133,14 @@ export function useArtifactPanelState() {
       setActiveCanvas(docId);
       openPanel('canvas');
     }
-  }, [activeArtifact, createCanvasDocument, setActiveCanvas, openPanel]);
+  }, [
+    activeArtifact,
+    artifactWorkspace,
+    createCanvasDocument,
+    openPanel,
+    setActiveCanvas,
+    setArtifactWorkspaceReturnContext,
+  ]);
 
   const handleEditMode = useCallback(() => {
     if (activeArtifact) {

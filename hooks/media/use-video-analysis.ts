@@ -9,6 +9,8 @@
 
 import { useState, useCallback } from 'react';
 import { useSettingsStore } from '@/stores';
+import { createProviderSettingsSnapshot } from '@/lib/ai/provider-consumption';
+import { resolveSubtitleTranscriptionAccess } from '@/lib/ai/provider-consumption/capability-provider';
 import type {
   SubtitleTrack,
   SubtitleCue,
@@ -66,18 +68,23 @@ export function useVideoAnalysis(options: UseVideoAnalysisOptions = {}): UseVide
   const {
     language = 'en',
     transcribeIfMissing = true,
-    customPrompt,
-    onSubtitlesExtracted,
-    onTranscriptionComplete,
-    onAnalysisComplete,
+  customPrompt,
+  onSubtitlesExtracted,
+  onTranscriptionComplete,
+  onAnalysisComplete,
   } = options;
 
-  // Get API key for Whisper (OpenAI)
   const providerSettings = useSettingsStore((state) => state.providerSettings);
-  const getApiKey = useCallback((): string => {
-    // Use OpenAI API key for Whisper
-    return providerSettings.openai?.apiKey || '';
-  }, [providerSettings]);
+  const getTranscriptionAccess = useCallback(
+    () =>
+      resolveSubtitleTranscriptionAccess(
+        createProviderSettingsSnapshot({
+          defaultProvider: '',
+          providerSettings,
+        })
+      ),
+    [providerSettings]
+  );
 
   // State
   const [isLoading, setIsLoading] = useState(false);
@@ -123,10 +130,14 @@ export function useVideoAnalysis(options: UseVideoAnalysisOptions = {}): UseVide
       setError(null);
 
       try {
-        const apiKey = getApiKey();
+        const access = getTranscriptionAccess();
+        if (access.kind !== 'resolved') {
+          setError(access.reason);
+          return null;
+        }
         const { getVideoSubtitles } = await getVideoSubtitleModule();
 
-        const result = await getVideoSubtitles(videoPath, apiKey, {
+        const result = await getVideoSubtitles(videoPath, access.apiKey, {
           preferredLanguage: language,
           transcribeIfMissing,
         });
@@ -148,16 +159,15 @@ export function useVideoAnalysis(options: UseVideoAnalysisOptions = {}): UseVide
         setIsLoading(false);
       }
     },
-    [getVideoSubtitleModule, getApiKey, language, transcribeIfMissing, onSubtitlesExtracted]
+    [getVideoSubtitleModule, getTranscriptionAccess, language, transcribeIfMissing, onSubtitlesExtracted]
   );
 
   // Transcribe video using Whisper
   const transcribeVideo = useCallback(
     async (videoPath: string): Promise<TranscriptionResult | null> => {
-      const apiKey = getApiKey();
-
-      if (!apiKey) {
-        setError('OpenAI API key required for transcription');
+      const access = getTranscriptionAccess();
+      if (access.kind !== 'resolved') {
+        setError(access.reason);
         return null;
       }
 
@@ -167,7 +177,7 @@ export function useVideoAnalysis(options: UseVideoAnalysisOptions = {}): UseVide
       try {
         const { transcribeVideo: transcribe } = await getVideoSubtitleModule();
 
-        const result = await transcribe(videoPath, apiKey, {
+        const result = await transcribe(videoPath, access.apiKey, {
           language,
           includeTimestamps: true,
         });
@@ -193,7 +203,7 @@ export function useVideoAnalysis(options: UseVideoAnalysisOptions = {}): UseVide
         setIsTranscribing(false);
       }
     },
-    [getVideoSubtitleModule, getApiKey, language, onTranscriptionComplete]
+    [getVideoSubtitleModule, getTranscriptionAccess, language, onTranscriptionComplete]
   );
 
   // Analyze video content
@@ -202,7 +212,11 @@ export function useVideoAnalysis(options: UseVideoAnalysisOptions = {}): UseVide
       videoPath: string,
       type: 'summary' | 'transcript' | 'key-moments' | 'qa' | 'full' = 'summary'
     ): Promise<VideoAnalysisResult | null> => {
-      const apiKey = getApiKey();
+      const access = getTranscriptionAccess();
+      if (access.kind !== 'resolved') {
+        setError(access.reason);
+        return null;
+      }
 
       setIsAnalyzing(true);
       setError(null);
@@ -219,7 +233,7 @@ export function useVideoAnalysis(options: UseVideoAnalysisOptions = {}): UseVide
             useSubtitles: true,
             transcribeIfNeeded: transcribeIfMissing,
           },
-          apiKey
+          access.apiKey
         );
 
         if (result.success) {
@@ -243,7 +257,7 @@ export function useVideoAnalysis(options: UseVideoAnalysisOptions = {}): UseVide
     },
     [
       getVideoSubtitleModule,
-      getApiKey,
+      getTranscriptionAccess,
       language,
       customPrompt,
       transcribeIfMissing,

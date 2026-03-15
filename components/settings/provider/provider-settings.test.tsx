@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ProviderSettings } from './provider-settings';
-import { testProviderConnection } from '@/lib/ai/infrastructure/api-test';
+import { probeProviderConnection } from '@/lib/ai/infrastructure/api-test';
 import { toast } from '@/components/ui/sonner';
 import type { UserProviderSettings } from '@/types/provider';
 
@@ -30,6 +30,7 @@ const mockProviderSettings: Record<string, Partial<UserProviderSettings>> = {
   openai: { apiKey: 'test-key', enabled: true },
   anthropic: { apiKey: '', enabled: false },
   google: { apiKey: '', enabled: false },
+  zhipu: { apiKey: '', enabled: false, defaultModel: 'glm-4-flash' },
   ollama: { enabled: true, baseURL: 'http://localhost:11434' },
 };
 
@@ -77,6 +78,13 @@ jest.mock('@/types/provider', () => ({
       defaultModel: 'claude-3',
       category: 'flagship',
     },
+    zhipu: {
+      id: 'zhipu',
+      name: 'Zhipu AI (智谱清言)',
+      models: [{ id: 'glm-4-flash', name: 'GLM-4 Flash' }],
+      defaultModel: 'glm-4-flash',
+      category: 'specialized',
+    },
     ollama: {
       id: 'ollama',
       name: 'Ollama',
@@ -90,6 +98,13 @@ jest.mock('@/types/provider', () => ({
 // Mock API test
 jest.mock('@/lib/ai/infrastructure/api-test', () => ({
   testProviderConnection: jest.fn().mockResolvedValue({ success: true, latency_ms: 100 }),
+  probeProviderConnection: jest.fn().mockResolvedValue({
+    success: true,
+    authoritative: true,
+    outcome: 'verified',
+    message: 'Connected successfully.',
+    latency_ms: 100,
+  }),
   testCustomProviderConnectionByProtocol: jest.fn().mockResolvedValue({
     success: true,
     message: 'Connected successfully.',
@@ -245,6 +260,7 @@ describe('ProviderSettings', () => {
       openai: { apiKey: 'test-key', enabled: true },
       anthropic: { apiKey: '', enabled: false },
       google: { apiKey: '', enabled: false },
+      zhipu: { apiKey: '', enabled: false, defaultModel: 'glm-4-flash' },
       ollama: { enabled: true, baseURL: 'http://localhost:11434' },
     };
     mockSettingsState.customProviders = {};
@@ -275,6 +291,25 @@ describe('ProviderSettings', () => {
   it('displays Anthropic provider', () => {
     render(<ProviderSettings />);
     expect(screen.getByText('Anthropic')).toBeInTheDocument();
+  });
+
+  it('offers built-in migration action when an equivalent custom provider exists', () => {
+    mockSettingsState.customProviders = {
+      'custom-zhipu': {
+        providerId: 'custom-zhipu',
+        customName: 'Zhipu API',
+        baseURL: 'https://open.bigmodel.cn/api/paas/v4',
+        apiKey: 'zhipu-key',
+        apiProtocol: 'openai',
+        customModels: ['glm-4.6', 'glm-4-flash'],
+        defaultModel: 'glm-4.6',
+        enabled: true,
+      },
+    };
+
+    render(<ProviderSettings />);
+
+    expect(screen.getAllByText('importEquivalentCustomProvider').length).toBeGreaterThan(0);
   });
 
   it('shows local providers section when local tab is selected', async () => {
@@ -345,9 +380,14 @@ describe('ProviderSettings', () => {
     fireEvent.click(screen.getByText('testSelected'));
 
     await waitFor(() => {
-      expect(testProviderConnection).toHaveBeenCalledTimes(1);
+      expect(probeProviderConnection).toHaveBeenCalledTimes(1);
     });
-    expect(testProviderConnection).toHaveBeenCalledWith('openai', 'test-key', undefined);
+    expect(probeProviderConnection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerId: 'openai',
+        apiKey: 'test-key',
+      })
+    );
   });
 
   it('shows warning when testing selected providers with no eligible candidates', async () => {
@@ -363,6 +403,54 @@ describe('ProviderSettings', () => {
     await waitFor(() => {
       expect((toast.warning as jest.Mock)).toHaveBeenCalled();
     });
+  });
+
+  it('uses the active pooled API key when testing built-in providers', async () => {
+    mockSettingsState.providerSettings.openai = {
+      apiKey: '',
+      apiKeys: ['sk-primary', 'sk-pooled-active'],
+      currentKeyIndex: 1,
+      enabled: true,
+      defaultModel: 'gpt-4',
+    };
+
+    render(<ProviderSettings />);
+    fireEvent.click(screen.getAllByRole('button', { name: 'test' })[0]);
+
+    await waitFor(() => {
+      expect(probeProviderConnection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          providerId: 'openai',
+          apiKey: 'sk-pooled-active',
+        })
+      );
+    });
+  });
+
+  it('does not present runtime-limited verification as connected success', async () => {
+    (probeProviderConnection as jest.Mock).mockResolvedValueOnce({
+      success: false,
+      authoritative: false,
+      outcome: 'limited',
+      message: 'Authoritative verification requires the desktop app.',
+      latency_ms: 0,
+    });
+
+    mockSettingsState.providerUIPreferences.viewMode = 'table';
+    render(<ProviderSettings />);
+
+    const openAiSelector = screen
+      .getAllByLabelText('selectProviderRow')
+      .find((checkbox) => checkbox.closest('tr')?.textContent?.includes('OpenAI'));
+
+    fireEvent.click(openAiSelector!);
+    fireEvent.click(screen.getByText('testSelected'));
+
+    await waitFor(() => {
+      expect(probeProviderConnection).toHaveBeenCalled();
+    });
+
+    expect(screen.queryByText('connected')).not.toBeInTheDocument();
   });
 
   it('returns equivalent blocked test guidance across card and table views', () => {
@@ -420,7 +508,12 @@ describe('ProviderSettings', () => {
     fireEvent.click(screen.getByText('testSelected'));
 
     await waitFor(() => {
-      expect(testProviderConnection).toHaveBeenCalledWith('openai', 'test-key', undefined);
+      expect(probeProviderConnection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          providerId: 'openai',
+          apiKey: 'test-key',
+        })
+      );
     });
     expect(screen.getByText('connected')).toBeInTheDocument();
 

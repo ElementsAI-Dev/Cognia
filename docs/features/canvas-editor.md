@@ -24,6 +24,10 @@ The Canvas experience is considered complete only when these guarantees hold:
    - Outline, breadcrumb, and direct navigation resolve to one canonical location model.
    - Returning to a long document restores the latest compatible work point and preserves dirty-state semantics.
    - Large-document safeguards visibly reduce noncritical work before typing and navigation become sluggish.
+7. **AI workbench productivity**
+   - Users can launch inline AI edit instructions from the active cursor or selection without leaving the current document.
+   - Related Canvas documents, artifacts, and supported session context are attached explicitly before AI execution.
+   - AI edit proposals remain reviewable until accepted, including item-level decisions and resumable action history.
 
 ## Benchmark and Traceability
 
@@ -36,6 +40,7 @@ The Canvas experience is considered complete only when these guarantees hold:
 
 Each P0/P1 Canvas change must cite benchmark pattern IDs (`BP-01+`) in change artifacts.
 Long-document work specifically traces against `BP-06`, `BP-07`, and `BP-08`.
+AI workbench flow specifically traces against `BP-09`, `BP-10`, `BP-11`, and `BP-12`.
 
 ## Key Runtime Surfaces
 
@@ -44,6 +49,7 @@ Long-document work specifically traces against `BP-06`, `BP-07`, and `BP-08`.
 - Collaboration panel: `components/canvas/collaboration-panel.tsx`
 - Auto-save state sync: `hooks/canvas/use-canvas-auto-save.ts`
 - AI action orchestration: `hooks/canvas/use-canvas-actions.ts`
+- AI workbench feature gating: `lib/canvas/feature-flags.ts`
 - Large-document navigation/context orchestration: `hooks/canvas/use-canvas-monaco-setup.ts`
 - Large-document profile selection: `lib/canvas/utils.ts`
 - Persistence and version retention: `stores/artifact/artifact-store.ts`
@@ -52,4 +58,5 @@ Long-document work specifically traces against `BP-06`, `BP-07`, and `BP-08`.
 ## Keyboard and Testing Notes
 
 - Global toggle shortcut: `Ctrl + .` opens/closes Canvas panel.
+- Inline AI command shortcut: `Ctrl + K` opens the Canvas inline command entry when the AI workbench feature flag is enabled.
 - Deterministic e2e hooks rely on stable selectors (`data-testid`) for panel controls, AI diff controls, document creation, version restore actions, large-document status indicators, and outline navigation controls.

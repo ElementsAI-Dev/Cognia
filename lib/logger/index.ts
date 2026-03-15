@@ -64,6 +64,13 @@ export {
   traced,
 } from './context';
 
+export {
+  createLogRuntimeContext,
+  normalizeLogOrigin,
+  normalizeLogRuntime,
+  withLogRuntimeContext,
+} from './runtime';
+
 // Sampling exports
 export {
   logSampler,
@@ -75,6 +82,8 @@ export {
 export type {
   Logger,
   LogLevel,
+  LogOrigin,
+  LogRuntime,
   StructuredLogEntry,
   Transport,
   TransportHealthStatus,

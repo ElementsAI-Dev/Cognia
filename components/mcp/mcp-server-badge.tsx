@@ -4,7 +4,7 @@
  * MCPServerBadge - Displays MCP server identity with status indicator
  */
 
-import { Server, Wifi, WifiOff, Loader2, AlertCircle } from 'lucide-react';
+import { Server, Wifi, WifiOff, Loader2, AlertCircle, type LucideIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -19,7 +19,7 @@ export interface MCPServerBadgeProps {
   className?: string;
 }
 
-const statusConfig: Record<string, { icon: React.ElementType; color: string; bgColor: string }> = {
+const statusConfig: Record<string, { icon: LucideIcon; color: string; bgColor: string }> = {
   disconnected: { icon: WifiOff, color: 'text-muted-foreground', bgColor: 'bg-muted' },
   connecting: {
     icon: Loader2,

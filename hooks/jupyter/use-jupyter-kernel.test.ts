@@ -27,6 +27,12 @@ jest.mock('@/lib/jupyter/kernel', () => ({
     getSessionById: jest.fn(() => Promise.resolve(null)),
     getKernelConfig: jest.fn(() => Promise.resolve(null)),
     getNotebookInfo: jest.fn(() => Promise.resolve({ fileName: 'test.ipynb', codeCells: 2, markdownCells: 1 })),
+    prepareNotebookEnvironment: jest.fn(() =>
+      Promise.resolve({ ready: true, installedKernel: false, error: null })
+    ),
+    restoreNotebookSession: jest.fn(() =>
+      Promise.resolve({ status: 'needs_reconnect', session: null, kernelAlive: false, error: 'Session not found' })
+    ),
     // Required for hook initialization
     isAvailable: jest.fn(() => true),
     listSessions: jest.fn(() => Promise.resolve([])),
@@ -49,6 +55,12 @@ const mockGetSessionById = kernelService.getSessionById as jest.Mock;
 const mockGetKernelConfig = kernelService.getKernelConfig as jest.Mock;
 const mockGetNotebookInfo = kernelService.getNotebookInfo as jest.Mock;
 const mockCleanup = kernelService.cleanup as jest.Mock;
+const mockPrepareNotebookEnvironment = (kernelService as typeof kernelService & {
+  prepareNotebookEnvironment: jest.Mock;
+}).prepareNotebookEnvironment;
+const mockRestoreNotebookSession = (kernelService as typeof kernelService & {
+  restoreNotebookSession: jest.Mock;
+}).restoreNotebookSession;
 
 // Mock stores
 let mockStoreState = {
@@ -79,6 +91,8 @@ const mockClearVariables = jest.fn();
 const mockClearExecutionHistory = jest.fn();
 const mockMapChatToJupyter = jest.fn();
 const mockUnmapChatSession = jest.fn();
+const mockSetWorkspaceRecoveryState = jest.fn();
+const mockMarkWorkspacesForReconnectByKernelId = jest.fn();
 
 jest.mock('@/stores/jupyter', () => ({
   useJupyterStore: jest.fn((selector) => {
@@ -97,6 +111,12 @@ jest.mock('@/stores/jupyter', () => ({
       addExecutionHistory: jest.fn(),
       mapChatToJupyter: mockMapChatToJupyter,
       unmapChatSession: mockUnmapChatSession,
+      workspaces: {},
+      upsertWorkspace: jest.fn(),
+      removeWorkspace: jest.fn(),
+      getWorkspace: jest.fn(() => null),
+      setWorkspaceRecoveryState: mockSetWorkspaceRecoveryState,
+      markWorkspacesForReconnectByKernelId: mockMarkWorkspacesForReconnectByKernelId,
       updateSession: mockUpdateSession,
       clearVariables: mockClearVariables,
       clearExecutionHistory: mockClearExecutionHistory,
@@ -281,6 +301,29 @@ describe('useJupyterKernel', () => {
   });
 
   describe('utility functions', () => {
+    it('should prepare notebook environments through the shared readiness flow', async () => {
+      const { result } = renderHook(() => useJupyterKernel());
+      const extendedResult = result.current as typeof result.current & {
+        prepareNotebookEnvironment: (envPath: string) => Promise<{
+          ready: boolean;
+          installedKernel: boolean;
+          error: string | null;
+        }>;
+      };
+
+      let readiness;
+      await act(async () => {
+        readiness = await extendedResult.prepareNotebookEnvironment('/path/to/env');
+      });
+
+      expect(mockPrepareNotebookEnvironment).toHaveBeenCalledWith('/path/to/env');
+      expect(readiness).toEqual({
+        ready: true,
+        installedKernel: false,
+        error: null,
+      });
+    });
+
     it('should check kernel availability', async () => {
       const { result } = renderHook(() => useJupyterKernel());
 
@@ -436,6 +479,89 @@ describe('useJupyterKernel', () => {
       });
 
       expect(mockUnmapChatSession).toHaveBeenCalledWith('chat-1');
+    });
+  });
+
+  describe('session recovery', () => {
+    it('should restore a valid notebook session and make it active', async () => {
+      mockRestoreNotebookSession.mockResolvedValue({
+        status: 'restored',
+        session: { id: 'session-1', name: 'Recovered Session' },
+        kernelAlive: true,
+        error: null,
+      });
+
+      const { result } = renderHook(() => useJupyterKernel());
+      const extendedResult = result.current as typeof result.current & {
+        restoreSession: (sessionId: string, surfaceId?: string) => Promise<unknown>;
+      };
+
+      await act(async () => {
+        await extendedResult.restoreSession('session-1', 'notebook-page');
+      });
+
+      expect(mockRestoreNotebookSession).toHaveBeenCalledWith('session-1');
+      expect(mockSetActiveSessionId).toHaveBeenCalledWith('session-1');
+    });
+
+    it('should mark the workspace for reconnect when restoring a notebook session fails', async () => {
+      mockRestoreNotebookSession.mockResolvedValue({
+        status: 'needs_reconnect',
+        session: null,
+        kernelAlive: false,
+        error: 'Session not found',
+      });
+
+      const { result } = renderHook(() => useJupyterKernel());
+      const extendedResult = result.current as typeof result.current & {
+        restoreSession: (sessionId: string, surfaceId?: string) => Promise<unknown>;
+      };
+
+      await act(async () => {
+        await extendedResult.restoreSession('session-1', 'notebook-page');
+      });
+
+      expect(mockSetWorkspaceRecoveryState).toHaveBeenCalledWith(
+        'notebook-page',
+        'needs_reconnect',
+        'Session not found'
+      );
+      expect(mockSetError).toHaveBeenCalledWith('Session not found');
+    });
+
+    it('should mark workspaces for reconnect when kernel status events report a dead kernel', async () => {
+      let kernelStatusHandler:
+        | ((event: {
+            kernelId: string;
+            status: string;
+            executionCount: number;
+            message: string | null;
+          }) => void)
+        | undefined;
+
+      (kernelService.onKernelStatus as jest.Mock).mockImplementation(
+        (callback: typeof kernelStatusHandler) => {
+          kernelStatusHandler = callback;
+          return Promise.resolve(() => {});
+        }
+      );
+
+      renderHook(() => useJupyterKernel());
+
+      act(() => {
+        kernelStatusHandler?.({
+          kernelId: 'kernel-1',
+          status: 'dead',
+          executionCount: 0,
+          message: 'Kernel died',
+        });
+      });
+
+      expect(mockMarkWorkspacesForReconnectByKernelId).toHaveBeenCalledWith(
+        'kernel-1',
+        'Kernel died'
+      );
+      expect(mockSetError).toHaveBeenCalledWith('Kernel died');
     });
   });
 });

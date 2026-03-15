@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Loader2,
   AlertCircle,
+  AlertTriangle,
   Check,
   X,
   Cloud,
@@ -28,16 +29,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useGit } from '@/hooks/native/use-git';
 import { useGitRefresh } from '@/hooks/git';
@@ -46,6 +37,7 @@ import { GitCommitHistory } from './git-commit-history';
 import { GitDiffViewer } from './git-diff-viewer';
 import { GitFileTree } from './git-file-tree';
 import { GitStashPanel } from './git-stash-panel';
+import { GitCommitComposer } from './git-commit-composer';
 import { formatCommitDate, formatCommitMessage, type GitCommitInfo } from '@/types/system/git';
 import { cn } from '@/lib/utils';
 import type { GitPanelRef, GitPanelProps } from '@/types/git';
@@ -84,9 +76,14 @@ export const GitPanel = forwardRef<GitPanelRef, GitPanelProps>(function GitPanel
     stashDrop,
     stashClear,
     mergeBranch,
+    fetch,
     getDiffBetween,
     revertCommit,
+    revertAbort,
+    cherryPickAbort,
     clearError,
+    renameBranch,
+    mergeAbort,
   } = useGit({
     repoPath,
     projectId,
@@ -101,6 +98,17 @@ export const GitPanel = forwardRef<GitPanelRef, GitPanelProps>(function GitPanel
   const [showDiffView, setShowDiffView] = useState(false);
   const [currentDiffs, setCurrentDiffs] = useState<import('@/types/system/git').GitDiffInfo[]>([]);
   const [isLoadingDiffs, setIsLoadingDiffs] = useState(false);
+  const isRecoveryState = Boolean(currentRepo?.inProgressOperation || currentRepo?.hasConflicts);
+  const statusKey =
+    currentRepo?.status === 'ahead'
+      ? 'status.ahead'
+      : currentRepo?.status === 'behind'
+        ? 'status.behind'
+        : currentRepo?.status === 'diverged'
+          ? 'status.diverged'
+          : currentRepo?.status === 'clean'
+            ? 'status.clean'
+            : 'status.dirty';
 
   // Load diffs for the Changes tab
   const loadDiffs = useCallback(
@@ -272,10 +280,13 @@ export const GitPanel = forwardRef<GitPanelRef, GitPanelProps>(function GitPanel
             variant={currentRepo?.status === 'clean' ? 'default' : 'secondary'}
             className={cn(
               currentRepo?.status === 'clean' && 'bg-green-500',
-              currentRepo?.status === 'dirty' && 'bg-yellow-500'
+              currentRepo?.status === 'dirty' && 'bg-yellow-500',
+              currentRepo?.status === 'ahead' && 'bg-blue-500',
+              currentRepo?.status === 'behind' && 'bg-orange-500',
+              currentRepo?.status === 'diverged' && 'bg-red-500'
             )}
           >
-            {currentRepo?.status === 'clean' ? t('status.clean') : t('status.dirty')}
+            {t(statusKey)}
           </Badge>
           {currentRepo?.remoteUrl ? (
             <Cloud className="h-3 w-3 text-muted-foreground" />
@@ -303,7 +314,7 @@ export const GitPanel = forwardRef<GitPanelRef, GitPanelProps>(function GitPanel
             variant="default"
             className="h-7 text-xs flex-1"
             onClick={() => setShowCommitDialog(true)}
-            disabled={!hasChanges}
+            disabled={!hasChanges || isRecoveryState}
           >
             <GitCommit className="h-3 w-3 mr-1" />
             {t('actions.commit')}
@@ -333,8 +344,47 @@ export const GitPanel = forwardRef<GitPanelRef, GitPanelProps>(function GitPanel
           >
             <Download className="h-3 w-3" />
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 w-7 p-0"
+            onClick={() => fetch()}
+            disabled={isOperating || !currentRepo?.remoteUrl}
+            title={t('actions.fetch')}
+          >
+            <RefreshCw className="h-3 w-3" />
+          </Button>
         </div>
       </div>
+
+      {isRecoveryState && (
+        <Alert variant="destructive" className="m-2">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="space-y-2">
+            <p className="text-xs">
+              {currentRepo?.recommendedRecoveryAction ||
+                t('recovery.defaultMessage')}
+            </p>
+            <div className="flex gap-2">
+              {currentRepo?.inProgressOperation === 'merge' && currentRepo?.canAbortOperation && (
+                <Button size="sm" variant="outline" onClick={() => mergeAbort()} disabled={isOperating}>
+                  {t('recovery.abortMerge')}
+                </Button>
+              )}
+              {currentRepo?.inProgressOperation === 'revert' && currentRepo?.canAbortOperation && (
+                <Button size="sm" variant="outline" onClick={() => revertAbort()} disabled={isOperating}>
+                  {t('recovery.abortRevert')}
+                </Button>
+              )}
+              {currentRepo?.inProgressOperation === 'cherry-pick' && currentRepo?.canAbortOperation && (
+                <Button size="sm" variant="outline" onClick={() => cherryPickAbort()} disabled={isOperating}>
+                  {t('recovery.abortCherryPick')}
+                </Button>
+              )}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Tabs Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
@@ -374,7 +424,7 @@ export const GitPanel = forwardRef<GitPanelRef, GitPanelProps>(function GitPanel
               isLoading={isOperating}
               onStageFiles={stage}
               onUnstageFiles={unstage}
-              onDiscardFiles={discardChanges}
+              onDiscardFiles={(files) => (isRecoveryState ? Promise.resolve(false) : discardChanges(files))}
               onRefresh={refreshStatus}
             />
 
@@ -409,7 +459,7 @@ export const GitPanel = forwardRef<GitPanelRef, GitPanelProps>(function GitPanel
                       fileStatus={fileStatus}
                       onStageFile={(path) => stage([path])}
                       onUnstageFile={(path) => unstage([path])}
-                      onDiscardFile={(path) => discardChanges([path])}
+                      onDiscardFile={(path) => (isRecoveryState ? undefined : discardChanges([path]))}
                     />
                   </div>
                 )}
@@ -426,7 +476,9 @@ export const GitPanel = forwardRef<GitPanelRef, GitPanelProps>(function GitPanel
               onCreateBranch={createBranch}
               onDeleteBranch={deleteBranch}
               onMergeBranch={mergeBranch}
+              onRenameBranch={renameBranch}
               onRefresh={refreshStatus}
+              disabled={isRecoveryState}
             />
           </TabsContent>
 
@@ -472,82 +524,25 @@ export const GitPanel = forwardRef<GitPanelRef, GitPanelProps>(function GitPanel
         </div>
       )}
 
-      {/* Commit Dialog */}
-      <Dialog open={showCommitDialog} onOpenChange={setShowCommitDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('commitDialog.title')}</DialogTitle>
-            <DialogDescription>{t('commitDialog.description')}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {/* File Summary */}
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1">
-                <Check className="h-4 w-4 text-green-500" />
-                <span>{t('commitDialog.staged', { count: stagedCount })}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <span>{t('commitDialog.unstaged', { count: unstagedCount })}</span>
-              </div>
-            </div>
-
-            {/* Staged Files Review */}
-            {fileStatus.length > 0 && (
-              <div className="space-y-1">
-                <Label>{t('commitDialog.review') ?? 'Files to commit'}</Label>
-                <ScrollArea className="h-32 rounded-md border bg-muted/20">
-                  <div className="p-2 space-y-0.5">
-                    {fileStatus.map((f) => (
-                      <div key={f.path} className="flex items-center gap-2 text-xs font-mono">
-                        <span className={cn(
-                          'w-4 text-center font-bold',
-                          f.status === 'added' && 'text-green-500',
-                          f.status === 'modified' && 'text-yellow-500',
-                          f.status === 'deleted' && 'text-red-500',
-                          f.status === 'renamed' && 'text-blue-500',
-                        )}>
-                          {f.status === 'added' ? 'A' : f.status === 'modified' ? 'M' : f.status === 'deleted' ? 'D' : f.status === 'renamed' ? 'R' : '?'}
-                        </span>
-                        <span className="truncate">{f.path}</span>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-            )}
-
-            {/* Commit Message */}
-            <div className="space-y-2">
-              <Label htmlFor="commitMessage">{t('commitDialog.message')}</Label>
-              <Textarea
-                id="commitMessage"
-                value={commitMessage}
-                onChange={(e) => setCommitMessage(e.target.value)}
-                placeholder={t('commitDialog.messagePlaceholder')}
-                rows={4}
-              />
-            </div>
-
-            {unstagedCount > 0 && (
-              <p className="text-xs text-muted-foreground">{t('commitDialog.willStageAll')}</p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCommitDialog(false)}>
-              {tCommon('cancel')}
-            </Button>
-            <Button onClick={handleCommit} disabled={!commitMessage.trim() || isCommitting}>
-              {isCommitting ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <GitCommit className="h-4 w-4 mr-2" />
-              )}
-              {t('commitDialog.commit')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <GitCommitComposer
+        open={showCommitDialog}
+        onOpenChange={setShowCommitDialog}
+        title={t('commitDialog.title')}
+        description={t('commitDialog.description')}
+        messageLabel={t('commitDialog.message')}
+        messagePlaceholder={t('commitDialog.messagePlaceholder')}
+        reviewLabel={t('commitDialog.review') ?? 'Files to commit'}
+        stagedSummary={t('commitDialog.staged', { count: stagedCount })}
+        unstagedSummary={t('commitDialog.unstaged', { count: unstagedCount })}
+        autoStageMessage={t('commitDialog.willStageAll')}
+        cancelLabel={tCommon('cancel')}
+        confirmLabel={t('commitDialog.commit')}
+        fileStatus={fileStatus}
+        commitMessage={commitMessage}
+        onCommitMessageChange={setCommitMessage}
+        onSubmit={handleCommit}
+        isSubmitting={isCommitting}
+      />
     </div>
   );
 });

@@ -60,12 +60,14 @@ pub async fn plugin_install(
     source: String,
     install_type: String,
     plugin_dir: String,
+    install_root_kind: Option<String>,
 ) -> Result<PluginScanResult, String> {
     let manager = state.0.read().await;
     let options = PluginInstallOptions {
         source,
         install_type,
         plugin_dir,
+        install_root_kind,
     };
     manager
         .install_plugin(options)

@@ -24,6 +24,7 @@ jest.mock('@/lib/export', () => ({
   exportToPlainText: jest.fn().mockReturnValue('Plain text'),
   exportToRichMarkdown: jest.fn().mockReturnValue('# Rich Markdown'),
   exportToRichJSON: jest.fn().mockReturnValue('{}'),
+  exportToPortableChatArchive: jest.fn().mockReturnValue('{"version":"1.0"}'),
   exportToAnimatedHTML: jest.fn().mockReturnValue('<html>animated</html>'),
   downloadFile: jest.fn(),
   generateFilename: jest.fn().mockReturnValue('conversation.md'),
@@ -43,6 +44,8 @@ jest.mock('next-intl', () => ({
       richMarkdownDesc: 'Formatted markdown with metadata',
       json: 'JSON',
       jsonDesc: 'Complete data export',
+      portableArchive: 'Portable Archive',
+      portableArchiveDesc: 'Round-trip compatible archive',
       staticHtml: 'Static HTML',
       staticHtmlDesc: 'Simple HTML export',
       pdf: 'PDF',
@@ -176,6 +179,7 @@ describe('ExportDialog', () => {
     expect(screen.getByText('Animated HTML')).toBeInTheDocument();
     expect(screen.getByText('Rich Markdown')).toBeInTheDocument();
     expect(screen.getByText('JSON')).toBeInTheDocument();
+    expect(screen.getByText('Portable Archive')).toBeInTheDocument();
     expect(screen.getByText('Static HTML')).toBeInTheDocument();
     expect(screen.getByText('PDF')).toBeInTheDocument();
     expect(screen.getByText('Plain Text')).toBeInTheDocument();

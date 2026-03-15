@@ -445,7 +445,10 @@ export function GitSettings() {
               {trackedRepos.map((repo, idx) => (
                 <div key={idx} className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
                   <FolderGit2 className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm truncate flex-1">{repo}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm truncate">{repo.displayName}</p>
+                    <p className="text-xs text-muted-foreground truncate">{repo.path}</p>
+                  </div>
                 </div>
               ))}
             </div>

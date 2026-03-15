@@ -4,6 +4,7 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useVideoSubtitles } from './use-video-subtitles';
+import { useSettingsStore } from '@/stores';
 
 // Mock the settings store
 jest.mock('@/stores', () => ({
@@ -16,6 +17,8 @@ jest.mock('@/stores', () => ({
     return selector(state);
   }),
 }));
+
+const mockUseSettingsStore = useSettingsStore as jest.MockedFunction<typeof useSettingsStore>;
 
 // Mock the subtitle modules
 jest.mock('@/lib/media/video-subtitle', () => ({
@@ -58,6 +61,31 @@ describe('useVideoSubtitles', () => {
       );
 
       expect(result.current.tracks).toHaveLength(0);
+    });
+  });
+
+  describe('provider policy', () => {
+    it('returns shared blocked guidance when transcription provider is not configured', async () => {
+      mockUseSettingsStore.mockImplementationOnce((selector) => {
+        const state = {
+          providerSettings: {
+            openai: {},
+          },
+        };
+        return selector(state as never);
+      });
+
+      const onError = jest.fn();
+      const { result } = renderHook(() => useVideoSubtitles({ onError }));
+
+      let output: unknown;
+      await act(async () => {
+        output = await result.current.transcribeVideo('test.mp4');
+      });
+
+      expect(output).toBeNull();
+      expect(result.current.error).toBe('Add an API key before using this provider at runtime.');
+      expect(onError).toHaveBeenCalledWith('Add an API key before using this provider at runtime.');
     });
   });
 

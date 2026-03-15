@@ -9,6 +9,7 @@ import type {
   ChatImporter,
   ChatImportOptions,
   ChatImportError,
+  ChatImportWarning,
   ParsedConversation,
   ProviderInfo,
 } from '@/types/import/base';
@@ -18,6 +19,7 @@ import type {
   ClaudeMessagePart,
   ClaudeSimpleExport,
 } from '@/types/import/claude';
+import { buildPortableConversation, createImportWarning } from './import-portable';
 
 type ClaudeData = ClaudeExport | ClaudeSimpleExport;
 
@@ -123,6 +125,68 @@ function extractContentFromParts(parts: ClaudeMessagePart[]): string {
     .join('\n\n');
 }
 
+function extractPartsPayload(
+  parts: ClaudeMessagePart[],
+  conversationId?: string
+): {
+  content: string;
+  attachments?: UIMessage['attachments'];
+  warnings: ChatImportWarning[];
+} {
+  const warnings: ChatImportWarning[] = [];
+  const attachments: NonNullable<UIMessage['attachments']> = [];
+
+  const content = parts
+    .map((part) => {
+      switch (part.type) {
+        case 'image':
+          attachments.push({
+            id: nanoid(),
+            name: part.data || 'Claude image',
+            type: 'image',
+            url: `import://claude/image/${encodeURIComponent(part.data || nanoid())}`,
+            size: 0,
+            mimeType: 'image/*',
+          });
+          warnings.push(
+            createImportWarning(
+              'attachment_summary_only',
+              'Claude image parts are imported as attachment summaries only.',
+              { conversationId }
+            )
+          );
+          return `[image: ${part.data}]`;
+        case 'artifact':
+          attachments.push({
+            id: nanoid(),
+            name: part.data || 'Claude artifact',
+            type: 'document',
+            url: `import://claude/artifact/${encodeURIComponent(part.data || nanoid())}`,
+            size: 0,
+            mimeType: 'text/plain',
+          });
+          warnings.push(
+            createImportWarning(
+              'attachment_summary_only',
+              'Claude artifacts are imported as attachment summaries only.',
+              { conversationId }
+            )
+          );
+          return `[artifact: ${part.data}]`;
+        default:
+          return extractContentFromParts([part]);
+      }
+    })
+    .filter(Boolean)
+    .join('\n\n');
+
+  return {
+    content,
+    attachments: attachments.length > 0 ? attachments : undefined,
+    warnings,
+  };
+}
+
 /**
  * Map Claude role to Cognia MessageRole
  */
@@ -145,24 +209,28 @@ function mapClaudeRole(type: string): MessageRole {
 function convertStandardExport(
   data: ClaudeExport,
   options: ChatImportOptions
-): { session: Session; messages: UIMessage[] } {
+): { session: Session; messages: UIMessage[]; warnings: ChatImportWarning[] } {
   const now = new Date();
   const createdAt = options.preserveTimestamps && data.meta.exported_at
     ? new Date(data.meta.exported_at)
     : now;
+  const warnings: ChatImportWarning[] = [];
 
   const messages: UIMessage[] = data.chats.map((chat: ClaudeChat) => {
     const msgCreatedAt = options.preserveTimestamps && chat.timestamp
       ? new Date(chat.timestamp)
       : now;
+    const payload = extractPartsPayload(chat.message, data.meta.conversation_id);
+    warnings.push(...payload.warnings);
 
     return {
       id: options.generateNewIds ? nanoid() : `claude-${chat.index}`,
       role: mapClaudeRole(chat.type),
-      content: extractContentFromParts(chat.message),
+      content: payload.content,
       createdAt: msgCreatedAt,
       model: options.defaultModel,
       provider: options.defaultProvider,
+      attachments: payload.attachments,
     };
   });
 
@@ -180,7 +248,7 @@ function convertStandardExport(
     lastMessagePreview: validMessages[validMessages.length - 1]?.content.slice(0, 100),
   };
 
-  return { session, messages: validMessages };
+  return { session, messages: validMessages, warnings };
 }
 
 /**
@@ -189,7 +257,7 @@ function convertStandardExport(
 function convertSimpleExport(
   data: ClaudeSimpleExport,
   options: ChatImportOptions
-): { session: Session; messages: UIMessage[] } {
+): { session: Session; messages: UIMessage[]; warnings: ChatImportWarning[] } {
   const now = new Date();
   const createdAt = options.preserveTimestamps && data.timestamp
     ? new Date(data.timestamp)
@@ -220,7 +288,7 @@ function convertSimpleExport(
     lastMessagePreview: validMessages[validMessages.length - 1]?.content.slice(0, 100),
   };
 
-  return { session, messages: validMessages };
+  return { session, messages: validMessages, warnings: [] };
 }
 
 /**
@@ -255,7 +323,7 @@ export class ClaudeImporter implements ChatImporter<ClaudeData> {
     const conversations: ParsedConversation[] = [];
 
     try {
-      let result: { session: Session; messages: UIMessage[] };
+      let result: { session: Session; messages: UIMessage[]; warnings: ChatImportWarning[] };
 
       if (isClaudeStandardFormat(data)) {
         result = convertStandardExport(data, opts);
@@ -263,12 +331,25 @@ export class ClaudeImporter implements ChatImporter<ClaudeData> {
         result = convertSimpleExport(data as ClaudeSimpleExport, opts);
       }
 
+      const compatibility = result.warnings.length > 0 ? 'partial' : 'official';
+
       conversations.push({
         session: result.session,
         messages: result.messages,
         metadata: {
           sourceFormat: 'claude',
           originalId: result.session.id,
+          sourceType: 'official',
+          compatibility,
+          warnings: result.warnings,
+          portableConversation: buildPortableConversation({
+            session: result.session,
+            messages: result.messages,
+            sourceFormat: 'claude',
+            sourceType: 'official',
+            compatibility,
+            warnings: result.warnings,
+          }),
         },
       });
     } catch (error) {

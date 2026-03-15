@@ -38,6 +38,11 @@ const mockAddNode = jest.fn();
 const mockAddRecentNode = jest.fn();
 const mockToggleFavoriteNode = jest.fn();
 jest.mock('@/stores/workflow', () => ({
+  selectWorkflowNodeCatalogState: (state: Record<string, unknown>) => ({
+    nodeTemplates: state.nodeTemplates,
+    recentNodes: state.recentNodes,
+    favoriteNodes: state.favoriteNodes,
+  }),
   useWorkflowEditorStore: jest.fn((selector?: (state: Record<string, unknown>) => unknown) => {
     const state = {
       addNodeFromTemplate: mockAddNodeFromTemplate,

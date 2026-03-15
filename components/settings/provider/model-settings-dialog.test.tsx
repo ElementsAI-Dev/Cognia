@@ -6,6 +6,8 @@ import { render, screen } from '@testing-library/react';
 import { ModelSettingsDialog } from './model-settings-dialog';
 import type { Model } from '@/types'
 
+const mockProviderIcon = jest.fn((_props?: unknown) => <div data-testid="provider-icon" />);
+
 // Mock UI components
 jest.mock('@/components/ui/dialog', () => ({
   Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
@@ -62,7 +64,7 @@ jest.mock('@/components/ui/separator', () => ({
 }));
 
 jest.mock('@/components/providers/ai/provider-icon', () => ({
-  ProviderIcon: () => <div data-testid="provider-icon" />,
+  ProviderIcon: (props: unknown) => mockProviderIcon(props),
 }));
 
 const mockModel: Model = {
@@ -84,6 +86,7 @@ describe('ModelSettingsDialog', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockProviderIcon.mockImplementation(() => <div data-testid="provider-icon" />);
   });
 
   it('renders when open', () => {
@@ -178,5 +181,21 @@ describe('ModelSettingsDialog', () => {
       />
     );
     expect(screen.getByTestId('slider')).toBeInTheDocument();
+  });
+
+  it('passes providerId to ProviderIcon so icon fallback stays catalog-backed', () => {
+    render(
+      <ModelSettingsDialog
+        open={true}
+        onOpenChange={mockOnOpenChange}
+        model={mockModel}
+        providerId="openai"
+        onSave={mockOnSave}
+      />
+    );
+
+    expect(mockProviderIcon).toHaveBeenCalledWith(
+      expect.objectContaining({ providerId: 'openai', size: 20 }),
+    );
   });
 });

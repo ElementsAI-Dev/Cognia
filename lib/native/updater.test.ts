@@ -8,6 +8,17 @@ jest.mock('./utils', () => ({
   isTauri: jest.fn(),
 }));
 
+jest.mock('@/lib/logger', () => ({
+  createLogRuntimeContext: jest.fn((value: Record<string, unknown>) => value),
+  loggers: {
+    native: {
+      debug: jest.fn(),
+      info: jest.fn(),
+      error: jest.fn(),
+    },
+  },
+}));
+
 jest.mock('@tauri-apps/plugin-updater', () => ({
   check: jest.fn(),
 }));
@@ -22,6 +33,7 @@ jest.mock('@tauri-apps/api/app', () => ({
 }));
 
 import { isTauri } from './utils';
+import { loggers } from '@/lib/logger';
 import {
   checkForUpdates,
   downloadAndInstallUpdate,
@@ -81,6 +93,23 @@ describe('Updater - checkForUpdates', () => {
 
     const result = await checkForUpdates();
     expect(result).toEqual({ available: false });
+  });
+
+  it('should route suppressed plugin errors through the unified logger', async () => {
+    mockIsTauri.mockReturnValue(true);
+    const { check } = await import('@tauri-apps/plugin-updater');
+    (check as jest.Mock).mockRejectedValue(new Error('Plugin not found'));
+
+    const result = await checkForUpdates();
+
+    expect(result).toEqual({ available: false });
+    expect(loggers.native.debug).toHaveBeenCalledWith(
+      'Updater plugin not found or not allowed, skipping update check',
+      expect.objectContaining({
+        runtime: 'tauri',
+        origin: 'tauri',
+      })
+    );
   });
 });
 

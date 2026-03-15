@@ -31,7 +31,7 @@ interface UseWorkflowEditorReturn {
   pauseExecution: () => void;
   resumeExecution: () => void;
   cancelExecution: () => void;
-  validate: () => boolean;
+  validate: () => import('@/types/workflow/workflow-editor').ValidationError[];
   exportWorkflow: () => string | null;
   importWorkflow: (json: string) => boolean;
 }
@@ -180,13 +180,6 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}): UseWo
     [currentWorkflow, onExecutionError, startExecution, validate]
   );
 
-  const validateWorkflow = useCallback((): boolean => {
-    const errors = validate();
-    return !errors.some(
-      (error) => error.blocking ?? (error.severity !== 'warning' && error.severity !== 'info')
-    );
-  }, [validate]);
-
   const exportWorkflow = useCallback((): string | null => {
     if (!currentWorkflow) {
       return null;
@@ -222,7 +215,7 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}): UseWo
     pauseExecution,
     resumeExecution,
     cancelExecution,
-    validate: validateWorkflow,
+    validate,
     exportWorkflow,
     importWorkflow,
   };

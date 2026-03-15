@@ -21,6 +21,15 @@ import { useImageEditorShortcuts, useAdvancedImageEditor, useBatchProcessor } fr
 import { useImageGeneration } from '@/hooks/media';
 import { toHistoryOperationType, type GeneratedImageWithMeta } from '@/lib/image-studio';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
+import {
+  createProviderSettingsSnapshot,
+} from '@/lib/ai/provider-consumption';
+import {
+  resolveImageEditingAccess,
+  resolveImageInpaintingAccess,
+  resolveImageStudioGenerationAccess,
+  resolveImageVariationAccess,
+} from '@/lib/ai/provider-consumption/capability-provider';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { loggers } from '@/lib/logger';
 import {
@@ -224,20 +233,52 @@ export default function ImageStudioPage() {
 
   // ─── External Hooks ────────────────────────────────────────────────
   const providerSettings = useSettingsStore((state) => state.providerSettings);
-  const openaiApiKey = providerSettings.openai?.apiKey;
-
-  // Get API key based on selected provider
-  const getProviderApiKey = useCallback((): string | undefined => {
-    const providerKeyMap: Record<string, string> = {
-      openai: 'openai',
-      xai: 'xai',
-      together: 'together',
-      fireworks: 'fireworks',
-      deepinfra: 'deepinfra',
-    };
-    const settingsKey = providerKeyMap[provider] || provider;
-    return providerSettings[settingsKey]?.apiKey;
-  }, [provider, providerSettings]);
+  const customProviders = useSettingsStore((state) => state.customProviders);
+  const imageEditingAccess = useMemo(
+    () =>
+      resolveImageEditingAccess(
+        createProviderSettingsSnapshot({
+          defaultProvider: '',
+          providerSettings,
+          customProviders,
+        })
+      ),
+    [providerSettings, customProviders]
+  );
+  const imageVariationAccess = useMemo(
+    () =>
+      resolveImageVariationAccess(
+        createProviderSettingsSnapshot({
+          defaultProvider: '',
+          providerSettings,
+          customProviders,
+        })
+      ),
+    [providerSettings, customProviders]
+  );
+  const imageInpaintingAccess = useMemo(
+    () =>
+      resolveImageInpaintingAccess(
+        createProviderSettingsSnapshot({
+          defaultProvider: '',
+          providerSettings,
+          customProviders,
+        })
+      ),
+    [providerSettings, customProviders]
+  );
+  const imageStudioGenerationAccess = useMemo(
+    () =>
+      resolveImageStudioGenerationAccess(
+        provider,
+        createProviderSettingsSnapshot({
+          defaultProvider: '',
+          providerSettings,
+          customProviders,
+        })
+      ),
+    [provider, providerSettings, customProviders]
+  );
 
   const imageGen = useImageGeneration({ defaultSize: size, defaultQuality: quality, defaultStyle: style });
   const advancedEditor = useAdvancedImageEditor({ useWorker: true, useWebGL: true });
@@ -285,9 +326,11 @@ export default function ImageStudioPage() {
   // ─── Handlers ──────────────────────────────────────────────────────
 
   const handleGenerate = useCallback(async () => {
-    const apiKey = getProviderApiKey();
-    if (!prompt.trim() || !apiKey) {
-      const message = !apiKey ? t('noApiKey') : 'Prompt is required';
+    if (!prompt.trim() || imageStudioGenerationAccess.kind !== 'resolved') {
+      const message =
+        imageStudioGenerationAccess.kind !== 'resolved'
+          ? imageStudioGenerationAccess.reason
+          : 'Prompt is required';
       setLocalError(message);
       failOperation('generate', message, { retryable: false });
       return;
@@ -333,7 +376,7 @@ export default function ImageStudioPage() {
         }
       } else {
         const sdkResult = await generateImageWithSDK(
-          { apiKey },
+          { apiKey: imageStudioGenerationAccess.apiKey },
           { prompt: fullPrompt, provider, model, size: size as ImageSizeOption, quality: quality as ImageQualityOption, n, seed: seed ?? undefined }
         );
         if (!sdkResult.images.length) {
@@ -398,11 +441,14 @@ export default function ImageStudioPage() {
       });
       setRetryOperationKey('generate');
     }
-  }, [prompt, negativePrompt, provider, model, size, quality, style, numberOfImages, seed, getProviderApiKey, t, imageGen, addImage, selectImage, commitEditOperation, addToQueue, updateQueueJob, startOperation, finishOperation, failOperation, clearOperationErrors]);
+  }, [prompt, negativePrompt, provider, model, size, quality, style, numberOfImages, seed, imageStudioGenerationAccess, imageGen, addImage, selectImage, commitEditOperation, addToQueue, updateQueueJob, startOperation, finishOperation, failOperation, clearOperationErrors]);
 
   const handleEditImage = useCallback(async () => {
-    if (!editImageFile || !prompt.trim() || !openaiApiKey) {
-      const message = !openaiApiKey ? t('noApiKey') : 'Image and prompt are required';
+    if (!editImageFile || !prompt.trim() || imageEditingAccess.kind !== 'resolved') {
+      const message =
+        imageEditingAccess.kind !== 'resolved'
+          ? imageEditingAccess.reason
+          : 'Image and prompt are required';
       setLocalError(message);
       failOperation('edit', message, { retryable: false });
       return;
@@ -474,11 +520,14 @@ export default function ImageStudioPage() {
       });
       setRetryOperationKey('edit');
     }
-  }, [editImageFile, maskFile, prompt, size, numberOfImages, openaiApiKey, t, quality, style, addImage, selectImage, imageGen, selectedImageId, commitEditOperation, startOperation, finishOperation, failOperation, clearOperationErrors]);
+  }, [editImageFile, maskFile, prompt, size, numberOfImages, imageEditingAccess, quality, style, addImage, selectImage, imageGen, selectedImageId, commitEditOperation, startOperation, finishOperation, failOperation, clearOperationErrors]);
 
   const handleCreateVariations = useCallback(async () => {
-    if (!variationImage || !openaiApiKey) {
-      const message = !openaiApiKey ? t('noApiKey') : 'Variation image is required';
+    if (!variationImage || imageVariationAccess.kind !== 'resolved') {
+      const message =
+        imageVariationAccess.kind !== 'resolved'
+          ? imageVariationAccess.reason
+          : 'Variation image is required';
       setLocalError(message);
       failOperation('variation', message, { retryable: false });
       return;
@@ -545,7 +594,7 @@ export default function ImageStudioPage() {
       });
       setRetryOperationKey('variation');
     }
-  }, [variationImage, size, numberOfImages, openaiApiKey, t, quality, style, addImage, selectImage, imageGen, selectedImageId, commitEditOperation, startOperation, finishOperation, failOperation, clearOperationErrors]);
+  }, [variationImage, size, numberOfImages, imageVariationAccess, quality, style, addImage, selectImage, imageGen, selectedImageId, commitEditOperation, startOperation, finishOperation, failOperation, clearOperationErrors]);
 
   const handleDownload = useCallback(async (image: GeneratedImageWithMeta) => {
     try {
@@ -717,8 +766,11 @@ export default function ImageStudioPage() {
   }, [editingImage, updateEditDraft, commitEditOperation, editSession.sessionId, getImageById, startOperation, finishOperation, failOperation]);
 
   const handleApplyInpainting = useCallback(async () => {
-    if (!editingImage?.url || !maskDataUrl || !openaiApiKey) {
-      const message = !openaiApiKey ? t('noApiKey') : 'Mask and source image are required';
+    if (!editingImage?.url || !maskDataUrl || imageInpaintingAccess.kind !== 'resolved') {
+      const message =
+        imageInpaintingAccess.kind !== 'resolved'
+          ? imageInpaintingAccess.reason
+          : 'Mask and source image are required';
       setLocalError(message);
       failOperation('inpaint', message, { retryable: false });
       return;
@@ -805,7 +857,7 @@ export default function ImageStudioPage() {
       });
       setRetryOperationKey('inpaint');
     }
-  }, [editingImage, maskDataUrl, openaiApiKey, prompt, quality, style, imageGen, addImage, selectImage, commitEditOperation, editSession.sessionId, startOperation, finishOperation, failOperation, clearOperationErrors, endEditSession, t]);
+  }, [editingImage, maskDataUrl, imageInpaintingAccess, prompt, quality, style, imageGen, addImage, selectImage, commitEditOperation, editSession.sessionId, startOperation, finishOperation, failOperation, clearOperationErrors, endEditSession]);
 
   const handleRegenerate = useCallback((image: GeneratedImageWithMeta) => {
     setPrompt(image.prompt);

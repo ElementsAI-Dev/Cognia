@@ -222,7 +222,7 @@ export function LocalModeContent({
                   <SelectContent>
                     {availableProviders.map((providerId) => (
                       <SelectItem key={providerId} value={providerId} showIconInTrigger>
-                        <ProviderIcon icon={`/icons/providers/${providerId}.svg`} size={16} />
+                        <ProviderIcon providerId={providerId} size={16} />
                         {PROVIDERS[providerId]?.name || providerId}
                       </SelectItem>
                     ))}

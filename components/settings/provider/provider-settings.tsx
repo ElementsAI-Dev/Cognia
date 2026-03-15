@@ -73,13 +73,22 @@ const CustomProviderDialog = dynamic(() => import('./custom-provider-dialog').th
 const QuickAddProviderDialog = dynamic(() => import('./quick-add-provider-dialog').then(mod => ({ default: mod.QuickAddProviderDialog })), { ssr: false });
 const ProviderImportExport = dynamic(() => import('./provider-import-export').then(mod => ({ default: mod.ProviderImportExport })), { ssr: false });
 const LocalProviderSettings = dynamic(() => import('./local-provider-settings').then(mod => ({ default: mod.LocalProviderSettings })), { ssr: false, loading: () => <ProviderSkeleton /> });
-import { testCustomProviderConnectionByProtocol, testProviderConnection, type ApiTestResult } from '@/lib/ai/infrastructure/api-test';
+import { probeProviderConnection, type ApiTestResult } from '@/lib/ai/infrastructure/api-test';
 import { toast } from '@/components/ui/sonner';
 import {
   getCategoryIcon,
   PROVIDER_CATEGORIES,
   type ProviderCategory,
 } from '@/lib/ai/providers/provider-helpers';
+import {
+  deriveVerificationStatusFromConnectivityResult,
+  resolveBuiltInProviderConnectivityTarget,
+  resolveCustomProviderConnectivityTarget,
+} from '@/lib/ai/providers/connectivity';
+import {
+  buildBuiltInSettingsFromCustomProvider,
+  findEquivalentBuiltInProviderCandidates,
+} from '@/lib/ai/providers/built-in-provider-compatibility';
 import type { ProviderCategoryFilter } from '@/stores/settings/settings-store';
 import { getCurrencyForLocale, CURRENCIES } from '@/types/system/usage';
 
@@ -130,10 +139,14 @@ export function ProviderSettings() {
   const { viewMode, sortBy, sortOrder, categoryFilter } = providerUIPreferences;
   const [expandedTableRows, setExpandedTableRows] = useState<Record<string, boolean>>({});
   const [selectedProviderIds, setSelectedProviderIds] = useState<Set<string>>(() => new Set());
-  const [customTestResults, setCustomTestResults] = useState<Record<string, 'success' | 'error' | null>>({});
+  const [customTestResults, setCustomTestResults] = useState<Record<string, 'success' | 'error' | 'limited' | null>>({});
   const [testingCustomProviders, setTestingCustomProviders] = useState<Record<string, boolean>>({});
   const [customTestMessages, setCustomTestMessages] = useState<Record<string, string | null>>({});
   const [capabilityFilters, setCapabilityFilters] = useState<CapabilityFilter[]>([]);
+  const equivalentBuiltInCandidates = useMemo(
+    () => findEquivalentBuiltInProviderCandidates(customProviders),
+    [customProviders]
+  );
   const providerConfigFingerprintRef = useRef<Record<string, string>>({});
   const customProviderConfigFingerprintRef = useRef<Record<string, string>>({});
 
@@ -159,36 +172,52 @@ export function ProviderSettings() {
 
   const persistBuiltInVerificationResult = useCallback((
     providerId: string,
-    success: boolean,
-    message?: string
+    result?: ApiTestResult | null
   ) => {
     const settings = providerSettings[providerId];
-    if (!settings) return;
+    if (!settings || !result) return;
 
     updateProviderSettings(providerId, {
-      verificationStatus: success ? 'verified' : settings.verificationStatus === 'verified' ? 'stale' : 'unverified',
+      verificationStatus: deriveVerificationStatusFromConnectivityResult(
+        settings.verificationStatus,
+        result
+      ),
       verificationFingerprint: getBuiltInProviderReadiness(providerId, settings, {
-        success,
-        message: message ?? (success ? 'Connection verified.' : 'Connection test failed.'),
+        success: result.success,
+        authoritative: result.authoritative,
+        outcome: result.outcome,
+        message: result.message,
       }).verificationFingerprint,
-      verificationMessage: message,
-      lastVerifiedAt: Date.now(),
+      verificationMessage: result.message,
+      lastVerifiedAt:
+        result.success && result.authoritative !== false && result.outcome !== 'limited'
+          ? Date.now()
+          : settings.lastVerifiedAt,
     });
   }, [providerSettings, updateProviderSettings]);
 
   const persistCustomVerificationResult = useCallback((
     providerId: string,
-    success: boolean,
-    message?: string
+    result?: ApiTestResult | null
   ) => {
     const provider = customProviders[providerId];
-    if (!provider) return;
+    if (!provider || !result) return;
 
     updateCustomProvider(providerId, {
-      verificationStatus: success ? 'verified' : provider.verificationStatus === 'verified' ? 'stale' : 'unverified',
-      verificationFingerprint: getCustomProviderReadiness(provider, { success }).verificationFingerprint,
-      verificationMessage: message,
-      lastVerifiedAt: Date.now(),
+      verificationStatus: deriveVerificationStatusFromConnectivityResult(
+        provider.verificationStatus,
+        result
+      ),
+      verificationFingerprint: getCustomProviderReadiness(provider, {
+        success: result.success,
+        authoritative: result.authoritative,
+        outcome: result.outcome,
+      }).verificationFingerprint,
+      verificationMessage: result.message,
+      lastVerifiedAt:
+        result.success && result.authoritative !== false && result.outcome !== 'limited'
+          ? Date.now()
+          : provider.lastVerifiedAt,
     });
   }, [customProviders, updateCustomProvider]);
 
@@ -391,34 +420,28 @@ export function ProviderSettings() {
       );
       return undefined;
     }
-    const activeApiKey =
-      settings?.apiKey ||
-      settings?.apiKeys?.[settings.currentKeyIndex || 0] ||
-      settings?.apiKeys?.[0] ||
-      '';
+    const target = resolveBuiltInProviderConnectivityTarget(providerId, settings);
 
     setTestingProviders((prev) => ({ ...prev, [providerId]: true }));
     setTestResults((prev) => ({ ...prev, [providerId]: null }));
 
     try {
-      const result = await testProviderConnection(
-        providerId,
-        activeApiKey,
-        settings?.baseURL
-      );
+      const result = await probeProviderConnection(target);
       setTestResults((prev) => ({ ...prev, [providerId]: result }));
-      persistBuiltInVerificationResult(providerId, !!result.success, result.message);
+      persistBuiltInVerificationResult(providerId, result);
       return result;
     } catch (error) {
       const failedResult: ApiTestResult = {
         success: false,
         message: error instanceof Error ? error.message : 'Connection failed',
+        outcome: 'failed',
+        authoritative: true,
       };
       setTestResults((prev) => ({
         ...prev,
         [providerId]: failedResult,
       }));
-      persistBuiltInVerificationResult(providerId, false, failedResult.message);
+      persistBuiltInVerificationResult(providerId, failedResult);
       return failedResult;
     } finally {
       setTestingProviders((prev) => ({ ...prev, [providerId]: false }));
@@ -432,24 +455,13 @@ export function ProviderSettings() {
       const message = readiness.eligibility.testConnection.reason || t('connectionFailed');
       setCustomTestResults((prev) => ({ ...prev, [providerId]: 'error' }));
       setCustomTestMessages((prev) => ({ ...prev, [providerId]: message }));
-      persistCustomVerificationResult(providerId, false, message);
+      persistCustomVerificationResult(providerId, {
+        success: false,
+        message,
+        outcome: 'failed',
+        authoritative: true,
+      });
       toast.warning(message);
-      return { success: false, message };
-    }
-    if (!provider?.baseURL || !provider.apiKey) {
-      const message = t('connectionFailed');
-      persistCustomVerificationResult(providerId, false, message);
-      return { success: false, message };
-    }
-
-    try {
-      new URL(provider.baseURL);
-    } catch {
-      const message = t('invalidBaseUrl');
-      setCustomTestResults((prev) => ({ ...prev, [providerId]: 'error' }));
-      setCustomTestMessages((prev) => ({ ...prev, [providerId]: message }));
-      persistCustomVerificationResult(providerId, false, message);
-      toast.error(t('connectionFailed'), { description: message });
       return { success: false, message };
     }
 
@@ -458,23 +470,23 @@ export function ProviderSettings() {
     setCustomTestMessages((prev) => ({ ...prev, [providerId]: null }));
 
     try {
-      const result = await testCustomProviderConnectionByProtocol(
-        provider.baseURL,
-        provider.apiKey,
-        provider.apiProtocol || 'openai'
+      const result = await probeProviderConnection(
+        resolveCustomProviderConnectivityTarget(providerId, provider)
       );
       setCustomTestResults((prev) => ({
         ...prev,
-        [providerId]: result.success ? 'success' : 'error',
+        [providerId]: result.outcome === 'verified' ? 'success' : result.outcome === 'limited' ? 'limited' : 'error',
       }));
       setCustomTestMessages((prev) => ({
         ...prev,
         [providerId]: result.message,
       }));
-      persistCustomVerificationResult(providerId, !!result.success, result.message);
+      persistCustomVerificationResult(providerId, result);
 
-      if (result.success) {
+      if (result.outcome === 'verified' && result.success) {
         toast.success(t('connectionSuccess'), { description: result.message });
+      } else if (result.outcome === 'limited') {
+        toast.warning(t('verificationLimited'), { description: result.message });
       } else {
         toast.error(t('connectionFailed'), { description: result.message });
       }
@@ -483,11 +495,18 @@ export function ProviderSettings() {
       const message = error instanceof Error ? error.message : t('connectionFailed');
       setCustomTestResults((prev) => ({ ...prev, [providerId]: 'error' }));
       setCustomTestMessages((prev) => ({ ...prev, [providerId]: message }));
-      persistCustomVerificationResult(providerId, false, message);
+      persistCustomVerificationResult(providerId, {
+        success: false,
+        message,
+        outcome: 'failed',
+        authoritative: true,
+      });
       toast.error(t('connectionFailed'), { description: message });
       return {
         success: false,
         message,
+        outcome: 'failed',
+        authoritative: true,
       };
     } finally {
       setTestingCustomProviders((prev) => ({ ...prev, [providerId]: false }));
@@ -506,7 +525,7 @@ export function ProviderSettings() {
       Object.values(customTestResults).filter((r) => r === 'success').length,
     failed:
       Object.values(testResults).filter((r) => r && !r.success).length +
-      Object.values(customTestResults).filter((r) => r === 'error').length,
+      Object.values(customTestResults).filter((r) => r === 'error' || r === 'limited').length,
     total:
       Object.values(testResults).filter((r) => r !== null).length +
       Object.values(customTestResults).filter((r) => r !== null).length,
@@ -824,6 +843,18 @@ export function ProviderSettings() {
     });
   }, [setProviderViewMode]);
 
+  const handleImportEquivalentCustomProvider = useCallback((providerId: string) => {
+    const candidate = equivalentBuiltInCandidates[providerId as keyof typeof equivalentBuiltInCandidates];
+    if (!candidate) return;
+
+    updateProviderSettings(
+      providerId,
+      buildBuiltInSettingsFromCustomProvider(candidate.builtInProviderId, candidate.provider)
+    );
+    invalidateBuiltInVerification(providerId);
+    toast.success(t('importEquivalentCustomProvider'));
+  }, [equivalentBuiltInCandidates, invalidateBuiltInVerification, t, updateProviderSettings]);
+
   const runBuiltInQuickFixAction = useCallback(async (
     providerId: string,
     action: ProviderNextAction | undefined
@@ -853,6 +884,8 @@ export function ProviderSettings() {
     const enableGuard = getProviderEnableEligibility(providerId, settings, !isEnabled);
     const testGuard = providerState.eligibility.testConnection;
     const defaultModelGuard = providerState.eligibility.defaultModel;
+    const equivalentCandidate =
+      equivalentBuiltInCandidates[providerId as keyof typeof equivalentBuiltInCandidates];
 
     return (
       <div id={`provider-${providerId}`} key={providerId} className="scroll-mt-24">
@@ -899,6 +932,8 @@ export function ProviderSettings() {
                 success: testResult.success,
                 message: testResult.message,
                 latency: testResult.latency_ms,
+                outcome: testResult.outcome,
+                authoritative: testResult.authoritative,
               }
             : testResult
         }
@@ -929,6 +964,23 @@ export function ProviderSettings() {
         defaultModelDisabled={!defaultModelGuard.allowed}
         defaultModelDisabledReason={defaultModelGuard.reason}
       >
+        {equivalentCandidate && !settings.apiKey && (
+          <div className="rounded-lg border border-dashed bg-muted/20 p-3 space-y-2">
+            <p className="text-sm font-medium">{t('importEquivalentCustomProvider')}</p>
+            <p className="text-xs text-muted-foreground">
+              {equivalentCandidate.provider.customName || equivalentCandidate.customProviderId}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => handleImportEquivalentCustomProvider(providerId)}
+            >
+              {t('importEquivalentCustomProvider')}
+            </Button>
+          </div>
+        )}
+
         {!providerState.setupChecklist.isComplete && (
           <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
@@ -1375,7 +1427,12 @@ export function ProviderSettings() {
                       </TableCell>
                       <TableCell className="text-center">
                         {isEnabled ? (
-                          testResult && !testResult.success ? (
+                          testResult?.outcome === 'limited' ? (
+                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-400">
+                              <AlertCircle className="h-3 w-3 mr-0.5" />
+                              {t('verificationLimitedShort')}
+                            </Badge>
+                          ) : testResult && !testResult.success ? (
                             <Badge variant="destructive" className="text-[10px]">
                               <AlertCircle className="h-3 w-3 mr-0.5" />
                               {t('failed')}
@@ -1385,7 +1442,7 @@ export function ProviderSettings() {
                               <AlertCircle className="h-3 w-3 mr-0.5" />
                               {t('verificationStaleShort')}
                             </Badge>
-                          ) : testResult?.success || providerState.readiness === 'verified' ? (
+                          ) : (testResult?.success && testResult.authoritative !== false) || providerState.readiness === 'verified' ? (
                             <Badge variant="default" className="text-[10px] bg-green-600">
                               <Check className="h-3 w-3 mr-0.5" />
                               {t('connected')}

@@ -12,7 +12,11 @@
  */
 
 import { generateText } from 'ai';
-import { getProviderModel, type ProviderName } from '../core/client';
+import type { ProviderName } from '../core/client';
+import {
+  createFeatureProviderModelFromRuntimeConfig,
+  createFeatureRoutePolicy,
+} from '@/lib/ai/provider-consumption';
 import { loggers } from '@/lib/logger';
 import type { 
   PromptTemplate, 
@@ -88,6 +92,24 @@ export interface SelfOptimizationResult {
     hypothesis: string;
   };
   error?: string;
+}
+
+function getPromptSelfOptimizerModel(config: SelfOptimizationConfig) {
+  return createFeatureProviderModelFromRuntimeConfig(
+    createFeatureRoutePolicy('general-text', {
+      featureId: 'prompt-self-optimizer',
+      selectionMode: 'explicit-provider',
+      providerId: config.provider,
+      model: config.model,
+      fallbackMode: 'none',
+    }),
+    {
+      providerId: config.provider,
+      model: config.model,
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
+    }
+  );
 }
 
 export const ANALYSIS_SYSTEM_PROMPT = `You are an expert prompt engineer. Analyze the given prompt and provide detailed feedback on how to improve it.
@@ -168,7 +190,7 @@ export async function analyzePrompt(
   config: SelfOptimizationConfig
 ): Promise<SelfOptimizationResult> {
   try {
-    const modelInstance = getProviderModel(config.provider, config.model, config.apiKey, config.baseURL);
+    const modelInstance = getPromptSelfOptimizerModel(config);
 
     const result = await generateText({
       model: modelInstance,
@@ -220,7 +242,7 @@ export async function optimizePromptFromAnalysis(
   config: SelfOptimizationConfig
 ): Promise<SelfOptimizationResult> {
   try {
-    const modelInstance = getProviderModel(config.provider, config.model, config.apiKey, config.baseURL);
+    const modelInstance = getPromptSelfOptimizerModel(config);
 
     const suggestionText = suggestions
       .filter(s => s.priority === 'high' || s.priority === 'medium')
@@ -284,7 +306,7 @@ export async function analyzeUserFeedback(
   }
 
   try {
-    const modelInstance = getProviderModel(config.provider, config.model, config.apiKey, config.baseURL);
+    const modelInstance = getPromptSelfOptimizerModel(config);
 
     const feedbackText = feedback
       .slice(-20)
@@ -709,12 +731,7 @@ export async function optimizeWithLearning(
   const { learningContext } = config;
   
   try {
-    const modelInstance = getProviderModel(
-      config.provider,
-      config.model,
-      config.apiKey,
-      config.baseURL
-    );
+    const modelInstance = getPromptSelfOptimizerModel(config);
     
     const prompt = LEARNING_OPTIMIZATION_PROMPT
       .replace('{{successfulPatterns}}', learningContext.successfulPatterns.join(', ') || 'None')
@@ -833,12 +850,7 @@ export async function generateABTestVariant(
   error?: string;
 }> {
   try {
-    const modelInstance = getProviderModel(
-      config.provider,
-      config.model,
-      config.apiKey,
-      config.baseURL
-    );
+    const modelInstance = getPromptSelfOptimizerModel(config);
     
     const result = await generateText({
       model: modelInstance,

@@ -3,9 +3,14 @@
  */
 
 import { isTauri } from './utils';
-import { loggers } from '@/lib/logger';
+import { createLogRuntimeContext, loggers } from '@/lib/logger';
 
 const log = loggers.native;
+const updaterLogContext = createLogRuntimeContext({
+  runtime: 'tauri',
+  origin: 'tauri',
+  tags: ['native', 'updater'],
+});
 
 export interface UpdateInfo {
   available: boolean;
@@ -51,11 +56,11 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
     
     // Suppress "plugin not found" errors as the updater might be intentionally disabled
     if (errorMessage.includes('Plugin not found') || errorMessage.includes('updater.check not allowed')) {
-      console.debug('Updater plugin not found or not allowed, skipping update check');
+      log.debug('Updater plugin not found or not allowed, skipping update check', updaterLogContext);
       return { available: false };
     }
 
-    log.error('Failed to check for updates', error as Error);
+    log.error('Failed to check for updates', error as Error, updaterLogContext);
     return { available: false };
   }
 }
@@ -74,7 +79,7 @@ export async function downloadAndInstallUpdate(
     
     const update = await check();
     if (!update) {
-      log.info('No update available');
+      log.info('No update available', updaterLogContext);
       return false;
     }
 
@@ -112,7 +117,7 @@ export async function downloadAndInstallUpdate(
     await relaunch();
     return true;
   } catch (error) {
-    log.error('Failed to download and install update', error as Error);
+    log.error('Failed to download and install update', error as Error, updaterLogContext);
     return false;
   }
 }

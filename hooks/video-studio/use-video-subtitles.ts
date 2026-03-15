@@ -12,6 +12,8 @@
 import { useState, useCallback, useMemo } from 'react';
 import { nanoid } from 'nanoid';
 import { useSettingsStore } from '@/stores';
+import { createProviderSettingsSnapshot } from '@/lib/ai/provider-consumption';
+import { resolveSubtitleTranscriptionAccess } from '@/lib/ai/provider-consumption/capability-provider';
 import type {
   SubtitleTrack,
   SubtitleCue,
@@ -124,11 +126,17 @@ function generateId(): string {
 export function useVideoSubtitles(options: UseVideoSubtitlesOptions = {}): UseVideoSubtitlesReturn {
   const { language = 'en', onSubtitlesLoaded, onSubtitleChange, onError } = options;
 
-  // Get API key for Whisper
   const providerSettings = useSettingsStore((state) => state.providerSettings);
-  const getApiKey = useCallback((): string => {
-    return providerSettings.openai?.apiKey || '';
-  }, [providerSettings]);
+  const getTranscriptionAccess = useCallback(
+    () =>
+      resolveSubtitleTranscriptionAccess(
+        createProviderSettingsSnapshot({
+          defaultProvider: '',
+          providerSettings,
+        })
+      ),
+    [providerSettings]
+  );
 
   // State
   const [isLoading, setIsLoading] = useState(false);
@@ -509,10 +517,10 @@ export function useVideoSubtitles(options: UseVideoSubtitlesOptions = {}): UseVi
 
   const transcribeVideo = useCallback(
     async (videoPath: string): Promise<SubtitleTrackState | null> => {
-      const apiKey = getApiKey();
+      const access = getTranscriptionAccess();
 
-      if (!apiKey) {
-        const message = 'OpenAI API key required for transcription';
+      if (access.kind !== 'resolved') {
+        const message = access.reason;
         setError(message);
         onError?.(message);
         return null;
@@ -524,7 +532,7 @@ export function useVideoSubtitles(options: UseVideoSubtitlesOptions = {}): UseVi
       try {
         const { transcribeVideo: transcribe } = await getSubtitleModule();
 
-        const result: TranscriptionResult = await transcribe(videoPath, apiKey, {
+        const result: TranscriptionResult = await transcribe(videoPath, access.apiKey, {
           language,
           includeTimestamps: true,
         });
@@ -562,7 +570,7 @@ export function useVideoSubtitles(options: UseVideoSubtitlesOptions = {}): UseVi
       }
     },
     [
-      getApiKey,
+      getTranscriptionAccess,
       getSubtitleModule,
       language,
       tracks.length,

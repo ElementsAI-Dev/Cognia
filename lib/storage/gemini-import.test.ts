@@ -224,6 +224,67 @@ describe('Gemini Import', () => {
       const messages = result.conversations[0].messages;
       expect(messages[1].role).toBe('assistant');
     });
+
+    it('should preserve attachment and citation metadata in portable conversation output', async () => {
+      const result = await importer.parse({
+        conversations: [
+          {
+            id: 'gemini-rich-1',
+            title: 'Rich Gemini Conversation',
+            create_time: '2024-01-15T10:00:00Z',
+            update_time: '2024-01-15T10:30:00Z',
+            messages: [
+              {
+                role: 'model',
+                content: 'See attachment and source.',
+                timestamp: '2024-01-15T10:00:15Z',
+                metadata: {
+                  model_version: 'gemini-1.5-pro',
+                  attachments: [
+                    {
+                      type: 'image',
+                      name: 'diagram.png',
+                      mime_type: 'image/png',
+                    },
+                  ],
+                  citations: [
+                    {
+                      title: 'Gemini Docs',
+                      url: 'https://example.com/gemini',
+                      snippet: 'Reference snippet',
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      }, {
+        mergeStrategy: 'merge',
+        generateNewIds: true,
+        preserveTimestamps: true,
+        defaultProvider: 'google',
+        defaultModel: 'gemini-pro',
+        defaultMode: 'chat',
+      });
+
+      const conversation = result.conversations[0];
+      expect(conversation.messages[0].attachments).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: 'image', name: 'diagram.png' }),
+        ])
+      );
+      expect(conversation.messages[0].sources).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ title: 'Gemini Docs', url: 'https://example.com/gemini' }),
+        ])
+      );
+      expect(conversation.metadata?.portableConversation?.messages[0].citations).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ title: 'Gemini Docs', url: 'https://example.com/gemini' }),
+        ])
+      );
+    });
   });
 
   describe('parseGeminiExport', () => {

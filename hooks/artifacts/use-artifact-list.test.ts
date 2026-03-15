@@ -15,6 +15,31 @@ const mockDeleteArtifact = jest.fn();
 const mockDeleteArtifacts = jest.fn();
 const mockOpenPanel = jest.fn();
 const mockGetActiveSession = jest.fn().mockReturnValue({ id: 'session-1' });
+const mockSetArtifactWorkspaceFilters = jest.fn(
+  (filters: Partial<typeof mockArtifactWorkspace>) => {
+    mockArtifactWorkspace = {
+      ...mockArtifactWorkspace,
+      ...filters,
+    };
+  }
+);
+const mockSetArtifactWorkspaceScope = jest.fn((scope: string, sessionId?: string | null) => {
+  mockArtifactWorkspace = {
+    ...mockArtifactWorkspace,
+    scope: scope as typeof mockArtifactWorkspace.scope,
+    sessionId: sessionId ?? undefined,
+  };
+});
+const mockGetArtifactsForWorkspace = jest.fn().mockReturnValue([]);
+let mockArtifactWorkspace = {
+  scope: 'session',
+  sessionId: 'session-1' as string | null | undefined,
+  searchQuery: '',
+  typeFilter: 'all',
+  runtimeFilter: 'all',
+  recentArtifactIds: [],
+  returnContext: null,
+};
 
 jest.mock('@/stores', () => ({
   useArtifactStore: (selector: (state: Record<string, unknown>) => unknown) =>
@@ -28,6 +53,10 @@ jest.mock('@/stores', () => ({
       getSessionArtifacts: mockGetSessionArtifacts,
       searchArtifacts: mockSearchArtifacts,
       filterArtifactsByType: mockFilterArtifactsByType,
+      artifactWorkspace: mockArtifactWorkspace,
+      setArtifactWorkspaceFilters: mockSetArtifactWorkspaceFilters,
+      setArtifactWorkspaceScope: mockSetArtifactWorkspaceScope,
+      getArtifactsForWorkspace: mockGetArtifactsForWorkspace,
     }),
   useSessionStore: (selector: (state: Record<string, unknown>) => unknown) =>
     selector({
@@ -54,6 +83,15 @@ describe('useArtifactList', () => {
     mockSearchArtifacts.mockReturnValue([]);
     mockFilterArtifactsByType.mockReturnValue([]);
     mockGetActiveSession.mockReturnValue({ id: 'session-1' });
+    mockArtifactWorkspace = {
+      scope: 'session',
+      sessionId: 'session-1',
+      searchQuery: '',
+      typeFilter: 'all',
+      runtimeFilter: 'all',
+      recentArtifactIds: [],
+      returnContext: null,
+    };
   });
 
   it('should return empty artifacts initially', () => {
@@ -64,25 +102,44 @@ describe('useArtifactList', () => {
     expect(result.current.batchMode).toBe(false);
   });
 
-  it('should call getSessionArtifacts with active session id', () => {
+  it('should read centralized workspace filters from the artifact store', () => {
+    mockArtifactWorkspace = {
+      ...mockArtifactWorkspace,
+      searchQuery: 'existing-query',
+      typeFilter: 'chart',
+      runtimeFilter: 'ready',
+    };
+
+    const { result } = renderHook(() => useArtifactList({}));
+
+    expect(result.current.searchQuery).toBe('existing-query');
+    expect(result.current.typeFilter).toBe('chart');
+    expect(result.current.runtimeFilter).toBe('ready');
+  });
+
+  it('should synchronize workspace scope with the active session id', () => {
     renderHook(() => useArtifactList({}));
-    expect(mockGetSessionArtifacts).toHaveBeenCalledWith('session-1');
+    expect(mockSetArtifactWorkspaceScope).toHaveBeenCalledWith('session', 'session-1');
   });
 
   it('should use provided sessionId over active session', () => {
     renderHook(() => useArtifactList({ sessionId: 'custom-session' }));
-    expect(mockGetSessionArtifacts).toHaveBeenCalledWith('custom-session');
+    expect(mockSetArtifactWorkspaceScope).toHaveBeenCalledWith('session', 'custom-session');
   });
 
   it('should update search query', () => {
-    const { result } = renderHook(() => useArtifactList({}));
+    const { result, rerender } = renderHook(() => useArtifactList({}));
     act(() => { result.current.setSearchQuery('hello'); });
+    rerender();
+    expect(mockSetArtifactWorkspaceFilters).toHaveBeenCalledWith({ searchQuery: 'hello' });
     expect(result.current.searchQuery).toBe('hello');
   });
 
   it('should update type filter', () => {
-    const { result } = renderHook(() => useArtifactList({}));
+    const { result, rerender } = renderHook(() => useArtifactList({}));
     act(() => { result.current.setTypeFilter('code'); });
+    rerender();
+    expect(mockSetArtifactWorkspaceFilters).toHaveBeenCalledWith({ typeFilter: 'code' });
     expect(result.current.typeFilter).toBe('code');
   });
 

@@ -8,6 +8,12 @@ import {
   selectActiveBattle,
   selectSettings,
   selectModelRatings,
+  selectWorkflowContext,
+  selectWorkflowDraftPrompt,
+  selectActiveReviewBattleId,
+  selectSelectedReviewBattleIds,
+  selectReviewEligibleBattleCount,
+  selectSelectedReviewEligibleBattleCount,
 } from './arena-store';
 import type { ArenaContestant, ArenaPreference } from '@/types/arena';
 
@@ -32,6 +38,123 @@ describe('useArenaStore', () => {
       expect(state.modelRatings).toEqual([]);
       expect(state.activeBattleId).toBeNull();
       expect(state.settings.enabled).toBe(true);
+      expect(selectWorkflowDraftPrompt(state)).toBe('');
+      expect(selectSelectedReviewBattleIds(state)).toEqual([]);
+      expect(selectReviewEligibleBattleCount(state)).toBe(0);
+    });
+  });
+
+  describe('workflow context and review state', () => {
+    const mockContestants: Omit<ArenaContestant, 'id' | 'response' | 'status' | 'startTime'>[] = [
+      { provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o' },
+      { provider: 'anthropic', model: 'claude-3-opus', displayName: 'Claude 3 Opus' },
+    ];
+
+    it('tracks workflow draft, entry point, and active review battle', () => {
+      let battleId = '';
+      act(() => {
+        const battle = useArenaStore.getState().createBattle('Review this', mockContestants);
+        battleId = battle.id;
+        useArenaStore.getState().setWorkflowDraftPrompt('Draft prompt');
+        useArenaStore.getState().setWorkflowEntryPoint('chat');
+        useArenaStore.getState().setActiveReviewBattle(battleId);
+      });
+
+      const state = useArenaStore.getState();
+      expect(selectWorkflowDraftPrompt(state)).toBe('Draft prompt');
+      expect(selectWorkflowContext(state).entryPoint).toBe('chat');
+      expect(selectActiveReviewBattleId(state)).toBe(battleId);
+    });
+
+    it('stores review metadata and computes eligible reviewed battle counts', () => {
+      let judgedBattleId = '';
+      let pendingBattleId = '';
+
+      act(() => {
+        judgedBattleId = useArenaStore.getState().createBattle('Judged battle', mockContestants).id;
+        pendingBattleId = useArenaStore.getState().createBattle('Pending battle', mockContestants).id;
+      });
+
+      const judgedBattle = useArenaStore.getState().getBattle(judgedBattleId);
+      const winnerId = judgedBattle?.contestants[0].id || '';
+
+      act(() => {
+        useArenaStore.getState().selectWinner(judgedBattleId, winnerId, { reason: 'quality' });
+        useArenaStore.getState().updateBattleReview(judgedBattleId, {
+          reviewed: true,
+          bookmarked: true,
+          note: 'keep for export',
+        });
+        useArenaStore.getState().updateBattleReview(pendingBattleId, {
+          reviewed: true,
+          note: 'not exportable yet',
+        });
+        useArenaStore.getState().toggleBattleReviewSelection(judgedBattleId);
+        useArenaStore.getState().toggleBattleReviewSelection(pendingBattleId);
+      });
+
+      const state = useArenaStore.getState();
+      expect(state.reviewMetadata[judgedBattleId]).toEqual(
+        expect.objectContaining({
+          reviewed: true,
+          bookmarked: true,
+          note: 'keep for export',
+        })
+      );
+      expect(selectReviewEligibleBattleCount(state)).toBe(1);
+      expect(selectSelectedReviewEligibleBattleCount(state)).toBe(1);
+      expect(selectSelectedReviewBattleIds(state)).toEqual(
+        expect.arrayContaining([judgedBattleId, pendingBattleId])
+      );
+    });
+
+    it('prunes review state when a battle is deleted', () => {
+      let battleId = '';
+      act(() => {
+        battleId = useArenaStore.getState().createBattle('Delete me', mockContestants).id;
+        useArenaStore.getState().updateBattleReview(battleId, {
+          reviewed: true,
+          bookmarked: true,
+        });
+        useArenaStore.getState().toggleBattleReviewSelection(battleId);
+        useArenaStore.getState().setActiveReviewBattle(battleId);
+      });
+
+      act(() => {
+        useArenaStore.getState().deleteBattle(battleId);
+      });
+
+      const state = useArenaStore.getState();
+      expect(state.reviewMetadata[battleId]).toBeUndefined();
+      expect(selectSelectedReviewBattleIds(state)).toEqual([]);
+      expect(selectActiveReviewBattleId(state)).toBeNull();
+    });
+
+    it('resets workflow context and review state when history is cleared', () => {
+      let battleId = '';
+      act(() => {
+        battleId = useArenaStore.getState().createBattle('Clear me', mockContestants).id;
+        useArenaStore.getState().setWorkflowDraftPrompt('Draft before clear');
+        useArenaStore.getState().setWorkflowEntryPoint('workspace');
+        useArenaStore.getState().setActiveReviewBattle(battleId);
+        useArenaStore.getState().updateBattleReview(battleId, {
+          reviewed: true,
+          note: 'temporary',
+        });
+        useArenaStore.getState().toggleBattleReviewSelection(battleId);
+      });
+
+      act(() => {
+        useArenaStore.getState().clearBattleHistory();
+      });
+
+      const state = useArenaStore.getState();
+      expect(state.battles).toEqual([]);
+      expect(selectWorkflowDraftPrompt(state)).toBe('');
+      expect(selectWorkflowContext(state).entryPoint).toBeNull();
+      expect(selectActiveReviewBattleId(state)).toBeNull();
+      expect(selectSelectedReviewBattleIds(state)).toEqual([]);
+      expect(state.reviewMetadata).toEqual({});
     });
   });
 

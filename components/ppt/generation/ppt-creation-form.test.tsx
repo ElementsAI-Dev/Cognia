@@ -93,6 +93,16 @@ describe('PPTCreationForm', () => {
     expect(screen.getByTestId('ppt-create-submit')).toBeDisabled();
   });
 
+  it('uses the shared ppt-material accept string for import uploads', () => {
+    const { container } = render(<PPTCreationForm {...defaultProps} initialMode="import" />);
+    const fileInput = container.querySelector('input[type="file"]');
+
+    expect(fileInput).toHaveAttribute(
+      'accept',
+      '.txt,.md,.pdf,.docx,.docm,.odt,.rtf,.epub,.pptx,.pptm,.odp'
+    );
+  });
+
   it('enables submit in paste mode when text is long enough', async () => {
     const user = userEvent.setup();
     render(<PPTCreationForm {...defaultProps} initialMode="paste" />);

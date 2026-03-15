@@ -110,6 +110,16 @@ For production-ready plugins, include explicit runtime compatibility:
 
 Plugins that fail host compatibility checks can be blocked during load based on host compatibility mode.
 
+### Source Layout and Dev Extensions
+
+The host normalizes extensions into three install roots:
+
+- `builtin`: bundled with Cognia
+- `installed`: managed installs from marketplace, git, or copied local packages
+- `dev`: source-linked development extensions with reload-oriented workflow
+
+Prefer the dev extension workflow for local iteration so Cognia can preserve source-path metadata, track reload state, and surface diagnostics instead of treating the extension like a copied install.
+
 ## Capabilities
 
 Plugins can provide various capabilities:
@@ -126,6 +136,15 @@ Plugins can provide various capabilities:
 | `providers` | Custom providers |
 | `exporters` | Export formats |
 | `importers` | Import formats |
+
+Capability support levels:
+
+- `supported`: `tools`, `components`, `modes`, `commands`, `hooks`, `a2ui`, `python`, `scheduler`
+- `partial`: `themes`, `exporters`, `importers`
+- `experimental`: `processors`, `providers`
+- `blocked`: `skills`
+
+Blocked capabilities are rejected by current SDK/host validation. Partial and experimental capabilities can emit caution diagnostics depending on governance mode.
 
 ## Permissions
 

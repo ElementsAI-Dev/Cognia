@@ -56,6 +56,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { getDocumentAcceptString } from '@/lib/document';
 import { FILE_TYPE_ICONS, FILE_TYPE_COLORS } from '@/lib/project/knowledge-base-utils';
 import { formatFileSize } from '@/lib/project/utils';
 import { useKnowledgeBase } from '@/hooks/projects/use-knowledge-base';
@@ -143,7 +144,7 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
             ref={fileInputRef}
             type="file"
             multiple
-            accept=".txt,.md,.json,.js,.ts,.tsx,.jsx,.py,.rs,.go,.java,.cpp,.c,.h,.pdf,.docx,.doc,.xlsx,.xls,.csv,.tsv,.html,.htm,.xml,.yaml,.yml,.css,.scss"
+            accept={getDocumentAcceptString('knowledge-base')}
             onChange={handleFileUpload}
             className="hidden"
           />

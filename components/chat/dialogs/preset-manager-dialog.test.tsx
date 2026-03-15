@@ -1,330 +1,110 @@
 /**
  * @jest-environment jsdom
  */
+
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+
 import { PresetManagerDialog } from './preset-manager-dialog';
 
-// Mock next-intl
+const mockPresetsManager = jest.fn();
+
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {
     const translations: Record<string, string> = {
       managePresets: 'Manage Presets',
-      manageDescription: 'Create and manage your presets',
-      editPreset: 'Edit Preset',
-      createPreset: 'Create Preset',
-      editDescription: 'Configure preset settings',
-      allPresets: 'All Presets',
-      edit: 'Edit',
-      create: 'Create',
-      new: 'New',
-      aiGeneratePreset: 'AI Generate Preset',
-      noPresetsFound: 'No presets found',
-      basicInfo: 'Basic Info',
-      name: 'Name',
-      iconColor: 'Icon & Color',
-      description: 'Description',
-      modelConfig: 'Model Configuration',
-      provider: 'Provider',
-      model: 'Model',
-      mode: 'Mode',
-      auto: 'Auto',
-      modeChat: 'Chat',
-      modeAgent: 'Agent',
-      modeResearch: 'Research',
-      temperature: 'Temperature',
-      features: 'Features',
-      webSearch: 'Web Search',
-      webSearchDesc: 'Enable web search',
-      thinkingMode: 'Thinking Mode',
-      thinkingModeDesc: 'Enable thinking mode',
-      systemPrompt: 'System Prompt',
-      aiOptimize: 'AI Optimize',
-      builtinPrompts: 'Built-in Prompts',
-      aiGenerate: 'AI Generate',
-      add: 'Add',
-      noBuiltinPrompts: 'No built-in prompts',
-      cancel: 'Cancel',
-      savePreset: 'Save Preset',
-      category: 'Category',
-      selectCategory: 'Select category',
-      default: 'Default',
-      'categories.general': 'General',
-      'categories.coding': 'Coding',
-      'categories.writing': 'Writing',
-      'categories.research': 'Research',
-      'categories.education': 'Education',
-      'categories.business': 'Business',
-      'categories.creative': 'Creative',
-      'categories.productivity': 'Productivity',
-      defaultBadge: 'Default',
-      'errors.noApiKey': 'Please configure an API key in settings first.',
-      'errors.optimizeFailed': 'Failed to optimize prompt',
-      'errors.generatePresetFailed': 'Failed to generate preset',
-      'errors.generatePromptsFailed': 'Failed to generate prompts',
     };
     return translations[key] || key;
   },
 }));
 
-// Mock stores
-const mockPresets = [
-  {
-    id: '1',
-    name: 'Test Preset',
-    description: 'A test preset',
-    icon: '💬',
-    color: '#3B82F6',
-    provider: 'openai',
-    model: 'gpt-4o',
-    mode: 'chat',
-    systemPrompt: 'You are a helpful assistant.',
-    builtinPrompts: [],
-    temperature: 0.7,
-    webSearchEnabled: false,
-    thinkingEnabled: false,
-    isDefault: true,
-  },
-];
-
-jest.mock('@/stores', () => ({
-  usePresetStore: (selector: (state: unknown) => unknown) => {
-    const state = {
-      presets: mockPresets,
-      createPreset: jest.fn((input: unknown) => ({ id: '2', ...input as object })),
-      updatePreset: jest.fn(),
-      deletePreset: jest.fn(),
-      duplicatePreset: jest.fn(() => ({ id: '3', name: 'Copy of Test Preset' })),
-      getPreset: jest.fn(() => mockPresets[0]),
-    };
-    return selector ? selector(state) : state;
-  },
-}));
-
-// Mock types
-jest.mock('@/types/content/preset', () => ({
-  PRESET_COLORS: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'],
-  PRESET_ICONS: ['💬', '🤖', '📝', '🎯'],
-  PRESET_CATEGORIES: ['general', 'coding', 'writing', 'research', 'education', 'business', 'creative', 'productivity'],
-}));
-
-// Mock usePresetAI hook
-jest.mock('@/hooks/presets', () => ({
-  usePresetAI: () => ({
-    isGeneratingPreset: false,
-    isOptimizingPrompt: false,
-    isGeneratingPrompts: false,
-    handleGeneratePreset: jest.fn(),
-    handleOptimizePrompt: jest.fn(),
-    handleGenerateBuiltinPrompts: jest.fn(),
-  }),
-}));
-
-jest.mock('@/types/provider', () => ({
-  PROVIDERS: {
-    openai: { name: 'OpenAI', models: [] },
-    anthropic: { name: 'Anthropic', models: [] },
-  },
-}));
-
-// Mock nanoid
-jest.mock('nanoid', () => ({
-  nanoid: () => 'test-id',
-}));
-
-// Mock UI components
 jest.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) => 
-    open ? <div data-testid="dialog">{children}</div> : null,
+  Dialog: ({
+    children,
+    open,
+    onOpenChange,
+  }: {
+    children: React.ReactNode;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+  }) => (
+    <div data-testid="dialog" data-open={open}>
+      {open ? (
+        <>
+          <button onClick={() => onOpenChange(false)}>close-dialog</button>
+          {children}
+        </>
+      ) : null}
+    </div>
+  ),
   DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
   DialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
-  DialogFooter: ({ children }: { children: React.ReactNode }) => <div data-testid="footer">{children}</div>,
+  DialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
-  ),
-}));
-
-jest.mock('@/components/ui/input', () => ({
-  Input: ({ value, onChange, placeholder, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
-    <input value={value} onChange={onChange} placeholder={placeholder} {...props} />
-  ),
-}));
-
-jest.mock('@/components/ui/label', () => ({
-  Label: ({ children, ...props }: { children: React.ReactNode }) => <label {...props}>{children}</label>,
-}));
-
-jest.mock('@/components/ui/textarea', () => ({
-  Textarea: ({ value, onChange, placeholder, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-    <textarea value={value} onChange={onChange} placeholder={placeholder} {...props} />
-  ),
-}));
-
-jest.mock('@/components/ui/switch', () => ({
-  Switch: ({ checked, onCheckedChange }: { checked: boolean; onCheckedChange: (v: boolean) => void }) => (
-    <input type="checkbox" checked={checked} onChange={(e) => onCheckedChange(e.target.checked)} data-testid="switch" />
-  ),
-}));
-
-jest.mock('@/components/ui/tabs', () => ({
-  Tabs: ({ children, value }: { children: React.ReactNode; value: string }) => (
-    <div data-testid="tabs" data-value={value}>{children}</div>
-  ),
-  TabsContent: ({ children, value }: { children: React.ReactNode; value: string }) => (
-    <div data-testid={`tab-${value}`}>{children}</div>
-  ),
-  TabsList: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TabsTrigger: ({ children, value }: { children: React.ReactNode; value: string }) => (
-    <button data-value={value}>{children}</button>
-  ),
-}));
-
-jest.mock('@/components/ui/scroll-area', () => ({
-  ScrollArea: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
-
-jest.mock('@/components/ui/select', () => ({
-  Select: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => (
-    <div data-value={value}>{children}</div>
-  ),
-  SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectValue: () => <span />,
-}));
-
-jest.mock('@/components/ui/slider', () => ({
-  Slider: ({ value }: { value: number[] }) => (
-    <input type="range" value={value[0]} readOnly data-testid="slider" />
-  ),
+jest.mock('@/components/presets', () => ({
+  PresetsManager: (props: Record<string, unknown>) => {
+    mockPresetsManager(props);
+    return (
+      <div data-testid="shared-presets-manager">
+        <button
+          onClick={() =>
+            (props.onSelectPreset as ((preset: { id: string; name: string }) => void) | undefined)?.({
+              id: 'preset-1',
+              name: 'Preset One',
+            })
+          }
+        >
+          select-from-manager
+        </button>
+      </div>
+    );
+  },
 }));
 
 describe('PresetManagerDialog', () => {
-  const defaultProps = {
-    open: true,
-    onOpenChange: jest.fn(),
-    editPresetId: null,
-    onPresetSelect: jest.fn(),
-  };
-
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders when open is true', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    expect(screen.getByTestId('dialog')).toBeInTheDocument();
-  });
+  it('renders the shared presets manager when open', () => {
+    render(<PresetManagerDialog open onOpenChange={jest.fn()} />);
 
-  it('does not render when open is false', () => {
-    render(<PresetManagerDialog {...defaultProps} open={false} />);
-    expect(screen.queryByTestId('dialog')).not.toBeInTheDocument();
-  });
-
-  it('displays dialog title', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
     expect(screen.getByText('Manage Presets')).toBeInTheDocument();
+    expect(screen.getByTestId('shared-presets-manager')).toBeInTheDocument();
   });
 
-  it('displays tabs for list and edit', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    expect(screen.getByText('All Presets')).toBeInTheDocument();
+  it('passes chat-driven entry props through to the shared presets manager', () => {
+    render(
+      <PresetManagerDialog
+        open
+        onOpenChange={jest.fn()}
+        editPresetId="preset-42"
+        openCreateOnMount
+      />,
+    );
+
+    expect(mockPresetsManager).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initialEditPresetId: 'preset-42',
+        openCreateOnMount: true,
+      }),
+    );
   });
 
-  it('displays AI generate section', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    expect(screen.getByText('AI Generate Preset')).toBeInTheDocument();
-  });
+  it('selects a preset and closes the dialog through the wrapper', () => {
+    const onOpenChange = jest.fn();
+    const onPresetSelect = jest.fn();
 
-  it('displays new button', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    expect(screen.getByText('New')).toBeInTheDocument();
-  });
+    render(
+      <PresetManagerDialog open onOpenChange={onOpenChange} onPresetSelect={onPresetSelect} />,
+    );
 
-  it('displays existing preset', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    expect(screen.getByText('Test Preset')).toBeInTheDocument();
-  });
+    fireEvent.click(screen.getByText('select-from-manager'));
 
-  it('displays preset description', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    expect(screen.getByText('A test preset')).toBeInTheDocument();
-  });
-
-  it('displays preset icon', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    expect(screen.getByText('💬')).toBeInTheDocument();
-  });
-
-  it('displays default badge for default preset', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    expect(screen.getByText('Default')).toBeInTheDocument();
-  });
-
-  it('displays preset mode and model', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    expect(screen.getByText('chat')).toBeInTheDocument();
-    expect(screen.getByText('gpt-4o')).toBeInTheDocument();
-  });
-
-  it('has search input for filtering presets', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    expect(screen.getByPlaceholderText('searchPresets')).toBeInTheDocument();
-  });
-
-  it('has AI description input', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    expect(screen.getByPlaceholderText('describePreset')).toBeInTheDocument();
-  });
-
-  it('handles new preset creation click', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    const newButton = screen.getByText('New');
-    fireEvent.click(newButton);
-    // After clicking new, should show edit tab
-    expect(screen.getByTestId('tab-edit')).toBeInTheDocument();
-  });
-
-  it('displays edit form in edit tab', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    fireEvent.click(screen.getByText('New'));
-    expect(screen.getByText('Basic Info')).toBeInTheDocument();
-    expect(screen.getByText('Name')).toBeInTheDocument();
-  });
-
-  it('displays model configuration section', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    fireEvent.click(screen.getByText('New'));
-    expect(screen.getByText('Model Configuration')).toBeInTheDocument();
-  });
-
-  it('displays features section', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    fireEvent.click(screen.getByText('New'));
-    expect(screen.getByText('Features')).toBeInTheDocument();
-  });
-
-  it('displays system prompt section', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    fireEvent.click(screen.getByText('New'));
-    expect(screen.getByText('System Prompt')).toBeInTheDocument();
-  });
-
-  it('displays built-in prompts section', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    fireEvent.click(screen.getByText('New'));
-    expect(screen.getByText('Built-in Prompts')).toBeInTheDocument();
-  });
-
-  it('displays save and cancel buttons in edit mode', () => {
-    render(<PresetManagerDialog {...defaultProps} />);
-    fireEvent.click(screen.getByText('New'));
-    expect(screen.getByText('Save Preset')).toBeInTheDocument();
-    expect(screen.getByText('Cancel')).toBeInTheDocument();
+    expect(onPresetSelect).toHaveBeenCalledWith({ id: 'preset-1', name: 'Preset One' });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });

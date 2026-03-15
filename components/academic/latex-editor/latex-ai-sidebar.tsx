@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSettingsStore } from '@/stores/settings';
 import { useAIChat } from '@/lib/ai/generation/use-ai-chat';
-import type { ProviderName } from '@/types/provider';
+import { resolveLatexAIChatConfig } from '@/lib/latex/ai-config';
 import { Sparkles, PanelRightClose, MessageSquare, Lightbulb, History, Send, Calculator } from 'lucide-react';
 import { LatexEquationAnalysis } from './latex-equation-analysis';
 
@@ -21,26 +21,6 @@ type ChatMessage = {
   role: 'user' | 'assistant';
   content: string;
 };
-
-function resolveProvider(
-  defaultProvider: string,
-  providerSettings: Record<string, { enabled?: boolean; apiKey?: string }>
-) {
-  if (defaultProvider === 'auto') {
-    const candidates = Object.keys(providerSettings)
-      .filter((key) => key !== 'auto')
-      .filter(
-        (key) =>
-          providerSettings[key]?.enabled &&
-          (key === 'ollama' || Boolean(providerSettings[key]?.apiKey))
-      );
-
-    const first = candidates[0];
-    return (first ? first : 'openai') as ProviderName;
-  }
-
-  return defaultProvider as ProviderName;
-}
 
 interface LatexAISidebarProps {
   open: boolean;
@@ -57,29 +37,14 @@ export function LatexAISidebar({ open, onClose, className }: LatexAISidebarProps
   const defaultProvider = useSettingsStore((s) => s.defaultProvider);
   const providerSettings = useSettingsStore((s) => s.providerSettings);
 
-  const provider = useMemo(
-    () => resolveProvider(defaultProvider, providerSettings as unknown as Record<string, { enabled?: boolean; apiKey?: string }>),
+  const config = useMemo(
+    () => resolveLatexAIChatConfig(defaultProvider, providerSettings),
     [defaultProvider, providerSettings]
   );
 
-  const model = useMemo(() => {
-    const current = providerSettings[provider];
-    if (current?.defaultModel) return current.defaultModel;
-
-    const defaults: Record<string, string> = {
-      openai: 'gpt-4o-mini',
-      anthropic: 'claude-3-haiku-20240307',
-      google: 'gemini-1.5-flash',
-      deepseek: 'deepseek-chat',
-      groq: 'llama-3.1-8b-instant',
-    };
-
-    return defaults[provider] || 'gpt-4o-mini';
-  }, [provider, providerSettings]);
-
   const { sendMessage, stop } = useAIChat({
-    provider,
-    model,
+    provider: config.provider,
+    model: config.model,
   });
 
   const handleSend = useCallback(async () => {

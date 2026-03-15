@@ -37,6 +37,7 @@ import {
   IndentDecrease,
   LayoutGrid,
   MoreHorizontal,
+  type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -146,7 +147,7 @@ const HIGHLIGHT_COLORS = [
 
 interface ToolbarToggleProps {
   action: FormatAction;
-  icon: React.ElementType;
+  icon: LucideIcon;
   tooltip: string;
   active?: boolean;
   shortcut?: string;

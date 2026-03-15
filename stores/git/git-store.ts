@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 import type {
   GitStatus,
   GitRepoInfo,
+  GitTrackedRepo,
+  GitTrackedRepoSource,
   GitCommitInfo,
   GitBranchInfo,
   GitFileStatus,
@@ -25,6 +27,7 @@ import type {
   GitRepoStats,
   GitCheckpoint,
 } from '@/types/system/git';
+import { createTrackedRepoRecord } from '@/types/system/git';
 import { gitService } from '@/lib/native/git';
 
 export interface GitState {
@@ -61,7 +64,7 @@ export interface GitState {
   autoCommitConfig: AutoCommitConfig;
 
   // Tracked repositories
-  trackedRepos: string[];
+  trackedRepos: GitTrackedRepo[];
 
   // Graph
   graphCommits: GitGraphCommit[];
@@ -184,7 +187,10 @@ export interface GitActions {
   deleteCheckpoint: (id: string) => Promise<boolean>;
 
   // Repository tracking
-  addTrackedRepo: (path: string) => void;
+  addTrackedRepo: (
+    path: string,
+    metadata?: Partial<Omit<GitTrackedRepo, 'path' | 'displayName' | 'lastOpenedAt'>>
+  ) => void;
   removeTrackedRepo: (path: string) => void;
 
   // State management
@@ -245,6 +251,79 @@ type StoreSet = (partial: Partial<GitState>) => void;
 
 function errMsg(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function mergeTrackedRepoRecords(
+  existing: GitTrackedRepo | undefined,
+  incoming: GitTrackedRepo
+): GitTrackedRepo {
+  return {
+    ...existing,
+    ...incoming,
+    path: incoming.path,
+    displayName: incoming.displayName || existing?.displayName || incoming.path,
+    lastOpenedAt: incoming.lastOpenedAt,
+    linkedProjectIds: Array.from(
+      new Set([...(existing?.linkedProjectIds || []), ...(incoming.linkedProjectIds || [])])
+    ),
+  };
+}
+
+export function normalizeTrackedRepos(value: unknown): GitTrackedRepo[] {
+  if (!Array.isArray(value)) return [];
+
+  const trackedRepos = value
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        return createTrackedRepoRecord(entry, { source: 'manual' });
+      }
+
+      if (entry && typeof entry === 'object' && 'path' in entry && typeof entry.path === 'string') {
+        const metadata = entry as Partial<GitTrackedRepo> & { path: string };
+        return createTrackedRepoRecord(metadata.path, {
+          source: (metadata.source as GitTrackedRepoSource | undefined) || 'manual',
+          displayName: metadata.displayName,
+          lastOpenedAt: metadata.lastOpenedAt,
+          remoteUrl: metadata.remoteUrl ?? null,
+          branch: metadata.branch ?? null,
+          linkedProjectIds: Array.isArray(metadata.linkedProjectIds)
+            ? metadata.linkedProjectIds.filter((id): id is string => typeof id === 'string')
+            : [],
+        });
+      }
+
+      return null;
+    })
+    .filter((entry): entry is GitTrackedRepo => entry !== null);
+
+  return trackedRepos.reduce<GitTrackedRepo[]>((acc, repo) => {
+    const existing = acc.find((item) => item.path === repo.path);
+    if (!existing) {
+      acc.push(repo);
+      return acc;
+    }
+
+    const merged = mergeTrackedRepoRecords(existing, repo);
+    return acc.map((item) => (item.path === repo.path ? merged : item));
+  }, []);
+}
+
+function syncTrackedRepoFromRepoInfo(
+  trackedRepos: GitTrackedRepo[],
+  repoInfo: GitRepoInfo
+): GitTrackedRepo[] {
+  if (!repoInfo.isGitRepo) return trackedRepos;
+
+  return trackedRepos.map((repo) =>
+    repo.path === repoInfo.path
+      ? {
+          ...repo,
+          displayName: repo.displayName || repoInfo.path.split(/[/\\]/).pop() || repoInfo.path,
+          remoteUrl: repoInfo.remoteUrl ?? repo.remoteUrl ?? null,
+          branch: repoInfo.branch ?? repo.branch ?? null,
+        }
+      : repo
+  );
 }
 
 /**
@@ -368,7 +447,12 @@ export const useGitStore = create<GitState & GitActions>()(
         try {
           const result = await gitService.getStatus(repoPath);
           if (result.success && result.data) {
-            set({ currentRepoInfo: result.data, operationStatus: 'idle' });
+            const repoInfo = result.data;
+            set((state) => ({
+              currentRepoInfo: repoInfo,
+              operationStatus: 'idle',
+              trackedRepos: syncTrackedRepoFromRepoInfo(state.trackedRepos, repoInfo),
+            }));
           } else {
             set({ lastError: result.error || 'Failed to get repository status', operationStatus: 'error' });
           }
@@ -385,15 +469,19 @@ export const useGitStore = create<GitState & GitActions>()(
         try {
           const result = await gitService.getFullStatus(currentRepoPath);
           if (result.success && result.data) {
-            set({
-              currentRepoInfo: result.data.repoInfo,
-              branches: result.data.branches,
-              commits: result.data.commits,
-              fileStatus: result.data.fileStatus,
-              stashList: result.data.stashList as GitStashEntry[],
-              remotes: result.data.remotes || [],
+            const fullStatus = result.data;
+            set((state) => ({
+              currentRepoInfo: fullStatus.repoInfo,
+              branches: fullStatus.branches,
+              commits: fullStatus.commits,
+              fileStatus: fullStatus.fileStatus,
+              stashList: fullStatus.stashList as GitStashEntry[],
+              remotes: fullStatus.remotes || [],
+              trackedRepos: fullStatus.repoInfo
+                ? syncTrackedRepoFromRepoInfo(state.trackedRepos, fullStatus.repoInfo)
+                : state.trackedRepos,
               operationStatus: 'idle',
-            });
+            }));
           } else {
             set({ lastError: result.error || 'Failed to get full repository status', operationStatus: 'error' });
           }
@@ -408,7 +496,11 @@ export const useGitStore = create<GitState & GitActions>()(
           const result = await gitService.init({ path, initialBranch: options?.initialBranch || 'main' });
           if (result.success) {
             set({ currentRepoPath: path, currentRepoInfo: result.data || null, operationStatus: 'success' });
-            get().addTrackedRepo(path);
+            get().addTrackedRepo(path, {
+              source: 'init',
+              remoteUrl: result.data?.remoteUrl ?? null,
+              branch: result.data?.branch ?? null,
+            });
             return true;
           }
           set({ lastError: result.error || 'Failed to initialize repository', operationStatus: 'error' });
@@ -425,7 +517,11 @@ export const useGitStore = create<GitState & GitActions>()(
           const result = await gitService.clone({ url, targetPath, branch: options?.branch, depth: options?.depth });
           if (result.success) {
             set({ currentRepoPath: targetPath, currentRepoInfo: result.data || null, operationStatus: 'success' });
-            get().addTrackedRepo(targetPath);
+            get().addTrackedRepo(targetPath, {
+              source: 'clone',
+              remoteUrl: result.data?.remoteUrl ?? url,
+              branch: result.data?.branch ?? options?.branch ?? null,
+            });
             return true;
           }
           set({ lastError: result.error || 'Failed to clone repository', operationStatus: 'error' });
@@ -595,13 +691,13 @@ export const useGitStore = create<GitState & GitActions>()(
       addRemote: async (name, url) => runGitOp(get, set,
         (rp) => gitService.addRemote(rp, name, url),
         'Failed to add remote',
-        () => get().loadRemotes(),
+        async () => { await get().loadRemotes(); await get().loadRepoStatus(); },
       ),
 
       removeRemote: async (name) => runGitOp(get, set,
         (rp) => gitService.removeRemote(rp, name),
         'Failed to remove remote',
-        () => get().loadRemotes(),
+        async () => { await get().loadRemotes(); await get().loadRepoStatus(); },
       ),
 
       // Tag operations
@@ -726,7 +822,10 @@ export const useGitStore = create<GitState & GitActions>()(
           repoPath,
         });
 
-        get().addTrackedRepo(repoPath);
+        get().addTrackedRepo(repoPath, {
+          source: 'project',
+          linkedProjectIds: [projectId],
+        });
         return true;
       },
 
@@ -811,16 +910,26 @@ export const useGitStore = create<GitState & GitActions>()(
       ),
 
       // Repository tracking
-      addTrackedRepo: (path) => {
+      addTrackedRepo: (path, metadata) => {
         const { trackedRepos } = get();
-        if (!trackedRepos.includes(path)) {
-          set({ trackedRepos: [...trackedRepos, path] });
+        const incoming = createTrackedRepoRecord(path, metadata);
+        const existing = trackedRepos.find((repo) => repo.path === incoming.path);
+
+        if (!existing) {
+          set({ trackedRepos: [...trackedRepos, incoming] });
+          return;
         }
+
+        set({
+          trackedRepos: trackedRepos.map((repo) =>
+            repo.path === incoming.path ? mergeTrackedRepoRecords(repo, incoming) : repo
+          ),
+        });
       },
 
       removeTrackedRepo: (path) => {
         const { trackedRepos } = get();
-        set({ trackedRepos: trackedRepos.filter((p) => p !== path) });
+        set({ trackedRepos: trackedRepos.filter((repo) => repo.path !== path) });
       },
 
       // State management
@@ -837,6 +946,15 @@ export const useGitStore = create<GitState & GitActions>()(
         autoCommitConfig: state.autoCommitConfig,
         trackedRepos: state.trackedRepos,
       }),
+      merge: (persistedState, currentState) => {
+        const typedPersistedState = persistedState as Partial<GitState> | undefined;
+
+        return {
+          ...currentState,
+          ...typedPersistedState,
+          trackedRepos: normalizeTrackedRepos(typedPersistedState?.trackedRepos),
+        };
+      },
     }
   )
 );

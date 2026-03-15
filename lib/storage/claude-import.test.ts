@@ -161,6 +161,53 @@ describe('Claude Import', () => {
       expect(assistantMessage.content).toContain('```python');
       expect(assistantMessage.content).toContain('def binary_search');
     });
+
+    it('should preserve image and artifact parts as attachment summaries with warnings metadata', async () => {
+      const result = await importer.parse({
+        meta: {
+          exported_at: '2024-01-15T10:00:00Z',
+          title: 'Rich Claude Conversation',
+          conversation_id: 'claude-rich-1',
+        },
+        chats: [
+          {
+            index: 0,
+            type: 'response',
+            message: [
+              { type: 'p', data: 'See the generated asset below.' },
+              { type: 'image', data: 'wireframe.png' },
+              { type: 'artifact', data: 'component.tsx' },
+            ],
+          },
+        ],
+      }, {
+        mergeStrategy: 'merge',
+        generateNewIds: true,
+        preserveTimestamps: true,
+        defaultProvider: 'anthropic',
+        defaultModel: 'claude-3-opus',
+        defaultMode: 'chat',
+      });
+
+      const conversation = result.conversations[0];
+      expect(conversation.messages[0].attachments).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: 'image', name: 'wireframe.png' }),
+          expect.objectContaining({ type: 'document', name: 'component.tsx' }),
+        ])
+      );
+      expect(conversation.metadata?.warnings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: 'attachment_summary_only' }),
+        ])
+      );
+      expect(conversation.metadata?.portableConversation?.messages[0].attachments).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ kind: 'image', name: 'wireframe.png' }),
+          expect.objectContaining({ kind: 'artifact', name: 'component.tsx' }),
+        ])
+      );
+    });
   });
 
   describe('parseClaudeExport', () => {

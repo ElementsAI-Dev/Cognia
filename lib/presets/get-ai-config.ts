@@ -4,17 +4,46 @@
  * presets-manager, create-preset-dialog, and preset-manager-dialog.
  */
 
-import type { ProviderName } from '@/types/provider';
+import {
+  resolveFeatureProvider,
+  type ProviderSettingsSnapshot,
+} from '@/lib/ai/provider-consumption';
+import type { ApiKeyUsageStats, ApiProtocol } from '@/types/provider';
 
 export interface PresetAIConfig {
-  provider: ProviderName;
+  provider: string;
+  model?: string;
   apiKey: string;
   baseURL?: string;
+  protocol?: ApiProtocol;
+  isCustomProvider: boolean;
+  useProxy: boolean;
 }
 
 interface ProviderSettingsEntry {
   apiKey?: string;
   baseURL?: string;
+  defaultModel?: string;
+  enabled?: boolean;
+  providerId?: string;
+  apiKeys?: string[];
+  apiKeyRotationEnabled?: boolean;
+  apiKeyRotationStrategy?: 'round-robin' | 'random' | 'least-used';
+  currentKeyIndex?: number;
+  apiKeyUsageStats?: Record<string, ApiKeyUsageStats>;
+}
+
+interface CustomProviderEntry {
+  baseURL?: string;
+  apiKey?: string;
+  apiProtocol?: ApiProtocol;
+  defaultModel?: string;
+  enabled?: boolean;
+}
+
+interface PresetAIConfigOptions {
+  customProviders?: Record<string, CustomProviderEntry | undefined>;
+  defaultProvider?: string;
 }
 
 /**
@@ -30,40 +59,52 @@ interface ProviderSettingsEntry {
 export function getPresetAIConfig(
   providerSettings: Record<string, ProviderSettingsEntry | undefined>,
   preferredProvider?: string,
+  options: PresetAIConfigOptions = {},
 ): PresetAIConfig | null {
-  const resolvedProvider = preferredProvider === 'auto' ? 'openai' : preferredProvider;
+  const configuredProviders = [
+    ...Object.keys(providerSettings),
+    ...Object.keys(options.customProviders || {}),
+  ];
 
-  // Try preferred provider
-  if (resolvedProvider) {
-    const settings = providerSettings[resolvedProvider];
-    if (settings?.apiKey) {
-      return {
-        provider: resolvedProvider as ProviderName,
-        apiKey: settings.apiKey,
-        baseURL: settings.baseURL,
-      };
-    }
+  const snapshot: ProviderSettingsSnapshot = {
+    defaultProvider: options.defaultProvider,
+    providerSettings,
+    customProviders: options.customProviders,
+  };
+
+  const resolution = resolveFeatureProvider(
+    preferredProvider && preferredProvider !== 'auto'
+      ? {
+          featureId: 'preset-ai',
+          selectionMode: 'supported-providers',
+          providerId: preferredProvider,
+          supportedProviders: Array.from(
+            new Set([preferredProvider, 'openai', ...configuredProviders])
+          ),
+          fallbackMode: 'first-eligible',
+          proxyMode: 'preferred',
+        }
+      : {
+          featureId: 'preset-ai',
+          selectionMode: 'default-provider',
+          supportedProviders: Array.from(new Set(configuredProviders)),
+          fallbackMode: 'first-eligible',
+          proxyMode: 'preferred',
+        },
+    snapshot
+  );
+
+  if (resolution.kind !== 'resolved') {
+    return null;
   }
 
-  // Fallback to openai
-  const openaiSettings = providerSettings['openai'];
-  if (openaiSettings?.apiKey) {
-    return {
-      provider: 'openai' as ProviderName,
-      apiKey: openaiSettings.apiKey,
-      baseURL: openaiSettings.baseURL,
-    };
-  }
-
-  // Fallback to any available provider
-  const anyEntry = Object.entries(providerSettings).find(([, s]) => s?.apiKey);
-  if (anyEntry && anyEntry[1]?.apiKey) {
-    return {
-      provider: anyEntry[0] as ProviderName,
-      apiKey: anyEntry[1].apiKey,
-      baseURL: anyEntry[1].baseURL,
-    };
-  }
-
-  return null;
+  return {
+    provider: resolution.providerId,
+    model: resolution.model,
+    apiKey: resolution.apiKey,
+    baseURL: resolution.baseURL,
+    protocol: resolution.protocol,
+    isCustomProvider: resolution.isCustomProvider,
+    useProxy: resolution.useProxy,
+  };
 }

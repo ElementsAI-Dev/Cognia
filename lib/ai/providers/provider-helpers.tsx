@@ -6,9 +6,15 @@
 import React from 'react';
 import { Sparkles, Globe, Zap, Server, Cpu } from 'lucide-react';
 import { PROVIDERS } from '@/types/provider';
+import {
+  BUILT_IN_PROVIDER_IDS,
+  getBuiltInProviderCatalogEntry,
+} from '@/types/provider/built-in-provider-catalog';
 
 // Helper to get dashboard URL for each provider
 export function getProviderDashboardUrl(providerId: string): string {
+  const catalogEntry = getBuiltInProviderCatalogEntry(providerId);
+  if (catalogEntry?.dashboardUrl) return catalogEntry.dashboardUrl;
   const provider = PROVIDERS[providerId];
   if (provider?.dashboardUrl) return provider.dashboardUrl;
   
@@ -26,6 +32,8 @@ export function getProviderDashboardUrl(providerId: string): string {
     fireworks: 'https://fireworks.ai/account/api-keys',
     cerebras: 'https://cloud.cerebras.ai/platform',
     sambanova: 'https://cloud.sambanova.ai/apis',
+    zhipu: 'https://open.bigmodel.cn/usercenter/apikeys',
+    minimax: 'https://api.minimax.chat/',
     // Local providers - link to documentation/websites
     ollama: 'https://ollama.ai',
     lmstudio: 'https://lmstudio.ai',
@@ -45,6 +53,8 @@ export function getProviderDashboardUrl(providerId: string): string {
 
 // Get provider description
 export function getProviderDescription(providerId: string): string {
+  const catalogEntry = getBuiltInProviderCatalogEntry(providerId);
+  if (catalogEntry?.description) return catalogEntry.description;
   const provider = PROVIDERS[providerId];
   if (provider?.description) return provider.description;
   
@@ -62,6 +72,8 @@ export function getProviderDescription(providerId: string): string {
     fireworks: 'Ultra-fast compound AI',
     cerebras: 'Fastest inference with custom AI chips',
     sambanova: 'Enterprise AI with free tier',
+    zhipu: 'GLM models for Chinese and coding workflows',
+    minimax: 'MiniMax chat models with coding-oriented options',
     cliproxyapi: 'Self-hosted AI proxy aggregating multiple providers',
     ollama: 'Run models locally on your machine',
     // New local providers
@@ -102,30 +114,10 @@ export const CATEGORY_CONFIG: Record<ProviderCategory, { label: string; icon: Re
 };
 
 // Map provider IDs to categories
-export const PROVIDER_CATEGORIES: Record<string, ProviderCategory> = {
-  openai: 'flagship',
-  anthropic: 'flagship',
-  google: 'flagship',
-  xai: 'flagship',
-  openrouter: 'aggregator',
-  cliproxyapi: 'aggregator',
-  togetherai: 'aggregator',
-  groq: 'specialized',
-  cerebras: 'specialized',
-  deepseek: 'specialized',
-  fireworks: 'specialized',
-  mistral: 'specialized',
-  cohere: 'specialized',
-  sambanova: 'specialized',
-  // Local inference providers
-  ollama: 'local',
-  lmstudio: 'local',
-  llamacpp: 'local',
-  llamafile: 'local',
-  vllm: 'local',
-  localai: 'local',
-  jan: 'local',
-  textgenwebui: 'local',
-  koboldcpp: 'local',
-  tabbyapi: 'local',
-};
+export const PROVIDER_CATEGORIES: Record<string, ProviderCategory> = Object.fromEntries(
+  BUILT_IN_PROVIDER_IDS.map((providerId) => {
+    const category = getBuiltInProviderCatalogEntry(providerId)?.category;
+    const normalized = category === 'enterprise' ? 'specialized' : category || 'specialized';
+    return [providerId, normalized];
+  })
+) as Record<string, ProviderCategory>;

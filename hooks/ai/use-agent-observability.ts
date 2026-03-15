@@ -9,6 +9,7 @@ import {
   createAgentObservabilityManager,
   type AgentObservabilityConfig,
 } from '@/lib/ai/observability/agent-observability';
+import { buildObservabilitySettingsProjection } from '@/lib/observability';
 import { useSettingsStore } from '@/stores';
 import type { ToolCall } from '@/lib/ai/agent/agent-executor';
 
@@ -120,10 +121,15 @@ export function useAgentObservability(config: AgentObservabilityConfig) {
  */
 export function useAgentObservabilityConfig() {
   const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
+  const agentTraceSettings = useSettingsStore((state) => state.agentTraceSettings);
+  const projection = buildObservabilitySettingsProjection({
+    observabilitySettings,
+    agentTraceSettings,
+  });
 
   return {
-    enableObservability: observabilitySettings?.enabled ?? false,
-    enableLangfuse: observabilitySettings?.langfuseEnabled,
-    enableOpenTelemetry: observabilitySettings?.openTelemetryEnabled,
+    enableObservability: projection.runtimeCaptureEnabled,
+    enableLangfuse: projection.langfuse.active,
+    enableOpenTelemetry: projection.openTelemetry.active,
   };
 }

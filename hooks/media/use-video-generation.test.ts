@@ -6,6 +6,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useVideoGeneration } from './use-video-generation';
 import * as videoGeneration from '@/lib/ai/media/video-generation';
 import type { VideoGenerationResult, GeneratedVideo } from '@/types/media/video';
+import { useSettingsStore } from '@/stores';
 
 // Mock the video generation module
 jest.mock('@/lib/ai/media/video-generation', () => ({
@@ -34,6 +35,8 @@ jest.mock('@/stores', () => ({
   }),
 }));
 
+const mockUseSettingsStore = useSettingsStore as jest.MockedFunction<typeof useSettingsStore>;
+
 describe('useVideoGeneration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -58,6 +61,27 @@ describe('useVideoGeneration', () => {
   });
 
   describe('generate', () => {
+    it('surfaces shared blocked guidance when the mapped provider credential is missing', async () => {
+      mockUseSettingsStore.mockImplementationOnce((selector) => {
+        const state = {
+          providerSettings: {
+            google: {},
+            openai: { apiKey: 'test-openai-api-key' },
+          },
+        };
+        return selector(state as never);
+      });
+
+      const { result } = renderHook(() => useVideoGeneration());
+
+      await act(async () => {
+        await result.current.generate('Test prompt');
+      });
+
+      expect(result.current.error).toBe('Add an API key before using this provider at runtime.');
+      expect(videoGeneration.generateVideo).not.toHaveBeenCalled();
+    });
+
     it('should generate video successfully', async () => {
       const mockResult: VideoGenerationResult = {
         success: true,

@@ -30,6 +30,11 @@ const eslintConfig = defineConfig([
     // Reference/third-party mirrors are not part of this app's lint scope
     ".dify-ref/**",
     ".pw-browsers/**",
+    "playwright-report/**",
+    "test-results/**",
+    ".tmp/**",
+    "tmp/**",
+    "artifacts/**",
     // Generated/shared type definitions are linted separately
     "types/**",
   ]),
@@ -45,6 +50,26 @@ const eslintConfig = defineConfig([
       "react/forbid-dom-props": "off",
       // Allow <li> without parent context check (react-markdown handles this)
       "jsx-a11y/html-has-lang": "off",
+    },
+  },
+  {
+    files: [
+      "lib/native/**/*.ts",
+      "lib/logger/**/*.ts",
+      "hooks/logging/**/*.ts",
+      "components/logging/**/*.ts",
+      "components/logging/**/*.tsx",
+      "components/providers/initializers/**/*.ts",
+      "components/providers/initializers/**/*.tsx",
+    ],
+    ignores: [
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "lib/logger/transports/console-transport.ts",
+      "lib/logger/transports/indexeddb-transport.ts",
+    ],
+    rules: {
+      "no-console": "error",
     },
   },
   {

@@ -2,8 +2,10 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -27,6 +29,7 @@ import { EmptyState } from './empty-state';
 import { DashboardHeader } from './dashboard-header';
 import { OverviewTab } from './overview-tab';
 import { TracesTab } from './traces-tab';
+import { buildObservabilitySettingsProjection } from '@/lib/observability';
 import { useSettingsStore, useUsageStore, useObservabilityDashboardStore } from '@/stores';
 import { useObservabilityData, useObservabilityActions, usePerformanceMetrics } from '@/hooks/observability';
 import { useAgentTrace } from '@/hooks/agent-trace';
@@ -43,6 +46,7 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
   const t = useTranslations('observability.dashboard');
   const tTime = useTranslations('observability.timeRange');
   const tCommon = useTranslations('observability');
+  const searchParams = useSearchParams();
 
   const timeRange = useObservabilityDashboardStore((s) => s.timeRange);
   const setTimeRange = useObservabilityDashboardStore((s) => s.setTimeRange);
@@ -51,8 +55,14 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
   const autoRefresh = useObservabilityDashboardStore((s) => s.autoRefresh);
   const setAutoRefresh = useObservabilityDashboardStore((s) => s.setAutoRefresh);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const traceSessionId = searchParams.get('traceSessionId') || undefined;
+  const traceOutcome = searchParams.get('traceOutcome') as 'success' | 'error' | null;
+  const traceToolName = searchParams.get('traceToolName') || undefined;
+  const traceId = searchParams.get('traceId') || undefined;
+  const traceTurnId = searchParams.get('traceTurnId') || undefined;
 
   const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
+  const agentTraceSettings = useSettingsStore((state) => state.agentTraceSettings);
   const usageRecords = useUsageStore((state) => state.records);
   const records = useMemo(() => usageRecords || [], [usageRecords]);
 
@@ -72,7 +82,18 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
   } = useObservabilityData(timeRange);
 
   // Agent trace data for Traces tab
-  const { traces: agentTraces, totalCount: traceTotalCount, isLoading: tracesLoading } = useAgentTrace({ limit: 50 });
+  const {
+    traces: agentTraces,
+    totalCount: traceTotalCount,
+    isLoading: tracesLoading,
+  } = useAgentTrace({
+    sessionId: traceSessionId,
+    outcome: traceOutcome ?? undefined,
+    toolName: traceToolName,
+    traceId,
+    turnId: traceTurnId,
+    limit: 50,
+  });
 
   // Convert agent traces to TraceData format
   const traceDataList = useMemo(() => {
@@ -80,6 +101,18 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
       .map(dbTraceToTraceData)
       .filter((tr): tr is TraceData => tr !== null);
   }, [agentTraces]);
+  const observabilityProjection = useMemo(
+    () =>
+      buildObservabilitySettingsProjection({
+        observabilitySettings,
+        agentTraceSettings,
+        usageRecordCount: records.length,
+        traceRecordCount: traceTotalCount,
+      }),
+    [agentTraceSettings, observabilitySettings, records.length, traceTotalCount]
+  );
+  const hasTraceHistory = traceTotalCount > 0;
+  const hasAnyHistory = records.length > 0 || hasTraceHistory;
 
   // Performance metrics from agent executor
   const {
@@ -120,6 +153,12 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
     return () => clearInterval(interval);
   }, [autoRefresh, triggerRefresh]);
 
+  useEffect(() => {
+    if ((traceSessionId || traceOutcome || traceToolName || traceId || traceTurnId) && activeTab !== 'traces') {
+      setActiveTab('traces');
+    }
+  }, [activeTab, setActiveTab, traceId, traceOutcome, traceSessionId, traceToolName, traceTurnId]);
+
   // Manual refresh handler
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
@@ -131,12 +170,12 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
   const trendPercent = trend.percentChange;
 
   // Show empty state if observability is disabled
-  if (!observabilitySettings?.enabled) {
+  if (observabilityProjection.status === 'disabled' && !hasAnyHistory) {
     return <EmptyState type="disabled" />;
   }
 
   // Show empty state if no data
-  if (!hasData) {
+  if (!hasData && !hasTraceHistory) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between p-4 border-b">
@@ -180,11 +219,27 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
         onClearOldData={clearOldData}
         records={records}
         timeSeries={timeSeries}
-        langfuseEnabled={observabilitySettings?.langfuseEnabled}
-        openTelemetryEnabled={observabilitySettings?.openTelemetryEnabled}
+        langfuseEnabled={observabilityProjection.langfuse.active}
+        openTelemetryEnabled={observabilityProjection.openTelemetry.active}
         onClose={onClose}
         recordCount={recordCount}
       />
+
+      {observabilityProjection.status === 'history-only' && (
+        <div className="px-4 pt-4">
+          <Alert>
+            <AlertDescription>{t('historyOnlyNotice')}</AlertDescription>
+          </Alert>
+        </div>
+      )}
+
+      {observabilityProjection.status === 'incomplete' && (
+        <div className="px-4 pt-4">
+          <Alert>
+            <AlertDescription>{t('incompleteNotice')}</AlertDescription>
+          </Alert>
+        </div>
+      )}
 
       {/* Stats Cards - Responsive grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4">
@@ -283,6 +338,13 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
             traces={traceDataList}
             totalCount={traceTotalCount}
             isLoading={tracesLoading}
+            focusFilters={{
+              sessionId: traceSessionId,
+              outcome: traceOutcome ?? undefined,
+              toolName: traceToolName,
+              traceId,
+              turnId: traceTurnId,
+            }}
           />
         </TabsContent>
       </Tabs>

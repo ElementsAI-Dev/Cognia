@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from cognia.cli import (
     create_plugin,
+    create_dev_reload_event,
     generate_manifest,
     run_tests,
     pack_plugin,
@@ -231,6 +232,25 @@ class TestPlugin(Plugin):
         with pytest.raises(SystemExit):
             generate_manifest(path=temp_plugin, validate_only=True)
 
+    def test_validate_blocked_capability(self, temp_plugin):
+        """Test validating manifest with blocked capability"""
+        manifest = {
+            "id": "test-plugin",
+            "name": "Test Plugin",
+            "version": "1.0.0",
+            "description": "Test",
+            "type": "python",
+            "pythonMain": "main.py",
+            "capabilities": ["skills"],
+        }
+
+        manifest_path = os.path.join(temp_plugin, "plugin.json")
+        with open(manifest_path, "w") as f:
+            json.dump(manifest, f)
+
+        with pytest.raises(SystemExit):
+            generate_manifest(path=temp_plugin, validate_only=True)
+
 
 class TestPackPlugin:
     """Tests for pack_plugin function"""
@@ -322,6 +342,22 @@ class TestPackPlugin:
         finally:
             shutil.rmtree(temp, ignore_errors=True)
 
+    def test_pack_blocked_capability(self, temp_plugin):
+        """Test pack fails for blocked capability"""
+        manifest = {
+            "id": "pack-test",
+            "name": "Pack Test",
+            "version": "1.2.3",
+            "type": "python",
+            "pythonMain": "main.py",
+            "capabilities": ["skills"],
+        }
+        with open(os.path.join(temp_plugin, "plugin.json"), "w") as f:
+            json.dump(manifest, f)
+
+        with pytest.raises(SystemExit):
+            pack_plugin(path=temp_plugin)
+
 
 class TestRunTests:
     """Tests for run_tests function"""
@@ -391,6 +427,17 @@ class TestDevServer:
         )
 
         assert any(change.endswith("main.py") for change in changes)
+
+    def test_create_dev_reload_event(self):
+        """Dev reload events should be structured for host consumption."""
+        event = create_dev_reload_event("dev-plugin", "main.py", ok=True)
+        assert event["type"] == "cognia-dev-extension-update"
+        assert event["pluginId"] == "dev-plugin"
+        assert event["payload"]["event"] == "reload-ready"
+
+        error_event = create_dev_reload_event("dev-plugin", "main.py", ok=False, error="boom")
+        assert error_event["payload"]["event"] == "reload-error"
+        assert error_event["payload"]["error"] == "boom"
 
 
 class TestCLIMain:

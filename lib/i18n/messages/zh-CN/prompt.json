@@ -514,6 +514,8 @@
       "clearFilters": "清除筛选",
       "total": "总计",
       "categoriesCount": "个分类",
+      "sortRecent": "最近",
+      "sortUsage": "使用量",
       "create": "新建",
       "deleteTemplate": "删除模板",
       "deleteConfirmation": "确定要删除此模板吗？此操作无法撤消。",

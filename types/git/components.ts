@@ -49,10 +49,12 @@ export interface GitBranchManagerProps {
   branches: GitBranchInfo[];
   currentBranch?: string;
   isLoading?: boolean;
+  disabled?: boolean;
   onCheckout: (branch: string, createNew?: boolean) => Promise<boolean>;
   onCreateBranch: (name: string, startPoint?: string) => Promise<boolean>;
   onDeleteBranch: (name: string, force?: boolean) => Promise<boolean>;
   onMergeBranch?: (branch: string) => Promise<boolean>;
+  onRenameBranch?: (oldName: string, newName: string, force?: boolean) => Promise<boolean>;
   onRefresh: () => Promise<void>;
   className?: string;
 }

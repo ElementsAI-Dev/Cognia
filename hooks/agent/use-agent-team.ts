@@ -23,6 +23,8 @@ import type {
   AgentTeamConfig,
   AgentTeamEvent,
   TeamExecutionOptions,
+  TeamExecutionPattern,
+  TeamRoutingAssessment,
   CreateTeamInput,
   AddTeammateInput,
   CreateTaskInput,
@@ -116,6 +118,8 @@ export interface UseAgentTeamReturn {
   castVote: (input: CastVoteInput) => ConsensusVote | null;
   getConsensus: (consensusId: string) => ConsensusRequest | undefined;
   getTeamConsensus: (teamId: string) => ConsensusRequest[];
+  assessTeamRouting: (teamId: string) => TeamRoutingAssessment | null;
+  selectExecutionPattern: (teamId: string, pattern: TeamExecutionPattern) => AgentTeam | null;
 
   // Bridge delegation
   delegateTaskToBackground: (teamId: string, taskId: string, options?: { priority?: number; name?: string }) => Promise<string | null>;
@@ -504,6 +508,52 @@ export function useAgentTeam(options: UseAgentTeamOptions = {}): UseAgentTeamRet
     [manager]
   );
 
+  const assessTeamRouting = useCallback(
+    (teamId: string) => {
+      const assessment = manager.assessTeamRouting(teamId);
+
+      if (autoSync) {
+        const refreshedTeam = manager.getTeam(teamId);
+        if (refreshedTeam) {
+          storeActions.storeUpsertTeam(refreshedTeam);
+        }
+        if (assessment) {
+          storeActions.storeAddEvent({
+            type: 'routing_assessed',
+            teamId,
+            data: {
+              recommendedPattern: assessment.recommendedPattern,
+              reason: assessment.reason,
+            },
+            timestamp: new Date(),
+          });
+        }
+      }
+
+      return assessment;
+    },
+    [autoSync, manager, storeActions]
+  );
+
+  const selectExecutionPattern = useCallback(
+    (teamId: string, pattern: TeamExecutionPattern) => {
+      const updatedTeam = manager.selectExecutionPattern(teamId, pattern);
+
+      if (autoSync && updatedTeam) {
+        storeActions.storeUpsertTeam(updatedTeam);
+        storeActions.storeAddEvent({
+          type: 'pattern_selected',
+          teamId,
+          data: { pattern },
+          timestamp: new Date(),
+        });
+      }
+
+      return updatedTeam;
+    },
+    [autoSync, manager, storeActions]
+  );
+
   // Bridge delegation callback
   const delegateTaskToBackground = useCallback(
     async (teamId: string, taskId: string, options?: { priority?: number; name?: string }) => {
@@ -522,6 +572,52 @@ export function useAgentTeam(options: UseAgentTeamOptions = {}): UseAgentTeamRet
         const refreshedTeam = manager.getTeam(teamId);
         if (refreshedTeam) {
           storeActions.storeUpsertTeam(refreshedTeam);
+        }
+
+        const legacyTaskMetadata = (refreshedTask?.metadata || {}) as Record<string, unknown>;
+        const delegationRecord = refreshedTask?.delegationRecord
+          ? refreshedTask.delegationRecord
+          : refreshedTask && typeof legacyTaskMetadata.delegationStatus === 'string'
+            ? {
+                targetType: (typeof legacyTaskMetadata.delegatedToBackground === 'boolean' && legacyTaskMetadata.delegatedToBackground)
+                  || typeof legacyTaskMetadata.delegatedBackgroundAgentId === 'string'
+                  ? 'background'
+                  : 'team',
+                reason:
+                  typeof legacyTaskMetadata.delegationReason === 'string'
+                    ? legacyTaskMetadata.delegationReason
+                    : undefined,
+                status: legacyTaskMetadata.delegationStatus,
+                error:
+                  typeof legacyTaskMetadata.delegationError === 'string'
+                    ? legacyTaskMetadata.delegationError
+                    : undefined,
+              }
+            : null;
+
+        if (delegationRecord) {
+          const delegationStatus = delegationRecord.status;
+          const eventType =
+            delegationStatus === 'awaiting_approval'
+              ? 'approval_requested'
+              : delegationStatus === 'completed'
+                ? 'delegation_completed'
+                : delegationStatus === 'failed' || delegationStatus === 'cancelled'
+                  ? 'delegation_failed'
+                  : 'delegation_started';
+
+          storeActions.storeAddEvent({
+            type: eventType,
+            teamId,
+            taskId,
+            data: {
+              targetType: delegationRecord.targetType,
+              reason: delegationRecord.reason,
+              status: delegationStatus,
+              error: delegationRecord.error,
+            },
+            timestamp: new Date(),
+          });
         }
       }
 
@@ -590,6 +686,8 @@ export function useAgentTeam(options: UseAgentTeamOptions = {}): UseAgentTeamRet
     castVote,
     getConsensus,
     getTeamConsensus,
+    assessTeamRouting,
+    selectExecutionPattern,
 
     // Bridge delegation
     delegateTaskToBackground,

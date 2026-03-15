@@ -44,7 +44,7 @@ export type { ChartDataPoint } from '@/types';
 interface ChartRendererProps {
   content: string;
   className?: string;
-  chartType?: 'line' | 'bar' | 'pie' | 'area' | 'scatter' | 'radar';
+  chartType?: 'line' | 'bar' | 'pie' | 'doughnut' | 'area' | 'scatter' | 'radar';
   chartData?: ChartDataPoint[];
 }
 
@@ -127,6 +127,7 @@ export function ChartRenderer({
         );
 
       case 'pie':
+      case 'doughnut':
         return (
           <PieChart>
             <Pie
@@ -135,6 +136,7 @@ export function ChartRenderer({
               nameKey="name"
               cx="50%"
               cy="50%"
+              innerRadius={detectedType === 'doughnut' ? 45 : 0}
               outerRadius={80}
               label
             >

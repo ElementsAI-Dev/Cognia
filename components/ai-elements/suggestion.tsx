@@ -14,6 +14,7 @@ import {
   Code,
   FileText,
   Zap,
+  type LucideIcon,
 } from 'lucide-react';
 
 // Suggestion category configuration
@@ -22,7 +23,7 @@ export type SuggestionCategory = 'general' | 'follow-up' | 'explore' | 'code' | 
 const categoryConfig: Record<
   SuggestionCategory,
   {
-    icon: React.ElementType;
+    icon: LucideIcon;
     color: string;
     bgColor: string;
   }

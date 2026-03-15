@@ -21,6 +21,8 @@
     "richMarkdownDesc": "Full formatting with reasoning, tools, and attachments",
     "json": "JSON",
     "jsonDesc": "Complete data export, can be re-imported later",
+    "portableArchive": "Portable Archive",
+    "portableArchiveDesc": "Round-trip compatible chat archive for re-import and migration",
     "staticHtml": "Static HTML",
     "staticHtmlDesc": "Simple web page with styling",
     "pdf": "PDF",

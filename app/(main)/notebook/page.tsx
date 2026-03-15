@@ -56,17 +56,22 @@ import {
 } from 'lucide-react';
 import { InteractiveNotebook, KernelStatus, VariableInspector } from '@/components/jupyter';
 import { useJupyterKernel } from '@/hooks/jupyter';
-import { useExecutionState, useJupyterSessionForChat } from '@/stores/jupyter';
+import { useExecutionState, useJupyterSessionForChat, useJupyterStore } from '@/stores/jupyter';
 import { useVirtualEnv } from '@/hooks/sandbox';
 import { isTauri } from '@/lib/utils';
 import { loggers } from '@/lib/logger';
 import { kernelService } from '@/lib/jupyter/kernel';
 import { createEmptyNotebook, serializeNotebook } from '@/lib/jupyter';
 import {
+  NOTEBOOK_PAGE_WORKSPACE_SURFACE_ID,
+  buildNotebookWorkspaceSnapshotInput,
+} from '@/lib/jupyter/workspace';
+import {
   isExecutionSuccessful,
   formatExecutionError,
   formatExecutionTime,
   DEFAULT_EXECUTION_OPTIONS,
+  type NotebookFileInfo,
 } from '@/types/jupyter';
 
 export default function NotebookPage() {
@@ -82,6 +87,11 @@ export default function NotebookPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [quickRunCode, setQuickRunCode] = useState('');
   const [quickRunResult, setQuickRunResult] = useState<string | null>(null);
+  const [fileInfo, setFileInfo] = useState<NotebookFileInfo | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [lastExecutedAt, setLastExecutedAt] = useState<string | null>(null);
+  const hydratedWorkspaceRef = useRef(false);
+  const restoreAttemptRef = useRef<string | null>(null);
 
   // Jupyter kernel hook
   const {
@@ -98,6 +108,7 @@ export default function NotebookPage() {
     isLoadingSessions,
     error,
     createSession,
+    restoreSession,
     deleteSession,
     setActiveSession,
     refreshSessions,
@@ -107,8 +118,6 @@ export default function NotebookPage() {
     quickExecute,
     refreshVariables,
     inspectVariable,
-    checkKernelAvailable,
-    ensureKernel,
     shutdownAll,
     cleanup,
     clearError,
@@ -118,6 +127,10 @@ export default function NotebookPage() {
     getNotebookInfo,
     unmapChatSession,
   } = useJupyterKernel();
+  const notebookWorkspace = useJupyterStore(
+    (state) => state.workspaces[NOTEBOOK_PAGE_WORKSPACE_SURFACE_ID] ?? null
+  );
+  const upsertWorkspace = useJupyterStore((state) => state.upsertWorkspace);
 
   // Store selectors for execution state and chat integration
   const executionState = useExecutionState();
@@ -156,12 +169,23 @@ export default function NotebookPage() {
           });
         }
       }
+    } else if (notebookWorkspace?.notebookContent && !hydratedWorkspaceRef.current) {
+      hydratedWorkspaceRef.current = true;
+      startTransition(() => {
+        setNotebookContent(notebookWorkspace.notebookContent ?? serializeNotebook(createEmptyNotebook()));
+        setFilePath(notebookWorkspace.filePath);
+        setSelectedEnvPath(notebookWorkspace.selectedEnvPath);
+        setIsDirty(notebookWorkspace.isDirty);
+        setFileInfo(notebookWorkspace.fileInfo);
+        setLastSavedAt(notebookWorkspace.lastSavedAt);
+        setLastExecutedAt(notebookWorkspace.lastExecutedAt);
+      });
     } else if (!notebookContent) {
       startTransition(() => {
         setNotebookContent(serializeNotebook(createEmptyNotebook()));
       });
     }
-  }, [contentParam, notebookContent]);
+  }, [contentParam, notebookContent, notebookWorkspace]);
 
   // Refresh environments on mount
   useEffect(() => {
@@ -180,15 +204,58 @@ export default function NotebookPage() {
     }
   }, [firstEnvPath, selectedEnvPath]);
 
+  useEffect(() => {
+    if (!isDesktop || !notebookWorkspace?.sessionId || activeSession) return;
+    if (restoreAttemptRef.current === notebookWorkspace.sessionId) return;
+
+    restoreAttemptRef.current = notebookWorkspace.sessionId;
+    void restoreSession(notebookWorkspace.sessionId, NOTEBOOK_PAGE_WORKSPACE_SURFACE_ID);
+  }, [isDesktop, notebookWorkspace?.sessionId, activeSession, restoreSession]);
+
+  useEffect(() => {
+    if (!isDesktop || !notebookContent) return;
+
+    upsertWorkspace(
+      buildNotebookWorkspaceSnapshotInput({
+        surfaceId: NOTEBOOK_PAGE_WORKSPACE_SURFACE_ID,
+        notebookContent,
+        selectedEnvPath,
+        filePath,
+        isDirty,
+        activeSession,
+        activeKernel,
+        fileInfo,
+        recoveryStatus: activeSession ? 'ready' : notebookWorkspace?.recoveryStatus ?? 'ready',
+        recoveryError: error,
+        lastSavedAt,
+        lastExecutedAt,
+      })
+    );
+  }, [
+    isDesktop,
+    notebookContent,
+    selectedEnvPath,
+    filePath,
+    isDirty,
+    activeSession,
+    activeKernel,
+    fileInfo,
+    notebookWorkspace?.recoveryStatus,
+    error,
+    lastSavedAt,
+    lastExecutedAt,
+    upsertWorkspace,
+  ]);
+
+  useEffect(() => {
+    if (!lastResult) return;
+    setLastExecutedAt(new Date().toISOString());
+  }, [lastResult]);
+
   const handleCreateSession = useCallback(async () => {
     if (!selectedEnvPath) return;
 
     try {
-      const available = await checkKernelAvailable(selectedEnvPath);
-      if (!available) {
-        const installed = await ensureKernel(selectedEnvPath);
-        if (!installed) return;
-      }
       await createSession({
         name: `Notebook-${Date.now()}`,
         envPath: selectedEnvPath,
@@ -197,7 +264,7 @@ export default function NotebookPage() {
     } catch (err) {
       loggers.app.error('Failed to create session:', err);
     }
-  }, [selectedEnvPath, createSession, checkKernelAvailable, ensureKernel]);
+  }, [selectedEnvPath, createSession]);
 
   const handleRestartKernel = useCallback(async () => {
     if (!activeSession) return;
@@ -324,6 +391,7 @@ export default function NotebookPage() {
           setNotebookContent(content);
           setFilePath(selected);
           setIsDirty(false);
+          setFileInfo(info);
         });
       }
     } catch (err) {
@@ -357,9 +425,21 @@ export default function NotebookPage() {
 
         setIsSaving(true);
         await kernelService.saveNotebook(targetPath, notebookContent);
+        const savedAt = new Date().toISOString();
         startTransition(() => {
           setFilePath(targetPath);
           setIsDirty(false);
+          setLastSavedAt(savedAt);
+          setFileInfo((current) => ({
+            path: targetPath,
+            fileName: targetPath.split(/[\\/]/).pop() || current?.fileName || 'notebook.ipynb',
+            sizeBytes: current?.sizeBytes ?? notebookContent.length,
+            cellCount: current?.cellCount ?? 0,
+            codeCells: current?.codeCells ?? 0,
+            markdownCells: current?.markdownCells ?? 0,
+            kernelName: current?.kernelName ?? activeKernel?.name ?? 'python3',
+            nbformat: current?.nbformat ?? 4,
+          }));
         });
       } catch (err) {
         loggers.app.error('Failed to save notebook:', err);
@@ -367,7 +447,7 @@ export default function NotebookPage() {
         setIsSaving(false);
       }
     },
-    [notebookContent, filePath, t]
+    [notebookContent, filePath, t, activeKernel?.name]
   );
 
   // Keyboard shortcut: Ctrl+S to save
@@ -445,6 +525,11 @@ export default function NotebookPage() {
             {isDirty && (
               <Badge variant="outline" className="text-xs">
                 {t('unsavedChanges')}
+              </Badge>
+            )}
+            {!isDirty && lastSavedAt && (
+              <Badge variant="secondary" className="text-xs">
+                {t('saved')}
               </Badge>
             )}
           </div>
@@ -734,6 +819,15 @@ export default function NotebookPage() {
                 {tCommon('dismiss')}
               </Button>
             </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
+      {!error && notebookWorkspace?.recoveryStatus === 'needs_reconnect' && !activeSession && (
+        <div className="border-b px-4 py-2">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{t('reconnectRequired')}</AlertDescription>
           </Alert>
         </div>
       )}

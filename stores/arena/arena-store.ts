@@ -8,15 +8,21 @@ import { persist } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import type {
   ArenaBattle,
+  ArenaBattleReview,
   ArenaContestant,
   ArenaContestantStatus,
+  ArenaHistoryFilters,
   ArenaPreference,
+  ArenaMatchupRecommendation,
   ArenaModelRating,
   ArenaStats,
   ArenaSettings,
   ArenaWinReason,
   ArenaBattleMode,
   ArenaHeadToHead,
+  ArenaWorkflowContext,
+  ArenaWorkflowEntryPoint,
+  ModelSelection,
 } from '@/types/arena';
 import {
   DEFAULT_ARENA_SETTINGS,
@@ -57,6 +63,8 @@ interface ArenaState {
   preferences: ArenaPreference[];
   modelRatings: ArenaModelRating[];
   settings: ArenaSettings;
+  reviewMetadata: Record<string, ArenaBattleReview>;
+  workflowContext: ArenaWorkflowContext;
 
   // Battle management
   createBattle: (
@@ -76,6 +84,16 @@ interface ArenaState {
   getBattle: (battleId: string) => ArenaBattle | undefined;
   getActiveBattle: () => ArenaBattle | undefined;
   setActiveBattle: (battleId: string | null) => void;
+  setWorkflowDraftPrompt: (prompt: string) => void;
+  setWorkflowEntryPoint: (entryPoint: ArenaWorkflowEntryPoint | null) => void;
+  setActiveReviewBattle: (battleId: string | null) => void;
+  updateHistoryFilters: (filters: Partial<ArenaHistoryFilters>) => void;
+  recordMatchupRecommendation: (
+    models: ModelSelection[],
+    reason: string,
+    options?: { exhaustedCycle?: boolean; maxRecentPairs?: number }
+  ) => ArenaMatchupRecommendation;
+  clearMatchupRecommendations: () => void;
   recordRecovery: (
     status: 'applied' | 'skipped',
     battleId: string | null,
@@ -84,6 +102,13 @@ interface ArenaState {
   markBattleViewed: (battleId: string) => void;
   deleteBattle: (battleId: string) => void;
   clearBattleHistory: () => void;
+  updateBattleReview: (battleId: string, updates: Partial<Omit<ArenaBattleReview, 'battleId'>>) => void;
+  getBattleReview: (battleId: string) => ArenaBattleReview | undefined;
+  toggleBattleReviewSelection: (battleId: string) => void;
+  setBattleReviewSelection: (battleIds: string[]) => void;
+  clearBattleReviewSelection: () => void;
+  getEligibleReviewedBattleIds: () => string[];
+  getSelectedEligibleReviewedBattleIds: () => string[];
 
   // Contestant management
   updateContestant: (
@@ -153,6 +178,22 @@ interface ArenaState {
 }
 
 const _btRecalcState = { timer: null as ReturnType<typeof setTimeout> | null };
+const DEFAULT_HISTORY_FILTERS: ArenaHistoryFilters = {
+  searchQuery: '',
+  status: 'all',
+  model: 'all',
+  sortOrder: 'newest',
+};
+const DEFAULT_WORKFLOW_CONTEXT: ArenaWorkflowContext = {
+  draftPrompt: '',
+  entryPoint: null,
+  activeReviewBattleId: null,
+  lastActiveBattleId: null,
+  historyFilters: DEFAULT_HISTORY_FILTERS,
+  selectedReviewBattleIds: [],
+  recentMatchupPairKeys: [],
+  currentRecommendation: null,
+};
 
 function scheduleBTRecalculation(recalcFn: () => void) {
   if (_btRecalcState.timer) {
@@ -162,6 +203,60 @@ function scheduleBTRecalculation(recalcFn: () => void) {
     _btRecalcState.timer = null;
     recalcFn();
   }, 500);
+}
+
+function cloneDefaultWorkflowContext(): ArenaWorkflowContext {
+  return {
+    ...DEFAULT_WORKFLOW_CONTEXT,
+    historyFilters: { ...DEFAULT_HISTORY_FILTERS },
+    selectedReviewBattleIds: [],
+    recentMatchupPairKeys: [],
+    currentRecommendation: null,
+  };
+}
+
+function isBattleJudged(battle: ArenaBattle): boolean {
+  return Boolean(battle.winnerId || battle.isTie || battle.isBothBad);
+}
+
+function getPairKey(models: ModelSelection[]): string {
+  return models
+    .map((model) => `${model.provider}:${model.model}`)
+    .sort()
+    .join('::');
+}
+
+function pruneWorkflowAndReviewState(
+  battles: ArenaBattle[],
+  reviewMetadata: Record<string, ArenaBattleReview>,
+  workflowContext: ArenaWorkflowContext
+): Pick<ArenaState, 'reviewMetadata' | 'workflowContext'> {
+  const validBattleIds = new Set(battles.map((battle) => battle.id));
+  const prunedReviewMetadata = Object.fromEntries(
+    Object.entries(reviewMetadata).filter(([battleId]) => validBattleIds.has(battleId))
+  );
+
+  return {
+    reviewMetadata: prunedReviewMetadata,
+    workflowContext: {
+      ...workflowContext,
+      historyFilters: {
+        ...DEFAULT_HISTORY_FILTERS,
+        ...workflowContext.historyFilters,
+      },
+      activeReviewBattleId:
+        workflowContext.activeReviewBattleId && validBattleIds.has(workflowContext.activeReviewBattleId)
+          ? workflowContext.activeReviewBattleId
+          : null,
+      lastActiveBattleId:
+        workflowContext.lastActiveBattleId && validBattleIds.has(workflowContext.lastActiveBattleId)
+          ? workflowContext.lastActiveBattleId
+          : null,
+      selectedReviewBattleIds: workflowContext.selectedReviewBattleIds.filter((battleId) =>
+        validBattleIds.has(battleId)
+      ),
+    },
+  };
 }
 
 export const useArenaStore = create<ArenaState>()(
@@ -175,6 +270,8 @@ export const useArenaStore = create<ArenaState>()(
       preferences: [],
       modelRatings: [],
       settings: DEFAULT_ARENA_SETTINGS,
+      reviewMetadata: {},
+      workflowContext: cloneDefaultWorkflowContext(),
 
       createBattle: (prompt, contestants, options) => {
         const settings = get().settings;
@@ -214,6 +311,10 @@ export const useArenaStore = create<ArenaState>()(
         set((state) => ({
           battles: [battle, ...state.battles],
           activeBattleId: battle.id,
+          workflowContext: {
+            ...state.workflowContext,
+            lastActiveBattleId: battle.id,
+          },
         }));
 
         return battle;
@@ -230,7 +331,91 @@ export const useArenaStore = create<ArenaState>()(
       },
 
       setActiveBattle: (battleId) => {
-        set({ activeBattleId: battleId });
+        set((state) => ({
+          activeBattleId: battleId,
+          workflowContext: {
+            ...state.workflowContext,
+            lastActiveBattleId: battleId,
+          },
+        }));
+      },
+
+      setWorkflowDraftPrompt: (prompt) => {
+        set((state) => ({
+          workflowContext: {
+            ...state.workflowContext,
+            draftPrompt: prompt,
+          },
+        }));
+      },
+
+      setWorkflowEntryPoint: (entryPoint) => {
+        set((state) => ({
+          workflowContext: {
+            ...state.workflowContext,
+            entryPoint,
+          },
+        }));
+      },
+
+      setActiveReviewBattle: (battleId) => {
+        set((state) => ({
+          workflowContext: {
+            ...state.workflowContext,
+            activeReviewBattleId: battleId,
+          },
+        }));
+      },
+
+      updateHistoryFilters: (filters) => {
+        set((state) => ({
+          workflowContext: {
+            ...state.workflowContext,
+            historyFilters: {
+              ...state.workflowContext.historyFilters,
+              ...filters,
+            },
+          },
+        }));
+      },
+
+      recordMatchupRecommendation: (models, reason, options) => {
+        const pairKey = getPairKey(models);
+        const recommendation: ArenaMatchupRecommendation = {
+          pairKey,
+          models: models.map((model) => ({ ...model })),
+          reason,
+          exhaustedCycle: Boolean(options?.exhaustedCycle),
+          generatedAt: new Date().toISOString(),
+        };
+        const maxRecentPairs = options?.maxRecentPairs ?? 5;
+
+        set((state) => {
+          const nextPairKeys = [
+            pairKey,
+            ...state.workflowContext.recentMatchupPairKeys.filter((existingKey) => existingKey !== pairKey),
+          ].slice(0, maxRecentPairs);
+
+          return {
+            workflowContext: {
+              ...state.workflowContext,
+              currentRecommendation: recommendation,
+              recentMatchupPairKeys: nextPairKeys,
+            },
+          };
+        });
+
+        return recommendation;
+      },
+
+      clearMatchupRecommendations: () => {
+        set((state) => ({
+          workflowContext: {
+            ...state.workflowContext,
+            currentRecommendation: null,
+            recentMatchupPairKeys: [],
+          },
+        }));
       },
 
       recordRecovery: (status, battleId, recoveredAt = new Date()) => {
@@ -251,10 +436,20 @@ export const useArenaStore = create<ArenaState>()(
       },
 
       deleteBattle: (battleId) => {
-        set((state) => ({
-          battles: state.battles.filter((b) => b.id !== battleId),
-          activeBattleId: state.activeBattleId === battleId ? null : state.activeBattleId,
-        }));
+        set((state) => {
+          const nextBattles = state.battles.filter((b) => b.id !== battleId);
+          const prunedState = pruneWorkflowAndReviewState(
+            nextBattles,
+            state.reviewMetadata,
+            state.workflowContext
+          );
+
+          return {
+            battles: nextBattles,
+            activeBattleId: state.activeBattleId === battleId ? null : state.activeBattleId,
+            ...prunedState,
+          };
+        });
       },
 
       clearBattleHistory: () => {
@@ -264,7 +459,85 @@ export const useArenaStore = create<ArenaState>()(
           lastRecoveryAt: null,
           lastRecoveryStatus: null,
           lastRecoveryBattleId: null,
+          reviewMetadata: {},
+          workflowContext: cloneDefaultWorkflowContext(),
         });
+      },
+
+      updateBattleReview: (battleId, updates) => {
+        if (!get().battles.some((battle) => battle.id === battleId)) {
+          return;
+        }
+
+        set((state) => {
+          const existing = state.reviewMetadata[battleId];
+          const nextReview: ArenaBattleReview = {
+            ...existing,
+            ...updates,
+            battleId,
+            reviewed: updates.reviewed ?? existing?.reviewed ?? false,
+            bookmarked: updates.bookmarked ?? existing?.bookmarked ?? false,
+            updatedAt: new Date(),
+          };
+          return {
+            reviewMetadata: {
+              ...state.reviewMetadata,
+              [battleId]: nextReview,
+            },
+          };
+        });
+      },
+
+      getBattleReview: (battleId) => get().reviewMetadata[battleId],
+
+      toggleBattleReviewSelection: (battleId) => {
+        if (!get().battles.some((battle) => battle.id === battleId)) {
+          return;
+        }
+
+        set((state) => {
+          const selectedReviewBattleIds = state.workflowContext.selectedReviewBattleIds.includes(battleId)
+            ? state.workflowContext.selectedReviewBattleIds.filter((selectedId) => selectedId !== battleId)
+            : [...state.workflowContext.selectedReviewBattleIds, battleId];
+
+          return {
+            workflowContext: {
+              ...state.workflowContext,
+              selectedReviewBattleIds,
+            },
+          };
+        });
+      },
+
+      setBattleReviewSelection: (battleIds) => {
+        const validBattleIds = new Set(get().battles.map((battle) => battle.id));
+        set((state) => ({
+          workflowContext: {
+            ...state.workflowContext,
+            selectedReviewBattleIds: battleIds.filter((battleId) => validBattleIds.has(battleId)),
+          },
+        }));
+      },
+
+      clearBattleReviewSelection: () => {
+        set((state) => ({
+          workflowContext: {
+            ...state.workflowContext,
+            selectedReviewBattleIds: [],
+          },
+        }));
+      },
+
+      getEligibleReviewedBattleIds: () => {
+        const state = get();
+        return state.battles
+          .filter((battle) => isBattleJudged(battle) && state.reviewMetadata[battle.id]?.reviewed)
+          .map((battle) => battle.id);
+      },
+
+      getSelectedEligibleReviewedBattleIds: () => {
+        const eligibleIds = new Set(get().getEligibleReviewedBattleIds());
+        return get().workflowContext.selectedReviewBattleIds.filter((battleId) => eligibleIds.has(battleId));
       },
 
       updateContestant: (battleId, contestantId, updates) => {
@@ -738,12 +1011,15 @@ export const useArenaStore = create<ArenaState>()(
       },
 
       cleanupOldBattles: () => {
-        const { settings, battles } = get();
+        const { settings, battles, reviewMetadata, workflowContext } = get();
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - settings.historyRetentionDays);
+        const nextBattles = battles.filter((b) => new Date(b.createdAt) > cutoff);
+        const prunedState = pruneWorkflowAndReviewState(nextBattles, reviewMetadata, workflowContext);
 
         set({
-          battles: battles.filter((b) => new Date(b.createdAt) > cutoff),
+          battles: nextBattles,
+          ...prunedState,
         });
       },
 
@@ -975,6 +1251,8 @@ export const useArenaStore = create<ArenaState>()(
           lastRecoveryBattleId: null,
           preferences: [],
           modelRatings: [],
+          reviewMetadata: {},
+          workflowContext: cloneDefaultWorkflowContext(),
           voteHistory: [],
         });
       },
@@ -990,6 +1268,8 @@ export const useArenaStore = create<ArenaState>()(
         preferences: state.preferences,
         modelRatings: state.modelRatings,
         settings: state.settings,
+        reviewMetadata: state.reviewMetadata,
+        workflowContext: state.workflowContext,
       }),
       onRehydrateStorage: () => (state: ArenaState | undefined) => {
         if (state) {
@@ -1024,11 +1304,49 @@ export const useArenaStore = create<ArenaState>()(
             ...r,
             updatedAt: new Date(r.updatedAt),
           }));
+          state.reviewMetadata = Object.fromEntries(
+            Object.entries(state.reviewMetadata ?? {}).map(([battleId, review]) => [
+              battleId,
+              {
+                ...review,
+                updatedAt: new Date(review.updatedAt),
+                lastExportedAt: review.lastExportedAt
+                  ? new Date(review.lastExportedAt)
+                  : undefined,
+              },
+            ])
+          );
+          state.workflowContext = {
+            ...cloneDefaultWorkflowContext(),
+            ...state.workflowContext,
+            historyFilters: {
+              ...DEFAULT_HISTORY_FILTERS,
+              ...(state.workflowContext?.historyFilters ?? {}),
+            },
+            selectedReviewBattleIds: state.workflowContext?.selectedReviewBattleIds ?? [],
+            recentMatchupPairKeys: state.workflowContext?.recentMatchupPairKeys ?? [],
+            currentRecommendation: state.workflowContext?.currentRecommendation
+              ? {
+                  ...state.workflowContext.currentRecommendation,
+                  models: state.workflowContext.currentRecommendation.models.map((model) => ({
+                    ...model,
+                  })),
+                }
+              : null,
+          };
 
           // Guard against stale active battle references from older persisted state.
           if (state.activeBattleId && !state.battles.some((b) => b.id === state.activeBattleId)) {
             state.activeBattleId = null;
           }
+
+          const prunedState = pruneWorkflowAndReviewState(
+            state.battles,
+            state.reviewMetadata,
+            state.workflowContext
+          );
+          state.reviewMetadata = prunedState.reviewMetadata;
+          state.workflowContext = prunedState.workflowContext;
         }
       },
     }
@@ -1045,6 +1363,27 @@ export const selectLastRecoveryAt = (state: ArenaState) => state.lastRecoveryAt;
 export const selectSettings = (state: ArenaState) => state.settings;
 export const selectModelRatings = (state: ArenaState) => state.modelRatings;
 export const selectPreferences = (state: ArenaState) => state.preferences;
+export const selectWorkflowContext = (state: ArenaState) => state.workflowContext;
+export const selectWorkflowDraftPrompt = (state: ArenaState) => state.workflowContext.draftPrompt;
+export const selectActiveReviewBattleId = (state: ArenaState) =>
+  state.workflowContext.activeReviewBattleId;
+export const selectSelectedReviewBattleIds = (state: ArenaState) =>
+  state.workflowContext.selectedReviewBattleIds;
+export const selectReviewMetadata = (state: ArenaState) => state.reviewMetadata;
+export const selectCurrentMatchupRecommendation = (state: ArenaState) =>
+  state.workflowContext.currentRecommendation;
+export const selectReviewEligibleBattleIds = (state: ArenaState) =>
+  state.battles
+    .filter((battle) => isBattleJudged(battle) && state.reviewMetadata[battle.id]?.reviewed)
+    .map((battle) => battle.id);
+export const selectReviewEligibleBattleCount = (state: ArenaState) =>
+  selectReviewEligibleBattleIds(state).length;
+export const selectSelectedReviewEligibleBattleCount = (state: ArenaState) => {
+  const eligibleBattleIds = new Set(selectReviewEligibleBattleIds(state));
+  return state.workflowContext.selectedReviewBattleIds.filter((battleId) =>
+    eligibleBattleIds.has(battleId)
+  ).length;
+};
 export const selectTotalBattleCount = (state: ArenaState) => state.battles.length;
 export const selectCompletedBattleCount = (state: ArenaState) =>
   state.battles.filter((b) => b.winnerId || b.isTie).length;

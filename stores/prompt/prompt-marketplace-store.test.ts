@@ -272,6 +272,37 @@ describe('usePromptMarketplaceStore (contract)', () => {
     expect(result.current.operationStates['install:install-1']?.status).toBe('success');
   });
 
+  it('creates installed templates with marketplace linkage metadata', async () => {
+    const prompt = createMockPrompt('install-link-1', {
+      version: '1.2.0',
+    });
+    const { result } = renderHook(() => usePromptMarketplaceStore());
+
+    act(() => {
+      usePromptMarketplaceStore.setState({
+        prompts: { [prompt.id]: prompt },
+      });
+    });
+
+    await act(async () => {
+      await result.current.installPrompt(prompt);
+    });
+
+    expect(mockCreateTemplate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: 'imported',
+        meta: expect.objectContaining({
+          marketplace: expect.objectContaining({
+            marketplaceId: 'install-link-1',
+            linkageType: 'installed',
+            installedVersion: '1.2.0',
+            latestVersion: '1.2.0',
+          }),
+        }),
+      })
+    );
+  });
+
   it('keeps install linkage when uninstall fails and exposes operation error', () => {
     const installed: InstalledMarketplacePrompt = {
       id: 'inst-1',
@@ -343,6 +374,74 @@ describe('usePromptMarketplaceStore (contract)', () => {
     expect(result.current.userActivity.installed[0].hasUpdate).toBe(true);
     expect(result.current.userActivity.installed[0].latestVersion).toBe('2.0.0');
     expect(result.current.operationStates['check-updates']?.status).toBe('success');
+  });
+
+  it('blocks silent overwrite when installed prompt has local divergence and upstream update', async () => {
+    const latestPrompt = createMockPrompt('update-conflict-1', { version: '2.0.0' });
+    mockGetPromptById.mockResolvedValue(latestPrompt);
+    mockGetTemplate.mockReturnValue({
+      id: 'template-1',
+      name: 'Template One',
+      description: 'Template desc',
+      content: 'Locally edited content',
+      category: 'chat',
+      tags: ['template'],
+      variables: [{ name: 'name', type: 'text', required: true, description: 'Name' }],
+      targets: ['chat'],
+      source: 'imported',
+      meta: {
+        marketplace: {
+          marketplaceId: 'update-conflict-1',
+          linkageType: 'installed',
+          installedVersion: '1.0.0',
+          latestVersion: '2.0.0',
+          baseline: {
+            version: '1.0.0',
+            name: 'Template One',
+            description: 'Template desc',
+            content: 'Template content',
+            category: 'chat',
+            tags: ['template'],
+            variables: [{ name: 'name', type: 'text', required: true, description: 'Name' }],
+            targets: ['chat'],
+            capturedAt: '2026-03-14T00:00:00.000Z',
+          },
+        },
+      },
+    });
+
+    const { result } = renderHook(() => usePromptMarketplaceStore());
+    act(() => {
+      usePromptMarketplaceStore.setState({
+        prompts: { [latestPrompt.id]: latestPrompt },
+        userActivity: {
+          ...initialUserActivity,
+          installed: [
+            {
+              id: 'inst-1',
+              marketplaceId: 'update-conflict-1',
+              localTemplateId: 'template-1',
+              installedVersion: '1.0.0',
+              latestVersion: '2.0.0',
+              hasUpdate: true,
+              autoUpdate: false,
+              installedAt: new Date(),
+            },
+          ],
+        },
+      });
+    });
+
+    await act(async () => {
+      await expect(result.current.updateInstalledPrompt('update-conflict-1')).rejects.toThrow(
+        'Local changes must be resolved before applying upstream updates.'
+      );
+    });
+
+    expect(mockUpdateTemplate).not.toHaveBeenCalled();
+    expect(usePromptMarketplaceStore.getState().operationStates['update:update-conflict-1']?.status).toBe(
+      'error'
+    );
   });
 
   it('blocks duplicate reviews and records operation error', async () => {
@@ -458,6 +557,47 @@ describe('usePromptMarketplaceStore (contract)', () => {
 
     expect(result.current.userActivity.installed).toHaveLength(2);
     expect(result.current.userActivity.installed[1].marketplaceId).not.toBe('dup-1');
+  });
+
+  it('persists publish linkage metadata back to the local template after publish succeeds', async () => {
+    mockGetTemplate.mockReturnValue({
+      id: 'template-publish-1',
+      name: 'Template One',
+      description: 'Template desc',
+      content: 'Template content',
+      category: 'chat',
+      tags: ['template'],
+      variables: [{ name: 'name', type: 'text', required: true, description: 'Name' }],
+      targets: ['chat'],
+      source: 'user',
+      meta: {},
+    });
+    mockPublishPrompt.mockResolvedValue(
+      createMockPrompt('published-linked-1', { version: '1.0.0', source: 'user' })
+    );
+
+    const { result } = renderHook(() => usePromptMarketplaceStore());
+
+    await act(async () => {
+      await result.current.publishPrompt('template-publish-1', {
+        name: 'Published Prompt',
+        description: 'Published description',
+        category: 'chat',
+      });
+    });
+
+    expect(mockUpdateTemplate).toHaveBeenCalledWith(
+      'template-publish-1',
+      expect.objectContaining({
+        meta: expect.objectContaining({
+          marketplace: expect.objectContaining({
+            marketplaceId: 'published-linked-1',
+            linkageType: 'published',
+            publishedVersion: '1.0.0',
+          }),
+        }),
+      })
+    );
   });
 
   it('exports installed prompts with versioned schema payload', () => {

@@ -45,9 +45,15 @@ import { usePresetManager } from '@/hooks/presets/use-preset-manager';
 
 interface PresetsManagerProps {
   onSelectPreset?: (preset: Preset) => void;
+  initialEditPresetId?: string | null;
+  openCreateOnMount?: boolean;
 }
 
-export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
+export function PresetsManager({
+  onSelectPreset,
+  initialEditPresetId,
+  openCreateOnMount = false,
+}: PresetsManagerProps) {
   const t = useTranslations('presets');
   const tCommon = useTranslations('common');
   const tPlaceholders = useTranslations('placeholders');
@@ -80,7 +86,7 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
     handleImport,
     handleAIGenerate,
     setDefaultPreset,
-  } = usePresetManager({ onSelectPreset, t });
+  } = usePresetManager({ onSelectPreset, initialEditPresetId, openCreateOnMount, t });
 
   return (
     <div className="space-y-6">

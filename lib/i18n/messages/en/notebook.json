@@ -19,6 +19,7 @@
   "openFile": "Open .ipynb File",
   "unsavedChanges": "Unsaved changes",
   "saved": "Saved",
+  "reconnectRequired": "Workspace restored. Reconnect to a kernel to continue running notebook code.",
   "untitled": "Untitled Notebook",
   "openFailed": "Failed to open notebook",
   "saveFailed": "Failed to save notebook",

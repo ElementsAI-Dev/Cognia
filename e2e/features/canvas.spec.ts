@@ -19,6 +19,20 @@ interface SeedCanvasDocument {
     isAutoSave?: boolean;
   }>;
   currentVersionId?: string;
+  aiWorkbench?: Record<string, unknown>;
+}
+
+interface SeedArtifact {
+  id: string;
+  sessionId: string;
+  messageId: string;
+  type: string;
+  title: string;
+  content: string;
+  language?: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 async function openCanvasPanel(page: Page) {
@@ -42,6 +56,13 @@ async function openCanvasPanel(page: Page) {
     .waitFor({ state: 'hidden', timeout: 10000 })
     .catch(() => {});
   await page.keyboard.press('Control+.');
+  const overlay = page.locator('[data-slot="dialog-overlay"]');
+  if (await overlay.isVisible().catch(() => false)) {
+    await page.keyboard.press('Escape').catch(() => {});
+    await overlay.waitFor({ state: 'hidden', timeout: 5000 }).catch(async () => {
+      await page.mouse.click(24, 24);
+    });
+  }
   if (!(await page.getByTestId('canvas-panel').isVisible().catch(() => false))) {
     await page.getByTestId('chat-panel-toggle').click();
     await expect(page.getByTestId('chat-open-canvas-panel')).toBeVisible();
@@ -294,14 +315,21 @@ function createLargeCanvasFixture() {
   ].join('\n');
 }
 
-async function seedCanvasDocuments(page: Page, documents: SeedCanvasDocument[]) {
-  await page.addInitScript((seedDocs: SeedCanvasDocument[]) => {
+async function seedCanvasDocuments(
+  page: Page,
+  documents: SeedCanvasDocument[],
+  artifacts: SeedArtifact[] = []
+) {
+  await page.addInitScript(({ seedDocs, seedArtifacts }: { seedDocs: SeedCanvasDocument[]; seedArtifacts: SeedArtifact[] }) => {
     const canvasDocuments = Object.fromEntries(seedDocs.map((doc) => [doc.id, doc]));
+    const storedArtifacts = Object.fromEntries(
+      seedArtifacts.map((artifact) => [artifact.id, artifact])
+    );
     localStorage.setItem(
       'cognia-artifacts',
       JSON.stringify({
         state: {
-          artifacts: {},
+          artifacts: storedArtifacts,
           artifactVersions: {},
           canvasDocuments,
           analysisResults: {},
@@ -309,7 +337,7 @@ async function seedCanvasDocuments(page: Page, documents: SeedCanvasDocument[]) 
         version: 1,
       })
     );
-  }, documents);
+  }, { seedDocs: documents, seedArtifacts: artifacts });
 }
 
 test.describe('Canvas Panel (Real UI Journeys)', () => {
@@ -546,5 +574,118 @@ test.describe('Canvas Panel (Real UI Journeys)', () => {
         cursorColumn: 24,
       })
     );
+  });
+
+  test('supports inline AI command attachments, partial review decisions, and retry after switching documents', async ({ page }) => {
+    const seededAt = '2026-03-12T12:00:00.000Z';
+    await page.addInitScript(() => {
+      (
+        window as Window & {
+          __COGNIA_CANVAS_ACTION_TEST__?: {
+            getResult: (req: { content: string }) => { result: string };
+          };
+        }
+      ).__COGNIA_CANVAS_ACTION_TEST__ = {
+        getResult: ({ content }) => ({
+          result: content
+            .replace('const first = 1;', 'const first = 10;')
+            .replace('const third = 3;', 'const third = 30;'),
+        }),
+      };
+    });
+
+    await seedCanvasDocuments(
+      page,
+      [
+        {
+          id: 'canvas-inline-doc',
+          sessionId: 'session-inline',
+          title: 'Canvas Inline AI Flow',
+          content: 'const first = 1;\nconst second = 2;\nconst third = 3;',
+          language: 'javascript',
+          type: 'code',
+          createdAt: seededAt,
+          updatedAt: seededAt,
+          aiWorkbench: {
+            promptDraft: '',
+            selectedPresetAction: null,
+            attachments: [],
+            actionHistory: [],
+            pendingReview: null,
+            isInlineCommandOpen: false,
+          },
+        },
+        {
+          id: 'canvas-context-doc',
+          sessionId: 'session-inline',
+          title: 'Canvas Context Doc',
+          content: 'export const helper = () => true;',
+          language: 'javascript',
+          type: 'code',
+          createdAt: seededAt,
+          updatedAt: seededAt,
+          aiWorkbench: {
+            promptDraft: '',
+            selectedPresetAction: null,
+            attachments: [],
+            actionHistory: [],
+            pendingReview: null,
+            isInlineCommandOpen: false,
+          },
+        },
+      ],
+      [
+        {
+          id: 'artifact-inline-helper',
+          sessionId: 'session-inline',
+          messageId: 'message-inline-helper',
+          type: 'code',
+          title: 'Artifact Helper',
+          content: 'export const artifactHelper = () => 42;',
+          language: 'javascript',
+          version: 1,
+          createdAt: seededAt,
+          updatedAt: seededAt,
+        },
+      ]
+    );
+
+    await openCanvasPanel(page);
+    await page.getByText('Canvas Inline AI Flow').first().click();
+    await ensureMonacoReady(page);
+
+    await page.getByTestId('canvas-inline-command-trigger').click();
+    await expect(page.getByTestId('canvas-inline-command-panel')).toBeVisible();
+    await page.getByTestId('canvas-inline-attach-canvas-canvas-context-doc').click();
+    await page.getByTestId('canvas-inline-attach-artifact-artifact-inline-helper').click();
+    await expect(page.getByTestId('canvas-inline-attachment-summary')).toContainText('Canvas Context Doc');
+    await expect(page.getByTestId('canvas-inline-attachment-summary')).toContainText('Artifact Helper');
+
+    await page
+      .getByTestId('canvas-inline-command-input')
+      .fill('Update the first and third lines using the attached context.');
+    await page.getByTestId('canvas-inline-command-submit').click();
+
+    await expect(page.getByTestId('canvas-review-queue')).toBeVisible();
+    await expect(page.getByTestId('canvas-review-item-0')).toBeVisible();
+    await expect(page.getByTestId('canvas-review-item-1')).toBeVisible();
+
+    await page.getByTestId('canvas-review-item-accept-0').click();
+    await page.getByTestId('canvas-review-item-reject-1').click();
+    await page.getByTestId('canvas-review-apply-selected').click();
+
+    await expect
+      .poll(async () => normalizeEditorContent(await getEditorContent(page)), { timeout: 10000 })
+      .toContain(normalizeEditorContent('const first = 10;'));
+    await expect
+      .poll(async () => normalizeEditorContent(await getEditorContent(page)), { timeout: 10000 })
+      .not.toContain(normalizeEditorContent('const third = 30;'));
+
+    await page.getByText('Canvas Context Doc').first().click();
+    await page.getByText('Canvas Inline AI Flow').first().click();
+    await expect(page.getByTestId('canvas-ai-history')).toBeVisible();
+    await page.locator('[data-testid^="canvas-ai-history-retry-"]').first().click();
+    await expect(page.getByTestId('canvas-review-queue')).toBeVisible();
+    await expect(page.getByTestId('canvas-diff-accept')).toBeVisible();
   });
 });

@@ -3,6 +3,7 @@
  */
 
 import {
+  analyzePrompt,
   calculatePromptStats,
   createABTest,
   updateABTestResult,
@@ -16,10 +17,88 @@ import {
   createOptimizationHistoryEntry,
   calculateOptimizationImprovement,
   getTopOptimizationCandidates,
+  type SelfOptimizationConfig,
 } from './prompt-self-optimizer';
 import type { PromptFeedback, PromptABTest, PromptTemplate } from '@/types/content/prompt-template';
+import { generateText } from 'ai';
+import { createFeatureProviderModelFromRuntimeConfig } from '@/lib/ai/provider-consumption';
+
+jest.mock('ai', () => ({
+  generateText: jest.fn(),
+}));
+
+jest.mock('@/lib/ai/provider-consumption', () => ({
+  createFeatureRoutePolicy: jest.fn((routeProfile, overrides) => ({
+    routeProfile,
+    selectionMode: 'default-provider',
+    ...overrides,
+  })),
+  createFeatureProviderModelFromRuntimeConfig: jest.fn(() => 'mock-model'),
+}));
+
+const mockGenerateText = generateText as jest.Mock;
+const mockCreateFeatureProviderModelFromRuntimeConfig =
+  createFeatureProviderModelFromRuntimeConfig as jest.Mock;
 
 describe('prompt-self-optimizer', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCreateFeatureProviderModelFromRuntimeConfig.mockReturnValue('mock-model');
+  });
+
+  describe('shared routing contract', () => {
+    it('uses the shared routing contract for prompt analysis', async () => {
+      const template: PromptTemplate = {
+        id: 'template-1',
+        name: 'Test Prompt',
+        content: 'Write a summary',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        variables: [],
+        tags: [],
+        source: 'user',
+        usageCount: 0,
+        isOptimized: false,
+      };
+
+      const config: SelfOptimizationConfig = {
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        apiKey: 'test-key',
+      };
+
+      mockGenerateText.mockResolvedValue({
+        text: JSON.stringify({
+          scores: {
+            clarity: 80,
+            specificity: 75,
+            structureQuality: 70,
+            overallScore: 75,
+          },
+          suggestions: [],
+          abTestRecommendation: {
+            shouldTest: false,
+            hypothesis: 'none',
+          },
+        }),
+      });
+
+      await analyzePrompt(template, config);
+
+      expect(mockCreateFeatureProviderModelFromRuntimeConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          routeProfile: 'general-text',
+          featureId: 'prompt-self-optimizer',
+        }),
+        expect.objectContaining({
+          providerId: 'openai',
+          model: 'gpt-4o-mini',
+          apiKey: 'test-key',
+        })
+      );
+    });
+  });
+
   describe('calculatePromptStats', () => {
     it('should return zero stats for empty feedback', () => {
       const stats = calculatePromptStats([]);

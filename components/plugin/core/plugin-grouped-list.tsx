@@ -26,6 +26,7 @@ import {
   Palette,
   Terminal,
   LayoutGrid,
+  type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -43,13 +44,13 @@ interface PluginGroupedListProps {
   defaultExpandedGroups?: string[];
 }
 
-const TYPE_INFO: Record<PluginType, { icon: React.ElementType; label: string; color: string }> = {
+const TYPE_INFO: Record<PluginType, { icon: LucideIcon; label: string; color: string }> = {
   frontend: { icon: Code2, label: 'Frontend', color: 'bg-blue-500' },
   python: { icon: FileCode2, label: 'Python', color: 'bg-yellow-500' },
   hybrid: { icon: Layers, label: 'Hybrid', color: 'bg-purple-500' },
 };
 
-const CAPABILITY_INFO: Record<PluginCapability, { icon: React.ElementType; label: string; color: string }> = {
+const CAPABILITY_INFO: Record<PluginCapability, { icon: LucideIcon; label: string; color: string }> = {
   tools: { icon: Wrench, label: 'Tools', color: 'bg-blue-500' },
   components: { icon: Layers, label: 'Components', color: 'bg-purple-500' },
   modes: { icon: Zap, label: 'Modes', color: 'bg-amber-500' },
@@ -81,7 +82,7 @@ const STATUS_INFO: Record<string, { label: string; color: string }> = {
 interface PluginGroup {
   key: string;
   label: string;
-  icon?: React.ElementType;
+  icon?: LucideIcon;
   color: string;
   plugins: Plugin[];
 }
@@ -129,7 +130,7 @@ export function PluginGroupedList({
 
     const result: PluginGroup[] = [];
     groupMap.forEach((groupPlugins, key) => {
-      let info: { icon?: React.ElementType; label: string; color: string };
+      let info: { icon?: LucideIcon; label: string; color: string };
 
       switch (groupBy) {
         case 'type':

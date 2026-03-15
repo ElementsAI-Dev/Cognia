@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PluginHealth } from './plugin-health';
 import { usePluginStore } from '@/stores/plugin';
 import { pluginHealthMonitor, pluginAnalyticsStore } from '@/lib/plugin';
@@ -67,6 +67,10 @@ const mockPlugins = {
       version: '1.0.0',
     },
     status: 'enabled',
+    source: 'dev',
+    descriptor: {
+      compatibility: { status: 'warning', diagnostics: [] },
+    },
   },
   'plugin-2': {
     manifest: {
@@ -75,6 +79,10 @@ const mockPlugins = {
       version: '1.0.0',
     },
     status: 'enabled',
+    source: 'marketplace',
+    descriptor: {
+      compatibility: { status: 'compatible', diagnostics: [] },
+    },
   },
 };
 
@@ -187,5 +195,14 @@ describe('PluginHealth', () => {
     // Component renders health cards with status counts
     const cards = screen.getAllByTestId('card');
     expect(cards.length).toBeGreaterThan(0);
+  });
+
+  it('should render source and compatibility badges for plugin rows', async () => {
+    render(<PluginHealth />);
+
+    await waitFor(() => {
+      expect(screen.getByText('dev')).toBeInTheDocument();
+      expect(screen.getByText('warning')).toBeInTheDocument();
+    });
   });
 });

@@ -86,6 +86,10 @@ jest.mock('@/lib/document', () => ({
     metadata: {},
   }),
   detectDocumentType: jest.fn().mockReturnValue('text'),
+  getDocumentAcceptString: jest.fn(() =>
+    '.txt,.md,.json,.js,.ts,.tsx,.jsx,.py,.rs,.go,.java,.cpp,.c,.h,.pdf,.docx,.doc,.docm,.odt,.xlsx,.xls,.xlsm,.ods,.csv,.tsv,.html,.htm,.xml,.yaml,.yml,.css,.scss,.pptx,.ppt,.pptm,.odp,.rtf,.epub'
+  ),
+  mapDocumentTypeToKnowledgeFileType: jest.fn((type: string) => (type === 'unknown' ? 'text' : type)),
 }));
 
 // Mock UI components
@@ -171,6 +175,16 @@ describe('KnowledgeBase', () => {
     render(<KnowledgeBase {...defaultProps} />);
     expect(screen.getByText('Upload')).toBeInTheDocument();
     expect(screen.getByText('Add')).toBeInTheDocument();
+  });
+
+  it('uses the shared knowledge-base accept string for uploads', () => {
+    const { container } = render(<KnowledgeBase {...defaultProps} />);
+    const fileInput = container.querySelector('input[type="file"]');
+
+    expect(fileInput).toHaveAttribute(
+      'accept',
+      '.txt,.md,.json,.js,.ts,.tsx,.jsx,.py,.rs,.go,.java,.cpp,.c,.h,.pdf,.docx,.doc,.docm,.odt,.xlsx,.xls,.xlsm,.ods,.csv,.tsv,.html,.htm,.xml,.yaml,.yml,.css,.scss,.pptx,.ppt,.pptm,.odp,.rtf,.epub'
+    );
   });
 
   it('displays knowledge files', () => {

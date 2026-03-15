@@ -6,8 +6,13 @@ jest.mock('ai', () => ({
   streamText: jest.fn(),
 }));
 
-jest.mock('@/lib/ai/core/client', () => ({
-  getProviderModel: jest.fn(() => ({ id: 'mock-model' })),
+jest.mock('@/lib/ai/provider-consumption', () => ({
+  createFeatureRoutePolicy: jest.fn((routeProfile, overrides) => ({
+    routeProfile,
+    selectionMode: 'default-provider',
+    ...overrides,
+  })),
+  createFeatureProviderModelFromRuntimeConfig: jest.fn(() => ({ id: 'mock-model' })),
 }));
 
 jest.mock('nanoid', () => ({
@@ -27,15 +32,31 @@ import {
   createConversation,
   addUserMessage,
   continueConversation,
+  streamConversation,
 } from './ai-conversation';
 
 import type { DesignerAIConfig } from './ai';
+import { createFeatureProviderModelFromRuntimeConfig } from '@/lib/ai/provider-consumption';
+import { streamText } from 'ai';
 
 const mockConfig: DesignerAIConfig = {
   provider: 'openai',
   model: 'gpt-4',
   apiKey: 'test-api-key',
 };
+
+const mockCreateFeatureProviderModelFromRuntimeConfig =
+  createFeatureProviderModelFromRuntimeConfig as jest.Mock;
+const mockStreamText = streamText as jest.Mock;
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockStreamText.mockResolvedValue({
+    textStream: (async function* () {
+      yield 'Updated response';
+    })(),
+  });
+});
 
 describe('AI Conversation', () => {
   describe('createConversation', () => {
@@ -125,6 +146,30 @@ describe('AI Conversation', () => {
 
       expect(result.success).toBe(true);
       expect(result.conversation).toBeDefined();
+    });
+  });
+
+  describe('streamConversation', () => {
+    it('resolves the stream model through the shared routing contract', async () => {
+      const conversation = createConversation('d1', 'code', mockConfig);
+
+      const updates = [];
+      for await (const update of streamConversation(conversation, 'Change the layout', mockConfig)) {
+        updates.push(update);
+      }
+
+      expect(updates.length).toBeGreaterThan(0);
+      expect(mockCreateFeatureProviderModelFromRuntimeConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          routeProfile: 'general-text',
+          featureId: 'designer-ai-conversation',
+        }),
+        expect.objectContaining({
+          providerId: 'openai',
+          model: 'gpt-4',
+          apiKey: 'test-api-key',
+        })
+      );
     });
   });
 });

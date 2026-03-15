@@ -7,6 +7,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { buildCommand } from './build';
+import { validateCapabilityContract } from './capability-contract';
 
 interface PackOptions {
   output: string;
@@ -86,6 +87,15 @@ function validateManifest(manifest: PluginManifest): void {
     errors.push('Missing or invalid version field');
   }
   if (!manifest.main) errors.push('Missing required field: main');
+  if (!Array.isArray((manifest as PluginManifest & { capabilities?: string[] }).capabilities)) {
+    errors.push('Missing required field: capabilities');
+  } else {
+    const capabilityValidation = validateCapabilityContract(
+      (manifest as PluginManifest & { capabilities: string[] }).capabilities,
+    );
+    errors.push(...capabilityValidation.errors);
+    capabilityValidation.warnings.forEach((warning) => console.warn(`   • ${warning}`));
+  }
 
   if (errors.length > 0) {
     console.error('❌ Invalid plugin manifest for packing:');

@@ -26,6 +26,7 @@ import {
   type ValidationOptions,
   type DocumentDiff,
 } from '@/lib/document/document-processor';
+import { isBinaryFilename } from '@/lib/document/support-matrix';
 import { extractTables, type TableExtractionResult } from '@/lib/document/table-extractor';
 import { useDocumentStore } from '@/stores/document';
 
@@ -61,8 +62,6 @@ export interface ProcessBatchOptions extends ProcessFileOptions {
   /** Max concurrent file processing (default: 1 = sequential) */
   concurrency?: number;
 }
-
-const BINARY_EXTENSIONS = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'epub'];
 
 export function useDocumentProcessor() {
   const [state, setState] = useState<DocumentProcessingState>({
@@ -428,8 +427,7 @@ export function useDocumentProcessor() {
    * Check if file is processable
    */
   const isProcessable = useCallback((filename: string): boolean => {
-    const ext = filename.split('.').pop()?.toLowerCase() || '';
-    return isTextFile(filename) || BINARY_EXTENSIONS.includes(ext);
+    return isTextFile(filename) || isBinaryFilename(filename);
   }, []);
 
   /**

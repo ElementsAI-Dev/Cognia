@@ -3,6 +3,7 @@
  */
 
 import {
+  probeProviderConnection,
   testOpenAIConnection,
   testAnthropicConnection,
   testGoogleConnection,
@@ -19,6 +20,10 @@ jest.mock('@tauri-apps/api/core', () => ({
 jest.mock('@/lib/network/proxy-fetch', () => ({
   proxyFetch: jest.fn(),
 }));
+
+import { proxyFetch } from '@/lib/network/proxy-fetch';
+
+const mockProxyFetch = proxyFetch as jest.MockedFunction<typeof proxyFetch>;
 
 describe('testOpenAIConnection', () => {
   beforeEach(() => {
@@ -130,6 +135,51 @@ describe('testProviderConnection', () => {
     const result = await testProviderConnection('unknown-provider', 'api-key');
     
     expect(result.success).toBe(false);
+  });
+});
+
+describe('probeProviderConnection', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('returns runtime-limited results for anthropic in non-tauri environments', async () => {
+    const result = await probeProviderConnection({
+      providerId: 'anthropic',
+      apiKey: 'sk-ant-test-key-1234567890',
+      protocol: 'anthropic',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.outcome).toBe('limited');
+    expect(result.authoritative).toBe(false);
+  });
+
+  it('returns authoritative success for openai-compatible custom endpoints', async () => {
+    mockProxyFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: [{ id: 'alpha-1' }] }),
+    } as Response);
+
+    const result = await probeProviderConnection({
+      providerId: 'custom-openai',
+      apiKey: 'sk-custom',
+      baseURL: 'https://custom.example.com/v1',
+      protocol: 'openai',
+    });
+
+    expect(mockProxyFetch).toHaveBeenCalledWith(
+      'https://custom.example.com/v1/models',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk-custom',
+        }),
+      })
+    );
+    expect(result.success).toBe(true);
+    expect(result.outcome).toBe('verified');
+    expect(result.authoritative).toBe(true);
   });
 });
 

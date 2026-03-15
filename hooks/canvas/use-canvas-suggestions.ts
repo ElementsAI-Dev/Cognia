@@ -6,7 +6,11 @@
 
 import { useCallback, useState, useRef } from 'react';
 import { generateText } from 'ai';
-import { getProviderModel, type ProviderName } from '@/lib/ai/core/client';
+import type { ProviderName } from '@/lib/ai/core/client';
+import {
+  createFeatureProviderModelFromRuntimeConfig,
+  createFeatureRoutePolicy,
+} from '@/lib/ai/provider-consumption';
 import { useSettingsStore, useSessionStore, useArtifactStore } from '@/stores';
 import type { CanvasSuggestion, ArtifactLanguage } from '@/types';
 import { nanoid } from 'nanoid';
@@ -61,6 +65,31 @@ export function useCanvasSuggestions(): UseSuggestionsReturn {
   const addSuggestion = useArtifactStore((state) => state.addSuggestion);
   const activeCanvasId = useArtifactStore((state) => state.activeCanvasId);
 
+  const getCanvasSuggestionModel = useCallback(
+    (
+      provider: ProviderName,
+      model: string,
+      apiKey: string,
+      baseURL?: string
+    ) =>
+      createFeatureProviderModelFromRuntimeConfig(
+        createFeatureRoutePolicy('general-text', {
+          featureId: 'canvas-suggestions',
+          selectionMode: 'explicit-provider',
+          providerId: provider,
+          model,
+          fallbackMode: 'none',
+        }),
+        {
+          providerId: provider,
+          model,
+          apiKey,
+          baseURL,
+        }
+      ),
+    []
+  );
+
   const generateSuggestions = useCallback(
     async (
       context: SuggestionContext,
@@ -83,11 +112,7 @@ export function useCanvasSuggestions(): UseSuggestionsReturn {
         const model = session?.model || providerSettings[provider]?.defaultModel || 'gpt-4o-mini';
         const settings = providerSettings[provider];
 
-        if (!settings?.apiKey && provider !== 'ollama') {
-          throw new Error(`No API key configured for ${provider}`);
-        }
-
-        const modelInstance = getProviderModel(
+        const modelInstance = getCanvasSuggestionModel(
           provider,
           model,
           settings?.apiKey || '',
@@ -195,7 +220,7 @@ Provide suggestions:`;
         setIsGenerating(false);
       }
     },
-    [getActiveSession, defaultProvider, providerSettings, activeCanvasId, addSuggestion]
+    [getActiveSession, defaultProvider, providerSettings, activeCanvasId, addSuggestion, getCanvasSuggestionModel]
   );
 
   const applySuggestion = useCallback((suggestionId: string) => {

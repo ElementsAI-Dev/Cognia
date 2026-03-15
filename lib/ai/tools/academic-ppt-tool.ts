@@ -19,7 +19,6 @@ import type {
   PPTOutlineItem,
 } from '@/types/workflow';
 import { DEFAULT_PPT_THEMES } from '@/types/workflow';
-import type { ProviderName } from '@/types/provider';
 
 /**
  * Simplified paper type for PPT generation input
@@ -331,48 +330,38 @@ function buildHeuristicOutline(input: PaperToPPTInput): PaperPPTOutlineItem[] {
 }
 
 async function generateOutlineWithAI(input: PaperToPPTInput): Promise<PaperPPTOutlineItem[]> {
-  const [{ useSettingsStore }, { getProxyProviderModel }, { parseAIJSON }, { generateText }] =
+  const [{ useSettingsStore }, { createFeatureProviderModel, resolveFeatureProviderCandidates }, { parseAIJSON }, { generateText }] =
     await Promise.all([
       import('@/stores'),
-      import('@/lib/ai/core/proxy-client'),
+      import('@/lib/ai/provider-consumption'),
       import('@/lib/ai/utils/parse-ai-json'),
       import('ai'),
     ]);
 
   const settings = useSettingsStore.getState();
-  const defaultProvider = settings.defaultProvider;
-  const providerSettings = settings.providerSettings;
   const prompt = buildAcademicPPTPrompt(input);
-  const providers: ProviderName[] = [
-    defaultProvider as ProviderName,
-    ...(Object.keys(providerSettings).filter(
-      (provider) => provider !== defaultProvider
-    ) as ProviderName[]),
-  ];
+  const candidates = resolveFeatureProviderCandidates(
+    {
+      featureId: 'academic-ppt',
+      selectionMode: 'default-provider',
+      fallbackMode: 'first-eligible',
+      proxyMode: 'required',
+    },
+    {
+      defaultProvider: settings.defaultProvider,
+      providerSettings: settings.providerSettings,
+      customProviders: settings.customProviders,
+    }
+  );
 
   const sections = new Set<PaperPPTSection>(
     (Object.values(DEFAULT_PPT_SECTIONS).flat() as PaperPPTSection[]).concat(input.includeSections || [])
   );
 
   let lastError: unknown;
-  for (const provider of providers) {
-    const setting = providerSettings[provider as keyof typeof providerSettings];
-    if (!setting?.defaultModel) {
-      continue;
-    }
-    const apiKey = setting.apiKey || '';
-    if (!apiKey && provider !== 'ollama') {
-      continue;
-    }
-
+  for (const candidate of candidates) {
     try {
-      const model = getProxyProviderModel(
-        provider,
-        setting.defaultModel,
-        apiKey,
-        setting.baseURL,
-        true
-      );
+      const model = createFeatureProviderModel(candidate);
 
       const { text } = await generateText({
         model,
@@ -423,8 +412,8 @@ async function generateOutlineWithAI(input: PaperToPPTInput): Promise<PaperPPTOu
     } catch (error) {
       lastError = error;
       console.warn('[academic-ppt] fallback provider', {
-        provider,
-        model: setting.defaultModel,
+        provider: candidate.providerId,
+        model: candidate.model,
         error: error instanceof Error ? error.message : String(error),
       });
     }

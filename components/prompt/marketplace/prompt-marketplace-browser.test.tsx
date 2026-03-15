@@ -23,6 +23,43 @@ const mockSetBrowsePage = jest.fn();
 const mockSetBrowseScrollOffset = jest.fn();
 const mockSetSelectedPrompt = jest.fn();
 const mockSetDetailOpen = jest.fn();
+const mockPromptMarketplaceDetail = jest.fn((_props: Record<string, unknown>) => <div>detail</div>);
+type PromptFixture = {
+  id: string;
+  name: string;
+  description: string;
+  content: string;
+  category: string;
+  tags: string[];
+  variables: unknown[];
+  targets: string[];
+  author: { id: string; name: string };
+  source: string;
+  qualityTier: string;
+  version: string;
+  versions: unknown[];
+  stats: { downloads: number; weeklyDownloads: number; favorites: number; shares: number; views: number };
+  rating: { average: number; count: number; distribution: Record<number, number> };
+  reviewCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+const mockBrowseTab = jest.fn((_props: Record<string, unknown>) => (
+  <>
+    <div data-testid="browse-fragment-featured">featured</div>
+    <div data-testid="browse-fragment-trending">trending</div>
+    <button
+      type="button"
+      data-testid="browse-fragment-results"
+      onClick={() => {
+        const onViewDetail = _props.onViewDetail as ((selectedPrompt: PromptFixture) => void) | undefined;
+        onViewDetail?.(prompt);
+      }}
+    >
+      results
+    </button>
+  </>
+));
 
 const prompt = {
   id: 'p1',
@@ -64,7 +101,7 @@ const storeState = {
     selectedTiers: [],
     page: 1,
     pageSize: 20,
-    selectedPromptId: null,
+    selectedPromptId: null as string | null,
     detailOpen: false,
     scrollOffset: 0,
   },
@@ -93,6 +130,21 @@ const storeState = {
   setSelectedPrompt: mockSetSelectedPrompt,
   setDetailOpen: mockSetDetailOpen,
 };
+
+const originalMatchMedia = window.matchMedia;
+
+function mockMatchMedia(matchesByQuery: Record<string, boolean>) {
+  window.matchMedia = jest.fn().mockImplementation((query: string) => ({
+    matches: matchesByQuery[query] ?? false,
+    media: query,
+    onchange: null,
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  }));
+}
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -174,7 +226,7 @@ jest.mock('./prompt-marketplace-sidebar', () => ({
 }));
 
 jest.mock('./prompt-marketplace-detail', () => ({
-  PromptMarketplaceDetail: () => <div>detail</div>,
+  PromptMarketplaceDetail: (props: Record<string, unknown>) => mockPromptMarketplaceDetail(props),
 }));
 
 jest.mock('./prompt-marketplace-inspector', () => ({
@@ -186,7 +238,7 @@ jest.mock('./prompt-author-profile', () => ({
 }));
 
 jest.mock('./tabs', () => ({
-  BrowseTab: () => <div>browse-tab</div>,
+  BrowseTab: (props: Record<string, unknown>) => mockBrowseTab(props),
   InstalledTab: () => <div>installed-tab</div>,
   FavoritesTab: () => <div>favorites-tab</div>,
   CollectionsTab: () => <div>collections-tab</div>,
@@ -196,6 +248,9 @@ jest.mock('./tabs', () => ({
 describe('PromptMarketplaceBrowser', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockMatchMedia({
+      '(max-width: 1023px)': false,
+    });
     mockSearchPrompts.mockReturnValue({
       prompts: [prompt],
       total: 1,
@@ -232,6 +287,64 @@ describe('PromptMarketplaceBrowser', () => {
     await waitFor(() => {
       expect(mockSetRemoteFirstEnabled).toHaveBeenCalled();
       expect(mockRefreshCatalog).toHaveBeenCalled();
+    });
+  });
+
+  afterAll(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  it('passes continue-edit callback through to marketplace detail', () => {
+    const onContinueEditing = jest.fn();
+    render(<PromptMarketplaceBrowser onContinueEditing={onContinueEditing} />);
+
+    expect(mockPromptMarketplaceDetail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        onContinueEditing,
+      })
+    );
+  });
+
+  it('keeps browse fragments inside a dedicated middle region', () => {
+    render(<PromptMarketplaceBrowser />);
+
+    const layout = screen.getByTestId('prompt-marketplace-browse-layout');
+    const browseRegion = screen.getByTestId('prompt-marketplace-browse-region');
+
+    expect(layout.children).toHaveLength(2);
+    expect(browseRegion).toContainElement(screen.getByTestId('browse-fragment-featured'));
+    expect(browseRegion).toContainElement(screen.getByTestId('browse-fragment-trending'));
+    expect(browseRegion).toContainElement(screen.getByTestId('browse-fragment-results'));
+  });
+
+  it('shows persistent inspector only after a prompt is selected on wide screens', () => {
+    mockMatchMedia({
+      '(max-width: 1023px)': false,
+      '(min-width: 1536px)': true,
+    });
+    storeState.browseViewState.selectedPromptId = 'p1';
+
+    render(<PromptMarketplaceBrowser />);
+
+    const layout = screen.getByTestId('prompt-marketplace-browse-layout');
+    expect(layout.children).toHaveLength(3);
+    expect(screen.getByText('inspector')).toBeInTheDocument();
+
+    storeState.browseViewState.selectedPromptId = null;
+  });
+
+  it('opens detail when inspector is not persistently available', async () => {
+    mockMatchMedia({
+      '(max-width: 1023px)': false,
+      '(min-width: 1536px)': false,
+    });
+
+    render(<PromptMarketplaceBrowser />);
+    fireEvent.click(screen.getByTestId('browse-fragment-results'));
+
+    await waitFor(() => {
+      expect(mockSetSelectedPrompt).toHaveBeenCalledWith('p1');
+      expect(mockSetDetailOpen).toHaveBeenCalledWith(true);
     });
   });
 });

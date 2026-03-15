@@ -75,6 +75,94 @@ export type PluginSource =
   | 'dev'; // Development mode (hot reload enabled)
 
 /**
+ * Normalized installation root kind used by the host.
+ */
+export type PluginInstallRootKind =
+  | 'builtin'
+  | 'installed'
+  | 'dev';
+
+/**
+ * Actions supported by a normalized extension record.
+ */
+export type ExtensionOperation =
+  | 'install'
+  | 'update'
+  | 'enable'
+  | 'disable'
+  | 'reload'
+  | 'uninstall'
+  | 'configure';
+
+export interface ExtensionCompatibilityDiagnostic {
+  code: string;
+  severity: 'warning' | 'error';
+  message: string;
+  field?: string;
+  expected?: string;
+  actual?: string;
+  hint?: string;
+}
+
+export interface ExtensionCompatibilitySummary {
+  status: 'compatible' | 'warning' | 'blocked';
+  diagnostics: ExtensionCompatibilityDiagnostic[];
+}
+
+export interface ExtensionInstallRoot {
+  kind: PluginInstallRootKind;
+  path: string;
+}
+
+/**
+ * Canonical host-side extension descriptor.
+ */
+export interface ExtensionDescriptor {
+  id: string;
+  version: string;
+  source: PluginSource;
+  resolvedPath: string;
+  installRoot: ExtensionInstallRoot;
+  entrypoints: {
+    main?: string;
+    pythonMain?: string;
+    styles?: string;
+  };
+  declaredCapabilities: PluginCapability[];
+  compatibility: ExtensionCompatibilitySummary;
+  availableOperations: ExtensionOperation[];
+}
+
+export interface ExtensionCatalogEntry {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
+  capabilities: PluginCapability[];
+  version: string;
+  latestVersion: string;
+  updatedAt: string;
+  installed: boolean;
+  enabled: boolean;
+  source: PluginSource | 'marketplace';
+  descriptor?: ExtensionDescriptor;
+  repository?: string;
+  homepage?: string;
+  license?: string;
+  compatibility: ExtensionCompatibilitySummary;
+  availableOperations: ExtensionOperation[];
+  registry: {
+    verified: boolean;
+    featured: boolean;
+    downloads: number;
+    rating: number;
+    ratingCount: number;
+    tags: string[];
+    categories: string[];
+  };
+}
+
+/**
  * Permission types that plugins can request
  */
 export type PluginPermission =
@@ -1256,6 +1344,9 @@ export interface Plugin {
 
   /** Installation path */
   path: string;
+
+  /** Normalized runtime descriptor */
+  descriptor?: ExtensionDescriptor;
 
   /** Current configuration */
   config: Record<string, unknown>;

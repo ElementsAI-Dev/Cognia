@@ -30,6 +30,7 @@ jest.mock('@/lib/native/utils', () => ({
 }));
 
 // Import after mocks
+import * as kernelModule from './kernel';
 import {
   isKernelAvailable,
   createSession,
@@ -100,6 +101,20 @@ const mockVariableInfo: VariableInfo = {
   type: 'int',
   value: '42',
   size: null,
+};
+
+type KernelModuleExtensions = typeof kernelModule & {
+  prepareNotebookEnvironment: (envPath: string) => Promise<{
+    ready: boolean;
+    installedKernel: boolean;
+    error: string | null;
+  }>;
+  restoreNotebookSession: (sessionId: string) => Promise<{
+    status: 'restored' | 'needs_reconnect' | 'unavailable';
+    session: JupyterSession | null;
+    kernelAlive: boolean;
+    error: string | null;
+  }>;
 };
 
 describe('Jupyter Kernel Service', () => {
@@ -631,6 +646,60 @@ describe('Jupyter Kernel Service', () => {
   });
 
   describe('Utility Functions', () => {
+    describe('prepareNotebookEnvironment', () => {
+      it('reports ready without installation when the environment is already notebook-ready', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke.mockResolvedValueOnce(true);
+        const extendedKernelModule = kernelModule as KernelModuleExtensions;
+
+        const result = await extendedKernelModule.prepareNotebookEnvironment('/path/to/env');
+
+        expect(result).toEqual({
+          ready: true,
+          installedKernel: false,
+          error: null,
+        });
+      });
+
+      it('installs notebook prerequisites when the environment is not ready yet', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke
+          .mockResolvedValueOnce(false)
+          .mockResolvedValueOnce(true);
+        const extendedKernelModule = kernelModule as KernelModuleExtensions;
+
+        const result = await extendedKernelModule.prepareNotebookEnvironment('/path/to/env');
+
+        expect(mockInvoke).toHaveBeenNthCalledWith(1, 'jupyter_check_kernel_available', {
+          envPath: '/path/to/env',
+        });
+        expect(mockInvoke).toHaveBeenNthCalledWith(2, 'jupyter_ensure_kernel', {
+          envPath: '/path/to/env',
+        });
+        expect(result).toEqual({
+          ready: true,
+          installedKernel: true,
+          error: null,
+        });
+      });
+
+      it('surfaces installation failures as actionable readiness errors', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke
+          .mockResolvedValueOnce(false)
+          .mockRejectedValueOnce(new Error('install failed'));
+        const extendedKernelModule = kernelModule as KernelModuleExtensions;
+
+        const result = await extendedKernelModule.prepareNotebookEnvironment('/path/to/env');
+
+        expect(result).toEqual({
+          ready: false,
+          installedKernel: false,
+          error: 'install failed',
+        });
+      });
+    });
+
     describe('checkKernelAvailable', () => {
       it('should check if kernel is available for environment', async () => {
         mockIsTauri.mockReturnValue(true);
@@ -749,6 +818,40 @@ describe('Jupyter Kernel Service', () => {
         const result = await getKernelConfig();
 
         expect(result).toBeNull();
+      });
+    });
+  });
+
+  describe('Session Recovery', () => {
+    it('restores a session when it still exists and its kernel is alive', async () => {
+      mockIsTauri.mockReturnValue(true);
+      mockInvoke
+        .mockResolvedValueOnce(mockSession)
+        .mockResolvedValueOnce(true);
+      const extendedKernelModule = kernelModule as KernelModuleExtensions;
+
+      const result = await extendedKernelModule.restoreNotebookSession('session-1');
+
+      expect(result).toEqual({
+        status: 'restored',
+        session: mockSession,
+        kernelAlive: true,
+        error: null,
+      });
+    });
+
+    it('requests reconnect when the session cannot be restored', async () => {
+      mockIsTauri.mockReturnValue(true);
+      mockInvoke.mockResolvedValueOnce(null);
+      const extendedKernelModule = kernelModule as KernelModuleExtensions;
+
+      const result = await extendedKernelModule.restoreNotebookSession('session-1');
+
+      expect(result).toEqual({
+        status: 'needs_reconnect',
+        session: null,
+        kernelAlive: false,
+        error: 'Session not found',
       });
     });
   });

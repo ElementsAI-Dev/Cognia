@@ -34,6 +34,15 @@ export interface AgentTraceEvent {
   costEstimate?: TraceCostEstimate;
   responsePreview?: string;
   modelId?: string;
+  traceId?: string;
+  spanId?: string;
+  turnId?: string;
+}
+
+export interface SessionTraceCorrelation {
+  traceId?: string;
+  spanId?: string;
+  turnId?: string;
 }
 
 /** Active session trace state */
@@ -49,6 +58,11 @@ export interface ActiveSessionTrace {
   toolCalls: number;
   toolSuccesses: number;
   toolFailures: number;
+  lastEventAt?: number;
+  lastEventType?: AgentTraceEventType;
+  lastError?: string;
+  lastResponsePreview?: string;
+  correlation: SessionTraceCorrelation;
 }
 
 /** Event callback type */
@@ -109,6 +123,7 @@ export const useAgentTraceStore = create<AgentTraceStore>((set, get) => ({
           toolCalls: 0,
           toolSuccesses: 0,
           toolFailures: 0,
+          correlation: {},
         },
       },
     }));
@@ -129,6 +144,21 @@ export const useAgentTraceStore = create<AgentTraceStore>((set, get) => ({
       // Update session state
       const updatedSession = { ...session };
       updatedSession.events = [...session.events, event].slice(-MAX_SESSION_EVENTS);
+      updatedSession.lastEventAt = event.timestamp;
+      updatedSession.lastEventType = event.eventType;
+      if (event.error) {
+        updatedSession.lastError = event.error;
+      }
+      if (event.responsePreview) {
+        updatedSession.lastResponsePreview = event.responsePreview;
+      }
+      if (event.traceId || event.spanId || event.turnId) {
+        updatedSession.correlation = {
+          traceId: event.traceId ?? updatedSession.correlation.traceId,
+          spanId: event.spanId ?? updatedSession.correlation.spanId,
+          turnId: event.turnId ?? updatedSession.correlation.turnId,
+        };
+      }
 
       // Update step number
       if (event.stepNumber && event.stepNumber > updatedSession.currentStep) {
@@ -253,3 +283,7 @@ export const selectRunningSessions = (state: AgentTraceStore) =>
 /** Selector: get a specific session's events */
 export const selectSessionEvents = (sessionId: string) => (state: AgentTraceStore) =>
   state.activeSessions[sessionId]?.events ?? [];
+
+/** Selector: get a session observation summary */
+export const selectSessionObservation = (sessionId: string) => (state: AgentTraceStore) =>
+  state.activeSessions[sessionId];

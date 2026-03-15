@@ -33,11 +33,13 @@ import { useJupyterKernel } from '@/hooks/jupyter';
 import { useVirtualEnv } from '@/hooks/sandbox';
 import { useJupyterStore } from '@/stores/jupyter';
 import { loggers } from '@/lib/logger';
-import { serializeNotebook } from '@/lib/jupyter';
-import { applyCellsToNotebook } from '@/lib/jupyter/notebook-utils';
+import {
+  buildNotebookWorkspaceSnapshotInput,
+  getInteractiveNotebookSurfaceId,
+  syncNotebookContentWithSessionCells,
+} from '@/lib/jupyter/workspace';
 import { isExecutionSuccessful, formatExecutionError, formatExecutionTime } from '@/types/jupyter';
 import type { VirtualEnvInfo } from '@/types/system/environment';
-import type { JupyterNotebook } from '@/types';
 
 interface InteractiveNotebookProps {
   content: string;
@@ -61,6 +63,8 @@ export function InteractiveNotebook({
   const [isRunningAll, setIsRunningAll] = useState(false);
   const lastSyncedContentRef = useRef<string | null>(null);
   const lastCachedVarsSessionIdRef = useRef<string | null>(null);
+  const lastRestoreAttemptRef = useRef<string | null>(null);
+  const surfaceId = getInteractiveNotebookSurfaceId(chatSessionId);
 
   const {
     activeSession,
@@ -80,6 +84,7 @@ export function InteractiveNotebook({
     inspectVariable,
     getSessionForChat,
     mapChatToSession,
+    restoreSession,
     clearError,
   } = useJupyterKernel();
 
@@ -93,6 +98,10 @@ export function InteractiveNotebook({
       [activeSessionId]
     )
   );
+  const workspace = useJupyterStore(
+    useCallback((state) => state.workspaces[surfaceId] ?? null, [surfaceId])
+  );
+  const upsertWorkspace = useJupyterStore((state) => state.upsertWorkspace);
 
   const { environments, refreshEnvironments } = useVirtualEnv();
 
@@ -106,15 +115,29 @@ export function InteractiveNotebook({
     getCachedVariables(activeSession.id);
   }, [activeSession, getCachedVariables, showVariables]);
 
+  useEffect(() => {
+    if (selectedEnvPath || !workspace?.selectedEnvPath) return;
+    setSelectedEnvPath(workspace.selectedEnvPath);
+  }, [selectedEnvPath, workspace?.selectedEnvPath]);
+
   // Auto-connect to existing session for chat
   useEffect(() => {
-    if (chatSessionId && autoConnect) {
+    if (!autoConnect) return;
+
+    if (chatSessionId) {
       const existingSession = getSessionForChat(chatSessionId);
       if (existingSession) {
         setActiveSession(existingSession.id);
+        return;
       }
     }
-  }, [chatSessionId, autoConnect, getSessionForChat, setActiveSession]);
+
+    if (!workspace?.sessionId) return;
+    if (lastRestoreAttemptRef.current === workspace.sessionId) return;
+
+    lastRestoreAttemptRef.current = workspace.sessionId;
+    void restoreSession(workspace.sessionId, surfaceId);
+  }, [chatSessionId, autoConnect, getSessionForChat, restoreSession, setActiveSession, surfaceId, workspace?.sessionId]);
 
   // Load environments on mount
   useEffect(() => {
@@ -196,20 +219,42 @@ export function InteractiveNotebook({
     if (!content) return;
     if (!sessionCells.length) return;
 
-    try {
-      const notebook = JSON.parse(content) as JupyterNotebook;
-      const updated = applyCellsToNotebook(notebook, sessionCells);
-      const nextContent = serializeNotebook(updated);
+    const nextContent = syncNotebookContentWithSessionCells(content, sessionCells);
 
-      if (nextContent === content) return;
-      if (lastSyncedContentRef.current === nextContent) return;
+    if (nextContent === content) return;
+    if (lastSyncedContentRef.current === nextContent) return;
 
-      lastSyncedContentRef.current = nextContent;
-      onContentChange(nextContent);
-    } catch (err) {
-      console.error('Failed to sync notebook outputs:', err);
-    }
+    lastSyncedContentRef.current = nextContent;
+    onContentChange(nextContent);
   }, [activeSessionId, content, onContentChange, sessionCells]);
+
+  useEffect(() => {
+    if (!content) return;
+
+    upsertWorkspace(
+      buildNotebookWorkspaceSnapshotInput({
+        surfaceId,
+        notebookContent: content,
+        selectedEnvPath,
+        activeSession,
+        activeKernel,
+        isDirty: false,
+        recoveryStatus: workspace?.recoveryStatus ?? 'ready',
+        recoveryError: error,
+        lastExecutedAt: activeSession ? new Date().toISOString() : workspace?.lastExecutedAt ?? null,
+      })
+    );
+  }, [
+    surfaceId,
+    content,
+    selectedEnvPath,
+    activeSession,
+    activeKernel,
+    workspace?.recoveryStatus,
+    workspace?.lastExecutedAt,
+    error,
+    upsertWorkspace,
+  ]);
 
   // Handle variable inspection
   const handleInspectVariable = useCallback(
@@ -311,6 +356,13 @@ export function InteractiveNotebook({
         <Alert variant="destructive" className="mx-4 my-2">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {!error && workspace?.recoveryStatus === 'needs_reconnect' && !activeSession && (
+        <Alert className="mx-4 my-2">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{t('sessionReconnectRequired')}</AlertDescription>
         </Alert>
       )}
 

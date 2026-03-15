@@ -143,3 +143,30 @@ export {
   isWorkflowEditorFeatureEnabled,
   type WorkflowEditorFeatureFlag,
 } from './feature-flags';
+
+export {
+  getWorkflowNodeCatalogEntries,
+  getWorkflowNodeCatalogCategories,
+  getWorkflowNodeCatalogItemByType,
+  getWorkflowNodeCatalogEntriesByTypes,
+  queryWorkflowNodeCatalog,
+  type WorkflowNodeCatalogEntry,
+  type WorkflowNodeTemplateCatalogEntry,
+  type WorkflowNodeCatalogQueryResult,
+  type WorkflowNodeCatalogQueryOptions,
+} from './node-catalog';
+
+export {
+  planWorkflowInsertion,
+  resolveInsertionModeForNode,
+  type WorkflowInsertionPlan,
+  type PlannedWorkflowInsertionEdge,
+} from './insertion';
+
+export {
+  getWorkflowValidationSummary,
+  getWorkflowLifecycleLabel,
+  getWorkflowExecutionControlsSummary,
+  type WorkflowValidationSummary,
+  type WorkflowExecutionControlsSummary,
+} from './surface-state';

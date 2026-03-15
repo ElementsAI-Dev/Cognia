@@ -19,6 +19,7 @@ import {
   Download,
   Trash2,
   Filter,
+  type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,7 +51,7 @@ export interface MCPLogViewerProps {
 
 const levelConfig: Record<
   LogLevel,
-  { icon: React.ElementType; color: string; bgColor: string; priority: number }
+  { icon: LucideIcon; color: string; bgColor: string; priority: number }
 > = {
   debug: {
     icon: Bug,

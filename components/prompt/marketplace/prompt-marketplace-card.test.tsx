@@ -129,4 +129,13 @@ describe('PromptMarketplaceCard', () => {
     const badges = screen.getAllByTestId('badge');
     expect(badges.length).toBeGreaterThan(0);
   });
+
+  it('uses wide-screen featured spanning instead of medium breakpoint spanning', () => {
+    render(<PromptMarketplaceCard {...defaultProps} featured />);
+
+    const card = screen.getByTestId('card');
+
+    expect(card.className).toContain('xl:col-span-2');
+    expect(card.className).not.toContain('md:col-span-2');
+  });
 });

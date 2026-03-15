@@ -19,8 +19,13 @@ jest.mock('ai', () => ({
 }));
 
 // Mock client
-jest.mock('../core/client', () => ({
-  getProviderModel: jest.fn(() => 'mock-model'),
+jest.mock('@/lib/ai/provider-consumption', () => ({
+  createFeatureRoutePolicy: jest.fn((routeProfile, overrides) => ({
+    routeProfile,
+    selectionMode: 'default-provider',
+    ...overrides,
+  })),
+  createFeatureProviderModelFromRuntimeConfig: jest.fn(() => 'mock-model'),
 }));
 
 jest.mock('@/lib/agent-trace', () => ({
@@ -37,9 +42,12 @@ jest.mock('@/lib/agent-trace', () => ({
 
 import { generateText } from 'ai';
 import { recordAgentTraceEvent } from '@/lib/agent-trace';
+import { createFeatureProviderModelFromRuntimeConfig } from '@/lib/ai/provider-consumption';
 
 const mockGenerateText = generateText as jest.Mock;
 const mockRecordAgentTraceEvent = recordAgentTraceEvent as jest.Mock;
+const mockCreateFeatureProviderModelFromRuntimeConfig =
+  createFeatureProviderModelFromRuntimeConfig as jest.Mock;
 
 // Helper type for mock config to avoid type errors
 interface MockConfig {
@@ -97,6 +105,17 @@ describe('executeAgent', () => {
     );
     expect(mockRecordAgentTraceEvent).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'response' })
+    );
+    expect(mockCreateFeatureProviderModelFromRuntimeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeProfile: 'general-text',
+        featureId: 'agent-executor',
+      }),
+      expect.objectContaining({
+        providerId: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-key',
+      })
     );
   });
 

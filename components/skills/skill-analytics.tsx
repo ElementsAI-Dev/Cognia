@@ -17,6 +17,7 @@ import {
   Activity,
   Zap,
   Calendar,
+  type LucideIcon,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -76,7 +77,7 @@ function StatCard({
   title: string; 
   value: string | number; 
   subtitle?: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   trend?: 'up' | 'down' | 'neutral';
   className?: string;
 }) {

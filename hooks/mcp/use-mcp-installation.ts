@@ -37,7 +37,14 @@ export interface UseMcpInstallationReturn {
 export function useMcpInstallation(options: UseMcpInstallationOptions): UseMcpInstallationReturn {
   const { item, isOpen, onSuccess, onError } = options;
 
-  const { downloadDetails, setInstallStatus, getInstallStatus } = useMcpMarketplaceStore();
+  const {
+    downloadDetails,
+    getItemDetails,
+    setInstallStatus,
+    getInstallStatus,
+    linkInstalledServer,
+    getLinkedServerId,
+  } = useMcpMarketplaceStore();
 
   const { addServer, servers } = useMcpStore();
 
@@ -59,9 +66,10 @@ export function useMcpInstallation(options: UseMcpInstallationOptions): UseMcpIn
 
   // Parse installation configuration
   const installConfig = useMemo(() => {
-    if (!item || !downloadDetails) return null;
-    return parseInstallationConfig(item, downloadDetails as McpDownloadResponse);
-  }, [item, downloadDetails]);
+    const currentDetails = item ? getItemDetails(item) || downloadDetails : null;
+    if (!item || !currentDetails) return null;
+    return parseInstallationConfig(item, currentDetails as McpDownloadResponse);
+  }, [item, downloadDetails, getItemDetails]);
 
   // Initialize env values when install config changes
   useEffect(() => {
@@ -87,12 +95,16 @@ export function useMcpInstallation(options: UseMcpInstallationOptions): UseMcpIn
   // Check if item is installed
   const isCurrentlyInstalled = useMemo(() => {
     if (!item) return false;
-    const installStatus = getInstallStatus(item.mcpId);
+    const installStatus = getInstallStatus(item);
+    const linkedServerId = getLinkedServerId(item);
     const isInstalledInServers = servers.some(
-      (server) => server.id === item.mcpId || server.name === item.mcpId
+      (server) =>
+        server.id === linkedServerId ||
+        server.id === item.mcpId ||
+        server.name === item.mcpId
     );
     return isInstalledInServers || installStatus === 'installed';
-  }, [item, servers, getInstallStatus]);
+  }, [item, servers, getInstallStatus, getLinkedServerId]);
 
   const setEnvValue = useCallback((key: string, value: string) => {
     setEnvValuesState((prev) => ({ ...prev, [key]: value }));
@@ -114,15 +126,17 @@ export function useMcpInstallation(options: UseMcpInstallationOptions): UseMcpIn
 
     setIsInstalling(true);
     setInstallError(null);
-    setInstallStatus(item.mcpId, 'installing');
+    setInstallStatus(item, 'installing');
 
     try {
-      // Use parsed install config or generate default
-      const config = installConfig || {
-        command: 'npx',
-        args: ['-y', item.mcpId],
-        connectionType: 'stdio' as const,
-      };
+      if (!installConfig || installConfig.validationStatus !== 'valid' || installConfig.mode !== 'automatic') {
+        const reason =
+          installConfig?.validationError || 'Unable to derive install plan from marketplace metadata.';
+        setInstallError(reason);
+        setInstallStatus(item, 'error', reason);
+        onError?.(reason);
+        return;
+      }
 
       // Build environment variables from form
       const env: Record<string, string> = {};
@@ -135,27 +149,28 @@ export function useMcpInstallation(options: UseMcpInstallationOptions): UseMcpIn
       // Create server config
       const serverConfig: McpServerConfig = {
         name: item.name,
-        command: config.command,
-        args: config.args,
+        command: installConfig.command,
+        args: installConfig.args,
         env,
-        connectionType: config.connectionType,
-        url: config.url,
+        connectionType: installConfig.connectionType,
+        url: installConfig.url,
         enabled: true,
         autoStart: false,
       };
 
       await addServer(item.mcpId, serverConfig);
-      setInstallStatus(item.mcpId, 'installed');
+      linkInstalledServer(item, item.mcpId);
+      setInstallStatus(item, 'installed');
       onSuccess?.();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to install MCP server';
       setInstallError(errorMessage);
-      setInstallStatus(item.mcpId, 'error', errorMessage);
+      setInstallStatus(item, 'error', errorMessage);
       onError?.(errorMessage);
     } finally {
       setIsInstalling(false);
     }
-  }, [item, installConfig, envValues, addServer, setInstallStatus, onSuccess, onError]);
+  }, [item, installConfig, envValues, addServer, setInstallStatus, linkInstalledServer, onSuccess, onError]);
 
   return {
     isInstalling,

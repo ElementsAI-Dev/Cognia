@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, ChevronRight, ExternalLink, Clock, Zap, Hash } from 'lucide-react';
 import { useSettingsStore } from '@/stores';
-import { getSpanTypeColor, getStatusColor } from '@/lib/observability';
+import { buildObservabilitySettingsProjection, getSpanTypeColor, getStatusColor } from '@/lib/observability';
 import type { TraceData, SpanData } from '@/types/observability';
 
 interface TraceViewerProps {
@@ -103,6 +103,13 @@ function SpanTree({ span, depth = 0, t }: SpanTreeProps) {
 export function TraceViewer({ trace }: TraceViewerProps) {
   const t = useTranslations('observability.traceViewer');
   const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
+  const observabilityProjection = useMemo(
+    () =>
+      buildObservabilitySettingsProjection({
+        observabilitySettings,
+      }),
+    [observabilitySettings]
+  );
 
   const langfuseTraceUrl = useMemo(() => {
     const host = observabilitySettings?.langfuseHost || 'https://cloud.langfuse.com';
@@ -230,7 +237,7 @@ export function TraceViewer({ trace }: TraceViewerProps) {
           </Collapsible>
         )}
 
-        {observabilitySettings?.langfuseEnabled && (
+        {observabilityProjection.surfaces.traceViewerExternal.available ? (
           <div className="flex justify-end">
             <Button
               variant="outline"
@@ -241,6 +248,11 @@ export function TraceViewer({ trace }: TraceViewerProps) {
               <ExternalLink className="h-4 w-4" />
               {t('openInLangfuse')}
             </Button>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+            <div className="font-medium text-foreground">{t('externalUnavailable')}</div>
+            <div className="mt-1">{t('externalUnavailableDescription')}</div>
           </div>
         )}
       </CardContent>

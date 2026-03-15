@@ -5,12 +5,27 @@
 import { invoke } from '@tauri-apps/api/core';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
 import type { ApiProtocol } from '@/types/provider';
+import { getBuiltInProviderProtocol } from '@/types/provider/built-in-provider-catalog';
 
 export interface ApiTestResult {
   success: boolean;
   message: string;
   latency_ms?: number;
   model_info?: string;
+  outcome?: 'verified' | 'failed' | 'limited';
+  authoritative?: boolean;
+}
+
+export interface ProviderConnectionProbeInput {
+  providerId: string;
+  apiKey?: string;
+  baseURL?: string;
+  protocol?: ApiProtocol;
+}
+
+export interface ProviderConnectionProbeResult extends ApiTestResult {
+  outcome: 'verified' | 'failed' | 'limited';
+  authoritative: boolean;
 }
 
 // Local provider detection result
@@ -177,11 +192,13 @@ export async function testAnthropicConnection(
 
   // Browser fallback - Anthropic requires server-side due to CORS
   return {
-    success: apiKey.length > 20,
+    success: false,
     message: apiKey.length > 20
-      ? 'API key format valid. Full test requires desktop app.'
+      ? 'API key format valid. Authoritative verification requires the desktop app.'
       : 'Invalid API key format',
     latency_ms: 0,
+    outcome: apiKey.length > 20 ? 'limited' : 'failed',
+    authoritative: false,
   };
 }
 
@@ -499,24 +516,57 @@ export async function testProviderConnection(
   apiKey: string,
   baseUrl?: string
 ): Promise<ApiTestResult> {
+  const probeResult = await probeProviderConnection({
+    providerId,
+    apiKey,
+    baseURL: baseUrl,
+  });
+
+  return probeResult;
+}
+
+function toAuthoritativeResult(result: ApiTestResult): ProviderConnectionProbeResult {
+  if (result.outcome) {
+    return {
+      ...result,
+      outcome: result.outcome,
+      authoritative: result.authoritative ?? (result.outcome !== 'limited'),
+    };
+  }
+
+  return {
+    ...result,
+    outcome: result.success ? 'verified' : 'failed',
+    authoritative: true,
+  };
+}
+
+export async function probeProviderConnection(
+  input: ProviderConnectionProbeInput
+): Promise<ProviderConnectionProbeResult> {
+  const { providerId, apiKey = '', baseURL } = input;
+  const protocol = input.protocol || getBuiltInProviderProtocol(providerId) || 'openai';
+
   // Use centralized local provider configs
   const localProviderDefaults = LOCAL_PROVIDER_TEST_CONFIGS;
 
   switch (providerId) {
     case 'openai':
-      return testOpenAIConnection(apiKey, baseUrl);
+      return toAuthoritativeResult(await testOpenAIConnection(apiKey, baseURL));
     case 'anthropic':
-      return testAnthropicConnection(apiKey);
+      return toAuthoritativeResult(await testAnthropicConnection(apiKey));
     case 'google':
-      return testGoogleConnection(apiKey);
+      return toAuthoritativeResult(await testGoogleConnection(apiKey));
     case 'deepseek':
-      return testDeepSeekConnection(apiKey);
+      return toAuthoritativeResult(await testDeepSeekConnection(apiKey));
     case 'groq':
-      return testGroqConnection(apiKey);
+      return toAuthoritativeResult(await testGroqConnection(apiKey));
     case 'mistral':
-      return testMistralConnection(apiKey);
+      return toAuthoritativeResult(await testMistralConnection(apiKey));
     case 'ollama':
-      return testOllamaConnection(baseUrl || localProviderDefaults.ollama.url);
+      return toAuthoritativeResult(
+        await testOllamaConnection(baseURL || localProviderDefaults.ollama.url)
+      );
     // Local inference providers (OpenAI-compatible)
     case 'lmstudio':
     case 'llamacpp':
@@ -528,15 +578,21 @@ export async function testProviderConnection(
     case 'koboldcpp':
     case 'tabbyapi': {
       const config = localProviderDefaults[providerId];
-      return testLocalProviderConnectionByUrl(baseUrl || config.url, config.name);
+      return toAuthoritativeResult(
+        await testLocalProviderConnectionByUrl(baseURL || config.url, config.name)
+      );
     }
     default:
-      if (baseUrl) {
-        return testCustomProviderConnection(baseUrl, apiKey);
+      if (baseURL) {
+        return toAuthoritativeResult(
+          await testCustomProviderConnectionByProtocol(baseURL, apiKey, protocol)
+        );
       }
       return {
         success: false,
         message: 'Unknown provider',
+        outcome: 'failed',
+        authoritative: true,
       };
   }
 }

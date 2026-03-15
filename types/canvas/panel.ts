@@ -8,7 +8,7 @@ import type { CanvasActionType } from '@/lib/ai/generation/canvas-actions';
  * Canvas action item configuration (used in toolbar)
  */
 export interface CanvasActionItem {
-  type: CanvasActionType;
+  type: Exclude<CanvasActionType, 'custom'>;
   labelKey: string;
   icon: string;
   shortcut?: string;

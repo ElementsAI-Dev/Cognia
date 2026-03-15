@@ -9,6 +9,7 @@ import type { McpMarketplaceItem, McpMarketplaceCatalog } from '@/types/mcp/mcp-
 // Mock the marketplace API
 jest.mock('@/lib/mcp/marketplace', () => ({
   fetchMcpMarketplace: jest.fn(),
+  fetchMcpMarketplaceDetail: jest.fn(),
   downloadMcpServer: jest.fn(),
   filterMarketplaceItems: jest.fn((items, filters) => {
     let filtered = [...items];
@@ -38,7 +39,7 @@ jest.mock('@/lib/mcp/marketplace-utils', () => ({
   clearDetailsCache: jest.fn(),
 }));
 
-import { fetchMcpMarketplace, downloadMcpServer } from '@/lib/mcp/marketplace';
+import { fetchMcpMarketplace, fetchMcpMarketplaceDetail, downloadMcpServer } from '@/lib/mcp/marketplace';
 import { getCachedDetails, setCachedDetails } from '@/lib/mcp/marketplace-utils';
 
 const mockGetCachedDetails = getCachedDetails as jest.MockedFunction<typeof getCachedDetails>;
@@ -46,6 +47,9 @@ const mockSetCachedDetails = setCachedDetails as jest.MockedFunction<typeof setC
 
 const mockFetchMcpMarketplace = fetchMcpMarketplace as jest.MockedFunction<
   typeof fetchMcpMarketplace
+>;
+const mockFetchMcpMarketplaceDetail = fetchMcpMarketplaceDetail as jest.MockedFunction<
+  typeof fetchMcpMarketplaceDetail
 >;
 const mockDownloadMcpServer = downloadMcpServer as jest.MockedFunction<typeof downloadMcpServer>;
 
@@ -102,8 +106,12 @@ describe('useMcpMarketplaceStore', () => {
       installingItems: new Map(),
       installErrors: new Map(),
       selectedItem: null,
+      selectedItemKey: null,
       downloadDetails: null,
       isLoadingDetails: false,
+      detailsByItemKey: new Map(),
+      detailStatusByItemKey: new Map(),
+      installedServerLinks: new Map(),
       smitheryApiKey: null,
       favorites: new Set(),
       currentPage: 1,
@@ -290,11 +298,41 @@ describe('useMcpMarketplaceStore', () => {
       const state = useMcpMarketplaceStore.getState();
       expect(state.selectedItem).toBeNull();
     });
+
+    it('hydrates selected detail from keyed cache when available', () => {
+      const item = createMockItem('test-server', 'smithery');
+      const detail = {
+        itemKey: 'smithery:test-server',
+        source: 'smithery' as const,
+        mcpId: 'test-server',
+        githubUrl: 'https://github.com/test/server',
+        name: 'Test Server',
+        author: 'test',
+        description: 'Test description',
+        readmeContent: '# README',
+        requiresApiKey: false,
+      };
+
+      useMcpMarketplaceStore.setState({
+        detailsByItemKey: new Map([[detail.itemKey, detail]]),
+      });
+
+      act(() => {
+        useMcpMarketplaceStore.getState().selectItem(item);
+      });
+
+      const state = useMcpMarketplaceStore.getState();
+      expect(state.selectedItemKey).toBe('smithery:test-server');
+      expect(state.downloadDetails).toEqual(detail);
+    });
   });
 
   describe('fetchItemDetails', () => {
     it('fetches item details successfully', async () => {
+      const item = createMockItem('test-server', 'smithery');
       const mockDetails = {
+        itemKey: 'smithery:test-server',
+        source: 'smithery' as const,
         mcpId: 'test-server',
         githubUrl: 'https://github.com/test/server',
         name: 'Test Server',
@@ -304,22 +342,27 @@ describe('useMcpMarketplaceStore', () => {
         requiresApiKey: false,
       };
       mockGetCachedDetails.mockReturnValueOnce(null);
-      mockDownloadMcpServer.mockResolvedValueOnce(mockDetails);
+      mockFetchMcpMarketplaceDetail.mockResolvedValueOnce(mockDetails);
 
       let result;
       await act(async () => {
-        result = await useMcpMarketplaceStore.getState().fetchItemDetails('test-server');
+        result = await useMcpMarketplaceStore.getState().fetchItemDetails(item);
       });
 
       expect(result).toEqual(mockDetails);
       const state = useMcpMarketplaceStore.getState();
       expect(state.downloadDetails).toEqual(mockDetails);
+      expect(state.getItemDetails(item)).toEqual(mockDetails);
+      expect(state.getDetailStatus(item)).toBe('success');
       expect(state.isLoadingDetails).toBe(false);
-      expect(mockSetCachedDetails).toHaveBeenCalledWith('test-server', mockDetails);
+      expect(mockSetCachedDetails).toHaveBeenCalledWith('smithery:test-server', mockDetails);
     });
 
     it('returns cached details without API call', async () => {
+      const item = createMockItem('cached-server', 'glama');
       const cachedDetails = {
+        itemKey: 'glama:cached-server',
+        source: 'glama' as const,
         mcpId: 'cached-server',
         githubUrl: 'https://github.com/test/cached',
         name: 'Cached Server',
@@ -332,10 +375,11 @@ describe('useMcpMarketplaceStore', () => {
 
       let result;
       await act(async () => {
-        result = await useMcpMarketplaceStore.getState().fetchItemDetails('cached-server');
+        result = await useMcpMarketplaceStore.getState().fetchItemDetails(item);
       });
 
       expect(result).toEqual(cachedDetails);
+      expect(mockFetchMcpMarketplaceDetail).not.toHaveBeenCalled();
       expect(mockDownloadMcpServer).not.toHaveBeenCalled();
       const state = useMcpMarketplaceStore.getState();
       expect(state.downloadDetails).toEqual(cachedDetails);
@@ -343,7 +387,10 @@ describe('useMcpMarketplaceStore', () => {
     });
 
     it('does not cache details with errors', async () => {
+      const item = createMockItem('error-server', 'cline');
       const errorDetails = {
+        itemKey: 'cline:error-server',
+        source: 'cline' as const,
         mcpId: 'error-server',
         githubUrl: 'https://github.com/test/error',
         name: 'Error Server',
@@ -354,51 +401,95 @@ describe('useMcpMarketplaceStore', () => {
         error: 'Failed to fetch',
       };
       mockGetCachedDetails.mockReturnValueOnce(null);
-      mockDownloadMcpServer.mockResolvedValueOnce(errorDetails);
+      mockFetchMcpMarketplaceDetail.mockResolvedValueOnce(errorDetails);
 
       await act(async () => {
-        await useMcpMarketplaceStore.getState().fetchItemDetails('error-server');
+        await useMcpMarketplaceStore.getState().fetchItemDetails(item);
       });
 
       expect(mockSetCachedDetails).not.toHaveBeenCalled();
+      expect(useMcpMarketplaceStore.getState().getDetailStatus(item)).toBe('error');
+    });
+
+    it('keeps details isolated for entries with the same mcpId from different sources', async () => {
+      const smitheryItem = createMockItem('shared-id', 'smithery');
+      const glamaItem = createMockItem('shared-id', 'glama');
+
+      mockGetCachedDetails.mockReturnValueOnce(null);
+      mockFetchMcpMarketplaceDetail.mockResolvedValueOnce({
+        itemKey: 'smithery:shared-id',
+        source: 'smithery',
+        mcpId: 'shared-id',
+        githubUrl: 'https://smithery.example/shared-id',
+        name: 'Smithery Shared',
+        author: 'smithery',
+        description: 'Smithery detail',
+        readmeContent: '# Smithery',
+        requiresApiKey: false,
+      });
+
+      mockGetCachedDetails.mockReturnValueOnce(null);
+      mockFetchMcpMarketplaceDetail.mockResolvedValueOnce({
+        itemKey: 'glama:shared-id',
+        source: 'glama',
+        mcpId: 'shared-id',
+        githubUrl: 'https://glama.example/shared-id',
+        name: 'Glama Shared',
+        author: 'glama',
+        description: 'Glama detail',
+        readmeContent: '# Glama',
+        requiresApiKey: false,
+      });
+
+      await act(async () => {
+        await useMcpMarketplaceStore.getState().fetchItemDetails(smitheryItem);
+        await useMcpMarketplaceStore.getState().fetchItemDetails(glamaItem);
+      });
+
+      const state = useMcpMarketplaceStore.getState();
+      expect(state.getItemDetails(smitheryItem)?.name).toBe('Smithery Shared');
+      expect(state.getItemDetails(glamaItem)?.name).toBe('Glama Shared');
     });
   });
 
   describe('setInstallStatus', () => {
     it('sets installation status', () => {
+      const item = createMockItem('test-server', 'smithery');
       act(() => {
-        useMcpMarketplaceStore.getState().setInstallStatus('test-server', 'installing');
+        useMcpMarketplaceStore.getState().setInstallStatus(item, 'installing');
       });
 
       const state = useMcpMarketplaceStore.getState();
-      expect(state.installingItems.get('test-server')).toBe('installing');
+      expect(state.installingItems.get('smithery:test-server')).toBe('installing');
     });
 
     it('sets installation error', () => {
+      const item = createMockItem('test-server', 'smithery');
       act(() => {
         useMcpMarketplaceStore
           .getState()
-          .setInstallStatus('test-server', 'error', 'Install failed');
+          .setInstallStatus(item, 'error', 'Install failed');
       });
 
       const state = useMcpMarketplaceStore.getState();
-      expect(state.installingItems.get('test-server')).toBe('error');
-      expect(state.installErrors.get('test-server')).toBe('Install failed');
+      expect(state.installingItems.get('smithery:test-server')).toBe('error');
+      expect(state.installErrors.get('smithery:test-server')).toBe('Install failed');
     });
 
     it('clears error when status changes', () => {
+      const item = createMockItem('test-server', 'smithery');
       useMcpMarketplaceStore.setState({
-        installingItems: new Map([['test-server', 'error']]),
-        installErrors: new Map([['test-server', 'Previous error']]),
+        installingItems: new Map([['smithery:test-server', 'error']]),
+        installErrors: new Map([['smithery:test-server', 'Previous error']]),
       });
 
       act(() => {
-        useMcpMarketplaceStore.getState().setInstallStatus('test-server', 'installed');
+        useMcpMarketplaceStore.getState().setInstallStatus(item, 'installed');
       });
 
       const state = useMcpMarketplaceStore.getState();
-      expect(state.installingItems.get('test-server')).toBe('installed');
-      expect(state.installErrors.has('test-server')).toBe(false);
+      expect(state.installingItems.get('smithery:test-server')).toBe('installed');
+      expect(state.installErrors.has('smithery:test-server')).toBe(false);
     });
   });
 
@@ -478,33 +569,54 @@ describe('useMcpMarketplaceStore', () => {
 
   describe('getInstallStatus', () => {
     it('returns not_installed for unknown items', () => {
-      const result = useMcpMarketplaceStore.getState().getInstallStatus('unknown-server');
+      const result = useMcpMarketplaceStore.getState().getInstallStatus(
+        createMockItem('unknown-server', 'glama')
+      );
       expect(result).toBe('not_installed');
     });
 
     it('returns correct status for known items', () => {
       useMcpMarketplaceStore.setState({
-        installingItems: new Map([['test-server', 'installed']]),
+        installingItems: new Map([['smithery:test-server', 'installed']]),
       });
 
-      const result = useMcpMarketplaceStore.getState().getInstallStatus('test-server');
+      const result = useMcpMarketplaceStore.getState().getInstallStatus(
+        createMockItem('test-server', 'smithery')
+      );
       expect(result).toBe('installed');
     });
   });
 
   describe('isItemInstalled', () => {
     it('returns false for not installed items', () => {
-      const result = useMcpMarketplaceStore.getState().isItemInstalled('unknown-server');
+      const result = useMcpMarketplaceStore.getState().isItemInstalled(
+        createMockItem('unknown-server', 'glama')
+      );
       expect(result).toBe(false);
     });
 
     it('returns true for installed items', () => {
+      const item = createMockItem('test-server', 'smithery');
       useMcpMarketplaceStore.setState({
-        installingItems: new Map([['test-server', 'installed']]),
+        installedServerLinks: new Map([['smithery:test-server', 'local-server-1']]),
       });
 
-      const result = useMcpMarketplaceStore.getState().isItemInstalled('test-server');
+      const result = useMcpMarketplaceStore.getState().isItemInstalled(item);
       expect(result).toBe(true);
+    });
+  });
+
+  describe('installed server links', () => {
+    it('links marketplace items to installed server ids', () => {
+      const item = createMockItem('test-server', 'smithery');
+
+      act(() => {
+        useMcpMarketplaceStore.getState().linkInstalledServer(item, 'local-server-1');
+      });
+
+      const state = useMcpMarketplaceStore.getState();
+      expect(state.getLinkedServerId(item)).toBe('local-server-1');
+      expect(state.isItemInstalled(item)).toBe(true);
     });
   });
 

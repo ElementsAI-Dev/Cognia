@@ -10,6 +10,42 @@ jest.mock('@/lib/ai/generation/canvas-actions', () => ({
   executeCanvasAction: jest.fn(),
   executeCanvasActionStreaming: jest.fn(),
   applyCanvasActionResult: jest.fn(),
+  applyAcceptedCanvasReviewItems: jest.fn((_originalContent: string, items: Array<{ proposedText: string; status: string }>) => {
+    const acceptedItem = items.find((item) => item.status === 'accepted');
+    return acceptedItem?.proposedText || _originalContent;
+  }),
+  buildCanvasReview: jest.fn((input: {
+    requestId: string;
+    actionType: string;
+    originalContent: string;
+    proposedContent: string;
+  }) => ({
+    id: 'review-1',
+    requestId: input.requestId,
+    actionType: input.actionType,
+    originalContent: input.originalContent,
+    proposedContent: input.proposedContent,
+    createdAt: new Date('2026-03-14T08:00:00.000Z'),
+    status: 'pending',
+    items: [
+      {
+        id: 'item-1',
+        actionType: input.actionType,
+        changeType: 'replace',
+        originalText: input.originalContent,
+        proposedText: input.proposedContent,
+        status: 'pending',
+        range: {
+          startLine: 1,
+          endLine: 1,
+        },
+        diffLines: [
+          { type: 'removed', content: input.originalContent, lineNumber: 1 },
+          { type: 'added', content: input.proposedContent, newLineNumber: 1 },
+        ],
+      },
+    ],
+  })),
   generateDiffPreview: jest.fn(),
 }));
 
@@ -63,6 +99,12 @@ describe('useCanvasActions', () => {
       expect(result.current.actionResult).toBeNull();
       expect(result.current.diffPreview).toBeNull();
       expect(result.current.pendingContent).toBeNull();
+      expect(result.current.pendingReview).toBeNull();
+      expect(typeof result.current.submitActionRequest).toBe('function');
+      expect(typeof result.current.acceptReviewItem).toBe('function');
+      expect(typeof result.current.rejectReviewItem).toBe('function');
+      expect(typeof result.current.applyAcceptedReviewItems).toBe('function');
+      expect(typeof result.current.retryAction).toBe('function');
     });
 
     it('should expose handleAction, acceptDiffChanges, rejectDiffChanges', () => {
@@ -167,6 +209,12 @@ describe('useCanvasActions', () => {
 
       expect(executeCanvasActionStreaming).toHaveBeenCalled();
       expect(result.current.diffPreview).toBeDefined();
+      expect(result.current.pendingReview).toEqual(
+        expect.objectContaining({
+          requestId: expect.any(String),
+          items: expect.any(Array),
+        })
+      );
       expect(result.current.isProcessing).toBe(false);
     });
 
@@ -363,6 +411,229 @@ describe('useCanvasActions', () => {
         expect.any(Function)
       );
       removeEventListenerSpy.mockRestore();
+    });
+  });
+
+  describe('submitActionRequest', () => {
+    it('creates a custom inline request with attachments and action history metadata', async () => {
+      applyCanvasActionResult.mockReturnValue('const answer = 42;');
+      generateDiffPreview.mockReturnValue([
+        { type: 'removed', content: 'const x = 1;', lineNumber: 1 },
+        { type: 'added', content: 'const answer = 42;', newLineNumber: 1 },
+      ]);
+
+      executeCanvasActionStreaming.mockImplementation(
+        async (
+          _type: string,
+          _content: string,
+          _config: unknown,
+          callbacks: { onComplete: (text: string) => void }
+        ) => {
+          callbacks.onComplete('const answer = 42;');
+        }
+      );
+
+      const onWorkbenchChange = jest.fn();
+      const { result } = renderHook(() =>
+        useCanvasActions({
+          ...defaultOptions,
+          workbenchState: {
+            promptDraft: 'Rewrite this to be production ready',
+            selectedPresetAction: null,
+            attachments: [
+              {
+                id: 'attachment-1',
+                sourceType: 'artifact',
+                sourceId: 'artifact-1',
+                label: 'Shared helper',
+                snapshot: 'export const helper = () => true;',
+              },
+            ],
+            pendingReview: null,
+            actionHistory: [],
+            isInlineCommandOpen: true,
+          },
+          onWorkbenchChange,
+        })
+      );
+
+      await act(async () => {
+        await result.current.submitActionRequest({
+          actionType: 'custom',
+          prompt: 'Rewrite this to be production ready',
+          entryPoint: 'inline',
+          scope: 'document',
+          attachments: [
+            {
+              id: 'attachment-1',
+              sourceType: 'artifact',
+              sourceId: 'artifact-1',
+              label: 'Shared helper',
+              snapshot: 'export const helper = () => true;',
+            },
+          ],
+        });
+      });
+
+      expect(executeCanvasActionStreaming).toHaveBeenCalledWith(
+        'custom',
+        defaultOptions.content,
+        expect.any(Object),
+        expect.any(Object),
+        expect.objectContaining({
+          prompt: 'Rewrite this to be production ready',
+          attachments: [
+            expect.objectContaining({
+              sourceType: 'artifact',
+              sourceId: 'artifact-1',
+            }),
+          ],
+        })
+      );
+      expect(onWorkbenchChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actionHistory: [
+            expect.objectContaining({
+              actionType: 'custom',
+              entryPoint: 'inline',
+              scope: 'document',
+              attachmentSummary: ['Shared helper'],
+            }),
+          ],
+        })
+      );
+    });
+  });
+
+  describe('review item decisions', () => {
+    it('accepts individual review items and applies only accepted changes', async () => {
+      applyCanvasActionResult.mockReturnValue('const answer = 42;');
+      generateDiffPreview.mockReturnValue([
+        { type: 'removed', content: 'const x = 1;', lineNumber: 1 },
+        { type: 'added', content: 'const answer = 42;', newLineNumber: 1 },
+      ]);
+
+      executeCanvasActionStreaming.mockImplementation(
+        async (
+          _type: string,
+          _content: string,
+          _config: unknown,
+          callbacks: { onComplete: (text: string) => void }
+        ) => {
+          callbacks.onComplete('const answer = 42;');
+        }
+      );
+
+      const onContentChange = jest.fn();
+      const { result } = renderHook(() =>
+        useCanvasActions({
+          ...defaultOptions,
+          onContentChange,
+        })
+      );
+
+      await act(async () => {
+        await result.current.handleAction({ type: 'fix' });
+      });
+
+      act(() => {
+        result.current.acceptReviewItem('item-1');
+      });
+
+      act(() => {
+        result.current.applyAcceptedReviewItems();
+      });
+
+      expect(onContentChange).toHaveBeenCalledWith('const answer = 42;');
+      expect(result.current.pendingReview).toBeNull();
+    });
+  });
+
+  describe('retryAction', () => {
+    it('retries a stored history entry through the same request pipeline', async () => {
+      applyCanvasActionResult.mockReturnValue('const retried = true;');
+      generateDiffPreview.mockReturnValue([
+        { type: 'removed', content: 'const x = 1;', lineNumber: 1 },
+        { type: 'added', content: 'const retried = true;', newLineNumber: 1 },
+      ]);
+
+      executeCanvasActionStreaming.mockImplementation(
+        async (
+          _type: string,
+          _content: string,
+          _config: unknown,
+          callbacks: { onComplete: (text: string) => void }
+        ) => {
+          callbacks.onComplete('const retried = true;');
+        }
+      );
+
+      const onWorkbenchChange = jest.fn();
+      const { result } = renderHook(() =>
+        useCanvasActions({
+          ...defaultOptions,
+          workbenchState: {
+            promptDraft: '',
+            selectedPresetAction: null,
+            attachments: [],
+            pendingReview: null,
+            actionHistory: [
+              {
+                id: 'history-1',
+                requestId: 'request-1',
+                actionType: 'custom',
+                prompt: 'Retry this change',
+                scope: 'document',
+                entryPoint: 'inline',
+                createdAt: new Date('2026-03-14T08:00:00.000Z'),
+                status: 'failed',
+                attachmentSummary: ['Shared helper'],
+                attachments: [
+                  {
+                    id: 'attachment-1',
+                    sourceType: 'artifact',
+                    sourceId: 'artifact-1',
+                    label: 'Shared helper',
+                    snapshot: 'export const helper = () => true;',
+                  },
+                ],
+              },
+            ],
+            isInlineCommandOpen: false,
+          },
+          onWorkbenchChange,
+        })
+      );
+
+      await act(async () => {
+        await result.current.retryAction('history-1');
+      });
+
+      expect(onWorkbenchChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          promptDraft: 'Retry this change',
+          attachments: [
+            expect.objectContaining({
+              sourceId: 'artifact-1',
+            }),
+          ],
+          isInlineCommandOpen: true,
+        })
+      );
+      expect(executeCanvasActionStreaming).toHaveBeenCalledWith(
+        'custom',
+        defaultOptions.content,
+        expect.any(Object),
+        expect.any(Object),
+        expect.objectContaining({
+          prompt: 'Retry this change',
+          attachments: [
+            expect.objectContaining({
+              sourceId: 'artifact-1',
+            }),
+          ],
+        })
+      );
     });
   });
 

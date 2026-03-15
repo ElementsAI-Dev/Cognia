@@ -21,7 +21,9 @@
     "button": {
       "label": "Observability",
       "tooltipTitle": "Observability Dashboard",
-      "tooltipDisabledHint": "Enable in settings to view traces"
+      "tooltipDisabledHint": "Enable in settings to view traces",
+      "tooltipHistoryHint": "History is still available",
+      "tooltipIncompleteHint": "Configuration needs attention before new remote capture can start"
     },
 
     "dashboard": {
@@ -29,6 +31,8 @@
       "subtitle": "Monitor AI usage and performance",
       "disabledTitle": "Observability Disabled",
       "disabledDescription": "Enable observability in settings to track AI operations, view traces, and analyze costs.",
+      "historyOnlyNotice": "History remains available even though new capture is off.",
+      "incompleteNotice": "Some observability integrations still need setup before new remote capture can start.",
       "totalRequests": "Total Requests",
       "totalTokens": "Total Tokens",
       "avgLatency": "Avg Latency",
@@ -196,6 +200,8 @@
       "noSpans": "No spans recorded",
       "metadata": "Metadata",
       "openInLangfuse": "Open in Langfuse",
+      "externalUnavailable": "Langfuse link unavailable",
+      "externalUnavailableDescription": "Configure Langfuse in observability settings to open this trace externally.",
       "input": "Input",
       "output": "Output",
       "tokenUsage": {
@@ -209,6 +215,16 @@
     "settings": {
       "title": "Observability",
       "description": "Track AI operations, view traces, and analyze costs with Langfuse and OpenTelemetry",
+      "stateTitle": "Status",
+      "stateDisabled": "Capture is off",
+      "stateIncomplete": "Configuration needs attention",
+      "stateReady": "Observability is ready",
+      "stateHistoryOnly": "History is still available",
+      "stateDisabledDescription": "Enable observability capture to start collecting new remote telemetry.",
+      "stateIncompleteDescription": "Some observability integrations still need setup before they can capture data.",
+      "stateReadyDescription": "Your current observability configuration can capture or display supported telemetry.",
+      "stateHistoryOnlyDescription": "Existing history can still be reviewed even though new remote capture is off.",
+      "historyHint": "Usage records or trace history are already stored locally.",
       "testConnection": "Test Connection",
       "testingConnection": "Testing connection...",
       "connectionSuccess": "Connection successful!",
@@ -216,6 +232,16 @@
       "invalidCredentials": "Invalid API keys",
       "configureKeysFirst": "Please configure API keys first",
       "getApiKeys": "Get API Keys",
+      "capturePaused": "Remote capture is paused until global observability is enabled.",
+      "incompleteLangfuse": "Langfuse still needs required credentials before it can be used.",
+      "incompleteOtel": "OpenTelemetry still needs a valid endpoint before it can be used.",
+      "agentTrace": {
+        "title": "Agent Trace Recording",
+        "description": "Agent trace is managed in its dedicated workspace, but its current state is summarized here.",
+        "enabled": "Agent trace recording is enabled",
+        "disabled": "Agent trace recording is disabled",
+        "manage": "Manage Agent Trace"
+      },
       "langfuse": {
         "title": "Langfuse Integration",
         "description": "AI-specific observability for tracing, evaluation, and analytics",

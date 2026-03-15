@@ -11,6 +11,7 @@
     "noMatchingVariables": "No matching variables",
     "selectEnvironment": "Select environment",
     "connect": "Connect",
+    "sessionReconnectRequired": "This notebook session needs to be reconnected before execution can continue.",
     "runAll": "Run All",
     "runAllFailed": "Failed to run all cells",
     "syncOutputsFailed": "Failed to sync notebook outputs",

@@ -401,4 +401,49 @@ describe('AgentTeamAnalytics', () => {
     render(<AgentTeamAnalytics teamId="t1" />);
     expect(screen.queryByText('Tokens by Teammate')).not.toBeInTheDocument();
   });
+
+  it('should surface execution report summary for delegations and next actions', () => {
+    mockTeams = {
+      t1: {
+        id: 't1',
+        name: 'Team',
+        teammateIds: [],
+        taskIds: ['task1'],
+        totalTokenUsage: { totalTokens: 1200, promptTokens: 800, completionTokens: 400 },
+        config: {},
+        totalDuration: 0,
+        executionReport: {
+          id: 'report-1',
+          teamId: 't1',
+          status: 'running',
+          checkpoints: [],
+          summary: {
+            completedTasks: 0,
+            failedTasks: 0,
+            cancelledTasks: 0,
+            blockedTasks: 0,
+            delegatedTasks: 1,
+            approvalsRequested: 1,
+            retries: 0,
+            totalTokens: 1200,
+            nextActions: ['Approve background delegation'],
+          },
+          createdAt: new Date('2026-03-14T10:00:00.000Z'),
+          updatedAt: new Date('2026-03-14T10:05:00.000Z'),
+        },
+      },
+    };
+    mockTasks = {
+      task1: {
+        id: 'task1',
+        status: 'pending',
+        delegationRecord: { status: 'awaiting_approval' },
+      },
+    };
+
+    render(<AgentTeamAnalytics teamId="t1" />);
+    expect(screen.getByText('1 delegated')).toBeInTheDocument();
+    expect(screen.getByText('1 approval')).toBeInTheDocument();
+    expect(screen.getByText('Approve background delegation')).toBeInTheDocument();
+  });
 });

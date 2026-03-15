@@ -21,6 +21,7 @@ import {
   GitBranch,
   Network,
   ArrowRight,
+  type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -155,7 +156,7 @@ const NODE_COLORS: Record<string, { bg: string; border: string; text: string }> 
 };
 
 // Visualization type icons
-const VIS_TYPE_ICONS: Record<VisualizationType, React.ElementType> = {
+const VIS_TYPE_ICONS: Record<VisualizationType, LucideIcon> = {
   flow: ArrowRight,
   hierarchy: GitBranch,
   network: Network,

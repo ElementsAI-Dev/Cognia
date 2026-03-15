@@ -7,19 +7,28 @@ import type { Session, UIMessage } from '@/types/core';
 import type { PersistedChatMessage } from './persistence/types';
 import type {
   ChatImporter,
+  ChatImportDetection,
   ChatImportFormat,
   ChatImportOptions,
+  ChatImportParseResult,
+  ChatImportPreviewResult,
   ChatImportResult,
   ChatImportError,
+  ChatImportWarning,
   ProviderInfo,
 } from '@/types/import/base';
 import { ClaudeImporter, isClaudeFormat } from './claude-import';
 import { GeminiImporter, isGeminiFormat } from './gemini-import';
 import {
+  convertConversationToParsedConversation,
   isChatGPTFormat,
-  parseChatGPTExport,
-  previewChatGPTImport,
 } from './chatgpt-import';
+import {
+  CSVTranscriptImporter,
+  JSONTranscriptImporter,
+  MarkdownTranscriptImporter,
+} from './transcript-importers';
+import { PortableChatArchiveImporter } from './portable-import';
 
 /**
  * ChatGPT Importer wrapper (maintains backward compatibility)
@@ -48,14 +57,33 @@ class ChatGPTImporterWrapper implements ChatImporter<unknown> {
     conversations: Array<{ session: Session; messages: UIMessage[]; metadata?: Record<string, unknown> }>;
     errors: ChatImportError[];
   }> {
-    const result = await parseChatGPTExport(JSON.stringify(data), options);
-    return {
-      conversations: result.conversations.map((c) => ({
-        ...c,
-        metadata: { sourceFormat: 'chatgpt' as const },
-      })),
-      errors: result.errors,
-    };
+    if (!isChatGPTFormat(data)) {
+      return {
+        conversations: [],
+        errors: [{ message: 'Not a valid ChatGPT export format' }],
+      };
+    }
+
+    const conversations: Array<{
+      session: Session;
+      messages: UIMessage[];
+      metadata?: Record<string, unknown>;
+    }> = [];
+    const errors: ChatImportError[] = [];
+
+    for (const conversation of data) {
+      try {
+        conversations.push(convertConversationToParsedConversation(conversation, options));
+      } catch (error) {
+        errors.push({
+          conversationId: conversation.id,
+          conversationTitle: conversation.title,
+          message: error instanceof Error ? error.message : 'Failed to convert conversation',
+        });
+      }
+    }
+
+    return { conversations, errors };
   }
 
   async preview(
@@ -72,17 +100,46 @@ class ChatGPTImporterWrapper implements ChatImporter<unknown> {
     totalMessages: number;
     errors: ChatImportError[];
   }> {
-    return previewChatGPTImport(JSON.stringify(data), options);
+    const { conversations, errors } = await this.parse(data, options);
+
+    return {
+      conversations: conversations.map(({ session, messages, metadata }) => ({
+        id: session.id,
+        title: session.title,
+        messageCount: messages.length,
+        createdAt: session.createdAt,
+        preview: messages[0]?.content.slice(0, 100) || '',
+        compatibility: metadata?.compatibility,
+        warnings: metadata?.warnings,
+      })),
+      totalMessages: conversations.reduce((sum, conversation) => sum + conversation.messages.length, 0),
+      errors,
+    };
   }
 }
 
 /**
- * All registered importers
+ * Registered importers grouped by detection strategy.
+ * Official platform importers are evaluated before generic transcript adapters.
  */
-const importers: ChatImporter<unknown>[] = [
+const officialImporters: ChatImporter<unknown>[] = [
   new ChatGPTImporterWrapper(),
   new ClaudeImporter(),
   new GeminiImporter(),
+];
+
+const portableImporters: ChatImporter<unknown>[] = [new PortableChatArchiveImporter()];
+
+const genericTranscriptImporters: ChatImporter<unknown>[] = [
+  new MarkdownTranscriptImporter(),
+  new CSVTranscriptImporter(),
+  new JSONTranscriptImporter(),
+];
+
+const importers: ChatImporter<unknown>[] = [
+  ...officialImporters,
+  ...portableImporters,
+  ...genericTranscriptImporters,
 ];
 
 /**
@@ -92,31 +149,112 @@ export const PLATFORM_INFO: Record<string, { name: string; icon: string; color: 
   chatgpt: { name: 'ChatGPT', icon: 'openai', color: '#10a37f' },
   claude: { name: 'Claude', icon: 'anthropic', color: '#d4a574' },
   gemini: { name: 'Gemini', icon: 'google', color: '#4285f4' },
+  portable: { name: 'Portable Archive', icon: 'archive', color: '#2563eb' },
+  'markdown-transcript': { name: 'Markdown Transcript', icon: 'file-text', color: '#64748b' },
+  'csv-transcript': { name: 'CSV Transcript', icon: 'table', color: '#0f766e' },
+  'json-transcript': { name: 'JSON Transcript', icon: 'file-json', color: '#6d28d9' },
   cognia: { name: 'Cognia', icon: 'cognia', color: '#8b5cf6' },
 };
+
+function createDetection(format: ChatImportFormat, provider?: string): ChatImportDetection {
+  switch (format) {
+    case 'chatgpt':
+    case 'claude':
+    case 'gemini':
+      return {
+        format,
+        sourceType: 'official',
+        compatibility: 'official',
+        provider,
+        confidence: 'high',
+      };
+    case 'portable':
+      return {
+        format,
+        sourceType: 'portable',
+        compatibility: 'official',
+        provider,
+        confidence: 'high',
+      };
+    case 'markdown-transcript':
+    case 'csv-transcript':
+    case 'json-transcript':
+      return {
+        format,
+        sourceType: 'generic',
+        compatibility: 'adapted',
+        provider,
+        confidence: 'medium',
+      };
+    case 'cognia':
+      return {
+        format,
+        sourceType: 'backup',
+        compatibility: 'unsupported',
+        provider,
+        confidence: 'high',
+      };
+    default:
+      return {
+        format: 'unknown',
+        sourceType: 'unsupported',
+        compatibility: 'unsupported',
+        confidence: 'low',
+      };
+  }
+}
+
+function collectWarningDetails(
+  conversations: Array<{ metadata?: { warnings?: ChatImportWarning[] } }>
+): ChatImportWarning[] {
+  return conversations.flatMap((conversation) => conversation.metadata?.warnings ?? []);
+}
+
+function toStructuredWarning(message: string): ChatImportWarning {
+  return {
+    code: 'partial_import',
+    message,
+    severity: 'warning',
+  };
+}
+
+export function detectImportSource(data: unknown): ChatImportDetection {
+  if (typeof data === 'string') {
+    for (const importer of importers) {
+      if (importer.detect(data)) {
+        const providerInfo = importer.getProviderInfo();
+        return createDetection(importer.getFormat(), providerInfo.name);
+      }
+    }
+    return createDetection('unknown');
+  }
+
+  if (!data || typeof data !== 'object') {
+    return createDetection('unknown');
+  }
+
+  for (const importer of importers) {
+    if (importer.detect(data)) {
+      const providerInfo = importer.getProviderInfo();
+      return createDetection(importer.getFormat(), providerInfo.name);
+    }
+  }
+
+  if (
+    'version' in (data as Record<string, unknown>) &&
+    'exportedAt' in (data as Record<string, unknown>)
+  ) {
+    return createDetection('cognia');
+  }
+
+  return createDetection('unknown');
+}
 
 /**
  * Detect import format from parsed JSON data
  */
 export function detectImportFormat(data: unknown): ChatImportFormat {
-  if (!data || typeof data !== 'object') return 'unknown';
-
-  // Check for Cognia native format first
-  if (
-    'version' in (data as Record<string, unknown>) &&
-    'exportedAt' in (data as Record<string, unknown>)
-  ) {
-    return 'cognia';
-  }
-
-  // Try each importer
-  for (const importer of importers) {
-    if (importer.detect(data)) {
-      return importer.getFormat();
-    }
-  }
-
-  return 'unknown';
+  return detectImportSource(data).format;
 }
 
 /**
@@ -147,38 +285,37 @@ export function getSupportedFormats(): ChatImportFormat[] {
 export async function parseImport(
   fileContent: string,
   options: Partial<ChatImportOptions> = {}
-): Promise<{
-  format: ChatImportFormat;
-  conversations: Array<{ session: Session; messages: UIMessage[] }>;
-  errors: ChatImportError[];
-}> {
-  let data: unknown;
+): Promise<ChatImportParseResult> {
+  let data: unknown = fileContent;
+  let parsedJson = false;
 
   try {
     data = JSON.parse(fileContent);
+    parsedJson = true;
   } catch {
-    return {
-      format: 'unknown',
-      conversations: [],
-      errors: [{ message: 'Invalid JSON format' }],
-    };
+    data = fileContent;
   }
 
-  const format = detectImportFormat(data);
+  const detection = detectImportSource(data);
+  const format = detection.format;
 
   if (format === 'unknown') {
     return {
       format,
+      detection,
       conversations: [],
-      errors: [{ message: 'Unsupported import format' }],
+      errors: [{ message: parsedJson ? 'Unsupported import format' : 'Invalid JSON format' }],
+      warningDetails: [],
     };
   }
 
   if (format === 'cognia') {
     return {
       format,
+      detection,
       conversations: [],
       errors: [{ message: 'Use Cognia restore function for Cognia exports' }],
+      warningDetails: [],
     };
   }
 
@@ -186,8 +323,10 @@ export async function parseImport(
   if (!importer) {
     return {
       format,
+      detection,
       conversations: [],
       errors: [{ message: `No importer available for format: ${format}` }],
+      warningDetails: [],
     };
   }
 
@@ -201,14 +340,17 @@ export async function parseImport(
   };
 
   const result = await importer.parse(data, { ...defaultOptions, ...options });
+  const warningDetails = collectWarningDetails(result.conversations);
 
   return {
     format,
+    detection,
     conversations: result.conversations.map((c) => ({
       session: c.session,
       messages: c.messages,
     })),
     errors: result.errors,
+    warningDetails,
   };
 }
 
@@ -218,66 +360,25 @@ export async function parseImport(
 export async function previewImport(
   fileContent: string,
   options: Partial<ChatImportOptions> = {}
-): Promise<{
-  format: ChatImportFormat;
-  conversations: Array<{
-    id: string;
-    title: string;
-    messageCount: number;
-    createdAt: Date;
-    preview: string;
-  }>;
-  totalMessages: number;
-  errors: ChatImportError[];
-}> {
-  let data: unknown;
-
-  try {
-    data = JSON.parse(fileContent);
-  } catch {
-    return {
-      format: 'unknown',
-      conversations: [],
-      totalMessages: 0,
-      errors: [{ message: 'Invalid JSON format' }],
-    };
-  }
-
-  const format = detectImportFormat(data);
-
-  if (format === 'unknown' || format === 'cognia') {
-    return {
-      format,
-      conversations: [],
-      totalMessages: 0,
-      errors: [{ message: format === 'cognia' ? 'Use Cognia restore function' : 'Unsupported format' }],
-    };
-  }
-
-  const importer = getImporter(format);
-  if (!importer) {
-    return {
-      format,
-      conversations: [],
-      totalMessages: 0,
-      errors: [{ message: `No importer for format: ${format}` }],
-    };
-  }
-
-  const defaultOptions: ChatImportOptions = {
-    mergeStrategy: 'merge',
-    generateNewIds: true,
-    preserveTimestamps: true,
-    defaultProvider: importer.getProviderInfo().name,
-    defaultModel: importer.getProviderInfo().defaultModel,
-    defaultMode: 'chat',
-  };
-
-  const result = await importer.preview(data, { ...defaultOptions, ...options });
+): Promise<ChatImportPreviewResult> {
+  const parsed = await parseImport(fileContent, options);
+  const conversations = parsed.conversations.map(({ session, messages }) => ({
+    id: session.id,
+    title: session.title,
+    messageCount: messages.length,
+    createdAt: session.createdAt,
+    preview: messages[0]?.content.slice(0, 100) || '',
+    compatibility: parsed.detection.compatibility,
+    warnings: [],
+  }));
 
   return {
-    format,
-    ...result,
+    format: parsed.format,
+    detection: parsed.detection,
+    conversations,
+    totalMessages: parsed.conversations.reduce((sum, conversation) => sum + conversation.messages.length, 0),
+    errors: parsed.errors,
+    warningDetails: parsed.warningDetails,
   };
 }
 
@@ -297,7 +398,12 @@ export async function importConversations(
     defaultMode: options.defaultMode,
   };
 
-  const { conversations, errors: parseErrors } = await parseImport(fileContent, options);
+  const {
+    conversations,
+    errors: parseErrors,
+    warningDetails: parseWarningDetails,
+    detection,
+  } = await parseImport(fileContent, options);
 
   if (conversations.length === 0) {
     return {
@@ -305,6 +411,8 @@ export async function importConversations(
       imported: { sessions: 0, messages: 0 },
       errors: parseErrors,
       warnings: [],
+      warningDetails: parseWarningDetails,
+      detection,
     };
   }
 
@@ -420,6 +528,11 @@ export async function importConversations(
     },
     errors,
     warnings,
+    warningDetails: [
+      ...parseWarningDetails,
+      ...warnings.map((warning) => toStructuredWarning(warning)),
+    ],
+    detection,
   };
 }
 

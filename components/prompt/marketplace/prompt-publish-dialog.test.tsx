@@ -41,6 +41,37 @@ jest.mock('@/stores/prompt/prompt-template-store', () => ({
           targets: ['chat'],
           source: 'user',
         },
+        {
+          id: 'tmpl-2',
+          name: 'Published Template',
+          description: 'Already published',
+          content: 'Hello {{name}}',
+          category: 'chat',
+          tags: ['published'],
+          variables: [{ name: 'name', type: 'text', required: true }],
+          targets: ['chat'],
+          source: 'user',
+          meta: {
+            marketplace: {
+              marketplaceId: 'market-2',
+              linkageType: 'published',
+              publishedVersion: '1.0.0',
+              installedVersion: '1.0.0',
+              latestVersion: '1.0.0',
+              baseline: {
+                version: '1.0.0',
+                name: 'Published Template',
+                description: 'Already published',
+                content: 'Hello {{name}}',
+                category: 'chat',
+                tags: ['published'],
+                variables: [{ name: 'name', type: 'text', required: true }],
+                targets: ['chat'],
+                capturedAt: '2026-03-14T00:00:00.000Z',
+              },
+            },
+          },
+        },
       ],
     }),
 }));
@@ -152,5 +183,13 @@ describe('PromptPublishDialog', () => {
     fireEvent.change(descriptionInput, { target: { value: '' } });
 
     expect(screen.getByText('publish.next')).toBeDisabled();
+  });
+
+  it('distinguishes updating a published prompt from first publish', async () => {
+    render(<PromptPublishDialog />);
+
+    fireEvent.click(screen.getByText('Published Template'));
+
+    expect(screen.getByText('Update published prompt')).toBeInTheDocument();
   });
 });

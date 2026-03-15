@@ -80,6 +80,35 @@ describe('provider completeness contract', () => {
     expect(stale.setupChecklist.nextAction).toBe('verify_connection');
   });
 
+  it('treats runtime-limited latest checks as unverified instead of verified', () => {
+    const limited = evaluateBuiltInProviderCompleteness('anthropic', {
+      apiKey: 'sk-ant-test',
+      enabled: true,
+      defaultModel: 'claude-sonnet-4-20250514',
+    }, {
+      success: false,
+      authoritative: false,
+      outcome: 'limited',
+    });
+
+    expect(limited.readiness).toBe('configured');
+    expect(limited.verificationStatus).toBe('unverified');
+  });
+
+  it('includes the connectivity contract version in verification fingerprints', () => {
+    const fingerprint = buildProviderVerificationFingerprint({
+      apiKey: 'sk-test',
+      baseURL: '',
+      defaultModel: 'gpt-4o',
+    });
+
+    expect(JSON.parse(fingerprint)).toEqual(
+      expect.objectContaining({
+        verificationContract: 'provider-connectivity-v2',
+      })
+    );
+  });
+
   it('allows keyless local providers with valid base URL', () => {
     const local = evaluateBuiltInProviderCompleteness('ollama', {
       baseURL: 'http://localhost:11434',

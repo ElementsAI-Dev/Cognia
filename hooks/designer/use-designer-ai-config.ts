@@ -35,20 +35,18 @@ export interface UseDesignerAIConfigReturn {
  */
 export function useDesignerAIConfig(): UseDesignerAIConfigReturn {
   const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const customProviders = useSettingsStore((state) => state.customProviders);
   const defaultProvider = useSettingsStore((state) => state.defaultProvider);
 
   const getConfig = useCallback((): DesignerAIConfig => {
-    return getDesignerAIConfig(defaultProvider, providerSettings);
-  }, [defaultProvider, providerSettings]);
+    return getDesignerAIConfig(defaultProvider, providerSettings, customProviders);
+  }, [defaultProvider, providerSettings, customProviders]);
 
   // Check if the current provider has an API key configured
   const hasApiKey = useCallback((): boolean => {
-    const provider = defaultProvider || 'openai';
-    const settings = providerSettings[provider];
-    // Ollama doesn't require an API key
-    if (provider === 'ollama') return true;
-    return Boolean(settings?.apiKey);
-  }, [defaultProvider, providerSettings]);
+    const config = getConfig();
+    return Boolean(config.apiKey) || config.provider === 'ollama';
+  }, [getConfig]);
 
   return {
     getConfig,

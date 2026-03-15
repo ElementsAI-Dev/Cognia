@@ -131,7 +131,7 @@ describe('SystemSchedulerView', () => {
       const tasks = [createMockTask({ status: 'enabled' })];
       render(<SystemSchedulerView {...defaultProps} systemTasks={tasks} />);
 
-      expect(screen.getByText('enabled')).toBeInTheDocument();
+      expect(screen.getByText('statuses.enabled')).toBeInTheDocument();
     });
 
     it('should format cron trigger', () => {

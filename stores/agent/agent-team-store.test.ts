@@ -63,6 +63,46 @@ describe('AgentTeamStore', () => {
       expect(state.teammates[leadId].name).toBe('Team Lead');
     });
 
+    it('should create a team with adaptive orchestration defaults derived from legacy config', () => {
+      const team = getStore().createTeam({
+        name: 'Adaptive Team',
+        task: 'Analyze a complex task',
+        config: {
+          executionMode: 'coordinated',
+          requirePlanApproval: true,
+          tokenBudget: 4000,
+        },
+      });
+
+      const createdTeam = getStore().teams[team.id] as AgentTeam & {
+        selectedExecutionPattern?: string;
+      };
+      const config = createdTeam.config as typeof createdTeam.config & {
+        preferredExecutionPattern?: string;
+        governancePolicy?: {
+          approval?: {
+            requirePlanApproval?: boolean;
+            requireDelegationApproval?: boolean;
+          };
+          budget?: {
+            tokenBudget?: number;
+            onCritical?: string;
+          };
+          escalation?: {
+            allowOperatorPatternOverride?: boolean;
+          };
+        };
+      };
+
+      expect(createdTeam.selectedExecutionPattern).toBe('manager_worker');
+      expect(config.preferredExecutionPattern).toBe('manager_worker');
+      expect(config.governancePolicy?.approval?.requirePlanApproval).toBe(true);
+      expect(config.governancePolicy?.approval?.requireDelegationApproval).toBe(false);
+      expect(config.governancePolicy?.budget?.tokenBudget).toBe(4000);
+      expect(config.governancePolicy?.budget?.onCritical).toBe('pause_for_review');
+      expect(config.governancePolicy?.escalation?.allowOperatorPatternOverride).toBe(true);
+    });
+
     it('should set the new team as active', () => {
       getStore().createTeam({ name: 'Test Team', task: 'Test task' });
       expect(getStore().activeTeamId).not.toBeNull();
@@ -83,6 +123,35 @@ describe('AgentTeamStore', () => {
       const updated = getStore().teams[team.id];
       expect(updated.config.executionMode).toBe('autonomous');
       expect(updated.config.tokenBudget).toBe(50000);
+    });
+
+    it('should normalize legacy config when updating team config', () => {
+      const team = getStore().createTeam({ name: 'Config Team', task: 'Config task' });
+
+      getStore().updateTeamConfig(team.id, {
+        ...getStore().teams[team.id].config,
+        executionMode: 'delegate',
+        requirePlanApproval: false,
+        tokenBudget: 2500,
+      });
+
+      const updated = getStore().teams[team.id] as AgentTeam & {
+        selectedExecutionPattern?: string;
+      };
+      const config = updated.config as typeof updated.config & {
+        preferredExecutionPattern?: string;
+        governancePolicy?: {
+          budget?: {
+            tokenBudget?: number;
+            onCritical?: string;
+          };
+        };
+      };
+
+      expect(updated.selectedExecutionPattern).toBe('background_handoff');
+      expect(config.preferredExecutionPattern).toBe('background_handoff');
+      expect(config.governancePolicy?.budget?.tokenBudget).toBe(2500);
+      expect(config.governancePolicy?.budget?.onCritical).toBe('pause_for_review');
     });
 
     it('should not update config for nonexistent team', () => {
@@ -359,6 +428,79 @@ describe('AgentTeamStore', () => {
       expect(state.tasks[task.id].priority).toBe('high');
       expect(state.tasks[task.id].status).toBe('pending');
       expect(state.teams[teamId].taskIds).toContain(task.id);
+    });
+
+    it('should hydrate legacy delegation metadata into a first-class delegation record on create', () => {
+      const task = getStore().createTask({
+        teamId,
+        title: 'Background task',
+        description: 'Delegate this task',
+        metadata: {
+          delegationId: 'delegation-1',
+          delegationStatus: 'completed',
+          delegatedToBackground: true,
+          delegatedBackgroundAgentId: 'bg-agent-1',
+          delegationError: 'none',
+          delegationCompletedAt: '2026-03-14T08:00:00.000Z',
+          delegationReason: 'Long-running task',
+        },
+      });
+
+      const storedTask = getStore().tasks[task.id] as AgentTeamTask & {
+        delegationRecord?: {
+          id: string;
+          status: string;
+          targetType: string;
+          targetId?: string;
+          reason?: string;
+          error?: string;
+          completedAt?: Date;
+        };
+      };
+
+      expect(storedTask.delegationRecord).toEqual(
+        expect.objectContaining({
+          id: 'delegation-1',
+          status: 'completed',
+          targetType: 'background',
+          targetId: 'bg-agent-1',
+          reason: 'Long-running task',
+          error: 'none',
+        })
+      );
+      expect(storedTask.delegationRecord?.completedAt).toBeInstanceOf(Date);
+    });
+
+    it('should hydrate legacy delegation metadata during upsert for externally refreshed tasks', () => {
+      const task = getStore().createTask({ teamId, title: 'External task', description: 'Refresh me' });
+
+      getStore().upsertTask({
+        ...task,
+        metadata: {
+          delegationId: 'delegation-2',
+          delegationStatus: 'active',
+          delegatedToBackground: true,
+          delegatedBackgroundAgentId: 'bg-agent-2',
+        },
+      });
+
+      const storedTask = getStore().tasks[task.id] as AgentTeamTask & {
+        delegationRecord?: {
+          id: string;
+          status: string;
+          targetType: string;
+          targetId?: string;
+        };
+      };
+
+      expect(storedTask.delegationRecord).toEqual(
+        expect.objectContaining({
+          id: 'delegation-2',
+          status: 'active',
+          targetType: 'background',
+          targetId: 'bg-agent-2',
+        })
+      );
     });
 
     it('should update task status with timestamps', () => {

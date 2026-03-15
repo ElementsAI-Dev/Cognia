@@ -163,6 +163,8 @@ describe('AgentTeamActivityFeed', () => {
       'task_created', 'task_started', 'task_completed', 'task_failed', 'task_retried',
       'plan_submitted', 'plan_approved', 'plan_rejected',
       'budget_exceeded', 'deadlock_resolved',
+      'routing_assessed', 'pattern_selected', 'approval_requested',
+      'delegation_started', 'delegation_completed', 'delegation_failed',
     ];
 
     mockEvents = eventTypes.map((type, i) =>

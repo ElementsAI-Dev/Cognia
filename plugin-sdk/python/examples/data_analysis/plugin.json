@@ -4,6 +4,10 @@
   "version": "1.0.0",
   "description": "Analyze CSV and JSON data files with pandas",
   "type": "python",
+  "engines": {
+    "cognia": ">=0.1.0",
+    "python": ">=3.10.0"
+  },
   "capabilities": ["tools"],
   "pythonMain": "main.py",
   "pythonDependencies": ["pandas>=2.0"],

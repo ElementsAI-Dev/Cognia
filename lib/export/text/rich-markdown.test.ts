@@ -582,3 +582,40 @@ describe('exportToRichJSON', () => {
     expect(parsed.messages[0].createdAt).toBe('2024-01-15T10:01:00.000Z');
   });
 });
+
+describe('exportToPortableChatArchive', () => {
+  const exportedAt = new Date('2024-01-15T12:00:00Z');
+
+  it('exports a canonical portable archive structure for round-trip imports', () => {
+    const textExports = require('./index') as Record<string, unknown>;
+    const exportToPortableChatArchive = textExports.exportToPortableChatArchive as
+      | ((data: RichExportData) => string)
+      | undefined;
+
+    expect(exportToPortableChatArchive).toBeDefined();
+    if (!exportToPortableChatArchive) return;
+
+    const result = exportToPortableChatArchive({
+      session: mockSession,
+      messages: mockMessagesWithAttachments,
+      exportedAt,
+    });
+    const parsed = JSON.parse(result);
+
+    expect(parsed.version).toBe('1.0');
+    expect(parsed.source).toEqual({
+      app: 'cognia',
+      format: 'portable',
+    });
+    expect(parsed.conversations).toHaveLength(1);
+    expect(parsed.conversations[0].title).toBe('Test Conversation');
+    expect(parsed.conversations[0].messages[0].attachments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'image',
+          name: 'photo.jpg',
+        }),
+      ])
+    );
+  });
+});

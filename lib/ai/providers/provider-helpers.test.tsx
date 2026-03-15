@@ -37,6 +37,14 @@ describe('getProviderDashboardUrl', () => {
     it('should return correct URL for Groq', () => {
       expect(getProviderDashboardUrl('groq')).toBe('https://console.groq.com/keys');
     });
+
+    it('should return correct URL for Zhipu', () => {
+      expect(getProviderDashboardUrl('zhipu')).toBe('https://open.bigmodel.cn/usercenter/apikeys');
+    });
+
+    it('should return correct URL for MiniMax', () => {
+      expect(getProviderDashboardUrl('minimax')).toBe('https://api.minimax.chat/');
+    });
   });
 
   describe('local providers', () => {
@@ -95,6 +103,16 @@ describe('getProviderDescription', () => {
     it('should return description for Groq', () => {
       const desc = getProviderDescription('groq');
       expect(desc.toLowerCase()).toContain('fast');
+    });
+
+    it('should return description for Zhipu', () => {
+      const desc = getProviderDescription('zhipu');
+      expect(desc.toLowerCase()).toContain('glm');
+    });
+
+    it('should return description for MiniMax', () => {
+      const desc = getProviderDescription('minimax');
+      expect(desc.toLowerCase()).toContain('minimax');
     });
   });
 
@@ -204,7 +222,7 @@ describe('PROVIDER_CATEGORIES', () => {
   });
 
   describe('specialized providers', () => {
-    const specializedProviders = ['groq', 'cerebras', 'deepseek', 'fireworks', 'mistral', 'cohere', 'sambanova'];
+    const specializedProviders = ['groq', 'cerebras', 'deepseek', 'fireworks', 'mistral', 'cohere', 'sambanova', 'zhipu', 'minimax'];
     it.each(specializedProviders)('%s should be in specialized category', (provider) => {
       expect(PROVIDER_CATEGORIES[provider]).toBe('specialized');
     });

@@ -3,7 +3,7 @@
  * Supports various formats for preference learning and fine-tuning
  */
 
-import type { ArenaBattle, ArenaPreference } from '@/types/arena';
+import type { ArenaBattle, ArenaBattleReview, ArenaPreference } from '@/types/arena';
 
 /**
  * Standard RLHF preference pair format
@@ -20,6 +20,10 @@ export interface RLHFPreferencePair {
     timestamp?: string;
     win_reason?: string;
     task_classification?: string;
+    review_note?: string;
+    reviewed_at?: string;
+    bookmarked?: boolean;
+    last_exported_at?: string;
   };
 }
 
@@ -72,7 +76,7 @@ export interface ExportOptions {
  */
 export function battleToRLHFPair(
   battle: ArenaBattle,
-  options?: { includeMetadata?: boolean }
+  options?: { includeMetadata?: boolean; reviewMetadata?: ArenaBattleReview }
 ): RLHFPreferencePair | null {
   // Skip battles without clear winner
   if (!battle.winnerId || battle.isTie) {
@@ -106,6 +110,10 @@ export function battleToRLHFPair(
       timestamp: battle.createdAt.toISOString(),
       win_reason: battle.winReason,
       task_classification: battle.taskClassification?.category,
+      review_note: options.reviewMetadata?.note,
+      reviewed_at: options.reviewMetadata?.updatedAt?.toISOString(),
+      bookmarked: options.reviewMetadata?.bookmarked,
+      last_exported_at: options.reviewMetadata?.lastExportedAt?.toISOString(),
     };
   }
 

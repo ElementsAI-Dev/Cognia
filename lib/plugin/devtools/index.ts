@@ -48,6 +48,11 @@ export {
 export { usePluginHotReload } from './hot-reload.client';
 
 export {
+  DevExtensionController,
+  type DevExtensionRecord,
+} from './dev-extension-controller';
+
+export {
   PluginDevServer,
   getPluginDevServer,
   resetPluginDevServer,

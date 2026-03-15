@@ -9,6 +9,11 @@ export { timeRangeToPeriod, getProjectionMultiplier } from './time-range';
 export { calculateEfficiencyScores } from './efficiency';
 export { getSpanTypeColor, getStatusColor } from './trace-utils';
 export {
+  buildObservabilitySettingsProjection,
+  normalizeAgentTraceSettings,
+  normalizeObservabilitySettings,
+} from './settings';
+export {
   TOOLTIP_STYLE,
   CHART_MARGINS,
   CHART_COLORS,

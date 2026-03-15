@@ -4,7 +4,7 @@
  * Bridges Rust backend logs to the frontend unified logging system.
  */
 
-import { logContext, loggers, type LogLevel } from '@/lib/logger';
+import { createLogRuntimeContext, logContext, loggers, type LogLevel } from '@/lib/logger';
 import { isTauri } from '@/lib/utils';
 
 export interface TauriLogEvent {
@@ -107,12 +107,15 @@ function normalizeEvent(payload: unknown): TauriLogEvent | null {
 function routeLog(event: TauriLogEvent): void {
   const logLevel = mapLogLevel(event.level);
   const moduleName = parseTarget(event.target);
-  const logData: Record<string, unknown> = {
+  const logData: Record<string, unknown> = createLogRuntimeContext({
+    runtime: 'tauri',
+    origin: 'tauri',
     source: 'tauri',
     target: event.target,
     tauriTimestamp: event.timestamp,
+    tags: ['native', 'tauri'],
     ...(event.data || {}),
-  };
+  });
 
   if (event.traceId) {
     logContext.setTraceId(event.traceId);
@@ -165,9 +168,24 @@ export async function initTauriLogBridge(): Promise<void> {
     });
 
     isInitialized = true;
-    loggers.native.info('Tauri log bridge initialized');
+    loggers.native.info(
+      'Tauri log bridge initialized',
+      createLogRuntimeContext({
+        runtime: 'tauri',
+        origin: 'tauri',
+        tags: ['native', 'tauri'],
+      })
+    );
   } catch (error) {
-    loggers.native.error('Failed to initialize Tauri log bridge', error as Error);
+    loggers.native.error(
+      'Failed to initialize Tauri log bridge',
+      error as Error,
+      createLogRuntimeContext({
+        runtime: 'tauri',
+        origin: 'tauri',
+        tags: ['native', 'tauri'],
+      })
+    );
   }
 }
 

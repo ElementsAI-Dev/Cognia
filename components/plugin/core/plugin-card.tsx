@@ -102,6 +102,7 @@ export function PluginCard({
   const isFavorite = !!favorites[manifest.id];
   const backgroundSettings = useSettingsStore((state) => state.backgroundSettings);
   const isBackgroundActive = isBackgroundRenderable(backgroundSettings);
+  const compatibilityStatus = plugin.descriptor?.compatibility.status;
 
   // Get status styling
   const getStatusConfig = () => {
@@ -147,6 +148,14 @@ export function PluginCard({
             >
               {status}
             </Badge>
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0 capitalize">
+              {plugin.source}
+            </Badge>
+            {compatibilityStatus && compatibilityStatus !== 'compatible' && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0 capitalize">
+                {compatibilityStatus}
+              </Badge>
+            )}
             {isLoading && <InlineLoading />}
           </div>
           <p className="text-xs text-muted-foreground truncate mt-0.5">{manifest.description}</p>
@@ -289,6 +298,14 @@ export function PluginCard({
                 <span>v{manifest.version}</span>
                 <span>•</span>
                 <span className="capitalize">{manifest.type}</span>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0 capitalize">
+                  {plugin.source}
+                </Badge>
+                {compatibilityStatus && compatibilityStatus !== 'compatible' && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0 capitalize">
+                    {compatibilityStatus}
+                  </Badge>
+                )}
               </CardDescription>
             </div>
           </div>

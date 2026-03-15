@@ -169,7 +169,6 @@ export function AppSidebar() {
   const createSession = useSessionStore((state) => state.createSession);
   const theme = useSettingsStore((state) => state.theme);
   const setTheme = useSettingsStore((state) => state.setTheme);
-  const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
   const backgroundSettings = useSettingsStore((state) => state.backgroundSettings);
   const isBackgroundActive = isBackgroundRenderable(backgroundSettings);
 
@@ -1200,18 +1199,16 @@ export function AppSidebar() {
                   <span>{t('themeLabel', { theme })}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {observabilitySettings?.enabled && (
-                <SidebarMenuItem>
-                  <ObservabilityButton
-                    trigger={
-                      <SidebarMenuButton tooltip={t('observability') || 'Observability'}>
-                        <Activity className="h-4 w-4 text-emerald-500" />
-                        <span>{t('observability') || 'Observability'}</span>
-                      </SidebarMenuButton>
-                    }
-                  />
-                </SidebarMenuItem>
-              )}
+              <SidebarMenuItem>
+                <ObservabilityButton
+                  trigger={
+                    <SidebarMenuButton tooltip={t('observability') || 'Observability'}>
+                      <Activity className="h-4 w-4 text-emerald-500" />
+                      <span>{t('observability') || 'Observability'}</span>
+                    </SidebarMenuButton>
+                  }
+                />
+              </SidebarMenuItem>
             </CollapsibleContent>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip={t('settings')}>

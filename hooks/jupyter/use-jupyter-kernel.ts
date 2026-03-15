@@ -19,6 +19,7 @@ import type {
   ExecutableCell,
   NormalizedKernelServiceConfig,
   NotebookFileInfo,
+  NotebookEnvironmentReadiness,
 } from '@/types/jupyter';
 
 /** Hook return type */
@@ -42,6 +43,7 @@ export interface UseJupyterKernelReturn {
   deleteSession: (sessionId: string) => Promise<void>;
   setActiveSession: (sessionId: string | null) => void;
   refreshSessions: () => Promise<void>;
+  restoreSession: (sessionId: string, surfaceId?: string) => Promise<JupyterSession | null>;
 
   // Kernel management
   restartKernel: (sessionId?: string) => Promise<void>;
@@ -77,6 +79,7 @@ export interface UseJupyterKernelReturn {
   clearExecutionHistory: (sessionId?: string) => void;
 
   // Utility
+  prepareNotebookEnvironment: (envPath: string) => Promise<NotebookEnvironmentReadiness>;
   checkKernelAvailable: (envPath: string) => Promise<boolean>;
   ensureKernel: (envPath: string) => Promise<boolean>;
   shutdownAll: () => Promise<void>;
@@ -120,6 +123,8 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     getCells,
     mapChatToJupyter,
     unmapChatSession: unmapChatSessionInStore,
+    setWorkspaceRecoveryState,
+    markWorkspacesForReconnectByKernelId,
     updateSession,
     clearVariables,
     clearExecutionHistory,
@@ -226,7 +231,13 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
         if (event.kernelId) {
           updateKernelStatus(event.kernelId, event.status);
         }
-        if (event.status === 'error' && event.message) {
+        if (
+          event.kernelId &&
+          (event.status === 'dead' || event.status === 'error')
+        ) {
+          markWorkspacesForReconnectByKernelId(event.kernelId, event.message);
+        }
+        if ((event.status === 'dead' || event.status === 'error') && event.message) {
           setError(event.message);
         }
       });
@@ -254,7 +265,13 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
       unlistenersRef.current.forEach((unlisten) => unlisten());
       unlistenersRef.current = [];
     };
-  }, [updateKernelStatus, setError, setLastSandboxExecutionResult, applyCellOutputEvent]);
+  }, [
+    updateKernelStatus,
+    markWorkspacesForReconnectByKernelId,
+    setError,
+    setLastSandboxExecutionResult,
+    applyCellOutputEvent,
+  ]);
 
   // Load sessions on mount
   useEffect(() => {
@@ -295,7 +312,18 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
       clearError();
 
       try {
-        const session = await kernelService.createSession(options);
+        if (options.autoInstallKernel) {
+          const readiness = await kernelService.prepareNotebookEnvironment(options.envPath);
+          if (!readiness.ready) {
+            setError(readiness.error ?? 'Failed to prepare notebook environment');
+            return null;
+          }
+        }
+
+        const session = await kernelService.createSession({
+          ...options,
+          autoInstallKernel: false,
+        });
         addSession(session);
         setActiveSessionInStore(session.id);
 
@@ -312,6 +340,52 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
       }
     },
     [addSession, setActiveSessionInStore, setKernels, setError, clearError, setCreatingSession]
+  );
+
+  const restoreSession = useCallback(
+    async (sessionId: string, surfaceId?: string): Promise<JupyterSession | null> => {
+      if (!kernelService.isAvailable()) {
+        setError('Jupyter kernel requires Tauri environment');
+        return null;
+      }
+
+      clearError();
+      const restored = await kernelService.restoreNotebookSession(sessionId);
+      if (restored.status === 'restored' && restored.session) {
+        const existingSession = sessions.find((session) => session.id === restored.session?.id);
+        if (existingSession) {
+          updateSession(restored.session.id, restored.session);
+        } else {
+          addSession(restored.session);
+        }
+        setActiveSessionInStore(restored.session.id);
+        if (surfaceId) {
+          setWorkspaceRecoveryState(surfaceId, 'ready', null);
+        }
+        return restored.session;
+      }
+
+      if (surfaceId) {
+        setWorkspaceRecoveryState(
+          surfaceId,
+          'needs_reconnect',
+          restored.error ?? 'Session restore failed'
+        );
+      }
+      if (restored.error) {
+        setError(restored.error);
+      }
+      return null;
+    },
+    [
+      sessions,
+      addSession,
+      updateSession,
+      setActiveSessionInStore,
+      setWorkspaceRecoveryState,
+      setError,
+      clearError,
+    ]
   );
 
   // Delete a session
@@ -544,6 +618,17 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
   );
 
   // Check kernel available
+  const prepareNotebookEnvironment = useCallback(
+    async (envPath: string): Promise<NotebookEnvironmentReadiness> => {
+      const readiness = await kernelService.prepareNotebookEnvironment(envPath);
+      if (!readiness.ready && readiness.error) {
+        setError(readiness.error);
+      }
+      return readiness;
+    },
+    [setError]
+  );
+
   const checkKernelAvailable = useCallback(async (envPath: string): Promise<boolean> => {
     return kernelService.checkKernelAvailable(envPath);
   }, []);
@@ -650,6 +735,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     deleteSession,
     setActiveSession,
     refreshSessions,
+    restoreSession,
 
     // Kernel management
     restartKernel,
@@ -678,6 +764,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     clearExecutionHistory,
 
     // Utility
+    prepareNotebookEnvironment,
     checkKernelAvailable,
     ensureKernel,
     shutdownAll,

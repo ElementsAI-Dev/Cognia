@@ -12,6 +12,15 @@ const mockUseGit: Record<string, unknown> = {
   currentRepo: null,
   commits: [],
   fileStatus: [],
+  trackedRepos: [
+    {
+      path: '/tracked/repo',
+      displayName: 'repo',
+      source: 'manual',
+      lastOpenedAt: '2026-03-14T00:00:00.000Z',
+      linkedProjectIds: [],
+    },
+  ],
   isOperating: false,
   error: null,
   checkGitInstalled: jest.fn(),
@@ -59,6 +68,16 @@ describe('ProjectGitPanel', () => {
     expect(screen.getByText('notConfigured.title')).toBeInTheDocument();
   });
 
+  it('should show tracked repositories when Git is not configured', () => {
+    mockUseGit.isInstalled = true;
+    mockUseGit.projectConfig = null;
+
+    render(<ProjectGitPanel projectId="test-project" />);
+
+    expect(screen.getByText('repo')).toBeInTheDocument();
+    expect(screen.getByText('/tracked/repo')).toBeInTheDocument();
+  });
+
   it('should show repository status when Git is configured', () => {
     mockUseGit.isInstalled = true;
     mockUseGit.projectConfig = {
@@ -86,6 +105,11 @@ describe('ProjectGitPanel', () => {
         date: new Date().toISOString(),
         message: 'Initial commit',
       },
+      syncState: 'up-to-date',
+      hasConflicts: false,
+      inProgressOperation: null,
+      canAbortOperation: false,
+      recommendedRecoveryAction: null,
     };
     
     render(<ProjectGitPanel projectId="test-project" />);
@@ -129,6 +153,11 @@ describe('ProjectGitPanel', () => {
       hasUncommittedChanges: false,
       hasUntrackedFiles: false,
       lastCommit: null,
+      syncState: 'local-only',
+      hasConflicts: false,
+      inProgressOperation: null,
+      canAbortOperation: false,
+      recommendedRecoveryAction: null,
     };
     
     render(<ProjectGitPanel projectId="test-project" />);
@@ -143,5 +172,76 @@ describe('ProjectGitPanel', () => {
       fireEvent.click(refreshButton);
       expect(mockUseGit.refreshStatus).toHaveBeenCalled();
     }
+  });
+
+  it('should show explicit auto-stage message in commit dialog', async () => {
+    mockUseGit.isInstalled = true;
+    mockUseGit.projectConfig = {
+      enabled: true,
+      repoPath: '/test/repo',
+      autoCommit: false,
+      commitOnSessionEnd: true,
+    };
+    mockUseGit.currentRepo = {
+      path: '/test/repo',
+      isGitRepo: true,
+      status: 'dirty',
+      branch: 'main',
+      remoteName: 'origin',
+      remoteUrl: 'https://github.com/test/repo.git',
+      ahead: 0,
+      behind: 0,
+      hasUncommittedChanges: true,
+      hasUntrackedFiles: false,
+      lastCommit: null,
+      syncState: 'ahead',
+      hasConflicts: false,
+      inProgressOperation: null,
+      canAbortOperation: false,
+      recommendedRecoveryAction: null,
+    };
+    mockUseGit.fileStatus = [{ path: 'test.ts', status: 'modified', staged: false }];
+
+    render(<ProjectGitPanel projectId="test-project" />);
+
+    fireEvent.click(screen.getByText('quickActions.commit'));
+
+    await waitFor(() => {
+      expect(screen.getByText('commitDialog.autoStageNotice')).toBeInTheDocument();
+    });
+  });
+
+  it('should disable commit while recovery is required', () => {
+    mockUseGit.isInstalled = true;
+    mockUseGit.projectConfig = {
+      enabled: true,
+      repoPath: '/test/repo',
+      autoCommit: false,
+      commitOnSessionEnd: true,
+    };
+    mockUseGit.currentRepo = {
+      path: '/test/repo',
+      isGitRepo: true,
+      status: 'dirty',
+      branch: 'main',
+      remoteName: 'origin',
+      remoteUrl: 'https://github.com/test/repo.git',
+      ahead: 0,
+      behind: 0,
+      hasUncommittedChanges: true,
+      hasUntrackedFiles: false,
+      lastCommit: null,
+      syncState: 'diverged',
+      hasConflicts: true,
+      inProgressOperation: 'merge',
+      canAbortOperation: true,
+      recommendedRecoveryAction: 'Resolve merge conflicts before continuing.',
+    };
+    mockUseGit.fileStatus = [{ path: 'test.ts', status: 'modified', staged: false }];
+
+    render(<ProjectGitPanel projectId="test-project" />);
+
+    expect(screen.getByText('Resolve merge conflicts before continuing.')).toBeInTheDocument();
+    expect(screen.getByText('quickActions.commit').closest('button')).toBeDisabled();
   });
 });

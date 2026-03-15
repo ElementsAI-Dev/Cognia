@@ -16,6 +16,7 @@ import {
   Loader2,
   GitMerge,
   Cloud,
+  Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,7 +59,9 @@ export function GitBranchManager({
   onCreateBranch,
   onDeleteBranch,
   onMergeBranch,
+  onRenameBranch,
   onRefresh,
+  disabled = false,
   className,
 }: GitBranchManagerProps) {
   const t = useTranslations('git.branches');
@@ -69,6 +72,8 @@ export function GitBranchManager({
   const [startPoint, setStartPoint] = useState('');
   const [branchToDelete, setBranchToDelete] = useState<string | null>(null);
   const [branchToMerge, setBranchToMerge] = useState<string | null>(null);
+  const [branchToRename, setBranchToRename] = useState<string | null>(null);
+  const [renamedBranch, setRenamedBranch] = useState('');
   const [isOperating, setIsOperating] = useState(false);
   const [filter, setFilter] = useState('');
 
@@ -83,6 +88,7 @@ export function GitBranchManager({
   );
 
   const handleCheckout = async (branch: string) => {
+    if (disabled) return;
     setIsOperating(true);
     try {
       await onCheckout(branch);
@@ -92,7 +98,7 @@ export function GitBranchManager({
   };
 
   const handleCreateBranch = async () => {
-    if (!newBranchName.trim()) return;
+    if (!newBranchName.trim() || disabled) return;
 
     setIsOperating(true);
     try {
@@ -108,7 +114,7 @@ export function GitBranchManager({
   };
 
   const handleDeleteBranch = async (force: boolean = false) => {
-    if (!branchToDelete) return;
+    if (!branchToDelete || disabled) return;
 
     setIsOperating(true);
     try {
@@ -123,7 +129,7 @@ export function GitBranchManager({
   };
 
   const handleMergeBranch = async () => {
-    if (!branchToMerge || !onMergeBranch) return;
+    if (!branchToMerge || !onMergeBranch || disabled) return;
 
     setIsOperating(true);
     try {
@@ -147,6 +153,26 @@ export function GitBranchManager({
     setShowMergeDialog(true);
   };
 
+  const confirmRename = (branch: string) => {
+    setBranchToRename(branch);
+    setRenamedBranch(branch);
+  };
+
+  const handleRenameBranch = async () => {
+    if (!branchToRename || !onRenameBranch || !renamedBranch.trim() || disabled) return;
+
+    setIsOperating(true);
+    try {
+      const success = await onRenameBranch(branchToRename, renamedBranch.trim());
+      if (success) {
+        setBranchToRename(null);
+        setRenamedBranch('');
+      }
+    } finally {
+      setIsOperating(false);
+    }
+  };
+
   return (
     <div className={cn('space-y-3', className)}>
       {/* Header */}
@@ -163,7 +189,7 @@ export function GitBranchManager({
               <RefreshCw className="h-4 w-4" />
             )}
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setShowCreateDialog(true)}>
+          <Button size="sm" variant="outline" onClick={() => setShowCreateDialog(true)} disabled={disabled}>
             <Plus className="h-4 w-4 mr-1" />
             {t('new')}
           </Button>
@@ -199,7 +225,7 @@ export function GitBranchManager({
                   <DropdownMenuItem
                     key={branch.name}
                     onClick={() => handleCheckout(branch.name)}
-                    disabled={branch.isCurrent || isOperating}
+                    disabled={branch.isCurrent || isOperating || disabled}
                     className="flex items-center justify-between"
                   >
                     <span className="truncate">{branch.name}</span>
@@ -219,7 +245,7 @@ export function GitBranchManager({
                   <DropdownMenuItem
                     key={branch.name}
                     onClick={() => handleCheckout(branch.name)}
-                    disabled={isOperating}
+                    disabled={isOperating || disabled}
                     className="flex items-center gap-2"
                   >
                     <Cloud className="h-3 w-3 text-muted-foreground" />
@@ -266,8 +292,21 @@ export function GitBranchManager({
                       className="h-7 w-7 p-0"
                       onClick={() => confirmMerge(branch.name)}
                       title={t('merge')}
+                      disabled={disabled}
                     >
                       <GitMerge className="h-3 w-3" />
+                    </Button>
+                  )}
+                  {onRenameBranch && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0"
+                      onClick={() => confirmRename(branch.name)}
+                      title={t('rename')}
+                      disabled={disabled}
+                    >
+                      <Pencil className="h-3 w-3" />
                     </Button>
                   )}
                   <Button
@@ -276,6 +315,7 @@ export function GitBranchManager({
                     className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
                     onClick={() => confirmDelete(branch.name)}
                     title={t('delete')}
+                    disabled={disabled}
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>
@@ -325,6 +365,39 @@ export function GitBranchManager({
                 <Plus className="h-4 w-4 mr-2" />
               )}
               {t('create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!branchToRename} onOpenChange={(open) => !open && setBranchToRename(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('renameBranch')}</DialogTitle>
+            <DialogDescription>{t('renameBranchDescription')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="renameBranch">{t('branchName')}</Label>
+              <Input
+                id="renameBranch"
+                value={renamedBranch}
+                onChange={(e) => setRenamedBranch(e.target.value)}
+                placeholder={t('branchNamePlaceholder')}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBranchToRename(null)}>
+              {t('cancel')}
+            </Button>
+            <Button onClick={handleRenameBranch} disabled={!renamedBranch.trim() || isOperating || disabled}>
+              {isOperating ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Pencil className="h-4 w-4 mr-2" />
+              )}
+              {t('rename')}
             </Button>
           </DialogFooter>
         </DialogContent>

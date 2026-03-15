@@ -3,9 +3,17 @@ import Dexie from 'dexie';
 import { db, type DBAgentTrace } from '../schema';
 import { withRetry } from '../utils';
 import type { AgentTraceRecord, TraceFile } from '@/types/agent-trace';
+import type {
+  AgentTraceObservationFilters,
+  AgentTraceObservationRow,
+} from '@/types/agent-trace';
 import { gitService, type GitBlameLineInfo } from '@/lib/native/git';
 import { useGitStore } from '@/stores/git';
 import { loggers } from '@/lib/logger';
+import {
+  deriveObservationFromDbTrace,
+  matchesObservationFilters,
+} from '@/lib/agent-trace/observation';
 
 const log = loggers.store;
 
@@ -88,6 +96,15 @@ export interface TraceStats {
   /** Estimated total cost in USD */
   totalCost: number;
   storageEstimateBytes: number;
+}
+
+export interface AgentTraceObservationBundle {
+  exportedAt: string;
+  filters: AgentTraceObservationFilters;
+  rows: AgentTraceObservationRow[];
+  sessionSummaries: SessionTraceSummary[];
+  totalRows: number;
+  parseFailureCount: number;
 }
 
 export const agentTraceRepository = {
@@ -396,6 +413,62 @@ export const agentTraceRepository = {
     const traceAttribution = await this.findByLineNumber(filePath, lineNumber, vcsRevision);
 
     return { blameInfo, traceAttribution };
+  },
+
+  async getObservationRows(
+    options: AgentTraceObservationFilters = {}
+  ): Promise<AgentTraceObservationRow[]> {
+    const { sessionId, vcsRevision, limit, offset = 0 } = options;
+
+    let rows: DBAgentTrace[] = [];
+
+    if (sessionId) {
+      rows = await db.agentTraces
+        .where('[sessionId+timestamp]')
+        .between([sessionId, Dexie.minKey], [sessionId, Dexie.maxKey])
+        .reverse()
+        .toArray();
+    } else if (vcsRevision) {
+      rows = await db.agentTraces
+        .where('[vcsRevision+timestamp]')
+        .between([vcsRevision, Dexie.minKey], [vcsRevision, Dexie.maxKey])
+        .reverse()
+        .toArray();
+    } else {
+      rows = await db.agentTraces.orderBy('timestamp').reverse().toArray();
+    }
+
+    const filtered = rows
+      .map((row) => deriveObservationFromDbTrace(row))
+      .filter((row) => matchesObservationFilters(row, options));
+
+    return filtered.slice(offset, limit ? offset + limit : undefined);
+  },
+
+  async exportObservationBundle(
+    options: AgentTraceObservationFilters = {}
+  ): Promise<AgentTraceObservationBundle> {
+    const rows = await this.getObservationRows(options);
+    const sessionIds = Array.from(
+      new Set(
+        rows
+          .map((row) => row.sessionId)
+          .filter((sessionId): sessionId is string => Boolean(sessionId))
+      )
+    );
+
+    const sessionSummaries = (
+      await Promise.all(sessionIds.map((sessionId) => this.getSessionSummary(sessionId)))
+    ).filter((summary): summary is SessionTraceSummary => Boolean(summary));
+
+    return {
+      exportedAt: new Date().toISOString(),
+      filters: options,
+      rows,
+      sessionSummaries,
+      totalRows: rows.length,
+      parseFailureCount: rows.filter((row) => row.parseStatus === 'degraded').length,
+    };
   },
 
   /**

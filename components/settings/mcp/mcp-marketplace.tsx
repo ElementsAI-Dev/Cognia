@@ -97,6 +97,8 @@ export function McpMarketplace() {
     getTotalPages,
     getUniqueTags,
     getInstallStatus,
+    isItemInstalled: isMarketplaceItemInstalled,
+    getLinkedServerId,
     setInstallStatus,
     setSmitheryApiKey,
     getSourceCount,
@@ -159,11 +161,26 @@ export function McpMarketplace() {
   const totalPages = useMemo(() => getTotalPages(), [getTotalPages]);
   const availableTags = useMemo(() => getUniqueTags(), [getUniqueTags]);
   const favoritesCount = useMemo(() => getFavoritesCount(), [getFavoritesCount]);
+  const degradedSources = useMemo(
+    () =>
+      Object.entries(catalog?.sourceHealth || {}).filter(
+        ([, health]) => Boolean(health) && health.status === 'error'
+      ),
+    [catalog]
+  );
 
-  // Check if an item is installed by matching mcpId with server names
-  const isItemInstalled = useCallback((mcpId: string): boolean => {
-    return servers.some((server) => server.id === mcpId || server.name === mcpId);
-  }, [servers]);
+  const isInstalledEntry = useCallback((item: McpMarketplaceItem): boolean => {
+    const linkedServerId = getLinkedServerId(item);
+    return (
+      isMarketplaceItemInstalled(item) ||
+      servers.some(
+        (server) =>
+          server.id === linkedServerId ||
+          server.id === item.mcpId ||
+          server.name === item.mcpId
+      )
+    );
+  }, [servers, isMarketplaceItemInstalled, getLinkedServerId]);
 
   const [showInstalledOnly, setShowInstalledOnly] = useState(false);
 
@@ -173,14 +190,14 @@ export function McpMarketplace() {
   // Count installed items
   const installedCount = useMemo(() => {
     if (!catalog) return 0;
-    return catalog.items.filter((item) => isItemInstalled(item.mcpId)).length;
-  }, [catalog, isItemInstalled]);
+    return catalog.items.filter((item) => isInstalledEntry(item)).length;
+  }, [catalog, isInstalledEntry]);
 
   // Filter by installed if enabled
   const displayItems = useMemo(() => {
     if (!showInstalledOnly) return paginatedItems;
-    return filteredItems.filter((item) => isItemInstalled(item.mcpId));
-  }, [showInstalledOnly, paginatedItems, filteredItems, isItemInstalled]);
+    return filteredItems.filter((item) => isInstalledEntry(item));
+  }, [showInstalledOnly, paginatedItems, filteredItems, isInstalledEntry]);
 
   const handleSelectItem = useCallback((item: McpMarketplaceItem) => {
     selectItem(item);
@@ -189,7 +206,7 @@ export function McpMarketplace() {
   }, [selectItem, addToRecentlyViewed]);
 
   const handleInstall = useCallback(async (item: McpMarketplaceItem) => {
-    setInstallStatus(item.mcpId, 'installing');
+    setInstallStatus(item, 'installing');
     // The actual installation will be handled by the detail dialog
     selectItem(item);
     setDetailDialogOpen(true);
@@ -260,6 +277,20 @@ export function McpMarketplace() {
               <Button variant="ghost" size="sm" onClick={clearError}>
                 {t('dismiss')}
               </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {degradedSources.length > 0 && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>{tCommon('warning') || 'Warning'}</AlertTitle>
+            <AlertDescription>
+              {degradedSources.map(([source, health]) => (
+                <div key={source}>
+                  {MARKETPLACE_SOURCES.find((entry) => entry.id === source)?.name || source}: {health?.errorMessage}
+                </div>
+              ))}
             </AlertDescription>
           </Alert>
         )}
@@ -634,7 +665,7 @@ export function McpMarketplace() {
                   onClick={() => handleSelectItem(item)}
                 >
                   {item.name}
-                  {isItemInstalled(item.mcpId) && (
+                  {isInstalledEntry(item) && (
                     <Check className="h-3 w-3 text-green-500" />
                   )}
                 </Button>
@@ -686,8 +717,8 @@ export function McpMarketplace() {
               <MarketplaceCard
                 key={item.mcpId}
                 item={item}
-                isInstalled={isItemInstalled(item.mcpId)}
-                installStatus={getInstallStatus(item.mcpId)}
+                isInstalled={isInstalledEntry(item)}
+                installStatus={getInstallStatus(item)}
                 searchQuery={debouncedSearch}
                 isFocused={focusedIndex === index}
                 onSelect={() => handleSelectItem(item)}
@@ -738,7 +769,7 @@ export function McpMarketplace() {
           open={detailDialogOpen}
           onOpenChange={setDetailDialogOpen}
           item={selectedItem}
-          isInstalled={selectedItem ? isItemInstalled(selectedItem.mcpId) : false}
+          isInstalled={selectedItem ? isInstalledEntry(selectedItem) : false}
           isFavorite={selectedItem ? isFavorite(selectedItem.mcpId) : false}
           onToggleFavorite={toggleFavorite}
         />

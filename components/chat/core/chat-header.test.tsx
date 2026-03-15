@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { ChatHeader } from './chat-header';
 import { 
   createSessionStoreState, 
@@ -12,6 +12,8 @@ import {
   createChatStoreState,
   createProjectStoreState,
   createCustomThemeStoreState,
+  mockSelectPreset,
+  mockUpdateSession,
   resetAllMocks,
 } from '@/__mocks__/stores';
 
@@ -56,7 +58,7 @@ jest.mock('@/stores', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+  Button: ({ children, asChild: _asChild, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { asChild?: boolean }) => (
     <button {...props}>{children}</button>
   ),
 }));
@@ -125,7 +127,30 @@ jest.mock('../selectors/session-env-selector', () => ({
 }));
 
 jest.mock('@/components/presets', () => ({
-  PresetSelector: () => <div data-testid="preset-selector" />,
+  PresetSelector: ({ onSelect }: { onSelect?: (preset: Record<string, unknown>) => void }) => (
+    <div data-testid="preset-selector">
+      <button
+        data-testid="preset-selector-apply"
+        onClick={() =>
+          onSelect?.({
+            id: 'preset-1',
+            name: 'Preset One',
+            provider: 'openai',
+            model: 'gpt-4o-mini',
+            mode: 'research',
+            systemPrompt: 'Focus on sources',
+            builtinPrompts: [{ id: 'bp-1', name: 'Summarize', content: 'Summarize this' }],
+            temperature: 0.4,
+            maxTokens: 2048,
+            webSearchEnabled: true,
+            thinkingEnabled: true,
+          })
+        }
+      >
+        Apply Preset
+      </button>
+    </div>
+  ),
   CreatePresetDialog: () => null,
   PresetsManager: () => null,
 }));
@@ -178,6 +203,29 @@ describe('ChatHeader', () => {
     // Verify header renders with expected structure
     const header = screen.getByRole('banner');
     expect(header).toBeInTheDocument();
+  });
+
+  it('applies preset selection through shared session update mapping', () => {
+    render(<ChatHeader />);
+
+    fireEvent.click(screen.getByTestId('preset-selector-apply'));
+
+    expect(mockUpdateSession).toHaveBeenCalledWith(
+      'session-1',
+      expect.objectContaining({
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        mode: 'research',
+        systemPrompt: 'Focus on sources',
+        builtinPrompts: [{ id: 'bp-1', name: 'Summarize', content: 'Summarize this' }],
+        temperature: 0.4,
+        maxTokens: 2048,
+        webSearchEnabled: true,
+        thinkingEnabled: true,
+        presetId: 'preset-1',
+      }),
+    );
+    expect(mockSelectPreset).toHaveBeenCalledWith('preset-1');
   });
 
   describe('simplified mode', () => {

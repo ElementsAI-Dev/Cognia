@@ -149,6 +149,75 @@ export interface NotebookFileInfo {
   nbformat: number;
 }
 
+/** Notebook workspace recovery status */
+export type NotebookWorkspaceRecoveryStatus =
+  | 'ready'
+  | 'restoring'
+  | 'needs_reconnect'
+  | 'error';
+
+/** Maximum number of recoverable notebook workspaces to persist */
+export const MAX_NOTEBOOK_WORKSPACE_SNAPSHOTS = 5;
+
+/** Maximum inline notebook content size to persist in a workspace snapshot */
+export const MAX_NOTEBOOK_INLINE_SNAPSHOT_BYTES = 200_000;
+
+/** Recoverable notebook workspace snapshot */
+export interface NotebookWorkspaceSnapshot {
+  surfaceId: string;
+  sessionId: string | null;
+  kernelId: string | null;
+  selectedEnvPath: string | null;
+  filePath: string | null;
+  notebookContent: string | null;
+  isDirty: boolean;
+  recoveryStatus: NotebookWorkspaceRecoveryStatus;
+  recoveryError: string | null;
+  lastSavedAt: string | null;
+  lastExecutedAt: string | null;
+  updatedAt: string;
+  createdAt: string;
+  hasInlineContent: boolean;
+  contentSizeBytes: number;
+  fileInfo: NotebookFileInfo | null;
+}
+
+/** Input used to create or update a notebook workspace snapshot */
+export interface NotebookWorkspaceSnapshotInput {
+  surfaceId: string;
+  sessionId?: string | null;
+  kernelId?: string | null;
+  selectedEnvPath?: string | null;
+  filePath?: string | null;
+  notebookContent?: string | null;
+  isDirty?: boolean;
+  recoveryStatus?: NotebookWorkspaceRecoveryStatus;
+  recoveryError?: string | null;
+  lastSavedAt?: string | null;
+  lastExecutedAt?: string | null;
+  updatedAt?: string;
+  createdAt?: string;
+  fileInfo?: NotebookFileInfo | null;
+}
+
+/** Notebook environment readiness result */
+export interface NotebookEnvironmentReadiness {
+  ready: boolean;
+  installedKernel: boolean;
+  error: string | null;
+}
+
+/** Session restoration status */
+export type NotebookSessionRestoreStatus = 'restored' | 'needs_reconnect' | 'unavailable';
+
+/** Session restoration result */
+export interface NotebookSessionRestoreResult {
+  status: NotebookSessionRestoreStatus;
+  session: JupyterSession | null;
+  kernelAlive: boolean;
+  error: string | null;
+}
+
 /** Jupyter cell type */
 export type JupyterCellType = 'code' | 'markdown' | 'raw';
 

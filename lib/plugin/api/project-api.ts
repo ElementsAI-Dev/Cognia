@@ -11,6 +11,7 @@ import type {
   ProjectFileInput,
 } from '@/types/plugin/plugin-extended';
 import type { Project, KnowledgeFile } from '@/types';
+import { inferKnowledgeFileTypeFromFilename } from '@/lib/document';
 import { createPluginSystemLogger } from '../core/logger';
 
 /**
@@ -128,27 +129,7 @@ export function createProjectAPI(pluginId: string): PluginProjectAPI {
       // Infer type from extension if not provided
       let fileType = file.type;
       if (!fileType) {
-        const ext = file.name.split('.').pop()?.toLowerCase();
-        const typeMap: Record<string, KnowledgeFile['type']> = {
-          'txt': 'text',
-          'md': 'markdown',
-          'pdf': 'pdf',
-          'json': 'json',
-          'js': 'code',
-          'ts': 'code',
-          'py': 'code',
-          'html': 'html',
-          'csv': 'csv',
-          'doc': 'word',
-          'docx': 'word',
-          'xls': 'excel',
-          'xlsx': 'excel',
-          'ppt': 'presentation',
-          'pptx': 'presentation',
-          'rtf': 'rtf',
-          'epub': 'epub',
-        };
-        fileType = typeMap[ext || ''] || 'text';
+        fileType = inferKnowledgeFileTypeFromFilename(file.name) as KnowledgeFile['type'];
       }
 
       const knowledgeFile: Omit<KnowledgeFile, 'id' | 'createdAt' | 'updatedAt'> = {

@@ -23,6 +23,7 @@ import {
   MeetingNotesSchema,
   type StructuredOutputConfig,
 } from './structured-output';
+import { createFeatureProviderModelFromRuntimeConfig } from '@/lib/ai/provider-consumption';
 
 // Mock AI SDK
 jest.mock('ai', () => ({
@@ -30,15 +31,22 @@ jest.mock('ai', () => ({
   streamObject: jest.fn(),
 }));
 
-// Mock client
-jest.mock('../core/client', () => ({
-  getProviderModel: jest.fn(() => 'mock-model'),
+// Mock shared routing contract
+jest.mock('@/lib/ai/provider-consumption', () => ({
+  createFeatureRoutePolicy: jest.fn((routeProfile, overrides) => ({
+    routeProfile,
+    selectionMode: 'default-provider',
+    ...overrides,
+  })),
+  createFeatureProviderModelFromRuntimeConfig: jest.fn(() => 'mock-model'),
 }));
 
 import { generateObject as aiGenerateObject, streamObject as aiStreamObject } from 'ai';
 
 const mockGenerateObject = aiGenerateObject as jest.Mock;
 const mockStreamObject = aiStreamObject as jest.Mock;
+const mockCreateFeatureProviderModelFromRuntimeConfig =
+  createFeatureProviderModelFromRuntimeConfig as jest.Mock;
 
 const defaultConfig: StructuredOutputConfig = {
   provider: 'openai',
@@ -72,6 +80,17 @@ describe('generateStructuredObject', () => {
       expect.objectContaining({
         schema,
         prompt: 'Generate a person',
+      })
+    );
+    expect(mockCreateFeatureProviderModelFromRuntimeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeProfile: 'general-text',
+        featureId: 'structured-output',
+      }),
+      expect.objectContaining({
+        providerId: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-key',
       })
     );
   });

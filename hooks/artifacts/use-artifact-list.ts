@@ -3,7 +3,7 @@
  * Extracted from artifact-list.tsx to separate state logic from UI
  */
 
-import { useState, useMemo, useCallback, useDeferredValue } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useArtifactStore, useSessionStore } from '@/stores';
 import type { Artifact, ArtifactType } from '@/types';
 
@@ -17,36 +17,62 @@ export function useArtifactList({ sessionId, onArtifactClick }: UseArtifactListO
   const setActiveArtifact = useArtifactStore((state) => state.setActiveArtifact);
   const deleteArtifact = useArtifactStore((state) => state.deleteArtifact);
   const openPanel = useArtifactStore((state) => state.openPanel);
-  const getSessionArtifacts = useArtifactStore((state) => state.getSessionArtifacts);
-  const searchArtifacts = useArtifactStore((state) => state.searchArtifacts);
-  const filterArtifactsByType = useArtifactStore((state) => state.filterArtifactsByType);
   const deleteArtifacts = useArtifactStore((state) => state.deleteArtifacts);
+  const artifactWorkspace = useArtifactStore((state) => state.artifactWorkspace);
+  const setArtifactWorkspaceFilters = useArtifactStore((state) => state.setArtifactWorkspaceFilters);
+  const setArtifactWorkspaceScope = useArtifactStore((state) => state.setArtifactWorkspaceScope);
+  const getArtifactsForWorkspace = useArtifactStore((state) => state.getArtifactsForWorkspace);
   const getActiveSession = useSessionStore((state) => state.getActiveSession);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [typeFilter, setTypeFilter] = useState<string>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchMode, setBatchMode] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | string[] | null>(null);
 
   const currentSessionId = sessionId || getActiveSession()?.id;
 
+  useEffect(() => {
+    if (currentSessionId && artifactWorkspace.scope === 'session') {
+      setArtifactWorkspaceScope('session', currentSessionId);
+    }
+  }, [artifactWorkspace.scope, currentSessionId, setArtifactWorkspaceScope]);
+
   const sessionArtifacts = useMemo(() => {
     if (!currentSessionId) return [];
 
-    // All store methods (searchArtifacts, filterArtifactsByType, getSessionArtifacts)
-    // already return results sorted by date descending, so no additional sorting needed
-    if (deferredSearchQuery.trim()) {
-      return searchArtifacts(deferredSearchQuery, currentSessionId);
-    }
+    return getArtifactsForWorkspace({ sessionId: currentSessionId });
+  }, [
+    artifactWorkspace.recentArtifactIds,
+    artifactWorkspace.runtimeFilter,
+    artifactWorkspace.scope,
+    artifactWorkspace.searchQuery,
+    artifactWorkspace.sessionId,
+    artifactWorkspace.typeFilter,
+    currentSessionId,
+    getArtifactsForWorkspace,
+  ]);
 
-    if (typeFilter !== 'all') {
-      return filterArtifactsByType(typeFilter as ArtifactType, currentSessionId);
-    }
+  const setSearchQuery = useCallback(
+    (searchQuery: string) => {
+      setArtifactWorkspaceFilters({ searchQuery });
+    },
+    [setArtifactWorkspaceFilters]
+  );
 
-    return getSessionArtifacts(currentSessionId);
-  }, [currentSessionId, getSessionArtifacts, searchArtifacts, filterArtifactsByType, deferredSearchQuery, typeFilter]);
+  const setTypeFilter = useCallback(
+    (typeFilter: string) => {
+      setArtifactWorkspaceFilters({ typeFilter: typeFilter as ArtifactType | 'all' });
+    },
+    [setArtifactWorkspaceFilters]
+  );
+
+  const setRuntimeFilter = useCallback(
+    (runtimeFilter: string) => {
+      setArtifactWorkspaceFilters({
+        runtimeFilter: runtimeFilter as typeof artifactWorkspace.runtimeFilter,
+      });
+    },
+    [artifactWorkspace.runtimeFilter, setArtifactWorkspaceFilters]
+  );
 
   const handleArtifactClick = useCallback((artifact: Artifact) => {
     if (batchMode) {
@@ -97,8 +123,9 @@ export function useArtifactList({ sessionId, onArtifactClick }: UseArtifactListO
   return {
     // State
     activeArtifactId,
-    searchQuery,
-    typeFilter,
+    searchQuery: artifactWorkspace.searchQuery,
+    typeFilter: artifactWorkspace.typeFilter,
+    runtimeFilter: artifactWorkspace.runtimeFilter,
     selectedIds,
     batchMode,
     pendingDelete,
@@ -112,5 +139,6 @@ export function useArtifactList({ sessionId, onArtifactClick }: UseArtifactListO
     handleDelete,
     handleBatchDelete,
     confirmDelete,
+    setRuntimeFilter,
   };
 }

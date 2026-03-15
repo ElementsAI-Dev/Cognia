@@ -29,6 +29,15 @@ export type GitRepoStatus =
 /** Git operation status */
 export type GitOperationStatus = 'idle' | 'pending' | 'running' | 'success' | 'error';
 
+/** Repository sync state hint */
+export type GitSyncState = 'local-only' | 'up-to-date' | 'ahead' | 'behind' | 'diverged';
+
+/** In-progress recovery operation */
+export type GitRecoveryOperation = 'merge' | 'revert' | 'cherry-pick';
+
+/** Tracked repository source */
+export type GitTrackedRepoSource = 'manual' | 'init' | 'clone' | 'project';
+
 /** Platform type */
 export type Platform = 'windows' | 'macos' | 'linux' | 'unknown';
 
@@ -55,6 +64,22 @@ export interface GitRepoInfo {
   hasUncommittedChanges: boolean;
   hasUntrackedFiles: boolean;
   lastCommit: GitCommitInfo | null;
+  syncState?: GitSyncState | null;
+  hasConflicts?: boolean;
+  inProgressOperation?: GitRecoveryOperation | null;
+  canAbortOperation?: boolean;
+  recommendedRecoveryAction?: string | null;
+}
+
+/** Persisted tracked repository metadata */
+export interface GitTrackedRepo {
+  path: string;
+  displayName: string;
+  source: GitTrackedRepoSource;
+  lastOpenedAt: string;
+  remoteUrl?: string | null;
+  branch?: string | null;
+  linkedProjectIds: string[];
 }
 
 /** Git commit information */
@@ -430,6 +455,31 @@ export function createDefaultGitRepoInfo(path: string): GitRepoInfo {
     hasUncommittedChanges: false,
     hasUntrackedFiles: false,
     lastCommit: null,
+    syncState: null,
+    hasConflicts: false,
+    inProgressOperation: null,
+    canAbortOperation: false,
+    recommendedRecoveryAction: null,
+  };
+}
+
+/** Create tracked repository metadata */
+export function createTrackedRepoRecord(
+  path: string,
+  metadata: Partial<Omit<GitTrackedRepo, 'path'>> = {}
+): GitTrackedRepo {
+  const normalizedPath = path.trim();
+  const segments = normalizedPath.split(/[/\\]/).filter(Boolean);
+  const displayName = metadata.displayName || segments[segments.length - 1] || normalizedPath;
+
+  return {
+    path: normalizedPath,
+    displayName,
+    source: metadata.source || 'manual',
+    lastOpenedAt: metadata.lastOpenedAt || new Date().toISOString(),
+    remoteUrl: metadata.remoteUrl ?? null,
+    branch: metadata.branch ?? null,
+    linkedProjectIds: metadata.linkedProjectIds ? [...metadata.linkedProjectIds] : [],
   };
 }
 

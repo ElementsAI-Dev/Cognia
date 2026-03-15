@@ -6,6 +6,20 @@
 
 /** Available marketplace sources */
 export type McpMarketplaceSource = 'cline' | 'smithery' | 'glama' | 'all';
+export type McpRemoteMarketplaceSource = Exclude<McpMarketplaceSource, 'all'>;
+export type McpMarketplaceItemKey = string;
+
+export type McpMarketplaceErrorCategory =
+  | 'auth'
+  | 'network'
+  | 'rate_limit'
+  | 'not_found'
+  | 'server'
+  | 'timeout'
+  | 'unsupported'
+  | 'unknown';
+
+export type McpMarketplaceSourceStatus = 'ok' | 'empty' | 'error';
 
 /** Marketplace source configuration */
 export interface McpMarketplaceSourceConfig {
@@ -48,7 +62,7 @@ export const MARKETPLACE_SOURCES: McpMarketplaceSourceConfig[] = [
 /** Connection configuration for remote MCP servers */
 export interface McpConnectionConfig {
   /** Connection type */
-  type: 'stdio' | 'sse' | 'streamable-http';
+  type: 'stdio' | 'sse' | 'streamable-http' | 'http' | 'manual';
   /** Command for stdio */
   command?: string;
   /** Arguments for stdio */
@@ -59,6 +73,15 @@ export interface McpConnectionConfig {
   url?: string;
   /** Configuration schema for user inputs */
   configSchema?: Record<string, unknown>;
+}
+
+export interface McpMarketplaceSourceHealth {
+  source: McpRemoteMarketplaceSource;
+  status: McpMarketplaceSourceStatus;
+  itemCount: number;
+  retryable: boolean;
+  errorCategory?: McpMarketplaceErrorCategory;
+  errorMessage?: string;
 }
 
 /** MCP Marketplace item from the API */
@@ -99,6 +122,8 @@ export interface McpMarketplaceItem {
   homepage?: string;
   /** Connection config for SSE servers */
   connectionConfig?: McpConnectionConfig;
+  /** Stable key for source-scoped item state */
+  itemKey?: McpMarketplaceItemKey;
 }
 
 /** MCP Download response from the API */
@@ -111,6 +136,13 @@ export interface McpDownloadResponse {
   readmeContent: string;
   llmsInstallationContent?: string;
   requiresApiKey: boolean;
+  source?: McpRemoteMarketplaceSource;
+  itemKey?: McpMarketplaceItemKey;
+  homepage?: string;
+  connectionConfig?: McpConnectionConfig;
+  envKeys?: string[];
+  manualSteps?: string[];
+  errorCategory?: McpMarketplaceErrorCategory;
   error?: string;
 }
 
@@ -121,6 +153,7 @@ export interface McpMarketplaceCatalog {
   totalCount?: number;
   page?: number;
   pageSize?: number;
+  sourceHealth?: Partial<Record<McpRemoteMarketplaceSource, McpMarketplaceSourceHealth>>;
 }
 
 /** Marketplace filter options */

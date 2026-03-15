@@ -12,6 +12,32 @@ export type PromptTemplateImportStrategy = 'skip' | 'overwrite' | 'duplicate';
 
 export type PromptTemplateOperationStatus = 'idle' | 'running' | 'success' | 'error';
 
+export type PromptTemplateMarketplaceLinkage = 'installed' | 'published' | 'forked';
+
+export type PromptTemplateMarketplaceSyncStatus =
+  | 'local'
+  | 'clean'
+  | 'dirty'
+  | 'update-available'
+  | 'conflict'
+  | 'published';
+
+export type PromptTemplatePublishReadinessReason =
+  | 'missing-name'
+  | 'missing-description'
+  | 'missing-content'
+  | 'missing-category'
+  | 'invalid-category'
+  | 'restricted-source'
+  | 'unresolved-conflict';
+
+export type PromptTemplateDraftSessionOrigin =
+  | 'manager'
+  | 'editor'
+  | 'advanced-editor'
+  | 'marketplace-detail'
+  | 'publish-dialog';
+
 export type PromptTemplateOperationCode =
   | 'OK'
   | 'TEMPLATE_NOT_FOUND'
@@ -102,6 +128,24 @@ export interface TemplateVariable {
   sampleValue?: string;
 }
 
+export interface PromptTemplateMarketplaceBaseline {
+  version: string;
+  name: string;
+  description?: string;
+  content: string;
+  category?: string;
+  tags: string[];
+  variables: TemplateVariable[];
+  targets: PromptTemplateTarget[];
+  capturedAt: string;
+}
+
+export interface PromptTemplatePublishReadiness {
+  isReady: boolean;
+  mode: 'create' | 'update' | 'blocked';
+  reasons: PromptTemplatePublishReadinessReason[];
+}
+
 export interface PromptTemplateMeta {
   icon?: string;
   color?: string;
@@ -115,7 +159,16 @@ export interface PromptTemplateMeta {
   };
   marketplace?: {
     marketplaceId?: string;
+    sourcePromptId?: string;
+    linkageType?: PromptTemplateMarketplaceLinkage;
     installedVersion?: string;
+    latestVersion?: string;
+    publishedVersion?: string;
+    syncStatus?: PromptTemplateMarketplaceSyncStatus;
+    baseline?: PromptTemplateMarketplaceBaseline;
+    lastSyncedAt?: string;
+    lastPublishedAt?: string;
+    canPublishUpdates?: boolean;
   };
 }
 
@@ -270,6 +323,20 @@ export interface CreatePromptTemplateInput {
 }
 
 export type UpdatePromptTemplateInput = Partial<CreatePromptTemplateInput>;
+
+export const NEW_PROMPT_TEMPLATE_DRAFT_SESSION_ID = '__new__';
+
+export interface PromptTemplateDraftSession {
+  id: string;
+  templateId: string;
+  origin: PromptTemplateDraftSessionOrigin;
+  snapshot: CreatePromptTemplateInput;
+  dirty: boolean;
+  publishReadiness?: PromptTemplatePublishReadiness;
+  createdAt: Date;
+  updatedAt: Date;
+  lastRecoveredAt?: Date;
+}
 
 export const DEFAULT_PROMPT_TEMPLATE_CATEGORIES: string[] = [
   'code-review',

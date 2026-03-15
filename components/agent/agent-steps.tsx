@@ -15,6 +15,7 @@ import {
   Clock,
   Zap,
   AlertTriangle,
+  type LucideIcon,
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +32,7 @@ interface AgentStepsProps {
   compactMode?: boolean;
 }
 
-const priorityConfig: Record<string, { color: string; icon: React.ElementType }> = {
+const priorityConfig: Record<string, { color: string; icon: LucideIcon }> = {
   low: { ...STEP_PRIORITY_CONFIG.low, icon: Circle },
   normal: { ...STEP_PRIORITY_CONFIG.normal, icon: Circle },
   high: { ...STEP_PRIORITY_CONFIG.high, icon: AlertTriangle },

@@ -97,6 +97,36 @@ export interface ValidationFocusTarget {
   issuedAt: number;
 }
 
+export type WorkflowInspectorSection = 'config' | 'data' | 'execution';
+
+export type WorkflowInsertionOrigin =
+  | 'node-exit'
+  | 'edge-gap'
+  | 'canvas-empty'
+  | 'command'
+  | 'palette'
+  | 'template';
+
+export type WorkflowInsertionMode = 'append' | 'insert-between' | 'branch';
+
+export interface WorkflowInsertionIntent {
+  mode: WorkflowInsertionMode;
+  origin: WorkflowInsertionOrigin;
+  sourceNodeId?: string;
+  targetNodeId?: string;
+  edgeId?: string;
+  position?: { x: number; y: number };
+  searchQuery?: string;
+  openedAt: number;
+}
+
+export interface WorkflowExecutionFocus {
+  nodeId?: string;
+  executionId?: string;
+  source: 'canvas' | 'inspector' | 'execution' | 'validation';
+  openedAt: number;
+}
+
 export interface WorkflowSliceState {
   currentWorkflow: VisualWorkflow | null;
   savedWorkflows: VisualWorkflow[];
@@ -149,9 +179,12 @@ export interface UISliceState {
   showExecutionPanel: boolean;
   showMinimap: boolean;
   activeConfigTab: string;
+  activeInspectorSection: WorkflowInspectorSection;
   searchQuery: string;
   recentNodes: WorkflowNodeType[];
   favoriteNodes: WorkflowNodeType[];
+  insertionIntent: WorkflowInsertionIntent | null;
+  executionFocus: WorkflowExecutionFocus | null;
 }
 
 export interface TemplateSliceState {
@@ -205,6 +238,7 @@ export interface WorkflowSliceActions {
 
 export interface NodeSliceActions {
   addNode: (type: WorkflowNodeType, position: { x: number; y: number }) => string;
+  insertNodeFromIntent: (type: WorkflowNodeType) => string | null;
   updateNode: (nodeId: string, data: Partial<WorkflowNodeData>) => void;
   deleteNode: (nodeId: string) => void;
   deleteNodes: (nodeIds: string[]) => void;
@@ -289,9 +323,14 @@ export interface UISliceActions {
   toggleExecutionPanel: () => void;
   toggleMinimap: () => void;
   setActiveConfigTab: (tab: string) => void;
+  setActiveInspectorSection: (section: WorkflowInspectorSection) => void;
   setSearchQuery: (query: string) => void;
   addRecentNode: (type: WorkflowNodeType) => void;
   toggleFavoriteNode: (type: WorkflowNodeType) => void;
+  setInsertionIntent: (intent: WorkflowInsertionIntent) => void;
+  clearInsertionIntent: () => void;
+  setExecutionFocus: (focus: WorkflowExecutionFocus) => void;
+  clearExecutionFocus: () => void;
 }
 
 export interface TemplateSliceActions {

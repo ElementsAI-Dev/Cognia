@@ -77,6 +77,12 @@ jest.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
+jest.mock('@/components/ui/resizable', () => ({
+  ResizablePanelGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  ResizablePanel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  ResizableHandle: () => <div />,
+}));
+
 describe('PromptTemplateAdvancedEditor', () => {
   const mockTemplate = {
     id: 'template-1',
@@ -184,5 +190,51 @@ describe('PromptTemplateAdvancedEditor', () => {
   it('shows submit error message when provided', () => {
     render(<PromptTemplateAdvancedEditor {...defaultProps} submitError="Save failed" />);
     expect(screen.getByText('Save failed')).toBeInTheDocument();
+  });
+
+  it('saves a draft on cancel and renders workflow readiness hints', () => {
+    const onSaveDraft = jest.fn();
+    render(
+      <PromptTemplateAdvancedEditor
+        {...defaultProps}
+        template={{
+          ...mockTemplate,
+          description: '',
+          source: 'imported',
+          meta: {
+            marketplace: {
+              marketplaceId: 'market-1',
+              linkageType: 'installed',
+              installedVersion: '1.0.0',
+              latestVersion: '2.0.0',
+              baseline: {
+                version: '1.0.0',
+                name: 'Test Template',
+                description: '',
+                content: 'Original content',
+                category: 'general',
+                tags: ['test'],
+                variables: mockTemplate.variables,
+                targets: ['chat'],
+                capturedAt: '2026-03-14T00:00:00.000Z',
+              },
+            },
+          },
+        }}
+        onSaveDraft={onSaveDraft}
+      />
+    );
+
+    expect(screen.getByText('Publish blocked')).toBeInTheDocument();
+    const nameInput = screen.getByDisplayValue('Test Template');
+    fireEvent.change(nameInput, { target: { value: 'Draft Name' } });
+    const cancelButton = screen.getAllByRole('button').find(btn =>
+      btn.textContent?.toLowerCase().includes('cancel')
+    );
+    expect(cancelButton).toBeDefined();
+    if (cancelButton) {
+      fireEvent.click(cancelButton);
+    }
+    expect(onSaveDraft).toHaveBeenCalled();
   });
 });

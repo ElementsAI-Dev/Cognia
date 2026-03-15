@@ -11,6 +11,7 @@ import {
   type AgentTeamTask,
   type AgentTeamTemplate,
   type AgentTeammate,
+  type TeamRoutingAssessment,
   type CreateTaskInput,
   type CreateTeamInput,
   type SendMessageInput,
@@ -40,6 +41,7 @@ describe('useAgentTeam manager-store sync', () => {
   const mockStoreUpsertMessage = jest.fn();
   const mockStoreSetTaskStatus = jest.fn();
   const mockStoreSetActiveTeam = jest.fn();
+  const mockStoreAddEvent = jest.fn();
 
   const mockManagerCreateTeam = jest.fn();
   const mockManagerGetTeammate = jest.fn();
@@ -49,6 +51,8 @@ describe('useAgentTeam manager-store sync', () => {
   const mockManagerDelegateTaskToBackground = jest.fn();
   const mockManagerGetTask = jest.fn();
   const mockManagerGetTeam = jest.fn();
+  const mockManagerAssessTeamRouting = jest.fn();
+  const mockManagerSelectExecutionPattern = jest.fn();
 
   const useAgentTeamStoreMock = useAgentTeamStore as unknown as jest.MockedFunction<typeof useAgentTeamStore>;
   const useSettingsStoreMock = useSettingsStore as unknown as jest.MockedFunction<typeof useSettingsStore>;
@@ -98,7 +102,7 @@ describe('useAgentTeam manager-store sync', () => {
       deleteTeam: jest.fn(),
       cleanupTeam: jest.fn(),
       updateTeam: jest.fn(),
-      addEvent: jest.fn(),
+      addEvent: mockStoreAddEvent,
       addTemplate: jest.fn(),
       deleteTemplate: jest.fn(),
       setActiveTeam: mockStoreSetActiveTeam,
@@ -141,6 +145,8 @@ describe('useAgentTeam manager-store sync', () => {
       getConsensus: jest.fn(),
       getTeamConsensus: jest.fn(),
       delegateTaskToBackground: mockManagerDelegateTaskToBackground,
+      assessTeamRouting: mockManagerAssessTeamRouting,
+      selectExecutionPattern: mockManagerSelectExecutionPattern,
     } as never);
   });
 
@@ -456,5 +462,125 @@ describe('useAgentTeam manager-store sync', () => {
     expect(mockManagerDelegateTaskToBackground).toHaveBeenCalledWith('team-1', 'task-1', undefined);
     expect(mockStoreUpsertTask).toHaveBeenCalledWith(updatedTask);
     expect(mockStoreUpsertTeam).toHaveBeenCalledWith(updatedTeam);
+    expect(mockStoreAddEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'delegation_completed',
+        teamId: 'team-1',
+        taskId: 'task-1',
+      })
+    );
+  });
+
+  it('assessTeamRouting returns the manager assessment and syncs the refreshed team snapshot', () => {
+    const assessment: TeamRoutingAssessment = {
+      recommendedPattern: 'parallel_specialists',
+      confidence: 0.88,
+      reason: 'Complex task with parallelizable specialist work',
+      factors: {
+        taskComplexity: 'complex',
+        specializationNeeded: true,
+        contextIsolationNeeded: true,
+        delegationCandidate: false,
+        budgetPressure: 'low',
+      },
+      createdAt: new Date('2026-03-14T10:00:00.000Z'),
+    };
+
+    const updatedTeam: AgentTeam = {
+      id: 'team-1',
+      name: 'Routing Team',
+      description: 'routing',
+      task: 'task',
+      status: 'idle',
+      config: { ...DEFAULT_TEAM_CONFIG },
+      routingAssessment: assessment,
+      selectedExecutionPattern: 'parallel_specialists',
+      leadId: 'lead-1',
+      teammateIds: ['lead-1'],
+      taskIds: [],
+      messageIds: [],
+      progress: 0,
+      totalTokenUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      createdAt: new Date('2026-03-14T10:00:00.000Z'),
+    };
+
+    mockManagerAssessTeamRouting.mockReturnValue(assessment);
+    mockManagerGetTeam.mockReturnValue(updatedTeam);
+
+    const { result } = renderHook(() => useAgentTeam());
+    const api = result.current as typeof result.current & {
+      assessTeamRouting?: (teamId: string) => TeamRoutingAssessment | null;
+    };
+
+    let returnedAssessment: TeamRoutingAssessment | null | undefined;
+    act(() => {
+      returnedAssessment = api.assessTeamRouting?.('team-1');
+    });
+
+    expect(returnedAssessment).toEqual(assessment);
+    expect(mockManagerAssessTeamRouting).toHaveBeenCalledWith('team-1');
+    expect(mockStoreUpsertTeam).toHaveBeenCalledWith(updatedTeam);
+    expect(mockStoreAddEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'routing_assessed',
+        teamId: 'team-1',
+      })
+    );
+  });
+
+  it('selectExecutionPattern persists the operator override through the manager and store', () => {
+    const updatedTeam: AgentTeam = {
+      id: 'team-1',
+      name: 'Routing Team',
+      description: 'routing',
+      task: 'task',
+      status: 'idle',
+      config: { ...DEFAULT_TEAM_CONFIG },
+      routingAssessment: {
+        recommendedPattern: 'parallel_specialists',
+        confidence: 0.88,
+        reason: 'Complex task with parallelizable specialist work',
+        factors: {
+          taskComplexity: 'complex',
+          specializationNeeded: true,
+          contextIsolationNeeded: true,
+          delegationCandidate: false,
+          budgetPressure: 'low',
+        },
+        createdAt: new Date('2026-03-14T10:00:00.000Z'),
+        overridePattern: 'background_handoff',
+        acceptedPattern: 'background_handoff',
+      },
+      selectedExecutionPattern: 'background_handoff',
+      leadId: 'lead-1',
+      teammateIds: ['lead-1'],
+      taskIds: [],
+      messageIds: [],
+      progress: 0,
+      totalTokenUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      createdAt: new Date('2026-03-14T10:00:00.000Z'),
+    };
+
+    mockManagerSelectExecutionPattern.mockReturnValue(updatedTeam);
+
+    const { result } = renderHook(() => useAgentTeam());
+    const api = result.current as typeof result.current & {
+      selectExecutionPattern?: (teamId: string, pattern: string) => AgentTeam | null;
+    };
+
+    let selectedTeam: AgentTeam | null | undefined;
+    act(() => {
+      selectedTeam = api.selectExecutionPattern?.('team-1', 'background_handoff');
+    });
+
+    expect(selectedTeam).toEqual(updatedTeam);
+    expect(mockManagerSelectExecutionPattern).toHaveBeenCalledWith('team-1', 'background_handoff');
+    expect(mockStoreUpsertTeam).toHaveBeenCalledWith(updatedTeam);
+    expect(mockStoreAddEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'pattern_selected',
+        teamId: 'team-1',
+      })
+    );
   });
 });

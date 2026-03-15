@@ -6,6 +6,12 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ObservabilityDashboard } from './observability-dashboard';
 
+const mockUseSearchParams = jest.fn(() => new URLSearchParams());
+
+jest.mock('next/navigation', () => ({
+  useSearchParams: () => mockUseSearchParams(),
+}));
+
 // Mock dexie-react-hooks (required by useAgentTrace)
 jest.mock('dexie-react-hooks', () => ({
   useLiveQuery: jest.fn(() => []),
@@ -15,6 +21,7 @@ jest.mock('dexie-react-hooks', () => ({
 jest.mock('@/hooks/agent-trace', () => ({
   useAgentTrace: jest.fn(() => ({
     traces: [],
+    observations: [],
     totalCount: 0,
     isLoading: false,
     isEnabled: true,
@@ -30,6 +37,7 @@ jest.mock('@/hooks/agent-trace', () => ({
     findLineAttribution: jest.fn(),
     findLineAttributionWithBlame: jest.fn(),
     exportAsSpecRecord: jest.fn(),
+    exportObservationBundle: jest.fn(),
   })),
 }));
 
@@ -63,6 +71,9 @@ jest.mock('@/stores', () => ({
         enabled: true,
         langfuseEnabled: true,
         openTelemetryEnabled: true,
+      },
+      agentTraceSettings: {
+        enabled: false,
       },
     };
     return selector(state);
@@ -107,6 +118,7 @@ jest.mock('./cost-analysis', () => ({
 describe('ObservabilityDashboard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseSearchParams.mockReturnValue(new URLSearchParams());
   });
 
   it('should render dashboard header', () => {
@@ -166,6 +178,24 @@ describe('ObservabilityDashboard', () => {
 
     expect(screen.getByText(/observability dashboard/i)).toBeInTheDocument();
   });
+
+  it('passes trace pivot filters from search params into useAgentTrace', () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams('traceSessionId=session-1&traceOutcome=error&traceToolName=code')
+    );
+
+    const { useAgentTrace } = jest.requireMock('@/hooks/agent-trace');
+    render(<ObservabilityDashboard />);
+
+    expect(useAgentTrace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'session-1',
+        outcome: 'error',
+        toolName: 'code',
+        limit: 50,
+      })
+    );
+  });
 });
 
 describe('ObservabilityDashboard when disabled', () => {
@@ -174,6 +204,9 @@ describe('ObservabilityDashboard when disabled', () => {
     stores.useSettingsStore.mockImplementation((selector: (state: unknown) => unknown) => {
       const state = {
         observabilitySettings: {
+          enabled: false,
+        },
+        agentTraceSettings: {
           enabled: false,
         },
       };
@@ -186,5 +219,36 @@ describe('ObservabilityDashboard when disabled', () => {
 
     // The alert title is "Observability Disabled"
     expect(screen.getByText(/observability disabled/i)).toBeInTheDocument();
+  });
+
+  it('keeps the dashboard accessible when disabled settings still have local history', () => {
+    const stores = jest.requireMock('@/stores');
+    stores.useUsageStore.mockImplementation((selector: (state: unknown) => unknown) => {
+      const state = {
+        records: [
+          {
+            id: 'usage-1',
+            provider: 'openai',
+            model: 'gpt-4o-mini',
+            timestamp: new Date().toISOString(),
+            promptTokens: 1,
+            completionTokens: 1,
+            totalTokens: 2,
+            cost: 0.01,
+            latency: 10,
+            status: 'success',
+          },
+        ],
+        triggerRefresh: jest.fn(),
+      };
+      return selector(state);
+    });
+
+    render(<ObservabilityDashboard />);
+
+    expect(screen.getByText(/observability dashboard/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/history remains available even though new capture is off/i)
+    ).toBeInTheDocument();
   });
 });

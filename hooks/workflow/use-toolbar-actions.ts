@@ -7,6 +7,10 @@ import { useMemo, useCallback } from 'react';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 import { useShallow } from 'zustand/react/shallow';
 import { toast } from 'sonner';
+import {
+  getWorkflowExecutionControlsSummary,
+  getWorkflowValidationSummary,
+} from '@/lib/workflow-editor';
 
 export interface ToolbarState {
   canUndo: boolean;
@@ -88,12 +92,20 @@ export function useToolbarActions() {
     }))
   );
 
-  const blockingValidationErrors = useMemo(
-    () =>
-      validationErrors.filter(
-        (error) => error.blocking ?? (error.severity !== 'warning' && error.severity !== 'info')
-      ),
+  const validationSummary = useMemo(
+    () => getWorkflowValidationSummary(validationErrors),
     [validationErrors]
+  );
+  const blockingValidationErrors = validationSummary.blockingErrors;
+  const executionControls = useMemo(
+    () =>
+      getWorkflowExecutionControlsSummary({
+        hasWorkflow: currentWorkflow !== null,
+        isExecuting,
+        status: executionState?.status,
+        validationErrors,
+      }),
+    [currentWorkflow, executionState?.status, isExecuting, validationErrors]
   );
 
   // Computed state
@@ -101,26 +113,29 @@ export function useToolbarActions() {
     canUndo: historyIndex > 0,
     canRedo: historyIndex < historyLength - 1,
     canSave: isDirty && currentWorkflow !== null && editorLifecycleState !== 'saving',
-    canRun: !isExecuting && currentWorkflow !== null && blockingValidationErrors.length === 0,
-    canPause: isExecuting && executionState?.status === 'running',
-    canResume: isExecuting && executionState?.status === 'paused',
-    canStop: isExecuting,
-    isValid: blockingValidationErrors.length === 0,
+    canRun: executionControls.canRun,
+    canPause: executionControls.canPause,
+    canResume: executionControls.canResume,
+    canStop: executionControls.canCancel,
+    isValid: !validationSummary.hasBlockingErrors,
     hasSelection: selectedNodes.length > 0,
     isSaving: editorLifecycleState === 'saving',
     isPublishBlocked:
-      editorLifecycleState === 'publishBlocked' || blockingValidationErrors.length > 0,
-    blockingErrorCount: blockingValidationErrors.length,
+      editorLifecycleState === 'publishBlocked' || validationSummary.hasBlockingErrors,
+    blockingErrorCount: validationSummary.blockingCount,
   }), [
+    executionControls.canCancel,
+    executionControls.canPause,
+    executionControls.canResume,
+    executionControls.canRun,
     historyIndex,
     historyLength,
     isDirty,
     currentWorkflow,
     editorLifecycleState,
-    isExecuting,
-    executionState,
     selectedNodes,
-    blockingValidationErrors,
+    validationSummary.blockingCount,
+    validationSummary.hasBlockingErrors,
   ]);
 
   // Action handlers

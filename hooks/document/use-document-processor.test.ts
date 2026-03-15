@@ -77,9 +77,9 @@ jest.mock('@/lib/document/document-processor', () => ({
   detectDocumentType: jest.fn((filename: string) => {
     if (filename.endsWith('.md')) return 'markdown';
     if (filename.endsWith('.pdf')) return 'pdf';
-    if (filename.endsWith('.docx')) return 'word';
-    if (filename.endsWith('.xlsx')) return 'excel';
-    if (filename.endsWith('.pptx') || filename.endsWith('.ppt')) return 'presentation';
+    if (filename.endsWith('.docx') || filename.endsWith('.docm') || filename.endsWith('.odt')) return 'word';
+    if (filename.endsWith('.xlsx') || filename.endsWith('.xlsm') || filename.endsWith('.ods')) return 'excel';
+    if (filename.endsWith('.pptx') || filename.endsWith('.ppt') || filename.endsWith('.pptm') || filename.endsWith('.odp')) return 'presentation';
     if (filename.endsWith('.epub')) return 'epub';
     if (filename.endsWith('.rtf')) return 'rtf';
     if (filename.endsWith('.ts')) return 'code';
@@ -90,7 +90,7 @@ jest.mock('@/lib/document/document-processor', () => ({
   ),
   isTextFile: jest.fn((filename: string) => {
     const ext = filename.split('.').pop()?.toLowerCase() || '';
-    return !['pdf', 'docx', 'xlsx', 'pptx', 'ppt', 'epub'].includes(ext);
+    return !['pdf', 'docx', 'docm', 'odt', 'xlsx', 'xlsm', 'ods', 'pptx', 'ppt', 'pptm', 'odp', 'epub'].includes(ext);
   }),
   estimateTokenCount: jest.fn((content: string) => Math.ceil(content.length / 4)),
   validateFile: jest.fn((_filename: string, size: number, options?: { maxSize?: number }) => {
@@ -332,8 +332,14 @@ describe('useDocumentProcessor', () => {
       expect(result.current.detectType('readme.md')).toBe('markdown');
       expect(result.current.detectType('test.pdf')).toBe('pdf');
       expect(result.current.detectType('doc.docx')).toBe('word');
+      expect(result.current.detectType('template.docm')).toBe('word');
+      expect(result.current.detectType('notes.odt')).toBe('word');
       expect(result.current.detectType('data.xlsx')).toBe('excel');
+      expect(result.current.detectType('sheet.xlsm')).toBe('excel');
+      expect(result.current.detectType('budget.ods')).toBe('excel');
       expect(result.current.detectType('deck.pptx')).toBe('presentation');
+      expect(result.current.detectType('slides.pptm')).toBe('presentation');
+      expect(result.current.detectType('roadmap.odp')).toBe('presentation');
       expect(result.current.detectType('book.epub')).toBe('epub');
       expect(result.current.detectType('draft.rtf')).toBe('rtf');
       expect(result.current.detectType('file.txt')).toBe('text');
@@ -346,9 +352,15 @@ describe('useDocumentProcessor', () => {
       expect(result.current.isProcessable('readme.md')).toBe(true);
       expect(result.current.isProcessable('report.pdf')).toBe(true);
       expect(result.current.isProcessable('doc.docx')).toBe(true);
+      expect(result.current.isProcessable('template.docm')).toBe(true);
+      expect(result.current.isProcessable('notes.odt')).toBe(true);
       expect(result.current.isProcessable('data.xlsx')).toBe(true);
+      expect(result.current.isProcessable('sheet.xlsm')).toBe(true);
+      expect(result.current.isProcessable('budget.ods')).toBe(true);
       expect(result.current.isProcessable('slides.pptx')).toBe(true);
       expect(result.current.isProcessable('legacy.ppt')).toBe(true);
+      expect(result.current.isProcessable('slides.pptm')).toBe(true);
+      expect(result.current.isProcessable('roadmap.odp')).toBe(true);
       expect(result.current.isProcessable('book.epub')).toBe(true);
       expect(result.current.isProcessable('draft.rtf')).toBe(true);
     });

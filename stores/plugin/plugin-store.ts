@@ -6,6 +6,9 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { invoke } from '@tauri-apps/api/core';
 import type {
+  ExtensionCompatibilityDiagnostic,
+  ExtensionDescriptor,
+  PluginInstallRootKind,
   Plugin,
   PluginManifest,
   PluginStatus,
@@ -19,6 +22,7 @@ import type {
 } from '@/types/plugin';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import { validatePluginManifest } from '@/lib/plugin';
+import { buildExtensionDescriptor } from '@/lib/plugin/core/descriptor';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.plugin;
@@ -29,7 +33,12 @@ const log = loggers.plugin;
 
 interface PluginState extends PluginStoreState {
   // Actions - Plugin Lifecycle
-  discoverPlugin: (manifest: PluginManifest, source: PluginSource, path: string) => void;
+  discoverPlugin: (
+    manifest: PluginManifest,
+    source: PluginSource,
+    path: string,
+    options?: PluginDiscoveryOptions
+  ) => void;
   installPlugin: (pluginId: string) => Promise<void>;
   loadPlugin: (pluginId: string, options?: PluginLifecycleActionOptions) => Promise<void>;
   enablePlugin: (pluginId: string, options?: PluginLifecycleActionOptions) => Promise<void>;
@@ -83,6 +92,12 @@ interface PluginUninstallOptions extends PluginLifecycleActionOptions {
   skipFileRemoval?: boolean;
 }
 
+interface PluginDiscoveryOptions {
+  descriptor?: ExtensionDescriptor;
+  installRootKind?: PluginInstallRootKind;
+  compatibilityDiagnostics?: ExtensionCompatibilityDiagnostic[];
+}
+
 // =============================================================================
 // Initial State
 // =============================================================================
@@ -112,12 +127,21 @@ export const usePluginStore = create<PluginState>()(
       // Plugin Lifecycle Actions
       // =====================================================================
 
-      discoverPlugin: (manifest, source, path) => {
+      discoverPlugin: (manifest, source, path, options) => {
+        const descriptor = options?.descriptor || buildExtensionDescriptor({
+          manifest,
+          source,
+          path,
+          pluginDirectory: get().pluginDirectory || undefined,
+          installRootKind: options?.installRootKind,
+          compatibilityDiagnostics: options?.compatibilityDiagnostics,
+        });
         const plugin: Plugin = {
           manifest,
           status: 'discovered',
           source,
           path,
+          descriptor,
           config: manifest.defaultConfig || {},
         };
 
@@ -663,7 +687,13 @@ export const usePluginStore = create<PluginState>()(
         if (!pluginDirectory) return;
 
         try {
-          const results = await invoke<Array<{ manifest: PluginManifest; path: string }>>(
+          const results = await invoke<Array<{
+            manifest: PluginManifest;
+            path: string;
+            source?: PluginSource;
+            installRootKind?: PluginInstallRootKind;
+            compatibilityDiagnostics?: ExtensionCompatibilityDiagnostic[];
+          }>>(
             'plugin_scan_directory',
             {
               directory: pluginDirectory,
@@ -678,14 +708,25 @@ export const usePluginStore = create<PluginState>()(
           set((state) => {
             const nextPlugins = { ...state.plugins };
 
-            for (const { manifest, path } of validResults) {
+            for (const entry of validResults) {
+              const { manifest, path } = entry;
+              const source = entry.source || 'local';
+              const descriptor = buildExtensionDescriptor({
+                manifest,
+                source,
+                path,
+                pluginDirectory,
+                installRootKind: entry.installRootKind,
+                compatibilityDiagnostics: entry.compatibilityDiagnostics,
+              });
               const existing = nextPlugins[manifest.id];
               if (!existing) {
                 nextPlugins[manifest.id] = {
                   manifest,
                   status: 'installed',
-                  source: 'local',
+                  source,
                   path,
+                  descriptor,
                   config: (manifest.defaultConfig as Record<string, unknown>) || {},
                   installedAt: new Date(),
                 };
@@ -695,7 +736,9 @@ export const usePluginStore = create<PluginState>()(
               nextPlugins[manifest.id] = {
                 ...existing,
                 manifest,
+                source,
                 path,
+                descriptor,
               };
             }
 

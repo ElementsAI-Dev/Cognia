@@ -728,6 +728,7 @@ export interface CreateArtifactOptions {
   sessionId?: string;
   messageId?: string;
   type?: 'code' | 'text' | 'react' | 'html' | 'svg' | 'mermaid';
+  metadata?: Artifact['metadata'];
 }
 
 /**

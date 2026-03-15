@@ -17,6 +17,7 @@ import {
   secureRemoveProviderApiKey,
 } from '@/lib/native/stronghold-integration';
 import type { UserProviderSettings, ApiKeyRotationStrategy, ProviderName, ApiProtocol } from '@/types/provider';
+import { buildDefaultBuiltInProviderSettings } from '@/types/provider/built-in-provider-catalog';
 import {
   getNextApiKey,
   recordApiKeySuccess,
@@ -1152,90 +1153,7 @@ interface SettingsState {
 }
 
 const defaultProviderSettings: Record<string, UserProviderSettings> = {
-  openai: {
-    providerId: 'openai',
-    apiKey: '',
-    defaultModel: 'gpt-4o',
-    enabled: true,
-  },
-  anthropic: {
-    providerId: 'anthropic',
-    apiKey: '',
-    defaultModel: 'claude-sonnet-4-20250514',
-    enabled: true,
-  },
-  google: {
-    providerId: 'google',
-    apiKey: '',
-    defaultModel: 'gemini-2.0-flash-exp',
-    enabled: true,
-  },
-  deepseek: {
-    providerId: 'deepseek',
-    apiKey: '',
-    defaultModel: 'deepseek-chat',
-    enabled: false,
-  },
-  groq: {
-    providerId: 'groq',
-    apiKey: '',
-    defaultModel: 'llama-3.3-70b-versatile',
-    enabled: false,
-  },
-  mistral: {
-    providerId: 'mistral',
-    apiKey: '',
-    defaultModel: 'mistral-large-latest',
-    enabled: false,
-  },
-  xai: {
-    providerId: 'xai',
-    apiKey: '',
-    defaultModel: 'grok-3',
-    enabled: false,
-  },
-  togetherai: {
-    providerId: 'togetherai',
-    apiKey: '',
-    defaultModel: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
-    enabled: false,
-  },
-  openrouter: {
-    providerId: 'openrouter',
-    apiKey: '',
-    defaultModel: 'anthropic/claude-sonnet-4',
-    enabled: false,
-  },
-  cohere: {
-    providerId: 'cohere',
-    apiKey: '',
-    defaultModel: 'command-r-plus',
-    enabled: false,
-  },
-  fireworks: {
-    providerId: 'fireworks',
-    apiKey: '',
-    defaultModel: 'accounts/fireworks/models/llama-v3p3-70b-instruct',
-    enabled: false,
-  },
-  cerebras: {
-    providerId: 'cerebras',
-    apiKey: '',
-    defaultModel: 'llama-3.3-70b',
-    enabled: false,
-  },
-  sambanova: {
-    providerId: 'sambanova',
-    apiKey: '',
-    defaultModel: 'Meta-Llama-3.3-70B-Instruct',
-    enabled: false,
-  },
-  ollama: {
-    providerId: 'ollama',
-    baseURL: 'http://localhost:11434',
-    defaultModel: 'llama3.2',
-    enabled: false,
-  },
+  ...buildDefaultBuiltInProviderSettings(),
   // TTS-specific providers
   elevenlabs: {
     providerId: 'elevenlabs',
@@ -1265,61 +1183,6 @@ const defaultProviderSettings: Record<string, UserProviderSettings> = {
     providerId: 'deepgram',
     apiKey: '',
     defaultModel: 'aura-2-asteria-en',
-    enabled: false,
-  },
-  // Local inference providers
-  lmstudio: {
-    providerId: 'lmstudio',
-    baseURL: 'http://localhost:1234',
-    defaultModel: 'local-model',
-    enabled: false,
-  },
-  llamacpp: {
-    providerId: 'llamacpp',
-    baseURL: 'http://localhost:8080',
-    defaultModel: 'local-model',
-    enabled: false,
-  },
-  llamafile: {
-    providerId: 'llamafile',
-    baseURL: 'http://localhost:8080',
-    defaultModel: 'local-model',
-    enabled: false,
-  },
-  vllm: {
-    providerId: 'vllm',
-    baseURL: 'http://localhost:8000',
-    defaultModel: 'local-model',
-    enabled: false,
-  },
-  localai: {
-    providerId: 'localai',
-    baseURL: 'http://localhost:8080',
-    defaultModel: 'local-model',
-    enabled: false,
-  },
-  jan: {
-    providerId: 'jan',
-    baseURL: 'http://localhost:1337',
-    defaultModel: 'local-model',
-    enabled: false,
-  },
-  textgenwebui: {
-    providerId: 'textgenwebui',
-    baseURL: 'http://localhost:5000',
-    defaultModel: 'local-model',
-    enabled: false,
-  },
-  koboldcpp: {
-    providerId: 'koboldcpp',
-    baseURL: 'http://localhost:5001',
-    defaultModel: 'local-model',
-    enabled: false,
-  },
-  tabbyapi: {
-    providerId: 'tabbyapi',
-    baseURL: 'http://localhost:5000',
-    defaultModel: 'local-model',
     enabled: false,
   },
 };

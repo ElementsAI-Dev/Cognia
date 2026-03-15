@@ -8,7 +8,9 @@ import type { ProviderConfig } from '@/types/provider';
 
 jest.mock('@/components/ui/button', () => ({
   Button: ({ children, onClick, disabled, variant, size }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; variant?: string; size?: string }) => (
-    <button data-testid="button" data-variant={variant} data-size={size} onClick={onClick} disabled={disabled}>{children}</button>
+    <button data-testid="button" data-variant={variant} data-size={size} onClick={onClick} disabled={disabled}>
+      {React.Children.toArray(children)}
+    </button>
   ),
 }));
 
@@ -31,13 +33,13 @@ jest.mock('@/components/ui/badge', () => ({
 }));
 
 jest.mock('@/components/ui/table', () => ({
-  Table: ({ children }: { children: React.ReactNode }) => <table data-testid="table">{children}</table>,
-  TableHeader: ({ children }: { children: React.ReactNode }) => <thead data-testid="table-header">{children}</thead>,
-  TableBody: ({ children }: { children: React.ReactNode }) => <tbody data-testid="table-body">{children}</tbody>,
-  TableRow: ({ children, className }: { children: React.ReactNode; className?: string }) => <tr data-testid="table-row" className={className}>{children}</tr>,
-  TableHead: ({ children, className }: { children: React.ReactNode; className?: string }) => <th data-testid="table-head" className={className}>{children}</th>,
+  Table: ({ children }: { children: React.ReactNode }) => <table data-testid="table">{React.Children.toArray(children)}</table>,
+  TableHeader: ({ children }: { children: React.ReactNode }) => <thead data-testid="table-header">{React.Children.toArray(children)}</thead>,
+  TableBody: ({ children }: { children: React.ReactNode }) => <tbody data-testid="table-body">{React.Children.toArray(children)}</tbody>,
+  TableRow: ({ children, className }: { children: React.ReactNode; className?: string }) => <tr data-testid="table-row" className={className}>{React.Children.toArray(children)}</tr>,
+  TableHead: ({ children, className }: { children: React.ReactNode; className?: string }) => <th data-testid="table-head" className={className}>{React.Children.toArray(children)}</th>,
   TableCell: ({ children, className, colSpan }: { children: React.ReactNode; className?: string; colSpan?: number }) => (
-    <td data-testid="table-cell" className={className} colSpan={colSpan}>{children}</td>
+    <td data-testid="table-cell" className={className} colSpan={colSpan}>{React.Children.toArray(children)}</td>
   ),
 }));
 
@@ -81,6 +83,21 @@ const mockProvider: ProviderConfig = {
 const mockProviders: Array<[string, ProviderConfig]> = [
   ['openai', mockProvider],
 ];
+
+const mockCodingProvider: ProviderConfig = {
+  id: 'zhipu',
+  name: 'Zhipu AI (智谱清言)',
+  type: 'cloud',
+  apiKeyRequired: true,
+  baseURLRequired: false,
+  description: 'GLM models with strong Chinese and coding-oriented options',
+  category: 'specialized',
+  models: [
+    { id: 'glm-4-flash', name: 'GLM-4 Flash', contextLength: 128000, supportsVision: false, supportsTools: true, supportsAudio: false, supportsVideo: false, supportsStreaming: true },
+    { id: 'glm-4.6', name: 'GLM-4.6', contextLength: 128000, supportsVision: false, supportsTools: true, supportsAudio: false, supportsVideo: false, supportsStreaming: true },
+  ],
+  defaultModel: 'glm-4-flash',
+};
 
 describe('ProviderTableView', () => {
   const mockOnTestConnection = jest.fn();
@@ -207,5 +224,20 @@ describe('ProviderTableView', () => {
     const chevronBtn = buttons[buttons.length - 1];
     fireEvent.click(chevronBtn);
     // Should now show expanded content with "All Models" text
+  });
+
+  it('shows coding package guidance for providers with canonical coding recommendations', () => {
+    render(
+      <ProviderTableView
+        {...defaultProps}
+        providers={[['zhipu', mockCodingProvider]]}
+        providerSettings={{
+          zhipu: { enabled: true, apiKey: 'sk-test', defaultModel: 'glm-4-flash' },
+        }}
+      />
+    );
+
+    expect(screen.getByText('Coding')).toBeInTheDocument();
+    expect(screen.getByText(/glm-4\.6/)).toBeInTheDocument();
   });
 });

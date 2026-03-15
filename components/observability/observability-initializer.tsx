@@ -4,15 +4,29 @@
  * ObservabilityInitializer - Initializes observability systems on app start
  */
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useSettingsStore } from '@/stores';
+import { buildObservabilitySettingsProjection, normalizeObservabilitySettings } from '@/lib/observability';
 import { loggers } from '@/lib/logger';
 
 export function ObservabilityInitializer() {
   const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
+  const agentTraceSettings = useSettingsStore((state) => state.agentTraceSettings);
+  const settings = useMemo(
+    () => normalizeObservabilitySettings(observabilitySettings),
+    [observabilitySettings]
+  );
+  const projection = useMemo(
+    () =>
+      buildObservabilitySettingsProjection({
+        observabilitySettings: settings,
+        agentTraceSettings,
+      }),
+    [agentTraceSettings, settings]
+  );
 
   useEffect(() => {
-    if (!observabilitySettings?.enabled) {
+    if (!projection.runtimeCaptureEnabled) {
       return;
     }
 
@@ -22,15 +36,15 @@ export function ObservabilityInitializer() {
 
         await initializeObservability({
           langfuse: {
-            publicKey: observabilitySettings.langfusePublicKey || undefined,
-            secretKey: observabilitySettings.langfuseSecretKey || undefined,
-            host: observabilitySettings.langfuseHost || undefined,
-            enabled: observabilitySettings.langfuseEnabled,
+            publicKey: settings.langfusePublicKey || undefined,
+            secretKey: settings.langfuseSecretKey || undefined,
+            host: settings.langfuseHost || undefined,
+            enabled: projection.langfuse.active,
           },
           openTelemetry: {
-            serviceName: observabilitySettings.serviceName || 'cognia-ai',
-            traceEndpoint: observabilitySettings.openTelemetryEndpoint || undefined,
-            tracingEnabled: observabilitySettings.openTelemetryEnabled,
+            serviceName: settings.serviceName || 'cognia-ai',
+            traceEndpoint: settings.openTelemetryEndpoint || undefined,
+            tracingEnabled: projection.openTelemetry.active,
           },
         });
 
@@ -48,7 +62,7 @@ export function ObservabilityInitializer() {
         shutdownObservability().catch((err) => loggers.ai.warn('[Observability] Shutdown error', { error: err }));
       });
     };
-  }, [observabilitySettings]);
+  }, [projection.langfuse.active, projection.openTelemetry.active, projection.runtimeCaptureEnabled, settings]);
 
   return null;
 }

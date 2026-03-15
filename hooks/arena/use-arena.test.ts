@@ -2,8 +2,9 @@
  * Tests for useArena hook
  */
 
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useArena } from './use-arena';
+import { createFeatureProviderModelFromRuntimeConfig } from '@/lib/ai/provider-consumption';
 
 // Mock stores
 jest.mock('@/stores/settings', () => ({
@@ -108,9 +109,14 @@ jest.mock('ai', () => ({
   })),
 }));
 
-// Mock AI client
-jest.mock('@/lib/ai/core/client', () => ({
-  getProviderModel: jest.fn(() => ({})),
+// Mock shared routing contract
+jest.mock('@/lib/ai/provider-consumption', () => ({
+  createFeatureRoutePolicy: jest.fn((routeProfile, overrides) => ({
+    routeProfile,
+    selectionMode: 'default-provider',
+    ...overrides,
+  })),
+  createFeatureProviderModelFromRuntimeConfig: jest.fn(() => ({})),
 }));
 
 // Mock auto-router
@@ -122,6 +128,9 @@ jest.mock('@/lib/ai/generation/auto-router', () => ({
 }));
 
 describe('useArena', () => {
+  const mockCreateFeatureProviderModelFromRuntimeConfig =
+    createFeatureProviderModelFromRuntimeConfig as jest.Mock;
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -187,6 +196,56 @@ describe('useArena', () => {
       const readiness = result.current.getLaunchReadiness('', []);
       expect(readiness.canStart).toBe(false);
       expect(readiness.reasons.length).toBeGreaterThan(0);
+    });
+
+    it('resolves contestant models through the shared routing contract when starting a battle', async () => {
+      const battle = {
+        id: 'battle-1',
+        prompt: 'Test prompt',
+        contestants: [
+          { id: 'c1', provider: 'openai', model: 'gpt-4o', status: 'pending' },
+          { id: 'c2', provider: 'anthropic', model: 'claude-3-opus', status: 'pending' },
+        ],
+        conversationMode: 'single',
+        currentTurn: 0,
+        maxTurns: 5,
+      };
+
+      const state = {
+        createBattle: jest.fn(() => battle),
+        getBattle: jest.fn(() => battle),
+        updateContestantStatus: jest.fn(),
+        appendToContestantResponse: jest.fn(),
+        updateContestant: jest.fn(),
+        selectWinner: jest.fn(),
+        declareTie: jest.fn(),
+        declareBothBad: jest.fn(),
+      };
+
+      const arenaStore = jest.requireMock('@/stores/arena').useArenaStore;
+      arenaStore.mockImplementation((selector: (value: typeof state) => unknown) => selector(state));
+      arenaStore.getState.mockReturnValue({
+        continueBattle: jest.fn(),
+      });
+
+      const { result } = renderHook(() => useArena());
+      const availableModels = result.current.getAvailableModels().slice(0, 2);
+
+      await act(async () => {
+        await result.current.startBattle('Test prompt', availableModels);
+      });
+
+      expect(mockCreateFeatureProviderModelFromRuntimeConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          routeProfile: 'general-text',
+          featureId: 'arena-battle',
+        }),
+        expect.objectContaining({
+          providerId: 'openai',
+          model: 'gpt-4o',
+          apiKey: 'test-api-key',
+        })
+      );
     });
   });
 

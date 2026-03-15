@@ -10,7 +10,11 @@
 
 import { generateObject as aiGenerateObject, streamObject as aiStreamObject } from 'ai';
 import { z } from 'zod';
-import { getProviderModel, type ProviderName } from '../core/client';
+import {
+  createFeatureProviderModelFromRuntimeConfig,
+  createFeatureRoutePolicy,
+} from '@/lib/ai/provider-consumption';
+import type { ProviderName } from '../core/client';
 
 export interface StructuredOutputConfig {
   provider: ProviderName;
@@ -52,6 +56,24 @@ export interface StreamObjectOptions<T extends z.ZodType> {
   onError?: (error: Error) => void;
 }
 
+function getStructuredOutputModel(config: StructuredOutputConfig) {
+  return createFeatureProviderModelFromRuntimeConfig(
+    createFeatureRoutePolicy('general-text', {
+      featureId: 'structured-output',
+      selectionMode: 'explicit-provider',
+      providerId: config.provider,
+      model: config.model,
+      fallbackMode: 'none',
+    }),
+    {
+      providerId: config.provider,
+      model: config.model,
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
+    }
+  );
+}
+
 /**
  * Generate a structured object based on a Zod schema
  */
@@ -60,12 +82,7 @@ export async function generateStructuredObject<T extends z.ZodType>(
 ): Promise<{ object: z.infer<T> }> {
   const { schema, prompt, systemPrompt, config } = options;
 
-  const model = getProviderModel(
-    config.provider,
-    config.model,
-    config.apiKey,
-    config.baseURL
-  );
+  const model = getStructuredOutputModel(config);
 
   const result = await aiGenerateObject({
     model,
@@ -89,12 +106,7 @@ export async function generateStructuredArray<T extends z.ZodType>(
 ): Promise<{ object: z.infer<T>[] }> {
   const { elementSchema, prompt, systemPrompt, config } = options;
 
-  const model = getProviderModel(
-    config.provider,
-    config.model,
-    config.apiKey,
-    config.baseURL
-  );
+  const model = getStructuredOutputModel(config);
 
   // Wrap element schema in array
   const arraySchema = z.array(elementSchema);
@@ -146,12 +158,7 @@ export async function streamStructuredObject<T extends z.ZodType>(
 ): Promise<z.infer<T>> {
   const { schema, prompt, systemPrompt, config, onPartial, onComplete, onError } = options;
 
-  const model = getProviderModel(
-    config.provider,
-    config.model,
-    config.apiKey,
-    config.baseURL
-  );
+  const model = getStructuredOutputModel(config);
 
   // Estimate total fields from schema shape
   const schemaShape = schema instanceof z.ZodObject ? Object.keys(schema.shape).length : 5;
@@ -198,12 +205,7 @@ export async function streamStructuredArray<T extends z.ZodType>(
 ): Promise<z.infer<T>[]> {
   const { elementSchema, prompt, systemPrompt, config, onPartial } = options;
 
-  const model = getProviderModel(
-    config.provider,
-    config.model,
-    config.apiKey,
-    config.baseURL
-  );
+  const model = getStructuredOutputModel(config);
 
   // Wrap element schema in array
   const arraySchema = z.array(elementSchema);

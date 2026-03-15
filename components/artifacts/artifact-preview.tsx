@@ -15,6 +15,7 @@ import { renderHTML, renderSVG, getReactShellHtml, escapeHtml } from '@/lib/arti
 import type { Artifact, PreviewErrorBoundaryProps, PreviewErrorBoundaryState } from '@/types';
 import { ArtifactRenderer } from './artifact-renderers';
 import { JupyterRenderer } from './jupyter-renderer';
+import { getArtifactRuntimeAdapter } from './runtime-adapters';
 
 interface ArtifactPreviewProps {
   artifact: Artifact;
@@ -89,14 +90,31 @@ function PreviewLoading({
   );
 }
 
+function RuntimeHealthBadge({
+  state,
+}: {
+  state: 'ready' | 'loading' | 'error';
+}) {
+  return (
+    <div
+      data-testid="runtime-health-badge"
+      data-state={state}
+      className="absolute right-2 top-2 z-20 rounded-full bg-background/90 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground shadow-sm"
+    >
+      {state}
+    </div>
+  );
+}
+
 export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
   const t = useTranslations('artifactPreview');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [key, setKey] = useState(0);
-  // Check if this type needs iframe rendering
-  const needsIframe = ['html', 'svg', 'react'].includes(artifact.type);
+  const adapter = getArtifactRuntimeAdapter(artifact.type);
+  const needsIframe = adapter.transport === 'iframe';
   const [isLoading, setIsLoading] = useState(needsIframe);
+  const runtimeHealth = error ? 'error' : isLoading ? 'loading' : 'ready';
 
   useEffect(() => {
     if (!needsIframe) return;
@@ -178,12 +196,13 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
 
   // Render specialized components for non-iframe types
   // Delegate to ArtifactRenderer for mermaid, chart, math, document, and code types
-  if (['mermaid', 'math', 'document', 'code'].includes(artifact.type)) {
+  if (adapter.transport === 'renderer' && adapter.rendererType !== 'chart') {
     return (
       <PreviewErrorBoundary errorMessage={t('previewFailed')}>
-        <div className={cn('h-full w-full overflow-auto bg-background', className)}>
+        <div className={cn('relative h-full w-full overflow-auto bg-background', className)}>
+          <RuntimeHealthBadge state={runtimeHealth} />
           <ArtifactRenderer
-            type={artifact.type}
+            type={adapter.rendererType || artifact.type}
             content={artifact.content}
             className="min-h-full"
           />
@@ -192,10 +211,11 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
     );
   }
 
-  if (artifact.type === 'chart') {
+  if (adapter.rendererType === 'chart') {
     return (
       <PreviewErrorBoundary errorMessage={t('previewFailed')}>
-        <div className={cn('h-full w-full overflow-auto bg-background p-4', className)}>
+        <div className={cn('relative h-full w-full overflow-auto bg-background p-4', className)}>
+          <RuntimeHealthBadge state={runtimeHealth} />
           <ArtifactRenderer
             type="chart"
             content={artifact.content}
@@ -210,7 +230,8 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
   if (artifact.type === 'jupyter') {
     return (
       <PreviewErrorBoundary errorMessage={t('previewFailed')}>
-        <div className={cn('h-full w-full overflow-hidden bg-background', className)}>
+        <div className={cn('relative h-full w-full overflow-hidden bg-background', className)}>
+          <RuntimeHealthBadge state={runtimeHealth} />
           <JupyterRenderer content={artifact.content} className="h-full" />
         </div>
       </PreviewErrorBoundary>
@@ -219,7 +240,13 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
 
   // Default: iframe-based rendering for HTML, SVG, React
   return (
-    <div className={cn('relative h-full w-full', className)} role="region" aria-label={t('previewTitle', { title: artifact.title })}>
+    <div
+      data-testid="artifact-preview"
+      className={cn('relative h-full w-full', className)}
+      role="region"
+      aria-label={t('previewTitle', { title: artifact.title })}
+    >
+      <RuntimeHealthBadge state={runtimeHealth} />
       {isLoading && (
         <div className="absolute inset-0 z-20 bg-background/80 backdrop-blur-sm">
           <PreviewLoading message={t('loadingPreview')} defaultMessage={t('loadingPreview')} />
@@ -238,7 +265,7 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
         ref={iframeRef}
         key={key}
         className="h-full w-full border-0 bg-white"
-        sandbox="allow-scripts"
+        sandbox={adapter.sandbox}
         title={t('previewTitle', { title: artifact.title })}
         onLoad={() => setIsLoading(false)}
         onError={() => {

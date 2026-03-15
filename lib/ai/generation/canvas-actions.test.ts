@@ -4,6 +4,8 @@
 
 import {
   applyCanvasActionResult,
+  applyAcceptedCanvasReviewItems,
+  buildCanvasReview,
   getActionDescription,
   type CanvasActionType,
 } from './canvas-actions';
@@ -293,6 +295,54 @@ describe('generateDiffPreview', () => {
     const removed = diff.filter((l) => l.type === 'removed');
     expect(removed.some((l) => l.content === 'B')).toBe(true);
     expect(removed.some((l) => l.content === 'C')).toBe(true);
+  });
+});
+
+describe('buildCanvasReview', () => {
+  it('creates grouped review items for changed hunks', () => {
+    const review = buildCanvasReview({
+      requestId: 'request-1',
+      actionType: 'custom',
+      originalContent: 'line 1\nline 2\nline 3',
+      proposedContent: 'line 1\nupdated line 2\nline 3\nline 4',
+    });
+
+    expect(review.items).toHaveLength(2);
+    expect(review.items[0]).toEqual(
+      expect.objectContaining({
+        actionType: 'custom',
+        changeType: 'replace',
+        originalText: 'line 2',
+        proposedText: 'updated line 2',
+        status: 'pending',
+      })
+    );
+    expect(review.items[1]).toEqual(
+      expect.objectContaining({
+        changeType: 'insert',
+        proposedText: 'line 4',
+        status: 'pending',
+      })
+    );
+  });
+});
+
+describe('applyAcceptedCanvasReviewItems', () => {
+  it('applies only accepted review items and skips rejected ones', () => {
+    const review = buildCanvasReview({
+      requestId: 'request-1',
+      actionType: 'custom',
+      originalContent: 'line 1\nline 2\nline 3',
+      proposedContent: 'line 1\nupdated line 2\nline 3\nline 4',
+    });
+
+    const [replaceItem, insertItem] = review.items;
+    replaceItem.status = 'accepted';
+    insertItem.status = 'rejected';
+
+    expect(
+      applyAcceptedCanvasReviewItems(review.originalContent, review.items)
+    ).toBe('line 1\nupdated line 2\nline 3');
   });
 });
 

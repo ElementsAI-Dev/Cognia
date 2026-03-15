@@ -41,8 +41,7 @@ import { useWorkflowKeyboardShortcuts, useMediaQuery } from '@/hooks';
 import { nodeTypes } from '../nodes';
 import { NodePalette } from './node-palette';
 import { WorkflowToolbar } from './workflow-toolbar';
-import { NodeConfigPanel } from '../panels/node-config-panel';
-import { ExecutionPanel } from '../execution/execution-panel';
+import { WorkflowInspectorPanel } from '../panels/workflow-inspector-panel';
 import { CustomEdge } from '../edges/custom-edge';
 import { CustomConnectionLine } from '../edges/custom-connection-line';
 import { NodeSearchCommand } from '../search/node-search-command';
@@ -101,6 +100,7 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     setViewport,
     pushHistory,
     validationFocusTarget,
+    setActiveInspectorSection,
   } = useWorkflowEditorStore(
     useShallow((state) => ({
       currentWorkflow: state.currentWorkflow,
@@ -124,6 +124,7 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
       setViewport: state.setViewport,
       pushHistory: state.pushHistory,
       validationFocusTarget: state.validationFocusTarget,
+      setActiveInspectorSection: state.setActiveInspectorSection,
     }))
   );
 
@@ -382,6 +383,8 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     if (!workflowEditorV2Enabled) return;
     if (!validationFocusTarget || !currentWorkflow) return;
 
+    setActiveInspectorSection('config');
+
     if (validationFocusTarget.nodeId) {
       const targetNode = currentWorkflow.nodes.find((node) => node.id === validationFocusTarget.nodeId);
       if (!targetNode) return;
@@ -420,6 +423,7 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     validationFocusTarget,
     currentWorkflow,
     setCenter,
+    setActiveInspectorSection,
   ]);
 
   // Stable handler refs — these don't change between renders
@@ -502,7 +506,12 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     if (isMobile) {
       setMobilePanel(panel);
     }
-  }, [isMobile]);
+    if (panel === 'config') {
+      setActiveInspectorSection('config');
+    } else if (panel === 'execution') {
+      setActiveInspectorSection('execution');
+    }
+  }, [isMobile, setActiveInspectorSection]);
 
   if (!currentWorkflow) {
     return (
@@ -704,43 +713,10 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
                     transition={{ duration: 0.15 }}
                     className="h-full flex flex-col"
                   >
-                    {/* Show Config Panel if enabled */}
-                    {showConfigPanel && (
-                      <div className={cn(
-                        "flex flex-col border-b",
-                        (showExecutionPanel || isExecuting) ? "h-1/2" : "h-full"
-                      )}>
-                        {selectedNodes.length > 0 ? (
-                          <NodeConfigPanel
-                            nodeId={selectedNodes[0]}
-                            className="h-full"
-                          />
-                        ) : (
-                          <div className="h-full flex flex-col bg-background">
-                            <div className="p-3 border-b shrink-0">
-                              <span className="text-sm font-medium">Node Configuration</span>
-                            </div>
-                            <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                              <div className="text-center p-4">
-                                <Settings className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                                <p className="text-sm">Select a node to configure</p>
-                                <p className="text-xs mt-1">Click on any node in the canvas</p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    
-                    {/* Show Execution Panel if executing or panel toggled */}
-                    {(showExecutionPanel || isExecuting) && (
-                      <div className={cn(
-                        "flex flex-col",
-                        showConfigPanel ? "h-1/2" : "h-full"
-                      )}>
-                        <ExecutionPanel className="h-full" />
-                      </div>
-                    )}
+                    <WorkflowInspectorPanel
+                      className="h-full"
+                      preferredSection={showExecutionPanel || isExecuting ? 'execution' : undefined}
+                    />
                   </motion.div>
                 </ResizablePanel>
               </>
@@ -774,28 +750,21 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
             </SheetContent>
           </Sheet>
 
-          {/* Config Panel Sheet */}
-          <Sheet open={effectiveMobilePanel === 'config'} onOpenChange={(open) => !open && handleMobilePanelChange(null)}>
+          {/* Inspector Sheet */}
+          <Sheet
+            open={effectiveMobilePanel === 'config' || effectiveMobilePanel === 'execution'}
+            onOpenChange={(open) => !open && handleMobilePanelChange(null)}
+          >
             <SheetContent side="right" className="w-full sm:w-[400px] p-0">
               <SheetHeader className="px-4 py-3 border-b">
-                <SheetTitle>Node Configuration</SheetTitle>
+                <SheetTitle>
+                  {effectiveMobilePanel === 'execution' ? 'Execution' : 'Inspector'}
+                </SheetTitle>
               </SheetHeader>
-              {selectedNodes.length > 0 && (
-                <NodeConfigPanel
-                  nodeId={selectedNodes[0]}
-                  className="h-full border-0"
-                />
-              )}
-            </SheetContent>
-          </Sheet>
-
-          {/* Execution Panel Sheet */}
-          <Sheet open={effectiveMobilePanel === 'execution'} onOpenChange={(open) => !open && handleMobilePanelChange(null)}>
-            <SheetContent side="right" className="w-full sm:w-[400px] p-0">
-              <SheetHeader className="px-4 py-3 border-b">
-                <SheetTitle>Execution</SheetTitle>
-              </SheetHeader>
-              <ExecutionPanel className="h-full border-0" />
+              <WorkflowInspectorPanel
+                className="h-full border-0"
+                preferredSection={effectiveMobilePanel === 'execution' ? 'execution' : 'config'}
+              />
             </SheetContent>
           </Sheet>
         </>

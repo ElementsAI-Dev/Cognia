@@ -100,5 +100,9 @@ export const useWorkflowEditorStore = create<WorkflowEditorStore>()(
 
 // Re-export types for convenience
 export type { WorkflowEditorStore, WorkflowEditorState } from './types';
+export {
+  selectWorkflowNodeCatalogState,
+  selectWorkflowEditorShellState,
+} from './selectors';
 
 export default useWorkflowEditorStore;

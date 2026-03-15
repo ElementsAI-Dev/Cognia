@@ -16,6 +16,15 @@ import { createMistral } from '@ai-sdk/mistral';
 import type { ProviderName, CustomProviderSettings, ApiProtocol } from '@/types/provider';
 import type { LanguageModel } from 'ai';
 import { evaluateRuntimeEligibility } from '@/lib/ai/providers/completeness';
+import {
+  getBuiltInProviderCatalogEntry,
+  getBuiltInProviderDefaultModel,
+  isBuiltInProviderId,
+} from '@/types/provider/built-in-provider-catalog';
+import {
+  createFeatureProviderClient,
+  recordLegacyProviderFacadeUsage,
+} from '@/lib/ai/provider-consumption';
 
 export interface ProviderConfig {
   provider: ProviderName;
@@ -32,144 +41,205 @@ export interface ProviderModelResult {
 
 export type { ProviderName };
 
+function createLegacyFacadeClient(options: {
+  helperName: string;
+  providerId: string;
+  apiKey: string;
+  baseURL?: string;
+  protocol?: ApiProtocol;
+  isCustomProvider?: boolean;
+}) {
+  recordLegacyProviderFacadeUsage({
+    facadeId: 'core/client',
+    helperName: options.helperName,
+    providerId: options.providerId,
+    lastBaseURL: options.baseURL,
+  });
+
+  return createFeatureProviderClient({
+    providerId: options.providerId,
+    apiKey: options.apiKey,
+    baseURL: options.baseURL,
+    protocol: options.protocol,
+    isCustomProvider: options.isCustomProvider,
+  });
+}
+
 /**
  * Create OpenAI provider instance
  */
 export function createOpenAIClient(apiKey: string) {
-  return createOpenAI({
+  return createLegacyFacadeClient({
+    helperName: 'createOpenAIClient',
+    providerId: 'openai',
     apiKey,
-  });
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
  * Create Anthropic provider instance
  */
 export function createAnthropicClient(apiKey: string) {
-  return createAnthropic({
+  return createLegacyFacadeClient({
+    helperName: 'createAnthropicClient',
+    providerId: 'anthropic',
     apiKey,
-  });
+  }) as ReturnType<typeof createAnthropic>;
 }
 
 /**
  * Create Google AI provider instance
  */
 export function createGoogleClient(apiKey: string) {
-  return createGoogleGenerativeAI({
+  return createLegacyFacadeClient({
+    helperName: 'createGoogleClient',
+    providerId: 'google',
     apiKey,
-  });
+  }) as ReturnType<typeof createGoogleGenerativeAI>;
 }
 
 /**
  * Create Mistral provider instance
  */
 export function createMistralClient(apiKey: string) {
-  return createMistral({
+  return createLegacyFacadeClient({
+    helperName: 'createMistralClient',
+    providerId: 'mistral',
     apiKey,
-  });
+  }) as ReturnType<typeof createMistral>;
 }
 
 /**
  * Create DeepSeek provider instance (OpenAI-compatible)
  */
 export function createDeepSeekClient(apiKey: string) {
-  return createOpenAI({
+  return createLegacyFacadeClient({
+    helperName: 'createDeepSeekClient',
+    providerId: 'deepseek',
     apiKey,
-    baseURL: 'https://api.deepseek.com/v1',
-  });
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
  * Create Groq provider instance (OpenAI-compatible)
  */
 export function createGroqClient(apiKey: string) {
-  return createOpenAI({
+  return createLegacyFacadeClient({
+    helperName: 'createGroqClient',
+    providerId: 'groq',
     apiKey,
-    baseURL: 'https://api.groq.com/openai/v1',
-  });
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
  * Create xAI (Grok) provider instance (OpenAI-compatible)
  */
 export function createXaiClient(apiKey: string) {
-  return createOpenAI({
+  return createLegacyFacadeClient({
+    helperName: 'createXaiClient',
+    providerId: 'xai',
     apiKey,
-    baseURL: 'https://api.x.ai/v1',
-  });
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
  * Create Together AI provider instance (OpenAI-compatible)
  */
 export function createTogetherAIClient(apiKey: string) {
-  return createOpenAI({
+  return createLegacyFacadeClient({
+    helperName: 'createTogetherAIClient',
+    providerId: 'togetherai',
     apiKey,
-    baseURL: 'https://api.together.xyz/v1',
-  });
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
  * Create OpenRouter provider instance (OpenAI-compatible)
  */
 export function createOpenRouterClient(apiKey: string) {
-  return createOpenAI({
+  return createLegacyFacadeClient({
+    helperName: 'createOpenRouterClient',
+    providerId: 'openrouter',
     apiKey,
-    baseURL: 'https://openrouter.ai/api/v1',
-    headers: {
-      'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://cognia.app',
-      'X-Title': 'Cognia',
-    },
-  });
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
  * Create Cohere provider instance (OpenAI-compatible)
  */
 export function createCohereClient(apiKey: string) {
-  return createOpenAI({
+  return createLegacyFacadeClient({
+    helperName: 'createCohereClient',
+    providerId: 'cohere',
     apiKey,
-    baseURL: 'https://api.cohere.com/compatibility/v1',
-  });
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
  * Create Fireworks AI provider instance (OpenAI-compatible)
  */
 export function createFireworksClient(apiKey: string) {
-  return createOpenAI({
+  return createLegacyFacadeClient({
+    helperName: 'createFireworksClient',
+    providerId: 'fireworks',
     apiKey,
-    baseURL: 'https://api.fireworks.ai/inference/v1',
-  });
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
  * Create Cerebras provider instance (OpenAI-compatible)
  */
 export function createCerebrasClient(apiKey: string) {
-  return createOpenAI({
+  return createLegacyFacadeClient({
+    helperName: 'createCerebrasClient',
+    providerId: 'cerebras',
     apiKey,
-    baseURL: 'https://api.cerebras.ai/v1',
-  });
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
  * Create SambaNova provider instance (OpenAI-compatible)
  */
 export function createSambaNovaClient(apiKey: string) {
-  return createOpenAI({
+  return createLegacyFacadeClient({
+    helperName: 'createSambaNovaClient',
+    providerId: 'sambanova',
     apiKey,
-    baseURL: 'https://api.sambanova.ai/v1',
-  });
+  }) as ReturnType<typeof createOpenAI>;
+}
+
+/**
+ * Create Zhipu provider instance (OpenAI-compatible)
+ */
+export function createZhipuClient(apiKey: string) {
+  return createLegacyFacadeClient({
+    helperName: 'createZhipuClient',
+    providerId: 'zhipu',
+    apiKey,
+  }) as ReturnType<typeof createOpenAI>;
+}
+
+/**
+ * Create MiniMax provider instance (OpenAI-compatible)
+ */
+export function createMiniMaxClient(apiKey: string) {
+  return createLegacyFacadeClient({
+    helperName: 'createMiniMaxClient',
+    providerId: 'minimax',
+    apiKey,
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
  * Create CLIProxyAPI provider instance (OpenAI-compatible)
  */
 export function createCLIProxyAPIClient(apiKey: string, baseURL?: string) {
-  return createOpenAI({
+  return createLegacyFacadeClient({
+    helperName: 'createCLIProxyAPIClient',
+    providerId: 'cliproxyapi',
     apiKey,
-    baseURL: baseURL || 'http://localhost:8317/v1',
-  });
+    baseURL,
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
@@ -183,24 +253,14 @@ export function createCustomProviderClient(
   apiKey: string,
   protocol: ApiProtocol = 'openai'
 ) {
-  switch (protocol) {
-    case 'anthropic':
-      return createAnthropic({
-        apiKey,
-        baseURL,
-      });
-    case 'gemini':
-      return createGoogleGenerativeAI({
-        apiKey,
-        baseURL,
-      });
-    case 'openai':
-    default:
-      return createOpenAI({
-        apiKey,
-        baseURL,
-      });
-  }
+  return createLegacyFacadeClient({
+    helperName: 'createCustomProviderClient',
+    providerId: 'custom-provider',
+    apiKey,
+    baseURL,
+    protocol,
+    isCustomProvider: true,
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
@@ -212,90 +272,19 @@ export function getProviderModel(
   apiKey: string,
   baseURL?: string
 ) {
-  switch (provider) {
-    case 'openai':
-      return createOpenAIClient(apiKey)(model);
-    case 'anthropic':
-      return createAnthropicClient(apiKey)(model);
-    case 'google':
-      return createGoogleClient(apiKey)(model);
-    case 'mistral':
-      return createMistralClient(apiKey)(model);
-    case 'deepseek':
-      return createDeepSeekClient(apiKey)(model);
-    case 'groq':
-      return createGroqClient(apiKey)(model);
-    case 'xai':
-      return createXaiClient(apiKey)(model);
-    case 'togetherai':
-      return createTogetherAIClient(apiKey)(model);
-    case 'openrouter':
-      return createOpenRouterClient(apiKey)(model);
-    case 'cohere':
-      return createCohereClient(apiKey)(model);
-    case 'fireworks':
-      return createFireworksClient(apiKey)(model);
-    case 'cerebras':
-      return createCerebrasClient(apiKey)(model);
-    case 'sambanova':
-      return createSambaNovaClient(apiKey)(model);
-    case 'ollama':
-      // For Ollama, use OpenAI-compatible API
-      return createOpenAI({
-        baseURL: baseURL || 'http://localhost:11434/v1',
-        apiKey: 'ollama', // Ollama doesn't require an API key
-      })(model);
-    // Local providers - all OpenAI-compatible
-    case 'lmstudio':
-      return createOpenAI({
-        baseURL: baseURL || 'http://localhost:1234/v1',
-        apiKey: apiKey || 'lm-studio',
-      })(model);
-    case 'llamacpp':
-      return createOpenAI({
-        baseURL: baseURL || 'http://localhost:8080/v1',
-        apiKey: apiKey || 'llama-cpp',
-      })(model);
-    case 'llamafile':
-      return createOpenAI({
-        baseURL: baseURL || 'http://localhost:8080/v1',
-        apiKey: apiKey || 'llamafile',
-      })(model);
-    case 'vllm':
-      return createOpenAI({
-        baseURL: baseURL || 'http://localhost:8000/v1',
-        apiKey: apiKey || 'vllm',
-      })(model);
-    case 'localai':
-      return createOpenAI({
-        baseURL: baseURL || 'http://localhost:8080/v1',
-        apiKey: apiKey || 'localai',
-      })(model);
-    case 'jan':
-      return createOpenAI({
-        baseURL: baseURL || 'http://localhost:1337/v1',
-        apiKey: apiKey || 'jan',
-      })(model);
-    case 'textgenwebui':
-      return createOpenAI({
-        baseURL: baseURL || 'http://localhost:5000/v1',
-        apiKey: apiKey || 'textgen',
-      })(model);
-    case 'koboldcpp':
-      return createOpenAI({
-        baseURL: baseURL || 'http://localhost:5001/v1',
-        apiKey: apiKey || 'koboldcpp',
-      })(model);
-    case 'tabbyapi':
-      return createOpenAI({
-        baseURL: baseURL || 'http://localhost:5000/v1',
-        apiKey: apiKey || 'tabbyapi',
-      })(model);
-    case 'cliproxyapi':
-      return createCLIProxyAPIClient(apiKey, baseURL)(model);
-    default:
-      throw new Error(`Unknown provider: ${provider}`);
-  }
+  recordLegacyProviderFacadeUsage({
+    facadeId: 'core/client',
+    helperName: 'getProviderModel',
+    providerId: provider,
+    lastModelId: model,
+    lastBaseURL: baseURL,
+  });
+
+  return createFeatureProviderClient({
+    providerId: provider,
+    apiKey,
+    baseURL,
+  })(model);
 }
 
 /**
@@ -307,7 +296,20 @@ export function getCustomProviderModel(
 ): LanguageModel {
   const selectedModel = model || provider.defaultModel;
   const protocol = provider.apiProtocol || 'openai';
-  return createCustomProviderClient(provider.baseURL, provider.apiKey, protocol)(selectedModel);
+  recordLegacyProviderFacadeUsage({
+    facadeId: 'core/client',
+    helperName: 'getCustomProviderModel',
+    providerId: provider.id || provider.name || 'custom-provider',
+    lastModelId: selectedModel,
+    lastBaseURL: provider.baseURL,
+  });
+  return createFeatureProviderClient({
+    providerId: provider.id || provider.name || 'custom-provider',
+    apiKey: provider.apiKey,
+    baseURL: provider.baseURL,
+    protocol,
+    isCustomProvider: true,
+  })(selectedModel) as LanguageModel;
 }
 
 /**
@@ -339,6 +341,8 @@ export const defaultModels: Record<Exclude<ProviderName, 'auto'>, string> = {
   fireworks: 'accounts/fireworks/models/llama-v3p3-70b-instruct',
   cerebras: 'llama-3.3-70b',
   sambanova: 'Meta-Llama-3.3-70B-Instruct',
+  zhipu: 'glm-4-flash',
+  minimax: 'abab6.5s-chat',
   ollama: 'llama3.2',
   // Local providers
   lmstudio: 'local-model',
@@ -361,25 +365,14 @@ export function getDefaultModel(provider: ProviderName): string {
   if (provider === 'auto') {
     return defaultModels.openai;
   }
-  return defaultModels[provider] || 'gpt-4o';
+  return getBuiltInProviderDefaultModel(provider) || defaultModels[provider] || 'gpt-4o';
 }
 
 /**
  * Validate that a provider is supported
  */
 export function isValidProvider(provider: string): provider is ProviderName {
-  const validProviders: ProviderName[] = [
-    'openai', 'anthropic', 'google', 'deepseek', 'groq', 
-    'mistral', 'xai', 'togetherai', 'openrouter', 'cohere',
-    'fireworks', 'cerebras', 'sambanova', 'ollama',
-    // Local providers
-    'lmstudio', 'llamacpp', 'llamafile', 'vllm', 'localai',
-    'jan', 'textgenwebui', 'koboldcpp', 'tabbyapi',
-    // Proxy/Aggregator providers
-    'cliproxyapi',
-    'auto'
-  ];
-  return validProviders.includes(provider as ProviderName);
+  return provider === 'auto' || isBuiltInProviderId(provider);
 }
 
 /**
@@ -520,6 +513,8 @@ export const providerDisplayNames: Record<Exclude<ProviderName, 'auto'>, string>
   fireworks: 'Fireworks AI',
   cerebras: 'Cerebras',
   sambanova: 'SambaNova',
+  zhipu: 'Zhipu AI (智谱清言)',
+  minimax: 'MiniMax',
   ollama: 'Ollama',
   // Local inference frameworks
   lmstudio: 'LM Studio',
@@ -540,5 +535,5 @@ export const providerDisplayNames: Record<Exclude<ProviderName, 'auto'>, string>
  */
 export function getProviderDisplayName(provider: ProviderName): string {
   if (provider === 'auto') return 'Auto';
-  return providerDisplayNames[provider] || provider;
+  return getBuiltInProviderCatalogEntry(provider)?.name || providerDisplayNames[provider] || provider;
 }

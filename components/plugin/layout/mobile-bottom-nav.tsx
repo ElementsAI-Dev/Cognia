@@ -16,6 +16,7 @@ import {
   MoreHorizontal,
   Activity,
   Code2,
+  type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +32,7 @@ import { Separator } from '@/components/ui/separator';
 // Mobile nav item type
 interface MobileNavItem {
   id: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   labelKey: string;
   badge?: number;
   badgeVariant?: 'default' | 'destructive';

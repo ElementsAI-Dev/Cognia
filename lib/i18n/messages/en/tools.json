@@ -154,7 +154,9 @@
     "metadata": "Metadata",
     "logs": "Logs",
     "noLogs": "No log entries",
+    "noLogsDescription": "MCP server logs will appear here when activity is recorded.",
     "noMatchingLogs": "No logs match your filter",
+    "noMatchingLogsDescription": "Try adjusting your search query or selected log levels.",
     "searchLogs": "Search logs...",
     "noResult": "No result available",
     "approvalRequired": "Approval Required",
@@ -285,6 +287,7 @@
     "statusDisconnected": "Server disconnected",
     "myServers": "My Servers",
     "marketplace": "Marketplace",
+    "health": "Health",
     "logs": "Logs",
     "logsTitle": "Server Logs",
     "logsDescription": "View real-time log messages from all MCP servers.",
@@ -327,7 +330,8 @@
     "importSuccess": "Import successful",
     "importSuccessDesc": "Imported {imported} servers, skipped {skipped}",
     "importFailed": "Import failed",
-    "invalidConfigFormat": "Invalid configuration file format"
+    "invalidConfigFormat": "Invalid configuration file format",
+    "serverLogs": "Server Logs"
   },
   "mcpInstall": {
     "quickInstall": "Quick Install MCP Server",
@@ -422,7 +426,7 @@
     "missingDeps": "Missing dependencies",
     "environmentReady": "Environment ready",
     "sort": {
-      "popularity": "Popularity",
+      "popular": "Popularity",
       "stars": "Stars",
       "downloads": "Downloads",
       "newest": "Newest",

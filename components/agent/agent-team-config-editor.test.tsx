@@ -36,6 +36,19 @@ jest.mock('next-intl', () => ({
       'configEditor.maxConcurrent': 'Max Concurrent Teammates',
       'configEditor.tokenBudget': 'Token Budget',
       'configEditor.tokenBudgetDesc': '0 = unlimited. Team stops when budget is exceeded.',
+      'configEditor.executionPattern': 'Execution Pattern',
+      'configEditor.executionPatternDesc': 'Preferred orchestration intent before launch.',
+      'configEditor.patternManagerWorker': 'Manager Worker',
+      'configEditor.patternParallelSpecialists': 'Parallel Specialists',
+      'configEditor.patternBackgroundHandoff': 'Background Handoff',
+      'configEditor.delegationApproval': 'Require Delegation Approval',
+      'configEditor.delegationApprovalDesc': 'Pause background handoffs until approved.',
+      'configEditor.budgetEscalation': 'Budget Escalation',
+      'configEditor.budgetEscalationDesc': 'Choose what happens when token usage reaches the critical threshold.',
+      'configEditor.budgetEscalationPause': 'Pause For Review',
+      'configEditor.budgetEscalationReduce': 'Reduce Concurrency',
+      'configEditor.budgetEscalationNotify': 'Notify Only',
+      'configEditor.policySummary': 'Policy Summary',
       'configEditor.planApproval': 'Require Plan Approval',
       'configEditor.planApprovalDesc': 'Lead reviews teammate plans before execution',
       'configEditor.messaging': 'Enable Messaging',
@@ -65,12 +78,29 @@ function makeTeam(overrides: Record<string, unknown> = {}) {
     status: 'idle',
     config: {
       executionMode: 'coordinated',
+      preferredExecutionPattern: 'manager_worker',
       maxConcurrentTeammates: 3,
       tokenBudget: 0,
       requirePlanApproval: false,
       enableMessaging: true,
       enableTaskRetry: false,
       maxRetries: 1,
+      governancePolicy: {
+        approval: {
+          requirePlanApproval: false,
+          requireDelegationApproval: false,
+        },
+        budget: {
+          tokenBudget: 0,
+          warningThreshold: 0.8,
+          criticalThreshold: 0.95,
+          onCritical: 'notify',
+        },
+        escalation: {
+          allowOperatorPatternOverride: true,
+          pauseOnHighRisk: false,
+        },
+      },
     },
     ...overrides,
   };
@@ -137,6 +167,15 @@ describe('AgentTeamConfigEditor', () => {
     render(<AgentTeamConfigEditor teamId="t1" />);
     expect(screen.getByText('Token Budget')).toBeInTheDocument();
     expect(screen.getByText('0 = unlimited. Team stops when budget is exceeded.')).toBeInTheDocument();
+  });
+
+  it('should render orchestration policy controls', () => {
+    mockTeams = { t1: makeTeam() };
+    render(<AgentTeamConfigEditor teamId="t1" />);
+    expect(screen.getByText('Execution Pattern')).toBeInTheDocument();
+    expect(screen.getByText('Require Delegation Approval')).toBeInTheDocument();
+    expect(screen.getByText('Budget Escalation')).toBeInTheDocument();
+    expect(screen.getByText('Policy Summary')).toBeInTheDocument();
   });
 
   it('should render Save as Template button', () => {

@@ -12,10 +12,13 @@ jest.mock('next-intl', () => ({
 
 // Mock stores
 let mockSessionMode: 'chat' | 'agent' | 'research' | 'learning' = 'chat';
+let mockViewMode: 'list' | 'flow' | 'arena' | 'multi-column' = 'list';
 let mockExternalAgentId: string | undefined;
 let mockExternalAgentSessionId: string | undefined;
 let mockExternalChatFailurePolicy: 'fallback' | 'strict' = 'fallback';
 const mockUpdateSession = jest.fn();
+const mockSetWorkflowDraftPrompt = jest.fn();
+let mockArenaWorkflowDraftPrompt = '';
 
 const buildMockSession = () => ({
   id: 'session-1',
@@ -161,7 +164,7 @@ jest.mock('@/stores', () => ({
       getActiveSession: jest.fn(() => session),
       createSession: jest.fn(() => session),
       updateSession: mockUpdateSession,
-      getViewMode: jest.fn(() => 'list'),
+      getViewMode: jest.fn(() => mockViewMode),
       getFlowCanvasState: jest.fn(() => undefined),
       getBranches: jest.fn(() => [{ id: 'branch-1', name: 'Main', isActive: true }]),
     };
@@ -322,6 +325,18 @@ jest.mock('@/stores/workflow', () => ({
   },
 }));
 
+jest.mock('@/stores/arena', () => ({
+  useArenaStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      workflowContext: {
+        draftPrompt: mockArenaWorkflowDraftPrompt,
+      },
+      setWorkflowDraftPrompt: mockSetWorkflowDraftPrompt,
+    };
+    return selector ? selector(state) : state;
+  },
+}));
+
 // Mock hooks with stable references
 jest.mock('@/hooks', () => ({
   useMessages: () => mockMessagesHook,
@@ -404,6 +419,8 @@ jest.mock('../chat-input', () => ({
     onStop,
     modeName,
     modelName,
+    onCreatePreset,
+    onManagePresets,
   }: { 
     value: string; 
     onChange: (v: string) => void; 
@@ -412,6 +429,8 @@ jest.mock('../chat-input', () => ({
     onStop: () => void;
     modeName: string;
     modelName: string;
+    onCreatePreset?: () => void;
+    onManagePresets?: () => void;
   }) => (
     <div data-testid="chat-input">
       <input 
@@ -428,6 +447,8 @@ jest.mock('../chat-input', () => ({
         Send
       </button>
       <button data-testid="stop-button" onClick={onStop}>Stop</button>
+      <button data-testid="create-preset-button" onClick={onCreatePreset}>Create Preset</button>
+      <button data-testid="manage-presets-button" onClick={onManagePresets}>Manage Presets</button>
       <span data-testid="mode-name">{modeName}</span>
       <span data-testid="model-name">{modelName}</span>
     </div>
@@ -457,6 +478,11 @@ jest.mock('../dialogs/context-settings-dialog', () => ({
     open ? <div data-testid="context-settings-dialog">Context Settings</div> : null,
 }));
 
+jest.mock('../dialogs/context-debug-dialog', () => ({
+  ContextDebugDialog: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="context-debug-dialog">Context Debug</div> : null,
+}));
+
 jest.mock('@/components/prompt', () => ({
   PromptOptimizerDialog: ({ open }: { open: boolean }) => 
     open ? <div data-testid="prompt-optimizer-dialog">Prompt Optimizer</div> : null,
@@ -465,8 +491,17 @@ jest.mock('@/components/prompt', () => ({
 }));
 
 jest.mock('../dialogs/preset-manager-dialog', () => ({
-  PresetManagerDialog: ({ open }: { open: boolean }) => 
-    open ? <div data-testid="preset-manager-dialog">Preset Manager</div> : null,
+  PresetManagerDialog: (props: { open: boolean; openCreateOnMount?: boolean }) => {
+    mockPresetManagerDialog(props);
+    return props.open ? (
+      <div
+        data-testid="preset-manager-dialog"
+        data-open-create={props.openCreateOnMount ? 'true' : 'false'}
+      >
+        Preset Manager
+      </div>
+    ) : null;
+  },
 }));
 
 jest.mock('../selectors/branch-selector', () => ({
@@ -652,6 +687,16 @@ jest.mock('../flow', () => ({
   FlowChatCanvas: () => <div data-testid="flow-canvas">Flow Canvas</div>,
 }));
 
+jest.mock('@/components/arena', () => ({
+  ArenaChatView: ({ initialPrompt }: { initialPrompt?: string }) => (
+    <div data-testid="arena-chat-view">{initialPrompt}</div>
+  ),
+  ArenaDialog: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="arena-dialog">Arena Dialog</div> : null,
+  ArenaBattleView: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="arena-battle-view">Arena Battle View</div> : null,
+}));
+
 jest.mock('@/stores/agent/custom-mode-store', () => ({
   useCustomModeStore: () => ({
     customModes: [],
@@ -692,9 +737,11 @@ jest.mock('react-virtuoso', () => ({
 
 beforeEach(() => {
   mockSessionMode = 'chat';
+  mockViewMode = 'list';
   mockExternalAgentId = undefined;
   mockExternalAgentSessionId = undefined;
   mockExternalChatFailurePolicy = 'fallback';
+  mockArenaWorkflowDraftPrompt = '';
   mockExternalAgentHook.pendingPermission = null;
   mockExternalAgentHook.isExecuting = false;
   mockExternalAgentHook.activeAgentValidity = null;
@@ -1073,9 +1120,22 @@ describe('ChatContainer', () => {
     render(<ChatContainer />);
     expect(screen.getByTestId('chat-header')).toBeInTheDocument();
   });
+
+  it('passes shared arena draft into ArenaChatView when arena view is active', () => {
+    mockViewMode = 'arena';
+    mockArenaWorkflowDraftPrompt = 'Persisted arena draft';
+
+    render(<ChatContainer sessionId="session-1" />);
+
+    expect(screen.getByTestId('arena-chat-view')).toHaveTextContent('Persisted arena draft');
+  });
 });
 
 describe('ChatContainer - Dialogs', () => {
+  beforeEach(() => {
+    mockPresetManagerDialog.mockClear();
+  });
+
   it('does not show context settings dialog initially', () => {
     render(<ChatContainer sessionId="session-1" />);
     expect(screen.queryByTestId('context-settings-dialog')).not.toBeInTheDocument();
@@ -1099,6 +1159,22 @@ describe('ChatContainer - Dialogs', () => {
   it('does not show workflow selector initially', () => {
     render(<ChatContainer sessionId="session-1" />);
     expect(screen.queryByTestId('workflow-selector')).not.toBeInTheDocument();
+  });
+
+  it('opens preset manager in create mode from chat input', () => {
+    render(<ChatContainer sessionId="session-1" />);
+
+    fireEvent.click(screen.getByTestId('create-preset-button'));
+
+    expect(screen.getByTestId('preset-manager-dialog')).toHaveAttribute('data-open-create', 'true');
+  });
+
+  it('opens preset manager in manage mode from chat input', () => {
+    render(<ChatContainer sessionId="session-1" />);
+
+    fireEvent.click(screen.getByTestId('manage-presets-button'));
+
+    expect(screen.getByTestId('preset-manager-dialog')).toHaveAttribute('data-open-create', 'false');
   });
 });
 
@@ -1133,3 +1209,4 @@ describe('MessagePartsRenderer', () => {
     expect(screen.getByText('Hi there!')).toBeInTheDocument();
   });
 });
+const mockPresetManagerDialog = jest.fn();

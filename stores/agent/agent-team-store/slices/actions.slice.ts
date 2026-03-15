@@ -8,6 +8,10 @@ import {
   type AgentTeamConfig,
   type AgentTeamTemplate,
 } from '@/types/agent/agent-team';
+import {
+  normalizeAgentTeamConfig,
+  normalizeAgentTeamTask,
+} from '@/lib/ai/agent/agent-team-compat';
 import { initialState, builtInTemplatesMap } from '../initial-state';
 import type { AgentTeamState } from '../types';
 
@@ -46,10 +50,12 @@ export const createAgentTeamActionsSlice = (
       // ====================================================================
 
       createTeam: (input) => {
-        const config: AgentTeamConfig = {
+        const config: AgentTeamConfig = normalizeAgentTeamConfig({
           ...get().defaultConfig,
           ...input.config,
-        };
+          preferredExecutionPattern: input.config?.preferredExecutionPattern,
+          governancePolicy: input.config?.governancePolicy,
+        });
 
         const teamId = nanoid();
 
@@ -75,6 +81,7 @@ export const createAgentTeamActionsSlice = (
           task: input.task,
           status: 'idle',
           config,
+          selectedExecutionPattern: config.preferredExecutionPattern,
           leadId: lead.id,
           teammateIds: [lead.id],
           taskIds: [],
@@ -115,8 +122,32 @@ export const createAgentTeamActionsSlice = (
         set((state) => {
           const team = state.teams[teamId];
           if (!team) return state;
+          const executionModeChanged = config.executionMode !== team.config.executionMode;
+          const legacyGovernanceChanged =
+            config.requirePlanApproval !== team.config.requirePlanApproval ||
+            config.tokenBudget !== team.config.tokenBudget;
+          const normalizedConfig = normalizeAgentTeamConfig({
+            ...config,
+            preferredExecutionPattern:
+              executionModeChanged &&
+              config.preferredExecutionPattern === team.config.preferredExecutionPattern
+                ? undefined
+                : config.preferredExecutionPattern,
+            governancePolicy:
+              legacyGovernanceChanged &&
+              config.governancePolicy === team.config.governancePolicy
+                ? undefined
+                : config.governancePolicy,
+          });
           return {
-            teams: { ...state.teams, [teamId]: { ...team, config } },
+            teams: {
+              ...state.teams,
+              [teamId]: {
+                ...team,
+                config: normalizedConfig,
+                selectedExecutionPattern: normalizedConfig.preferredExecutionPattern,
+              },
+            },
           };
         });
       },
@@ -291,7 +322,7 @@ export const createAgentTeamActionsSlice = (
       // ====================================================================
 
       createTask: (input) => {
-        const task: AgentTeamTask = {
+        const task: AgentTeamTask = normalizeAgentTeamTask({
           id: nanoid(),
           teamId: input.teamId,
           title: input.title,
@@ -306,7 +337,7 @@ export const createAgentTeamActionsSlice = (
           estimatedDuration: input.estimatedDuration,
           order: input.order ?? Object.values(get().tasks).filter(t => t.teamId === input.teamId).length,
           metadata: input.metadata,
-        };
+        });
 
         set((state) => {
           const team = state.teams[input.teamId];
@@ -329,36 +360,37 @@ export const createAgentTeamActionsSlice = (
 
       upsertTask: (task) => {
         set((state) => {
-          const destinationTeam = state.teams[task.teamId];
+          const normalizedTask = normalizeAgentTeamTask(task);
+          const destinationTeam = state.teams[normalizedTask.teamId];
           if (!destinationTeam) return state;
 
-          const previousTask = state.tasks[task.id];
+          const previousTask = state.tasks[normalizedTask.id];
           const previousTeam = previousTask ? state.teams[previousTask.teamId] : undefined;
 
           let teams = state.teams;
-          if (previousTask && previousTask.teamId !== task.teamId && previousTeam) {
+          if (previousTask && previousTask.teamId !== normalizedTask.teamId && previousTeam) {
             teams = {
               ...teams,
               [previousTask.teamId]: {
                 ...previousTeam,
-                taskIds: removeId(previousTeam.taskIds, task.id),
+                taskIds: removeId(previousTeam.taskIds, normalizedTask.id),
               },
             };
           }
 
-          const nextTeam = teams[task.teamId];
+          const nextTeam = teams[normalizedTask.teamId];
           if (nextTeam) {
             teams = {
               ...teams,
-              [task.teamId]: {
+              [normalizedTask.teamId]: {
                 ...nextTeam,
-                taskIds: ensureIdExactlyOnce(nextTeam.taskIds, task.id),
+                taskIds: ensureIdExactlyOnce(nextTeam.taskIds, normalizedTask.id),
               },
             };
           }
 
           return {
-            tasks: { ...state.tasks, [task.id]: task },
+            tasks: { ...state.tasks, [normalizedTask.id]: normalizedTask },
             teams,
           };
         });
@@ -612,6 +644,7 @@ export const createAgentTeamActionsSlice = (
           })),
           config: {
             executionMode: team.config.executionMode,
+            preferredExecutionPattern: team.config.preferredExecutionPattern,
             maxConcurrentTeammates: team.config.maxConcurrentTeammates,
             requirePlanApproval: team.config.requirePlanApproval,
             enableMessaging: team.config.enableMessaging,
@@ -619,6 +652,7 @@ export const createAgentTeamActionsSlice = (
             maxPlanRevisions: team.config.maxPlanRevisions,
             enableTaskRetry: team.config.enableTaskRetry,
             tokenBudget: team.config.tokenBudget,
+            governancePolicy: team.config.governancePolicy,
           },
           isBuiltIn: false,
         };
@@ -793,8 +827,28 @@ export const createAgentTeamActionsSlice = (
       // ====================================================================
 
       updateDefaultConfig: (config) => {
+        const currentDefaultConfig = get().defaultConfig;
+        const executionModeChanged = config.executionMode !== undefined &&
+          config.executionMode !== currentDefaultConfig.executionMode;
+        const legacyGovernanceChanged =
+          config.requirePlanApproval !== undefined ||
+          config.tokenBudget !== undefined;
+
         set((state) => ({
-          defaultConfig: { ...state.defaultConfig, ...config },
+          defaultConfig: normalizeAgentTeamConfig({
+            ...state.defaultConfig,
+            ...config,
+            preferredExecutionPattern:
+              executionModeChanged &&
+              config.preferredExecutionPattern === currentDefaultConfig.preferredExecutionPattern
+                ? undefined
+                : config.preferredExecutionPattern ?? state.defaultConfig.preferredExecutionPattern,
+            governancePolicy:
+              legacyGovernanceChanged &&
+              config.governancePolicy === currentDefaultConfig.governancePolicy
+                ? undefined
+                : config.governancePolicy ?? state.defaultConfig.governancePolicy,
+          }),
         }));
       },
 

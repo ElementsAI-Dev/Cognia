@@ -4,6 +4,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ProviderHealthStatus } from './provider-health-status';
+import { probeProviderConnection } from '@/lib/ai/infrastructure/api-test';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -12,7 +13,13 @@ jest.mock('next-intl', () => ({
 
 // Mock API test
 jest.mock('@/lib/ai/infrastructure/api-test', () => ({
-  testProviderConnection: jest.fn().mockResolvedValue({ success: true, latency_ms: 100 }),
+  probeProviderConnection: jest.fn().mockResolvedValue({
+    success: true,
+    authoritative: true,
+    outcome: 'verified',
+    latency_ms: 100,
+    message: 'Connected',
+  }),
 }));
 
 // Mock stores
@@ -27,11 +34,24 @@ jest.mock('@/stores', () => ({
           healthStatus: 'healthy',
           lastHealthCheck: Date.now(),
         },
+        ollama: {
+          baseURL: 'http://localhost:11434',
+          healthStatus: 'unknown',
+          lastHealthCheck: Date.now(),
+        },
       },
       updateProviderSettings: mockUpdateProviderSettings,
     };
     return selector(state);
   },
+}));
+
+jest.mock('@/hooks/ai/use-provider-manager', () => ({
+  useProviderHealth: jest.fn(() => ({
+    circuitState: 'closed',
+    availability: { status: 'available' },
+    resetCircuit: jest.fn(),
+  })),
 }));
 
 // Mock utils
@@ -89,5 +109,11 @@ describe('ProviderHealthStatus', () => {
   it('displays last check time', () => {
     render(<ProviderHealthStatus providerId="openai" />);
     expect(screen.getByText('justNow')).toBeInTheDocument();
+  });
+
+  it('keeps the manual check button enabled for keyless local providers', () => {
+    render(<ProviderHealthStatus providerId="ollama" />);
+    const buttons = screen.getAllByRole('button');
+    expect(buttons[0]).not.toBeDisabled();
   });
 });

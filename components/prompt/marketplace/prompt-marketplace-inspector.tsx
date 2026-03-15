@@ -86,7 +86,7 @@ export function PromptMarketplaceInspector({
 
   if (!prompt) {
     return (
-      <Card className={cn('border-dashed bg-muted/20', className)}>
+      <Card className={cn('min-w-0 border-dashed bg-muted/20', className)}>
         <CardHeader>
           <CardTitle className="text-base">{t('inspector.title')}</CardTitle>
         </CardHeader>
@@ -100,7 +100,7 @@ export function PromptMarketplaceInspector({
   const operationMessageKey = getPromptMarketplaceErrorMessageKey(installOperation?.category);
 
   return (
-    <Card className={cn('overflow-hidden border-border/60 bg-card/90', className)}>
+    <Card className={cn('min-w-0 overflow-hidden border-border/60 bg-card/90', className)}>
       <CardHeader className="space-y-3 pb-3">
         <div className="flex items-start gap-3">
           <div

@@ -4,6 +4,10 @@
   "version": "1.0.0",
   "description": "Create, manage, and switch between custom themes",
   "type": "python",
+  "engines": {
+    "cognia": ">=0.1.0",
+    "python": ">=3.10.0"
+  },
   "capabilities": ["tools", "hooks", "commands"],
   "pythonMain": "main.py",
   "permissions": ["theme:read", "theme:write"],

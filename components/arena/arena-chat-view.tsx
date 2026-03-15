@@ -6,7 +6,7 @@
  * Analytics (leaderboard/heatmap/history) are on the dedicated /arena page
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Scale,
@@ -47,8 +47,11 @@ export function ArenaChatView({
   className,
 }: ArenaChatViewProps) {
   const t = useTranslations('arena');
+  const workflowDraftPrompt = useArenaStore((state) => state.workflowContext.draftPrompt);
+  const setWorkflowDraftPrompt = useArenaStore((state) => state.setWorkflowDraftPrompt);
+  const setWorkflowEntryPoint = useArenaStore((state) => state.setWorkflowEntryPoint);
 
-  const [prompt, setPrompt] = useState(initialPrompt);
+  const [initialSeed, setInitialSeed] = useState(initialPrompt);
   const [blindMode, setBlindMode] = useState(true);
   const [showArenaDialog, setShowArenaDialog] = useState(false);
 
@@ -59,6 +62,11 @@ export function ArenaChatView({
   const { isExecuting, startBattle } = useArena();
 
   const { selectedModels, availableModels } = useSmartModelPair();
+  const prompt = workflowDraftPrompt || initialSeed;
+
+  useEffect(() => {
+    setWorkflowEntryPoint('chat');
+  }, [setWorkflowEntryPoint]);
 
   // Get the most recent battles to display inline (active first, then recent completed)
   const activeBattles = battles.filter(
@@ -81,7 +89,8 @@ export function ArenaChatView({
     if (!prompt.trim() || isExecuting || selectedModels.length < 2) return;
 
     const currentPrompt = prompt.trim();
-    setPrompt('');
+    setInitialSeed('');
+    setWorkflowDraftPrompt('');
 
     await startBattle(
       currentPrompt,
@@ -97,7 +106,7 @@ export function ArenaChatView({
         conversationMode: 'single',
       }
     );
-  }, [prompt, isExecuting, selectedModels, startBattle, sessionId, systemPrompt, blindMode]);
+  }, [prompt, isExecuting, selectedModels, startBattle, sessionId, systemPrompt, blindMode, setWorkflowDraftPrompt]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -231,7 +240,9 @@ export function ArenaChatView({
         <div className="flex gap-2">
           <Textarea
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            onChange={(e) => {
+              setWorkflowDraftPrompt(e.target.value);
+            }}
             onKeyDown={handleKeyDown}
             placeholder={t('promptPlaceholder')}
             disabled={availableModels.length < 2 || isExecuting}

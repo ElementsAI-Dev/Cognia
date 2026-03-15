@@ -250,6 +250,18 @@ describe('PresetsManager', () => {
     expect(screen.getByTestId('create-dialog')).toBeInTheDocument();
   });
 
+  it('opens create dialog on mount when requested by chat surface', () => {
+    render(<PresetsManager openCreateOnMount />);
+    expect(screen.getByTestId('create-dialog')).toBeInTheDocument();
+    expect(screen.getByTestId('create-dialog')).not.toHaveAttribute('data-edit-preset');
+  });
+
+  it('opens edit dialog on mount for the requested preset id', () => {
+    render(<PresetsManager initialEditPresetId="preset-2" />);
+    expect(screen.getByTestId('create-dialog')).toBeInTheDocument();
+    expect(screen.getByTestId('create-dialog')).toHaveAttribute('data-edit-preset', 'preset-2');
+  });
+
   it('calls duplicatePreset when duplicate is clicked', () => {
     render(<PresetsManager />);
     fireEvent.click(screen.getAllByText('Duplicate')[0]);

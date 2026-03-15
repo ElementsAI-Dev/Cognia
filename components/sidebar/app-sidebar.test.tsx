@@ -14,6 +14,19 @@ const mockUpdateSession = jest.fn();
 const mockDeleteSession = jest.fn();
 const mockDuplicateSession = jest.fn();
 const mockTogglePinSession = jest.fn();
+const mockCreateFolder = jest.fn();
+const mockClearSelection = jest.fn();
+const mockSelectAllSessions = jest.fn();
+const mockBulkDeleteSessions = jest.fn();
+const mockBulkPinSessions = jest.fn();
+const mockBulkArchiveSessions = jest.fn();
+const mockBulkMoveSessions = jest.fn();
+const mockUpdateFolder = jest.fn();
+const mockDeleteFolder = jest.fn();
+const mockSetSessionCustomIcon = jest.fn();
+const mockMoveSessionToFolder = jest.fn();
+const mockToggleSelectSession = jest.fn();
+const mockRangeSelectSessions = jest.fn();
 
 jest.mock('@/stores', () => ({
   useSessionStore: (selector: (state: Record<string, unknown>) => unknown) => {
@@ -22,6 +35,7 @@ jest.mock('@/stores', () => ({
         { id: 'session-1', title: 'Test Session 1', updatedAt: new Date(), pinned: false },
         { id: 'session-2', title: 'Test Session 2', updatedAt: new Date(), pinned: true },
       ],
+      folders: [],
       activeSessionId: 'session-1',
       createSession: mockCreateSession,
       setActiveSession: mockSetActiveSession,
@@ -29,7 +43,21 @@ jest.mock('@/stores', () => ({
       deleteSession: mockDeleteSession,
       duplicateSession: mockDuplicateSession,
       togglePinSession: mockTogglePinSession,
+      createFolder: mockCreateFolder,
+      selectedSessionIds: [],
+      clearSelection: mockClearSelection,
+      selectAllSessions: mockSelectAllSessions,
+      bulkDeleteSessions: mockBulkDeleteSessions,
+      bulkPinSessions: mockBulkPinSessions,
+      bulkArchiveSessions: mockBulkArchiveSessions,
+      bulkMoveSessions: mockBulkMoveSessions,
       deleteAllSessions: mockDeleteAllSessions,
+      updateFolder: mockUpdateFolder,
+      deleteFolder: mockDeleteFolder,
+      setSessionCustomIcon: mockSetSessionCustomIcon,
+      moveSessionToFolder: mockMoveSessionToFolder,
+      toggleSelectSession: mockToggleSelectSession,
+      rangeSelectSessions: mockRangeSelectSessions,
       getActiveSession: () => ({ id: 'session-1', title: 'Test Session 1' }),
     };
     return selector(state);
@@ -52,6 +80,7 @@ jest.mock('@/stores', () => ({
   useArtifactStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       artifacts: [],
+      getSessionArtifacts: jest.fn(() => []),
       setActiveArtifact: jest.fn(),
       openPanel: jest.fn(),
     };
@@ -132,6 +161,12 @@ jest.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenuSub: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuSubContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuSubTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+jest.mock('@/components/ui/collapsible', () => ({
+  Collapsible: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  CollapsibleContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  CollapsibleTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 jest.mock('@/components/ui/input', () => ({
@@ -229,6 +264,11 @@ describe('AppSidebar', () => {
     expect(screen.getByTestId('sidebar-footer')).toBeInTheDocument();
     // Usage stats widget should be visible
     expect(screen.getByTestId('usage-stats')).toBeInTheDocument();
+  });
+
+  it('keeps the observability entry point visible even when capture is disabled', () => {
+    render(<AppSidebar />);
+    expect(screen.getByTestId('observability-button')).toBeInTheDocument();
   });
 
   it('shows grouped sessions and pinned ordering', () => {

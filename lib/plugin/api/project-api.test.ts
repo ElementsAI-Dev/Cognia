@@ -440,11 +440,26 @@ describe('Project API', () => {
         name: 'book.epub',
         content: 'epub content',
       });
+      await api.addKnowledgeFile('kb-proj', {
+        name: 'notes.odt',
+        content: 'odt content',
+      });
+      await api.addKnowledgeFile('kb-proj', {
+        name: 'financials.xlsm',
+        content: 'xlsm content',
+      });
+      await api.addKnowledgeFile('kb-proj', {
+        name: 'slides.pptm',
+        content: 'pptm content',
+      });
 
       const files = await api.getKnowledgeFiles('kb-proj');
       expect(files.find(f => f.name === 'slides.pptx')?.type).toBe('presentation');
       expect(files.find(f => f.name === 'notes.rtf')?.type).toBe('rtf');
       expect(files.find(f => f.name === 'book.epub')?.type).toBe('epub');
+      expect(files.find(f => f.name === 'notes.odt')?.type).toBe('word');
+      expect(files.find(f => f.name === 'financials.xlsm')?.type).toBe('excel');
+      expect(files.find(f => f.name === 'slides.pptm')?.type).toBe('presentation');
     });
 
     it('should remove knowledge file', async () => {

@@ -17,7 +17,20 @@ jest.mock('@/types/workflow/workflow-editor', () => ({
   createEmptyVisualWorkflow: jest.fn(() => ({
     id: 'workflow-1',
     name: 'New Workflow',
-    nodes: [],
+    nodes: [
+      {
+        id: 'start-1',
+        type: 'start',
+        position: { x: 0, y: 0 },
+        data: { label: 'Start', nodeType: 'start', workflowInputs: {} },
+      },
+      {
+        id: 'end-1',
+        type: 'end',
+        position: { x: 0, y: 200 },
+        data: { label: 'End', nodeType: 'end', workflowOutputs: {} },
+      },
+    ],
     edges: [],
     settings: {},
   })),

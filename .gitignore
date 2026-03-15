@@ -77,7 +77,7 @@ i18n-reports/
 .tmp/
 
 # Local generated reports/artifacts
-artifacts/
+/artifacts/
 
 # OS
 .DS_Store

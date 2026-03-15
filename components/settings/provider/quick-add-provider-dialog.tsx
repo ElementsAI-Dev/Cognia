@@ -41,7 +41,9 @@ export interface QuickAddPreset {
   popular?: boolean;
 }
 
-export const QUICK_ADD_PRESETS: QuickAddPreset[] = [
+const BUILT_IN_PROVIDER_PRESET_IDS = new Set(['zhipu', 'minimax']);
+
+const QUICK_ADD_PRESET_SOURCE: QuickAddPreset[] = [
   // Chinese Providers
   {
     id: 'siliconflow',
@@ -66,19 +68,6 @@ export const QUICK_ADD_PRESETS: QuickAddPreset[] = [
     defaultModel: 'moonshot-v1-8k',
     docsUrl: 'https://platform.moonshot.cn/docs',
     dashboardUrl: 'https://platform.moonshot.cn/console/api-keys',
-    category: 'china',
-    popular: true,
-  },
-  {
-    id: 'zhipu',
-    name: 'Zhipu AI (智谱清言)',
-    description: 'GLM models, strong Chinese',
-    baseURL: 'https://open.bigmodel.cn/api/paas/v4',
-    apiProtocol: 'openai',
-    models: ['glm-4-plus', 'glm-4-flash', 'glm-4-air'],
-    defaultModel: 'glm-4-flash',
-    docsUrl: 'https://open.bigmodel.cn/dev/howuse/introduction',
-    dashboardUrl: 'https://open.bigmodel.cn/usercenter/apikeys',
     category: 'china',
     popular: true,
   },
@@ -116,18 +105,6 @@ export const QUICK_ADD_PRESETS: QuickAddPreset[] = [
     defaultModel: 'yi-large',
     docsUrl: 'https://platform.lingyiwanwu.com/docs',
     dashboardUrl: 'https://platform.lingyiwanwu.com/apikeys',
-    category: 'china',
-  },
-  {
-    id: 'minimax',
-    name: 'MiniMax',
-    description: 'abab models for conversation',
-    baseURL: 'https://api.minimax.chat/v1',
-    apiProtocol: 'openai',
-    models: ['abab6.5s-chat', 'abab6.5g-chat', 'abab5.5-chat'],
-    defaultModel: 'abab6.5s-chat',
-    docsUrl: 'https://api.minimax.chat/document',
-    dashboardUrl: 'https://api.minimax.chat/',
     category: 'china',
   },
   {
@@ -217,6 +194,10 @@ export const QUICK_ADD_PRESETS: QuickAddPreset[] = [
     category: 'proxy',
   },
 ];
+
+export const QUICK_ADD_PRESETS: QuickAddPreset[] = QUICK_ADD_PRESET_SOURCE.filter(
+  (preset) => !BUILT_IN_PROVIDER_PRESET_IDS.has(preset.id)
+);
 
 type CategoryFilter = 'all' | 'china' | 'global' | 'proxy';
 

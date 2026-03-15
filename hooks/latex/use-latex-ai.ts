@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useSettingsStore } from '@/stores/settings';
 import { useAIChat } from '@/lib/ai/generation/use-ai-chat';
-import type { ProviderName } from '@/types/provider';
+import { resolveLatexAIChatConfig } from '@/lib/latex/ai-config';
 
 export type LatexAITextAction =
   | 'improveWriting'
@@ -37,26 +37,6 @@ export interface UseLatexAIReturn {
   stop: () => void;
 }
 
-function resolveProvider(
-  defaultProvider: string,
-  providerSettings: Record<string, { enabled?: boolean; apiKey?: string }>
-) {
-  if (defaultProvider === 'auto') {
-    const candidates = Object.keys(providerSettings)
-      .filter((key) => key !== 'auto')
-      .filter(
-        (key) =>
-          providerSettings[key]?.enabled &&
-          (key === 'ollama' || Boolean(providerSettings[key]?.apiKey))
-      );
-
-    const first = candidates[0];
-    return (first ? first : 'openai') as ProviderName;
-  }
-
-  return defaultProvider as ProviderName;
-}
-
 function buildTextPrompt(action: LatexAITextAction, text: string, targetLanguage?: string) {
   switch (action) {
     case 'improveWriting':
@@ -82,25 +62,10 @@ export function useLatexAI(): UseLatexAIReturn {
   const defaultProvider = useSettingsStore((s) => s.defaultProvider);
   const providerSettings = useSettingsStore((s) => s.providerSettings);
 
-  const provider = useMemo(
-    () => resolveProvider(defaultProvider, providerSettings as unknown as Record<string, { enabled?: boolean; apiKey?: string }>),
+  const config = useMemo(
+    () => resolveLatexAIChatConfig(defaultProvider, providerSettings),
     [defaultProvider, providerSettings]
   );
-
-  const model = useMemo(() => {
-    const current = providerSettings[provider];
-    if (current?.defaultModel) return current.defaultModel;
-
-    const defaults: Record<string, string> = {
-      openai: 'gpt-4o-mini',
-      anthropic: 'claude-3-haiku-20240307',
-      google: 'gemini-1.5-flash',
-      deepseek: 'deepseek-chat',
-      groq: 'llama-3.1-8b-instant',
-    };
-
-    return defaults[provider] || 'gpt-4o-mini';
-  }, [provider, providerSettings]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,8 +74,8 @@ export function useLatexAI(): UseLatexAIReturn {
   const [lastRequest, setLastRequest] = useState<LastLatexAIRequest | null>(null);
 
   const { sendMessage, stop } = useAIChat({
-    provider,
-    model,
+    provider: config.provider,
+    model: config.model,
     onError: (err) => {
       setError(err.message);
       setIsLoading(false);

@@ -18,6 +18,7 @@ import {
   Copy,
   Download,
   FolderOpen,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   Dialog,
@@ -79,7 +80,7 @@ const STEP_KEYS: { id: WizardStep; titleKey: string; descKey: string }[] = [
   { id: 'preview', titleKey: 'steps.preview', descKey: 'steps.previewDesc' },
 ];
 
-const TYPE_INFO: Record<PluginType, { icon: React.ElementType; labelKey: string; descKey: string }> = {
+const TYPE_INFO: Record<PluginType, { icon: LucideIcon; labelKey: string; descKey: string }> = {
   frontend: {
     icon: Code2,
     labelKey: 'types.frontend',

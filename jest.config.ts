@@ -102,8 +102,9 @@ const config: Config = {
   // A set of global variables that need to be available in all test environments
   // globals: {},
 
-  // Run single-worker by default to avoid heap spikes in long full-suite runs
-  maxWorkers: 1,
+  // Keep the full coverage suite within CI time limits without reintroducing the
+  // higher heap churn that showed up with wider parallelism.
+  maxWorkers: 2,
 
   // Increase memory for workers - helps prevent OOM crashes
   workerIdleMemoryLimit: "512MB",

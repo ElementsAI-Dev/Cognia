@@ -6,6 +6,10 @@
  */
 
 import { isTauri } from '@/lib/utils';
+import {
+  SANDBOX_ENTRYPOINT_POLICIES,
+  executeSandboxEntrypoint,
+} from '@/lib/sandbox/consumption';
 import type { ExecuteScriptAction, TaskRunResult } from '@/types/scheduler';
 
 /**
@@ -26,20 +30,42 @@ export async function executeScript(action: ExecuteScriptAction): Promise<TaskRu
 
   try {
     // Dynamic import to avoid bundling issues in browser
-    const { executeWithLimits, quickExecute } = await import('@/lib/native/sandbox');
+    const { quickExecute } = await import('@/lib/native/sandbox');
 
-    // Execute in sandbox with resource limits
-    const result = action.use_sandbox !== false
-      ? await executeWithLimits(
-          action.language,
-          action.code,
-          action.timeout_secs ?? 300,
-          action.memory_mb ?? 512
-        )
-      : await quickExecute(action.language, action.code);
+    const timeoutSecs = action.timeout_secs ?? 300;
+    const memoryMb = action.memory_mb ?? 512;
+    const contractOutcome = await executeSandboxEntrypoint({
+      policy: SANDBOX_ENTRYPOINT_POLICIES.schedulerScript,
+      request: {
+        language: action.language,
+        code: action.code,
+        timeout_secs: timeoutSecs,
+        memory_limit_mb: memoryMb,
+        env: action.env,
+        args: action.args,
+      },
+      bypassSandbox: action.use_sandbox === false,
+    });
+
+    const result =
+      action.use_sandbox !== false
+        ? contractOutcome.result
+        : await quickExecute(action.language, action.code);
+
+    if (!result) {
+      return {
+        success: false,
+        error: 'Sandbox contract returned no execution result',
+        duration_ms: Date.now() - startTime,
+        sandbox_metadata: contractOutcome.metadata,
+      };
+    }
 
     // Check if execution was successful based on status
-    const isSuccess = result.status === 'completed' && (result.exit_code === 0 || result.exit_code === null);
+    const lifecycleStatus = result.lifecycle_status;
+    const isSuccess =
+      (lifecycleStatus ? lifecycleStatus === 'success' : result.status === 'completed') &&
+      (result.exit_code === 0 || result.exit_code === null);
 
     return {
       success: isSuccess,
@@ -48,6 +74,7 @@ export async function executeScript(action: ExecuteScriptAction): Promise<TaskRu
       stderr: result.stderr || undefined,
       error: result.error ?? undefined,
       duration_ms: Date.now() - startTime,
+      sandbox_metadata: result.consumption_metadata ?? contractOutcome.metadata,
     };
   } catch (error) {
     return {

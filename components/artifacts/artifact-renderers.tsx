@@ -48,7 +48,7 @@ function ChartLoading() {
 export function ChartRenderer(props: {
   content: string;
   className?: string;
-  chartType?: 'line' | 'bar' | 'pie' | 'area' | 'scatter' | 'radar';
+  chartType?: 'line' | 'bar' | 'pie' | 'doughnut' | 'area' | 'scatter' | 'radar';
   chartData?: ChartDataPoint[];
 }) {
   return (
@@ -72,7 +72,7 @@ export function ArtifactRenderer({
   type: string;
   content: string;
   className?: string;
-  chartType?: 'line' | 'bar' | 'pie' | 'area' | 'scatter' | 'radar';
+  chartType?: 'line' | 'bar' | 'pie' | 'doughnut' | 'area' | 'scatter' | 'radar';
   chartData?: ChartDataPoint[];
 }) {
   switch (type) {

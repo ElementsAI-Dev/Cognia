@@ -7,6 +7,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
+import { validateCapabilityContract } from './capability-contract';
 
 interface BuildOptions {
   output: string;
@@ -162,6 +163,10 @@ function validateBuildInputs(manifest: PluginManifest, cwd: string, entryPoint: 
   }
   if (!Array.isArray(manifest.capabilities)) {
     errors.push('plugin.json capabilities must be an array.');
+  } else {
+    const capabilityValidation = validateCapabilityContract(manifest.capabilities);
+    errors.push(...capabilityValidation.errors);
+    capabilityValidation.warnings.forEach((warning) => console.warn(`   • ${warning}`));
   }
   if (!fs.existsSync(path.join(cwd, entryPoint))) {
     errors.push(`Entry point not found: ${entryPoint}`);

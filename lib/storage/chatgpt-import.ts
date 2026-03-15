@@ -13,7 +13,10 @@ import type {
   ChatImportOptions,
   ChatImportResult,
   ChatImportError,
+  ChatImportWarning,
+  ParsedConversation,
 } from '@/types/import';
+import { buildPortableConversation, createImportWarning } from './import-portable';
 
 const DEFAULT_IMPORT_OPTIONS: ChatImportOptions = {
   mergeStrategy: 'merge',
@@ -122,6 +125,81 @@ function extractTextContent(content: ChatGPTMessage['content']): string {
     .trim();
 }
 
+function extractContentPayload(
+  message: ChatGPTMessage,
+  conversationId: string
+): {
+  content: string;
+  attachments?: UIMessage['attachments'];
+  warnings: ChatImportWarning[];
+} {
+  if (!message.content?.parts) {
+    return { content: '', warnings: [] };
+  }
+
+  const lines: string[] = [];
+  const attachments: NonNullable<UIMessage['attachments']> = [];
+  const warnings: ChatImportWarning[] = [];
+
+  for (const part of message.content.parts) {
+    if (typeof part === 'string') {
+      lines.push(part);
+      continue;
+    }
+
+    if (typeof part !== 'object' || !part.content_type) {
+      continue;
+    }
+
+    if (part.content_type === 'image_asset_pointer') {
+      lines.push('[Image]');
+      attachments.push({
+        id: part.asset_pointer || nanoid(),
+        name: 'ChatGPT image asset',
+        type: 'image',
+        url: `import://chatgpt/image/${part.asset_pointer || nanoid()}`,
+        size: part.size_bytes || 0,
+        mimeType: 'application/vnd.openai.image-asset',
+      });
+      warnings.push(
+        createImportWarning(
+          'attachment_summary_only',
+          'ChatGPT image assets are imported as attachment summaries only.',
+          {
+            conversationId,
+          }
+        )
+      );
+      continue;
+    }
+
+    lines.push(`[${part.content_type}]`);
+    attachments.push({
+      id: part.asset_pointer || nanoid(),
+      name: part.content_type,
+      type: 'file',
+      url: `import://chatgpt/file/${part.asset_pointer || nanoid()}`,
+      size: part.size_bytes || 0,
+      mimeType: 'application/octet-stream',
+    });
+    warnings.push(
+      createImportWarning(
+        'non_text_downgraded',
+        `ChatGPT ${part.content_type} content was downgraded to a placeholder summary.`,
+        {
+          conversationId,
+        }
+      )
+    );
+  }
+
+  return {
+    content: lines.join('\n').trim(),
+    attachments: attachments.length > 0 ? attachments : undefined,
+    warnings,
+  };
+}
+
 /**
  * Map ChatGPT role to Cognia MessageRole
  */
@@ -147,6 +225,17 @@ export function convertConversation(
   conversation: ChatGPTConversation,
   options: ChatImportOptions = DEFAULT_IMPORT_OPTIONS
 ): { session: Session; messages: UIMessage[] } {
+  const result = convertConversationToParsedConversation(conversation, options);
+  return {
+    session: result.session,
+    messages: result.messages,
+  };
+}
+
+export function convertConversationToParsedConversation(
+  conversation: ChatGPTConversation,
+  options: ChatImportOptions = DEFAULT_IMPORT_OPTIONS
+): ParsedConversation {
   const now = new Date();
   const createdAt = options.preserveTimestamps
     ? new Date(conversation.create_time * 1000)
@@ -161,19 +250,24 @@ export function convertConversation(
     conversation.current_node
   );
 
+  const warnings: ChatImportWarning[] = [];
+
   // Convert messages
   const messages: UIMessage[] = chatGPTMessages.map((msg) => {
     const msgCreatedAt = options.preserveTimestamps && msg.create_time
       ? new Date(msg.create_time * 1000)
       : now;
+    const payload = extractContentPayload(msg, conversation.id);
+    warnings.push(...payload.warnings);
 
     return {
       id: options.generateNewIds ? nanoid() : msg.id,
       role: mapRole(msg.author.role),
-      content: extractTextContent(msg.content),
+      content: payload.content,
       createdAt: msgCreatedAt,
       model: msg.metadata?.model_slug || options.defaultModel,
       provider: options.defaultProvider,
+      attachments: payload.attachments,
     };
   });
 
@@ -193,7 +287,30 @@ export function convertConversation(
     lastMessagePreview: validMessages[validMessages.length - 1]?.content.slice(0, 100),
   };
 
-  return { session, messages: validMessages };
+  const compatibility = warnings.length > 0 ? 'partial' : 'official';
+
+  return {
+    session,
+    messages: validMessages,
+    metadata: {
+      originalId: conversation.id,
+      sourceFormat: 'chatgpt',
+      sourceType: 'official',
+      compatibility,
+      warnings,
+      portableConversation: buildPortableConversation({
+        session,
+        messages: validMessages,
+        sourceFormat: 'chatgpt',
+        sourceType: 'official',
+        compatibility,
+        warnings,
+        metadata: {
+          currentNodeId: conversation.current_node,
+        },
+      }),
+    },
+  };
 }
 
 /**

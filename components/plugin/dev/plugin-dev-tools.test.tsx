@@ -82,8 +82,15 @@ const mockPlugins = {
       version: '1.0.0',
     },
     status: 'enabled',
+    source: 'dev',
     tools: [{ name: 'search' }, { name: 'process' }],
     path: '/plugins/python-plugin',
+    descriptor: {
+      compatibility: {
+        status: 'warning',
+        diagnostics: [{ message: 'Missing host compatibility declaration' }],
+      },
+    },
     config: {},
   },
   'frontend-plugin': {
@@ -94,6 +101,7 @@ const mockPlugins = {
       version: '1.0.0',
     },
     status: 'enabled',
+    source: 'local',
     tools: [],
     path: '/plugins/frontend-plugin',
     config: {},
@@ -138,5 +146,12 @@ describe('PluginDevTools', () => {
     
     const wrapper = container.firstChild as HTMLElement;
     expect(wrapper).toHaveClass('custom-class');
+  });
+
+  it('should render plugin source badges in selector items', () => {
+    render(<PluginDevTools />);
+
+    expect(screen.getByText('dev')).toBeInTheDocument();
+    expect(screen.getByText('local')).toBeInTheDocument();
   });
 });

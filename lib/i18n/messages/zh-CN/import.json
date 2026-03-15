@@ -2,11 +2,15 @@
   "title": "导入对话",
   "description": "从 ChatGPT、Claude、Gemini 或其他来源导入聊天记录",
   "selectFile": "点击选择文件",
-  "supportedFormats": "支持 ChatGPT、Claude 和 Gemini 导出文件",
+  "supportedFormats": "支持 ChatGPT、Claude、Gemini、便携归档、Markdown 转录和 CSV 转录文件",
   "formats": {
     "chatgpt": "ChatGPT",
     "claude": "Claude (Anthropic)",
     "gemini": "Gemini (Google)",
+    "portable": "便携归档",
+    "markdown-transcript": "Markdown 转录",
+    "csv-transcript": "CSV 转录",
+    "json-transcript": "JSON 转录",
     "cognia": "Cognia 导出",
     "unknown": "未知格式"
   },
@@ -19,6 +23,7 @@
   "analyzing": "正在分析文件...",
   "conversations": "个对话",
   "messages": "条消息",
+  "compatibility": "兼容等级",
   "importing": "正在导入...",
   "importButton": "导入 {count} 个对话",
   "back": "返回",
@@ -33,7 +38,7 @@
   "errors": {
     "title": "错误",
     "invalidJson": "无效的 JSON 文件格式",
-    "unknownFormat": "未知文件格式，请使用 ChatGPT、Claude 或 Gemini 导出文件",
+    "unknownFormat": "未知文件格式，请使用受支持的聊天导出、便携归档、Markdown 转录或 CSV 转录文件",
     "useCogniaImport": "这是 Cognia 备份文件，请使用标准导入按钮",
     "readFailed": "读取文件失败",
     "importFailed": "导入失败",

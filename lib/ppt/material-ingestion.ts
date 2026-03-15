@@ -1,4 +1,6 @@
 import type { PPTMaterial, PPTMaterialType } from '@/types/workflow';
+import { getDocumentAcceptExtensions, getFilenameExtension, isBinaryFilename } from '@/lib/document';
+import { processDocumentAsync } from '@/lib/document/document-processor';
 import { isValidHttpUrl } from './ppt-state';
 
 export type PPTMaterialInputMode = 'import' | 'paste';
@@ -59,16 +61,16 @@ interface UrlExtractionResult {
 }
 
 const TEXT_FILE_EXTENSIONS = new Set(['txt', 'md']);
-const BINARY_DOCUMENT_EXTENSIONS = new Set(['pdf', 'docx']);
+const SUPPORTED_FILE_EXTENSIONS = new Set(
+  getDocumentAcceptExtensions('ppt-material').map((extension) => extension.slice(1))
+);
 
 const DEFAULT_MIN_READABLE_CHARS = 80;
 const DEFAULT_MIN_READABLE_RATIO = 0.35;
 const DEFAULT_MAX_REPEAT_RATIO = 0.45;
 
 function getFileExtension(filename: string): string {
-  const dotIndex = filename.lastIndexOf('.');
-  if (dotIndex === -1) return '';
-  return filename.slice(dotIndex + 1).toLowerCase();
+  return getFilenameExtension(filename);
 }
 
 function sanitizeText(raw: string): string {
@@ -106,8 +108,8 @@ function detectLanguage(text: string): string {
 }
 
 function resolveMaterialTypeFromExtension(extension: string): PPTMaterialType {
-  if (extension === 'md') return 'document';
-  return 'file';
+  if (extension === 'txt') return 'file';
+  return 'document';
 }
 
 function getReadableRatio(text: string): number {
@@ -178,29 +180,61 @@ async function extractFileMaterial(file: File, now: () => number): Promise<FileE
     return extractTextFileMaterial(file, now);
   }
 
-  if (
-    BINARY_DOCUMENT_EXTENSIONS.has(extension) ||
-    mimeType === 'application/pdf' ||
-    mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ) {
+  if (!SUPPORTED_FILE_EXTENSIONS.has(extension)) {
     return {
       error: {
-        code: 'extraction_failed',
+        code: 'unsupported_format',
         source: 'file',
-        message: `File "${file.name}" cannot be reliably converted to text in this flow.`,
-        suggestion: 'Please convert the document to TXT/MD or paste key sections directly.',
+        message: `File format "${extension || 'unknown'}" is not supported.`,
+        suggestion: 'Use supported document formats, or switch to URL/paste input.',
       },
     };
   }
 
-  return {
-    error: {
-      code: 'unsupported_format',
-      source: 'file',
-      message: `File format "${extension || 'unknown'}" is not supported.`,
-      suggestion: 'Use TXT/MD files, or switch to URL/paste input.',
-    },
-  };
+  try {
+    const materialId = `material-file-${now()}`;
+    const data = isBinaryFilename(file.name) ? await file.arrayBuffer() : await file.text();
+    const processed = await processDocumentAsync(materialId, file.name, data, {
+      extractEmbeddable: true,
+    });
+    const content = sanitizeText(processed.embeddableContent || processed.content || '');
+
+    if (!content) {
+      return {
+        error: {
+          code: 'empty_content',
+          source: 'file',
+          message: `File "${file.name}" does not contain readable text after extraction.`,
+          suggestion: 'Use a richer source file or paste the key content directly.',
+        },
+      };
+    }
+
+    return {
+      material: {
+        id: materialId,
+        type: resolveMaterialTypeFromExtension(extension),
+        name: file.name,
+        content,
+        mimeType: file.type || undefined,
+        metadata: {
+          wordCount: getWordCount(content),
+          language: detectLanguage(content),
+          pageCount: typeof processed.metadata.pageCount === 'number' ? processed.metadata.pageCount : undefined,
+          extractedAt: new Date(),
+        },
+      },
+    };
+  } catch {
+    return {
+      error: {
+        code: 'extraction_failed',
+        source: 'file',
+        message: `Failed to extract readable content from "${file.name}".`,
+        suggestion: 'Try another file, remove password protection, or paste the key content directly.',
+      },
+    };
+  }
 }
 
 function toUrlMaterial(urlValue: string, content: string, now: () => number): PPTMaterial {

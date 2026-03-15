@@ -3,9 +3,65 @@
  */
 
 import {
+  generateSuggestions,
   getDefaultSuggestions,
   extractTopic,
 } from './suggestion-generator';
+import { generateObject } from 'ai';
+import { createFeatureProviderModelFromRuntimeConfig } from '@/lib/ai/provider-consumption';
+
+jest.mock('ai', () => ({
+  generateObject: jest.fn(),
+}));
+
+jest.mock('@/lib/ai/provider-consumption', () => ({
+  createFeatureRoutePolicy: jest.fn((routeProfile, overrides) => ({
+    routeProfile,
+    selectionMode: 'default-provider',
+    ...overrides,
+  })),
+  createFeatureProviderModelFromRuntimeConfig: jest.fn(() => 'mock-model'),
+}));
+
+const mockGenerateObject = generateObject as jest.Mock;
+const mockCreateFeatureProviderModelFromRuntimeConfig =
+  createFeatureProviderModelFromRuntimeConfig as jest.Mock;
+
+describe('generateSuggestions', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCreateFeatureProviderModelFromRuntimeConfig.mockReturnValue('mock-model');
+  });
+
+  it('uses the shared routing contract when generating suggestions', async () => {
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        suggestions: [
+          { text: 'Tell me more', category: 'follow-up' },
+        ],
+      },
+    });
+
+    const result = await generateSuggestions('What is React?', 'React is a UI library.', {
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      apiKey: 'test-key',
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockCreateFeatureProviderModelFromRuntimeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeProfile: 'general-text',
+        featureId: 'suggestion-generator',
+      }),
+      expect.objectContaining({
+        providerId: 'openai',
+        model: 'gpt-4o-mini',
+        apiKey: 'test-key',
+      })
+    );
+  });
+});
 
 describe('getDefaultSuggestions', () => {
   it('returns default suggestions when no topic provided', () => {

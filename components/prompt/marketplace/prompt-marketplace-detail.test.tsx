@@ -14,6 +14,7 @@ const mockRemoveFromFavorites = jest.fn();
 const mockSubmitReview = jest.fn();
 const mockMarkReviewHelpful = jest.fn();
 const mockFetchPromptReviews = jest.fn();
+const mockSelectTemplate = jest.fn();
 
 const storeState = {
   isPromptInstalled: () => false,
@@ -40,6 +41,7 @@ const storeState = {
   },
   userActivity: {
     reviewed: [],
+    installed: [] as Array<Record<string, unknown>>,
   },
 };
 
@@ -53,6 +55,13 @@ jest.mock('next-intl', () => ({
 
 jest.mock('@/stores/prompt/prompt-marketplace-store', () => ({
   usePromptMarketplaceStore: (selector: (state: typeof storeState) => unknown) => selector(storeState),
+}));
+
+jest.mock('@/stores/prompt/prompt-template-store', () => ({
+  usePromptTemplateStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({
+      selectTemplate: mockSelectTemplate,
+    }),
 }));
 
 jest.mock('@/components/ui/sonner', () => ({
@@ -150,6 +159,8 @@ describe('PromptMarketplaceDetail interactions', () => {
     mockInstallPrompt.mockResolvedValue(undefined);
     mockSubmitReview.mockResolvedValue(undefined);
     mockMarkReviewHelpful.mockResolvedValue(undefined);
+    storeState.isPromptInstalled = () => false;
+    storeState.userActivity.installed = [];
   });
 
   it('installs prompt from detail footer action', async () => {
@@ -167,6 +178,43 @@ describe('PromptMarketplaceDetail interactions', () => {
 
     await waitFor(() => {
       expect(mockMarkReviewHelpful).toHaveBeenCalledWith('review-1');
+    });
+  });
+
+  it('shows linked status and continue editing action for installed prompts', async () => {
+    const onContinueEditing = jest.fn();
+    storeState.isPromptInstalled = () => true;
+    storeState.userActivity.installed = [
+      {
+        id: 'install-1',
+        marketplaceId: 'prompt-1',
+        localTemplateId: 'template-1',
+        installedVersion: '1.0.0',
+        latestVersion: '2.0.0',
+        hasUpdate: true,
+        autoUpdate: false,
+        installedAt: new Date(),
+        syncStatus: 'conflict',
+        conflict: {
+          state: 'requires-resolution',
+        },
+      },
+    ];
+
+    render(
+      <PromptMarketplaceDetail
+        prompt={prompt}
+        open
+        onOpenChange={() => undefined}
+        onContinueEditing={onContinueEditing}
+      />
+    );
+
+    expect(screen.getByText('Conflict')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Continue Editing'));
+
+    await waitFor(() => {
+      expect(onContinueEditing).toHaveBeenCalledWith('template-1');
     });
   });
 });

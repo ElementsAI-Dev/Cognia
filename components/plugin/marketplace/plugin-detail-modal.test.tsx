@@ -69,6 +69,9 @@ const mockPlugin: MarketplacePlugin = {
   trending: false,
   lastUpdated: '2024-01-15',
   installed: false,
+  source: 'marketplace',
+  compatibilityStatus: 'compatible',
+  compatibilityDiagnostics: [],
 };
 
 const renderWithProviders = (ui: React.ReactElement) => {
@@ -186,5 +189,29 @@ describe('PluginDetailModal', () => {
       />
     );
     expect(screen.getAllByText('Test Plugin').length).toBeGreaterThan(0);
+  });
+
+  it('renders source badge and compatibility warning details', () => {
+    renderWithProviders(
+      <PluginDetailModal
+        plugin={{
+          ...mockPlugin,
+          source: 'dev',
+          compatibilityStatus: 'warning',
+          compatibilityDiagnostics: [
+            {
+              code: 'compat.cognia_engine_missing',
+              severity: 'warning',
+              message: 'Missing host compatibility declaration',
+            },
+          ],
+        }}
+        open={true}
+        {...mockHandlers}
+      />
+    );
+
+    expect(screen.getByText(/dev/i)).toBeInTheDocument();
+    expect(screen.getByText('Missing host compatibility declaration')).toBeInTheDocument();
   });
 });

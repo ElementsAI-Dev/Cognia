@@ -45,6 +45,7 @@ export function InstallationPreview({
   const tCommon = useTranslations('common');
   
   const [copied, setCopied] = useState(false);
+  const isManualOnly = installConfig?.validationStatus === 'invalid';
 
   const handleCopyCommand = async () => {
     const command = installConfig 
@@ -92,6 +93,24 @@ export function InstallationPreview({
               </AlertDescription>
             </Alert>
           ) : null
+        )}
+
+        {isManualOnly && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              {installConfig.validationError}
+              {installConfig.manualSteps && installConfig.manualSteps.length > 0 && (
+                <span className="mt-2 block space-y-1">
+                  {installConfig.manualSteps.map((step) => (
+                    <span key={step} className="block">
+                      {step}
+                    </span>
+                  ))}
+                </span>
+              )}
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Install Command Preview */}

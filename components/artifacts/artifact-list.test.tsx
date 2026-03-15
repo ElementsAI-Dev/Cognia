@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ArtifactList, ArtifactListCompact } from './artifact-list';
-import type { Artifact } from '@/types';
+import type { Artifact, ArtifactWorkspaceState } from '@/types';
 
 // Mock artifact-icons
 jest.mock('./artifact-icons', () => ({
@@ -26,6 +26,30 @@ const mockOpenPanel = jest.fn();
 const mockGetActiveSession = jest.fn(() => ({ id: 'session-1' }));
 const mockSearchArtifacts = jest.fn();
 const mockFilterArtifactsByType = jest.fn();
+const mockSetArtifactWorkspaceFilters = jest.fn(
+  (filters: Partial<typeof mockArtifactWorkspace>) => {
+    mockArtifactWorkspace = {
+      ...mockArtifactWorkspace,
+      ...filters,
+    };
+  }
+);
+const mockSetArtifactWorkspaceScope = jest.fn((scope: string, sessionId?: string | null) => {
+  mockArtifactWorkspace = {
+    ...mockArtifactWorkspace,
+    scope: scope as typeof mockArtifactWorkspace.scope,
+    sessionId: sessionId ?? undefined,
+  };
+});
+let mockArtifactWorkspace: ArtifactWorkspaceState = {
+  scope: 'session',
+  sessionId: 'session-1',
+  searchQuery: '',
+  typeFilter: 'all',
+  runtimeFilter: 'all',
+  recentArtifactIds: [],
+  returnContext: null,
+};
 
 const session1Artifacts: Artifact[] = [
   {
@@ -78,6 +102,37 @@ const mockGetRecentArtifacts = jest.fn((limit: number) => {
   return [...session1Artifacts, ...session2Artifacts].slice(0, limit);
 });
 
+const mockGetArtifactsForWorkspace = jest.fn(
+  ({ sessionId }: { sessionId?: string | null } = {}) => {
+    const activeSessionId =
+      mockArtifactWorkspace.scope === 'session'
+        ? sessionId ?? mockArtifactWorkspace.sessionId ?? null
+        : null;
+    const lowerQuery = mockArtifactWorkspace.searchQuery.toLowerCase();
+
+    let artifacts = [...session1Artifacts, ...session2Artifacts];
+
+    if (activeSessionId) {
+      artifacts = artifacts.filter((artifact) => artifact.sessionId === activeSessionId);
+    }
+
+    if (mockArtifactWorkspace.typeFilter !== 'all') {
+      artifacts = artifacts.filter((artifact) => artifact.type === mockArtifactWorkspace.typeFilter);
+    }
+
+    if (lowerQuery) {
+      artifacts = artifacts.filter(
+        (artifact) =>
+          artifact.title.toLowerCase().includes(lowerQuery) ||
+          artifact.type.toLowerCase().includes(lowerQuery) ||
+          artifact.language?.toLowerCase().includes(lowerQuery)
+      );
+    }
+
+    return artifacts;
+  }
+);
+
 jest.mock('@/stores', () => ({
   useArtifactStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
@@ -90,6 +145,10 @@ jest.mock('@/stores', () => ({
       searchArtifacts: mockSearchArtifacts,
       filterArtifactsByType: mockFilterArtifactsByType,
       getRecentArtifacts: mockGetRecentArtifacts,
+      artifactWorkspace: mockArtifactWorkspace,
+      setArtifactWorkspaceFilters: mockSetArtifactWorkspaceFilters,
+      setArtifactWorkspaceScope: mockSetArtifactWorkspaceScope,
+      getArtifactsForWorkspace: mockGetArtifactsForWorkspace,
     };
     return selector(state);
   },
@@ -139,11 +198,22 @@ jest.mock('@/components/ui/input', () => ({
 }));
 
 jest.mock('@/components/ui/select', () => ({
-  Select: ({ children, value, onValueChange }: { children: React.ReactNode; value: string; onValueChange: (v: string) => void }) => (
-    <div data-testid="select" data-value={value}>
+  Select: ({
+    children,
+    value,
+    onValueChange,
+    'data-testid': dataTestId,
+  }: {
+    children: React.ReactNode;
+    value: string;
+    onValueChange: (v: string) => void;
+    'data-testid'?: string;
+  }) => (
+    <div data-testid={dataTestId || 'select'} data-value={value}>
       {children}
-      <button data-testid="select-code" onClick={() => onValueChange('code')}>Select Code</button>
-      <button data-testid="select-all" onClick={() => onValueChange('all')}>Select All</button>
+      <button data-testid={`${dataTestId || 'select'}-code`} onClick={() => onValueChange('code')}>Select Code</button>
+      <button data-testid={`${dataTestId || 'select'}-all`} onClick={() => onValueChange('all')}>Select All</button>
+      <button data-testid={`${dataTestId || 'select'}-ready`} onClick={() => onValueChange('ready')}>Select Ready</button>
     </div>
   ),
   SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -201,11 +271,20 @@ describe('ArtifactList', () => {
     jest.clearAllMocks();
     mockSearchArtifacts.mockReturnValue([]);
     mockFilterArtifactsByType.mockReturnValue([]);
+    mockArtifactWorkspace = {
+      scope: 'session',
+      sessionId: 'session-1',
+      searchQuery: '',
+      typeFilter: 'all',
+      runtimeFilter: 'all',
+      recentArtifactIds: [],
+      returnContext: null,
+    };
   });
 
-  it('renders artifacts for current session via getSessionArtifacts', () => {
+  it('renders artifacts for current session via workspace selector', () => {
     render(<ArtifactList />);
-    expect(mockGetSessionArtifacts).toHaveBeenCalledWith('session-1');
+    expect(mockGetArtifactsForWorkspace).toHaveBeenCalledWith({ sessionId: 'session-1' });
     expect(screen.getByText('First Artifact')).toBeInTheDocument();
     expect(screen.getByText('Second Artifact')).toBeInTheDocument();
   });
@@ -243,7 +322,7 @@ describe('ArtifactList', () => {
 
   it('filters by sessionId when provided', () => {
     render(<ArtifactList sessionId="session-2" />);
-    expect(mockGetSessionArtifacts).toHaveBeenCalledWith('session-2');
+    expect(mockGetArtifactsForWorkspace).toHaveBeenCalledWith({ sessionId: 'session-2' });
     expect(screen.getByText('Other Session Artifact')).toBeInTheDocument();
   });
 
@@ -252,30 +331,30 @@ describe('ArtifactList', () => {
     expect(screen.getByTestId('search-input')).toBeInTheDocument();
   });
 
-  it('calls searchArtifacts when search query is entered', () => {
-    mockSearchArtifacts.mockReturnValue([session1Artifacts[0]]);
+  it('writes search query to centralized workspace filters when search query is entered', () => {
     render(<ArtifactList />);
     const input = screen.getByTestId('search-input');
     fireEvent.change(input, { target: { value: 'First' } });
-    expect(mockSearchArtifacts).toHaveBeenCalledWith('First', 'session-1');
+    expect(mockSetArtifactWorkspaceFilters).toHaveBeenCalledWith({ searchQuery: 'First' });
   });
 
-  it('calls filterArtifactsByType when type filter is changed', () => {
-    mockFilterArtifactsByType.mockReturnValue([session1Artifacts[0]]);
+  it('writes type filter to centralized workspace filters when type filter is changed', () => {
     render(<ArtifactList />);
-    fireEvent.click(screen.getByTestId('select-code'));
-    expect(mockFilterArtifactsByType).toHaveBeenCalledWith('code', 'session-1');
+    fireEvent.click(screen.getByTestId('type-filter-select-code'));
+    expect(mockSetArtifactWorkspaceFilters).toHaveBeenCalledWith({ typeFilter: 'code' });
   });
 
-  it('resets to getSessionArtifacts when filter is set to all', () => {
-    mockFilterArtifactsByType.mockReturnValue([session1Artifacts[0]]);
+  it('resets centralized type filter to all when requested', () => {
     render(<ArtifactList />);
-    // First filter by code
-    fireEvent.click(screen.getByTestId('select-code'));
-    // Then reset to all
-    fireEvent.click(screen.getByTestId('select-all'));
-    // Should call getSessionArtifacts again
-    expect(mockGetSessionArtifacts).toHaveBeenCalledWith('session-1');
+    fireEvent.click(screen.getByTestId('type-filter-select-code'));
+    fireEvent.click(screen.getByTestId('type-filter-select-all'));
+    expect(mockSetArtifactWorkspaceFilters).toHaveBeenLastCalledWith({ typeFilter: 'all' });
+  });
+
+  it('writes runtime filter to centralized workspace filters when runtime filter is changed', () => {
+    render(<ArtifactList />);
+    fireEvent.click(screen.getByTestId('runtime-filter-select-ready'));
+    expect(mockSetArtifactWorkspaceFilters).toHaveBeenCalledWith({ runtimeFilter: 'ready' });
   });
 
   it('renders batch select button', () => {

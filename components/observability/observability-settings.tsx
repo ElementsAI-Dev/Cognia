@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -10,9 +11,23 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { ExternalLink, TestTube, CheckCircle, XCircle } from 'lucide-react';
 import { Loader } from '@/components/ai-elements/loader';
-import { useState } from 'react';
-import { useSettingsStore } from '@/stores';
-import type { ObservabilitySettingsData } from '@/types/observability';
+import { useMemo, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { useAgentTrace } from '@/hooks/agent-trace';
+import { useSettingsStore, useUsageStore } from '@/stores';
+import { buildObservabilitySettingsProjection, normalizeObservabilitySettings } from '@/lib/observability';
+import type { ObservabilitySettingsData, ObservabilitySurfaceStatus } from '@/types/observability';
+
+function getStatusVariant(status: ObservabilitySurfaceStatus): 'secondary' | 'outline' | 'default' {
+  switch (status) {
+    case 'ready':
+      return 'default';
+    case 'incomplete':
+      return 'secondary';
+    default:
+      return 'outline';
+  }
+}
 
 export function ObservabilitySettings() {
   const t = useTranslations('observability.settings');
@@ -21,20 +36,24 @@ export function ObservabilitySettings() {
   const [testMessage, setTestMessage] = useState('');
 
   const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
+  const agentTraceSettings = useSettingsStore((state) => state.agentTraceSettings);
   const updateObservabilitySettings = useSettingsStore(
     (state) => state.updateObservabilitySettings
   );
+  const usageRecordCount = useUsageStore((state) => state.records.length);
+  const { totalCount: traceRecordCount = 0 } = useAgentTrace({ limit: 1 });
 
-  const settings: ObservabilitySettingsData = observabilitySettings ?? {
-    enabled: false,
-    langfuseEnabled: true,
-    langfusePublicKey: '',
-    langfuseSecretKey: '',
-    langfuseHost: 'https://cloud.langfuse.com',
-    openTelemetryEnabled: false,
-    openTelemetryEndpoint: 'http://localhost:4318/v1/traces',
-    serviceName: 'cognia-ai',
-  };
+  const settings: ObservabilitySettingsData = normalizeObservabilitySettings(observabilitySettings);
+  const projection = useMemo(
+    () =>
+      buildObservabilitySettingsProjection({
+        observabilitySettings: settings,
+        agentTraceSettings,
+        usageRecordCount,
+        traceRecordCount,
+      }),
+    [agentTraceSettings, settings, traceRecordCount, usageRecordCount]
+  );
 
   const handleSettingChange = <K extends keyof ObservabilitySettingsData>(
     key: K,
@@ -80,6 +99,20 @@ export function ObservabilitySettings() {
     }
   };
 
+  const statusTitleMap: Record<ObservabilitySurfaceStatus, string> = {
+    disabled: t('stateDisabled'),
+    incomplete: t('stateIncomplete'),
+    ready: t('stateReady'),
+    'history-only': t('stateHistoryOnly'),
+  };
+
+  const statusDescriptionMap: Record<ObservabilitySurfaceStatus, string> = {
+    disabled: t('stateDisabledDescription'),
+    incomplete: t('stateIncompleteDescription'),
+    ready: t('stateReadyDescription'),
+    'history-only': t('stateHistoryOnlyDescription'),
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -97,140 +130,201 @@ export function ObservabilitySettings() {
         </CardHeader>
       </Card>
 
-      {settings.enabled && (
-        <>
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base">{t('langfuse.title')}</CardTitle>
-                  <CardDescription>{t('langfuse.description')}</CardDescription>
-                </div>
-                <Switch
-                  checked={settings.langfuseEnabled}
-                  onCheckedChange={(checked) => handleSettingChange('langfuseEnabled', checked)}
-                />
-              </div>
-            </CardHeader>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle>{t('stateTitle')}</CardTitle>
+              <CardDescription>{statusDescriptionMap[projection.status]}</CardDescription>
+            </div>
+            <Badge variant={getStatusVariant(projection.status)}>
+              {statusTitleMap[projection.status]}
+            </Badge>
+          </div>
+        </CardHeader>
+        {projection.history.hasAnyHistory && !projection.captureEnabled && (
+          <CardContent className="pt-0">
+            <Alert>
+              <AlertDescription>{t('historyHint')}</AlertDescription>
+            </Alert>
+          </CardContent>
+        )}
+      </Card>
 
-            {settings.langfuseEnabled && (
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="langfuse-host">{t('langfuse.hostUrl')}</Label>
-                  <Input
-                    id="langfuse-host"
-                    value={settings.langfuseHost}
-                    onChange={(e) => handleSettingChange('langfuseHost', e.target.value)}
-                    placeholder={t('langfuse.hostUrlPlaceholder')}
-                  />
-                </div>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">{t('langfuse.title')}</CardTitle>
+              <CardDescription>{t('langfuse.description')}</CardDescription>
+            </div>
+            <Switch
+              checked={settings.langfuseEnabled}
+              onCheckedChange={(checked) => handleSettingChange('langfuseEnabled', checked)}
+            />
+          </div>
+        </CardHeader>
 
-                <div className="space-y-2">
-                  <Label htmlFor="langfuse-public-key">{t('langfuse.publicKey')}</Label>
-                  <Input
-                    id="langfuse-public-key"
-                    value={settings.langfusePublicKey}
-                    onChange={(e) => handleSettingChange('langfusePublicKey', e.target.value)}
-                    placeholder={t('langfuse.publicKeyPlaceholder')}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="langfuse-secret-key">{t('langfuse.secretKey')}</Label>
-                  <Input
-                    id="langfuse-secret-key"
-                    type="password"
-                    value={settings.langfuseSecretKey}
-                    onChange={(e) => handleSettingChange('langfuseSecretKey', e.target.value)}
-                    placeholder={t('langfuse.secretKeyPlaceholder')}
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={testConnection}
-                    disabled={testStatus === 'testing'}
-                  >
-                    {testStatus === 'testing' ? (
-                      <Loader size={16} className="mr-2" />
-                    ) : (
-                      <TestTube className="h-4 w-4 mr-2" />
-                    )}
-                    {t('testConnection')}
-                  </Button>
-
-                  {testStatus === 'success' && (
-                    <Alert variant="default" className="py-2 px-3 flex-1">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <AlertDescription className="text-green-600">{testMessage}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  {testStatus === 'error' && (
-                    <Alert variant="destructive" className="py-2 px-3 flex-1">
-                      <XCircle className="h-4 w-4" />
-                      <AlertDescription>{testMessage}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  <Button variant="ghost" size="sm" className="ml-auto" asChild>
-                    <a href="https://langfuse.com" target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      {t('getApiKeys')}
-                    </a>
-                  </Button>
-                </div>
-              </CardContent>
+        {settings.langfuseEnabled && (
+          <CardContent className="space-y-4">
+            {!projection.captureEnabled && projection.langfuse.configured && (
+              <Alert>
+                <AlertDescription>{t('capturePaused')}</AlertDescription>
+              </Alert>
             )}
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base">{t('otel.title')}</CardTitle>
-                  <CardDescription>{t('otel.description')}</CardDescription>
-                </div>
-                <Switch
-                  checked={settings.openTelemetryEnabled}
-                  onCheckedChange={(checked) =>
-                    handleSettingChange('openTelemetryEnabled', checked)
-                  }
-                />
-              </div>
-            </CardHeader>
-
-            {settings.openTelemetryEnabled && (
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="otel-endpoint">{t('otel.endpoint')}</Label>
-                  <Input
-                    id="otel-endpoint"
-                    value={settings.openTelemetryEndpoint}
-                    onChange={(e) => handleSettingChange('openTelemetryEndpoint', e.target.value)}
-                    placeholder={t('otel.endpointPlaceholder')}
-                  />
-                  <p className="text-xs text-muted-foreground">{t('otel.endpointHint')}</p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="service-name">{t('otel.serviceName')}</Label>
-                  <Input
-                    id="service-name"
-                    value={settings.serviceName}
-                    onChange={(e) => handleSettingChange('serviceName', e.target.value)}
-                    placeholder={t('otel.serviceNamePlaceholder')}
-                  />
-                </div>
-              </CardContent>
+            {projection.langfuse.status === 'incomplete' && (
+              <Alert variant="destructive">
+                <AlertDescription>{t('incompleteLangfuse')}</AlertDescription>
+              </Alert>
             )}
-          </Card>
-        </>
-      )}
+
+            <div className="space-y-2">
+              <Label htmlFor="langfuse-host">{t('langfuse.hostUrl')}</Label>
+              <Input
+                id="langfuse-host"
+                value={settings.langfuseHost}
+                onChange={(e) => handleSettingChange('langfuseHost', e.target.value)}
+                placeholder={t('langfuse.hostUrlPlaceholder')}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="langfuse-public-key">{t('langfuse.publicKey')}</Label>
+              <Input
+                id="langfuse-public-key"
+                value={settings.langfusePublicKey}
+                onChange={(e) => handleSettingChange('langfusePublicKey', e.target.value)}
+                placeholder={t('langfuse.publicKeyPlaceholder')}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="langfuse-secret-key">{t('langfuse.secretKey')}</Label>
+              <Input
+                id="langfuse-secret-key"
+                type="password"
+                value={settings.langfuseSecretKey}
+                onChange={(e) => handleSettingChange('langfuseSecretKey', e.target.value)}
+                placeholder={t('langfuse.secretKeyPlaceholder')}
+              />
+            </div>
+
+            <Separator />
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={testConnection}
+                disabled={testStatus === 'testing'}
+              >
+                {testStatus === 'testing' ? (
+                  <Loader size={16} className="mr-2" />
+                ) : (
+                  <TestTube className="h-4 w-4 mr-2" />
+                )}
+                {t('testConnection')}
+              </Button>
+
+              {testStatus === 'success' && (
+                <Alert variant="default" className="py-2 px-3 flex-1">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-600">{testMessage}</AlertDescription>
+                </Alert>
+              )}
+
+              {testStatus === 'error' && (
+                <Alert variant="destructive" className="py-2 px-3 flex-1">
+                  <XCircle className="h-4 w-4" />
+                  <AlertDescription>{testMessage}</AlertDescription>
+                </Alert>
+              )}
+
+              <Button variant="ghost" size="sm" className="ml-auto" asChild>
+                <a href="https://langfuse.com" target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  {t('getApiKeys')}
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">{t('otel.title')}</CardTitle>
+              <CardDescription>{t('otel.description')}</CardDescription>
+            </div>
+            <Switch
+              checked={settings.openTelemetryEnabled}
+              onCheckedChange={(checked) =>
+                handleSettingChange('openTelemetryEnabled', checked)
+              }
+            />
+          </div>
+        </CardHeader>
+
+        {settings.openTelemetryEnabled && (
+          <CardContent className="space-y-4">
+            {!projection.captureEnabled && projection.openTelemetry.configured && (
+              <Alert>
+                <AlertDescription>{t('capturePaused')}</AlertDescription>
+              </Alert>
+            )}
+            {projection.openTelemetry.status === 'incomplete' && (
+              <Alert variant="destructive">
+                <AlertDescription>{t('incompleteOtel')}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="otel-endpoint">{t('otel.endpoint')}</Label>
+              <Input
+                id="otel-endpoint"
+                value={settings.openTelemetryEndpoint}
+                onChange={(e) => handleSettingChange('openTelemetryEndpoint', e.target.value)}
+                placeholder={t('otel.endpointPlaceholder')}
+              />
+              <p className="text-xs text-muted-foreground">{t('otel.endpointHint')}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="service-name">{t('otel.serviceName')}</Label>
+              <Input
+                id="service-name"
+                value={settings.serviceName}
+                onChange={(e) => handleSettingChange('serviceName', e.target.value)}
+                placeholder={t('otel.serviceNamePlaceholder')}
+              />
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t('agentTrace.title')}</CardTitle>
+          <CardDescription>{t('agentTrace.description')}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <div className="font-medium">
+              {projection.agentTrace.enabled ? t('agentTrace.enabled') : t('agentTrace.disabled')}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {projection.agentTrace.maxRecords === 0
+                ? 'Unlimited retention'
+                : `Max ${projection.agentTrace.maxRecords} records`}
+            </p>
+          </div>
+          <Button asChild variant="outline">
+            <Link href="/settings?section=agent-trace">{t('agentTrace.manage')}</Link>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

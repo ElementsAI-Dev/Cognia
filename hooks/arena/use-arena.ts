@@ -6,7 +6,11 @@
 import { useCallback, useState } from 'react';
 import { useArenaStore } from '@/stores/arena';
 import { useSettingsStore } from '@/stores/settings';
-import { getProviderModel, type ProviderName } from '@/lib/ai/core/client';
+import type { ProviderName } from '@/lib/ai/core/client';
+import {
+  createFeatureProviderModelFromRuntimeConfig,
+  createFeatureRoutePolicy,
+} from '@/lib/ai/provider-consumption';
 import { streamText } from 'ai';
 import { classifyTaskRuleBased } from '@/lib/ai/generation/auto-router';
 import { ARENA_KNOWN_MODELS } from '@/lib/arena/constants';
@@ -183,17 +187,23 @@ export function useArena(options: UseArenaOptions = {}) {
 
       try {
         const settings = providerSettings[contestant.provider];
-        if (!settings?.apiKey && contestant.provider !== 'ollama') {
-          throw new Error(`No API key configured for ${contestant.provider}`);
-        }
 
         updateContestantStatus(battleId, contestant.id, 'streaming');
 
-        const model = getProviderModel(
-          contestant.provider,
-          contestant.model,
-          settings?.apiKey || '',
-          settings?.baseURL
+        const model = createFeatureProviderModelFromRuntimeConfig(
+          createFeatureRoutePolicy('general-text', {
+            featureId: 'arena-battle',
+            selectionMode: 'explicit-provider',
+            providerId: contestant.provider,
+            model: contestant.model,
+            fallbackMode: 'none',
+          }),
+          {
+            providerId: contestant.provider,
+            model: contestant.model,
+            apiKey: settings?.apiKey || '',
+            baseURL: settings?.baseURL,
+          }
         );
 
         const messages = [{ role: 'user' as const, content: prompt }];

@@ -7,6 +7,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import type { PluginSource } from '@/types/plugin';
 import type {
   InstallProgressInfo,
   InstallStage,
@@ -38,12 +39,16 @@ export type MarketplaceErrorCategory =
   | 'unknown';
 
 export type PluginOperationStage = 'idle' | 'installing' | 'updating' | 'installed' | 'error';
+export type DiscoverySourceFilter = 'all' | PluginSource | 'marketplace';
+export type DiscoveryCompatibilityFilter = 'all' | 'compatible' | 'warning' | 'blocked';
 
 export interface MarketplaceDiscoveryState {
   query: string;
   sortBy: SortOption;
   categoryFilter: CategoryFilter;
   quickFilter: QuickFilter;
+  sourceFilter: DiscoverySourceFilter;
+  compatibilityFilter: DiscoveryCompatibilityFilter;
   page: number;
   pageSize: number;
 }
@@ -95,6 +100,8 @@ interface PluginMarketplaceState {
   setDiscoverySort: (sortBy: SortOption) => void;
   setDiscoveryCategoryFilter: (categoryFilter: CategoryFilter) => void;
   setDiscoveryQuickFilter: (quickFilter: QuickFilter) => void;
+  setDiscoverySourceFilter: (sourceFilter: DiscoverySourceFilter) => void;
+  setDiscoveryCompatibilityFilter: (compatibilityFilter: DiscoveryCompatibilityFilter) => void;
   setDiscoveryPage: (page: number) => void;
   setDiscoveryState: (updates: Partial<MarketplaceDiscoveryState>) => void;
   resetDiscoveryState: () => void;
@@ -169,6 +176,8 @@ const DEFAULT_DISCOVERY_STATE: MarketplaceDiscoveryState = {
   sortBy: 'popular',
   categoryFilter: 'all',
   quickFilter: 'all',
+  sourceFilter: 'all',
+  compatibilityFilter: 'all',
   page: 1,
   pageSize: 20,
 };
@@ -276,6 +285,24 @@ export const usePluginMarketplaceStore = create<PluginMarketplaceState>()(
           discoveryState: {
             ...state.discoveryState,
             quickFilter,
+            page: 1,
+          },
+        })),
+
+      setDiscoverySourceFilter: (sourceFilter) =>
+        set((state) => ({
+          discoveryState: {
+            ...state.discoveryState,
+            sourceFilter,
+            page: 1,
+          },
+        })),
+
+      setDiscoveryCompatibilityFilter: (compatibilityFilter) =>
+        set((state) => ({
+          discoveryState: {
+            ...state.discoveryState,
+            compatibilityFilter,
             page: 1,
           },
         })),

@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "description": "A simple example demonstrating how to create plugin tools",
   "type": "frontend",
+  "engines": {
+    "cognia": ">=0.1.0"
+  },
   "capabilities": ["tools"],
   "author": {
     "name": "Cognia Team",

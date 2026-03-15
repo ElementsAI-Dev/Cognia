@@ -18,6 +18,7 @@ import {
   Pause,
   RotateCcw,
   AlertCircle,
+  type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -50,7 +51,7 @@ export interface PendingMessage {
 
 // Status configuration
 const statusConfig: Record<PendingMessage['status'], {
-  icon: React.ElementType;
+  icon: LucideIcon;
   color: string;
   bgColor: string;
   labelKey: string;

@@ -49,6 +49,7 @@ import {
   Trophy,
   XCircle,
   Zap,
+  type LucideIcon,
 } from 'lucide-react';
 import type { SpeedStudySession, Quiz, WrongQuestionRecord, TextbookKnowledgePoint } from '@/types/learning/speedpass';
 
@@ -737,7 +738,7 @@ export function AnalyticsDashboard() {
 // ============================================================================
 
 interface StatCardProps {
-  icon: React.ElementType;
+  icon: LucideIcon;
   label: string;
   value: string;
   trend: string;
@@ -767,7 +768,7 @@ interface MasteryBarProps {
   label: string;
   percentage: number;
   color: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
 }
 
 function MasteryBar({ label, percentage, color, icon: Icon }: MasteryBarProps) {

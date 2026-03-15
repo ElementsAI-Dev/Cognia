@@ -4,14 +4,21 @@
  */
 
 import { generateText } from 'ai';
-import { getProviderModel, type ProviderName } from '../core/client';
+import {
+  createFeatureProviderModelFromRuntimeConfig,
+  createFeatureRoutePolicy,
+} from '@/lib/ai/provider-consumption';
+import type { ApiProtocol } from '@/types/provider';
 import { detectPromptLanguage } from '../prompts/prompt-optimizer';
 
 export interface PresetAIServiceConfig {
-  provider: ProviderName;
+  provider: string;
   model?: string;
   apiKey: string;
   baseURL?: string;
+  protocol?: ApiProtocol;
+  isCustomProvider?: boolean;
+  useProxy?: boolean;
 }
 
 export interface GeneratedPreset {
@@ -43,9 +50,31 @@ const PRESET_COLORS = [
 ];
 
 function getModelInstance(config: PresetAIServiceConfig) {
-  const provider = config.provider === ('auto' as string) ? 'openai' as ProviderName : config.provider;
   const model = config.model || 'gpt-4o-mini';
-  return getProviderModel(provider, model, config.apiKey, config.baseURL);
+  return createFeatureProviderModelFromRuntimeConfig(
+    createFeatureRoutePolicy('general-text', {
+      featureId: 'preset-ai-service',
+      selectionMode: 'explicit-provider',
+      providerId: config.provider,
+      model,
+      fallbackMode: 'none',
+      proxyMode:
+        config.useProxy === undefined
+          ? 'preferred'
+          : config.useProxy
+            ? 'required'
+            : 'disabled',
+    }),
+    {
+      providerId: config.provider,
+      model,
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
+      protocol: config.protocol,
+      isCustomProvider: config.isCustomProvider,
+      useProxy: config.useProxy,
+    }
+  );
 }
 
 /**

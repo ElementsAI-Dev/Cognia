@@ -17,6 +17,7 @@ import {
   AlertCircle,
   Flame,
   ChevronDown,
+  type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -37,7 +38,7 @@ interface AlertBlockProps {
 }
 
 const alertConfig: Record<AlertType, {
-  icon: React.ElementType;
+  icon: LucideIcon;
   title: string;
   className: string;
   iconClassName: string;

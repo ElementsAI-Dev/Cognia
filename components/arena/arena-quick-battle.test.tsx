@@ -15,9 +15,12 @@ jest.mock('next-intl', () => ({
 }));
 
 const mockStartBattle = jest.fn().mockResolvedValue(undefined);
+const mockRotateMatchup = jest.fn();
 
 let mockAvailableModels: ModelOption[] = [];
 let mockSelectedModels: ModelOption[] = [];
+let mockRecommendationReason = 'Recommended matchup';
+let mockHasExhaustedCycle = false;
 
 jest.mock('@/hooks/arena', () => ({
   useArena: () => ({
@@ -35,6 +38,9 @@ jest.mock('@/hooks/arena', () => ({
     getSmartModelPair: () => mockSelectedModels.length > 0 ? mockSelectedModels : mockAvailableModels.slice(0, 2),
     selectedModels: mockSelectedModels.length > 0 ? mockSelectedModels : mockAvailableModels.slice(0, 2),
     availableModels: mockAvailableModels,
+    recommendationReason: mockRecommendationReason,
+    hasExhaustedCycle: mockHasExhaustedCycle,
+    rotateMatchup: mockRotateMatchup,
   }),
 }));
 
@@ -43,6 +49,8 @@ jest.mock('@/lib/logger', () => ({
   loggers: {
     ui: {
       error: jest.fn(),
+      warn: jest.fn(),
+      info: jest.fn(),
     },
   },
 }));
@@ -114,6 +122,8 @@ describe('ArenaQuickBattle', () => {
     jest.clearAllMocks();
     mockAvailableModels = [];
     mockSelectedModels = [];
+    mockRecommendationReason = 'Recommended matchup';
+    mockHasExhaustedCycle = false;
   });
 
   it('renders null when fewer than two models are available', () => {
@@ -208,5 +218,19 @@ describe('ArenaQuickBattle', () => {
 
     await userEvent.click(button);
     expect(mockStartBattle).not.toHaveBeenCalled();
+  });
+
+  it('shows recommendation rationale and rotates models when shuffle is clicked', async () => {
+    mockAvailableModels = [
+      { provider: 'openai', model: 'gpt-4o-mini', displayName: 'GPT-4o mini' },
+      { provider: 'anthropic', model: 'claude-3-5-sonnet', displayName: 'Claude 3.5 Sonnet' },
+    ];
+
+    render(<ArenaQuickBattle prompt="Prompt" />);
+
+    expect(screen.getByText('Recommended matchup')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'quickBattle.shuffle' }));
+    expect(mockRotateMatchup).toHaveBeenCalled();
   });
 });

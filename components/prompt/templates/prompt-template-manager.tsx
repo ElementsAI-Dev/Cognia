@@ -59,6 +59,7 @@ import {
   InputGroupButton,
 } from '@/components/ui/input-group';
 import { EmptyState } from '@/components/layout/feedback/empty-state';
+import { derivePromptWorkflowState } from '@/lib/prompts/marketplace-utils';
 import { cn } from '@/lib/utils';
 import { usePromptTemplateStore } from '@/stores';
 import { toast } from '@/components/ui/sonner';
@@ -66,7 +67,12 @@ import { PromptTemplateCard } from './prompt-template-card';
 import { PromptTemplateCardSkeleton } from './prompt-template-card-skeleton';
 import { PromptTemplateEditor } from './prompt-template-editor';
 import { PromptTemplateAdvancedEditor } from './prompt-template-advanced-editor';
-import type { PromptTemplate, PromptTemplateImportStrategy } from '@/types/content/prompt-template';
+import type {
+  CreatePromptTemplateInput,
+  PromptTemplate,
+  PromptTemplateImportStrategy,
+} from '@/types/content/prompt-template';
+import { NEW_PROMPT_TEMPLATE_DRAFT_SESSION_ID } from '@/types/content/prompt-template';
 
 type ViewMode = 'grid' | 'list';
 type SortMode = 'name' | 'updated' | 'usage';
@@ -86,6 +92,9 @@ export function PromptTemplateManager() {
   const exportTemplates = usePromptTemplateStore((state) => state.exportTemplates);
   const initializeDefaults = usePromptTemplateStore((state) => state.initializeDefaults);
   const operationStates = usePromptTemplateStore((state) => state.operationStates);
+  const draftSessions = usePromptTemplateStore((state) => state.draftSessions);
+  const saveDraftSession = usePromptTemplateStore((state) => state.saveDraftSession);
+  const restoreDraftSession = usePromptTemplateStore((state) => state.restoreDraftSession);
 
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -185,11 +194,38 @@ export function PromptTemplateManager() {
     initializeDefaults();
   }, [initializeDefaults]);
 
+  const templateWorkflows = useMemo(
+    () =>
+      Object.fromEntries(
+        templates.map((template) => [
+          template.id,
+          derivePromptWorkflowState({
+            template,
+            draftSession: draftSessions[template.id],
+          }),
+        ])
+      ),
+    [draftSessions, templates]
+  );
+
+  const currentDraftSnapshot = useMemo(
+    () => (editing ? draftSessions[editing.id]?.snapshot : draftSessions[NEW_PROMPT_TEMPLATE_DRAFT_SESSION_ID]?.snapshot),
+    [draftSessions, editing]
+  );
+
   const handleCreate = () => {
+    restoreDraftSession(NEW_PROMPT_TEMPLATE_DRAFT_SESSION_ID);
     setEditing(null);
     setSubmitError(null);
     setIsEditorOpen(true);
   };
+
+  const openEditor = useCallback((template: PromptTemplate) => {
+    restoreDraftSession(template.id);
+    setEditing(template);
+    setSubmitError(null);
+    setIsEditorOpen(true);
+  }, [restoreDraftSession]);
 
   const handleSave = (input: Parameters<typeof createTemplate>[0]) => {
     setSubmitError(null);
@@ -209,6 +245,12 @@ export function PromptTemplateManager() {
     setIsEditorOpen(false);
     setEditing(null);
   };
+
+  const handleSaveDraft = useCallback((input: CreatePromptTemplateInput, origin: 'editor' | 'advanced-editor') => {
+    const draftId = editing?.id ?? NEW_PROMPT_TEMPLATE_DRAFT_SESSION_ID;
+    saveDraftSession(draftId, input, origin);
+    toast.success('Draft saved');
+  }, [editing?.id, saveDraftSession]);
 
   const handleImport = () => {
     const report = importTemplates(importPayload, { strategy: importStrategy });
@@ -435,11 +477,8 @@ export function PromptTemplateManager() {
                 <PromptTemplateCard
                   key={template.id}
                   template={template}
-                  onEdit={(tpl) => {
-                    setEditing(tpl);
-                    setSubmitError(null);
-                    setIsEditorOpen(true);
-                  }}
+                  workflowState={templateWorkflows[template.id]}
+                  onEdit={openEditor}
                   onDuplicate={handleDuplicate}
                   onDelete={handleDeleteRequest}
                 />
@@ -468,11 +507,8 @@ export function PromptTemplateManager() {
                         <PromptTemplateCard
                           key={template.id}
                           template={template}
-                          onEdit={(tpl) => {
-                            setEditing(tpl);
-                            setSubmitError(null);
-                            setIsEditorOpen(true);
-                          }}
+                          workflowState={templateWorkflows[template.id]}
+                          onEdit={openEditor}
                           onDuplicate={handleDuplicate}
                           onDelete={handleDeleteRequest}
                         />
@@ -484,11 +520,8 @@ export function PromptTemplateManager() {
                         <PromptTemplateCard
                           key={template.id}
                           template={template}
-                          onEdit={(tpl) => {
-                            setEditing(tpl);
-                            setSubmitError(null);
-                            setIsEditorOpen(true);
-                          }}
+                          workflowState={templateWorkflows[template.id]}
+                          onEdit={openEditor}
                           onDuplicate={handleDuplicate}
                           onDelete={handleDeleteRequest}
                         />
@@ -522,18 +555,22 @@ export function PromptTemplateManager() {
             <PromptTemplateAdvancedEditor
               key={editing?.id ?? 'new-advanced'}
               template={editing ?? undefined}
+              draftSnapshot={currentDraftSnapshot}
               categories={categories}
               submitError={submitError ?? undefined}
               onCancel={() => setIsEditorOpen(false)}
+              onSaveDraft={(input) => handleSaveDraft(input, 'advanced-editor')}
               onSubmit={handleSave}
             />
           ) : (
             <PromptTemplateEditor
               key={editing?.id ?? 'new'}
               template={editing ?? undefined}
+              draftSnapshot={currentDraftSnapshot}
               categories={categories}
               submitError={submitError ?? undefined}
               onCancel={() => setIsEditorOpen(false)}
+              onSaveDraft={(input) => handleSaveDraft(input, 'editor')}
               onSubmit={handleSave}
             />
           )}

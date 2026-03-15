@@ -38,7 +38,9 @@
     "duplicate": "Duplicate",
     "search": "Search artifacts...",
     "filterByType": "Filter by type",
+    "filterByRuntime": "Filter by runtime",
     "allTypes": "All Types",
+    "allRuntimeStates": "All Runtime States",
     "batchSelect": "Toggle batch selection",
     "batchDelete": "Delete Selected",
     "batchDeleteConfirm": "Delete {count} artifacts?",
@@ -51,7 +53,13 @@
     "noVersions": "No version history",
     "versionRestored": "Version restored",
     "analysisResults": "Analysis Results",
-    "recentArtifacts": "Recent Artifacts"
+    "recentArtifacts": "Recent Artifacts",
+    "runtimeStates": {
+      "ready": "Ready",
+      "loading": "Loading",
+      "error": "Error",
+      "unsupported": "Unsupported"
+    }
   },
   "artifactPreview": {
     "previewError": "Preview error",

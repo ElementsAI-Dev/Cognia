@@ -10,12 +10,13 @@ jest.mock('@/lib/document', () => ({
     const ext = filename.split('.').pop()?.toLowerCase() || '';
     const map: Record<string, string> = {
       md: 'markdown', py: 'code', ts: 'code', js: 'code',
-      json: 'json', pdf: 'pdf', docx: 'word', xlsx: 'excel',
+      json: 'json', pdf: 'pdf', docx: 'word', docm: 'word', odt: 'word', xlsx: 'excel', xlsm: 'excel', ods: 'excel',
       csv: 'csv', html: 'html', txt: 'text',
-      pptx: 'presentation', ppt: 'presentation', rtf: 'rtf', epub: 'epub',
+      pptx: 'presentation', ppt: 'presentation', pptm: 'presentation', odp: 'presentation', rtf: 'rtf', epub: 'epub',
     };
     return map[ext] || 'unknown';
   },
+  mapDocumentTypeToKnowledgeFileType: (type: string) => (type === 'unknown' ? 'text' : type),
 }));
 
 describe('FILE_TYPE_ICONS', () => {
@@ -80,10 +81,14 @@ describe('detectFileType', () => {
 
   it('should detect Word files', () => {
     expect(detectFileType('report.docx')).toBe('word');
+    expect(detectFileType('template.docm')).toBe('word');
+    expect(detectFileType('notes.odt')).toBe('word');
   });
 
   it('should detect Excel files', () => {
     expect(detectFileType('data.xlsx')).toBe('excel');
+    expect(detectFileType('data.xlsm')).toBe('excel');
+    expect(detectFileType('data.ods')).toBe('excel');
   });
 
   it('should detect CSV files', () => {
@@ -97,6 +102,8 @@ describe('detectFileType', () => {
   it('should detect presentation files', () => {
     expect(detectFileType('deck.pptx')).toBe('presentation');
     expect(detectFileType('legacy.ppt')).toBe('presentation');
+    expect(detectFileType('deck.pptm')).toBe('presentation');
+    expect(detectFileType('deck.odp')).toBe('presentation');
   });
 
   it('should detect RTF files', () => {

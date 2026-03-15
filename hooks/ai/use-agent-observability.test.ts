@@ -4,7 +4,7 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useRef, useEffect } from 'react';
-import { useAgentObservability } from './use-agent-observability';
+import { useAgentObservability, useAgentObservabilityConfig } from './use-agent-observability';
 import { createAgentObservabilityManager } from '@/lib/ai/observability/agent-observability';
 import type { ToolCall } from '@/lib/ai/agent/agent-executor';
 
@@ -105,6 +105,76 @@ describe('useAgentObservability', () => {
 
       expect(createAgentObservabilityManager).toHaveBeenCalledTimes(2);
       expect(createAgentObservabilityManager).toHaveBeenLastCalledWith(newConfig);
+    });
+  });
+
+  describe('useAgentObservabilityConfig', () => {
+    it('keeps runtime observability disabled when configured providers are not active', () => {
+      const stores = jest.requireMock('@/stores');
+      stores.useSettingsStore.mockImplementation((selector: (state: Record<string, unknown>) => unknown) =>
+        selector({
+          observabilitySettings: {
+            enabled: true,
+            langfuseEnabled: false,
+            langfusePublicKey: '',
+            langfuseSecretKey: '',
+            langfuseHost: 'https://cloud.langfuse.com',
+            openTelemetryEnabled: false,
+            openTelemetryEndpoint: 'http://localhost:4318/v1/traces',
+            serviceName: 'cognia-ai',
+          },
+          agentTraceSettings: {
+            enabled: false,
+            maxRecords: 1000,
+            autoCleanupDays: 30,
+            traceShellCommands: true,
+            traceCodeEdits: true,
+            traceFailedCalls: false,
+          },
+        })
+      );
+
+      const { result } = renderHook(() => useAgentObservabilityConfig());
+
+      expect(result.current).toEqual({
+        enableObservability: false,
+        enableLangfuse: false,
+        enableOpenTelemetry: false,
+      });
+    });
+
+    it('enables only valid remote integrations for agent runtime observability', () => {
+      const stores = jest.requireMock('@/stores');
+      stores.useSettingsStore.mockImplementation((selector: (state: Record<string, unknown>) => unknown) =>
+        selector({
+          observabilitySettings: {
+            enabled: true,
+            langfuseEnabled: false,
+            langfusePublicKey: '',
+            langfuseSecretKey: '',
+            langfuseHost: 'https://cloud.langfuse.com',
+            openTelemetryEnabled: true,
+            openTelemetryEndpoint: 'http://localhost:4318/v1/traces',
+            serviceName: 'cognia-ai',
+          },
+          agentTraceSettings: {
+            enabled: false,
+            maxRecords: 1000,
+            autoCleanupDays: 30,
+            traceShellCommands: true,
+            traceCodeEdits: true,
+            traceFailedCalls: false,
+          },
+        })
+      );
+
+      const { result } = renderHook(() => useAgentObservabilityConfig());
+
+      expect(result.current).toEqual({
+        enableObservability: true,
+        enableLangfuse: false,
+        enableOpenTelemetry: true,
+      });
     });
   });
 

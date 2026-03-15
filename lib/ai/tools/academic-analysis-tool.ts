@@ -9,7 +9,6 @@ import type {
   LibraryPaper,
   PaperAnalysisType,
 } from '@/types/academic';
-import type { ProviderName } from '@/types/provider';
 
 export const academicAnalysisInputSchema = z.object({
   paperId: z.string().optional().describe('ID of paper from library to analyze'),
@@ -412,52 +411,28 @@ async function generateStructuredAnalysis(
   analysisPrompt: string,
   language: string
 ): Promise<StructuredAnalysisPayload> {
-  const [{ useSettingsStore }, { getProxyProviderModel }, { parseAIJSON }, { generateText }] =
+  const [{ useSettingsStore }, { createFeatureProviderModel, resolveFeatureProviderCandidates }, { parseAIJSON }, { generateText }] =
     await Promise.all([
       import('@/stores'),
-      import('@/lib/ai/core/proxy-client'),
+      import('@/lib/ai/provider-consumption'),
       import('@/lib/ai/utils/parse-ai-json'),
       import('ai'),
     ]);
 
   const settings = useSettingsStore.getState();
-  const providerSettings = settings.providerSettings;
-  const defaultProvider = settings.defaultProvider as ProviderName;
-
-  const candidates: Array<{
-    provider: ProviderName;
-    model: string;
-    apiKey: string;
-    baseURL?: string;
-  }> = [];
-
-  const pushCandidate = (provider: ProviderName) => {
-    const setting = providerSettings[provider];
-    if (!setting) {
-      return;
+  const candidates = resolveFeatureProviderCandidates(
+    {
+      featureId: 'academic-analysis',
+      selectionMode: 'default-provider',
+      fallbackMode: 'first-eligible',
+      proxyMode: 'required',
+    },
+    {
+      defaultProvider: settings.defaultProvider,
+      providerSettings: settings.providerSettings,
+      customProviders: settings.customProviders,
     }
-    const model = setting.defaultModel || '';
-    if (!model) {
-      return;
-    }
-    const apiKey = setting.apiKey || '';
-    if (!apiKey && provider !== 'ollama') {
-      return;
-    }
-    candidates.push({
-      provider,
-      model,
-      apiKey,
-      baseURL: setting.baseURL,
-    });
-  };
-
-  pushCandidate(defaultProvider);
-  for (const provider of Object.keys(providerSettings) as ProviderName[]) {
-    if (provider !== defaultProvider) {
-      pushCandidate(provider);
-    }
-  }
+  );
 
   if (candidates.length === 0) {
     throw new Error('No available AI provider/model configured for academic analysis');
@@ -466,13 +441,7 @@ async function generateStructuredAnalysis(
   let lastError: unknown;
   for (const candidate of candidates) {
     try {
-      const model = getProxyProviderModel(
-        candidate.provider,
-        candidate.model,
-        candidate.apiKey,
-        candidate.baseURL,
-        true
-      );
+      const model = createFeatureProviderModel(candidate);
 
       const { text } = await generateText({
         model,
@@ -515,7 +484,7 @@ Write in language: ${language}.`,
     } catch (error) {
       lastError = error;
       console.warn('[academic-analysis] provider fallback', {
-        provider: candidate.provider,
+        provider: candidate.providerId,
         model: candidate.model,
         error: error instanceof Error ? error.message : String(error),
       });

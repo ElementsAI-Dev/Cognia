@@ -7,6 +7,9 @@
   "license": "MIT",
   "type": "frontend",
   "main": "dist/index.js",
+  "engines": {
+    "cognia": ">=0.1.0"
+  },
   "icon": "bell",
   "keywords": ["notification", "reminder", "alert", "toast"],
   "capabilities": ["tools", "commands"],

@@ -9,6 +9,7 @@ import type { SliceCreator, NodeSliceActions, WorkflowNode, WorkflowNodeData } f
 import { scheduleWorkflowValidation } from '../utils/validation-scheduler';
 import { applyWorkflowMutation, confirmDestructiveAction } from '../utils/mutation';
 import { createDefaultNodeData } from '@/types/workflow/workflow-editor';
+import { planWorkflowInsertion } from '@/lib/workflow-editor';
 
 let nodeHistoryTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -53,6 +54,68 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
         pushHistory: true,
         validate: true,
       });
+      return nodeId;
+    },
+
+    insertNodeFromIntent: (type) => {
+      const { currentWorkflow, insertionIntent } = get();
+      if (!currentWorkflow) return null;
+
+      const nodeId = `${type}-${nanoid(8)}`;
+      const plan = planWorkflowInsertion({
+        workflow: currentWorkflow,
+        newNodeId: nodeId,
+        intent: insertionIntent,
+      });
+
+      const newNode: WorkflowNode = {
+        id: nodeId,
+        type,
+        position: plan.position,
+        data: createDefaultNodeData(type),
+      };
+
+      const newEdges = plan.edgesToAdd.map((edge) => ({
+        id: `edge-${nanoid(8)}`,
+        source: edge.source,
+        target: edge.target,
+        sourceHandle: edge.sourceHandle ?? undefined,
+        targetHandle: edge.targetHandle ?? undefined,
+        type: edge.type || 'default',
+        data: edge.data || {},
+      }));
+
+      applyWorkflowMutation({
+        set,
+        get,
+        kind: 'node:add',
+        nodeIds: [nodeId],
+        edgeIds: newEdges.map((edge) => edge.id),
+        metadata: {
+          source: 'quick-add',
+          origin: insertionIntent?.origin || 'command',
+          mode: insertionIntent?.mode || 'append',
+          removedEdgeIds: plan.edgeIdsToRemove,
+        },
+        updateWorkflow: (workflow) => ({
+          ...workflow,
+          nodes: [...workflow.nodes, newNode],
+          edges: [
+            ...workflow.edges.filter((edge) => !plan.edgeIdsToRemove.includes(edge.id)),
+            ...newEdges,
+          ],
+          updatedAt: new Date(),
+        }),
+        selectionPatch: {
+          selectedNodes: [nodeId],
+          selectedEdges: [],
+        },
+        pushHistory: true,
+        validate: true,
+      });
+
+      get().setActiveInspectorSection('config');
+      get().clearInsertionIntent();
       return nodeId;
     },
 

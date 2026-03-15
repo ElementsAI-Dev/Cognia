@@ -13,16 +13,43 @@ import { circuitBreakerRegistry } from './circuit-breaker';
 
 // Mock the api-test module
 jest.mock('./api-test', () => ({
-  testProviderConnection: jest.fn().mockResolvedValue({
+  probeProviderConnection: jest.fn().mockResolvedValue({
     success: true,
     message: 'Connected',
     latency_ms: 100,
+    outcome: 'verified',
+    authoritative: true,
   }),
 }));
 
-import { testProviderConnection } from './api-test';
+import { probeProviderConnection } from './api-test';
 
-const mockTestConnection = testProviderConnection as jest.MockedFunction<typeof testProviderConnection>;
+const mockTestConnection = probeProviderConnection as jest.MockedFunction<typeof probeProviderConnection>;
+
+function buildVerifiedProbeResult(
+  overrides: Partial<Awaited<ReturnType<typeof probeProviderConnection>>> = {}
+) {
+  return {
+    success: true,
+    message: 'Connected',
+    latency_ms: 100,
+    outcome: 'verified' as const,
+    authoritative: true,
+    ...overrides,
+  };
+}
+
+function buildFailedProbeResult(
+  overrides: Partial<Awaited<ReturnType<typeof probeProviderConnection>>> = {}
+) {
+  return {
+    success: false,
+    message: 'Connection failed',
+    outcome: 'failed' as const,
+    authoritative: true,
+    ...overrides,
+  };
+}
 
 describe('AvailabilityMonitor', () => {
   let monitor: AvailabilityMonitor;
@@ -86,11 +113,7 @@ describe('AvailabilityMonitor', () => {
     });
 
     it('should check provider health', async () => {
-      mockTestConnection.mockResolvedValueOnce({
-        success: true,
-        message: 'Connected',
-        latency_ms: 100,
-      });
+      mockTestConnection.mockResolvedValueOnce(buildVerifiedProbeResult());
 
       const result = await monitor.checkProvider('openai');
       
@@ -99,11 +122,7 @@ describe('AvailabilityMonitor', () => {
     });
 
     it('should update availability on successful check', async () => {
-      mockTestConnection.mockResolvedValueOnce({
-        success: true,
-        message: 'Connected',
-        latency_ms: 100,
-      });
+      mockTestConnection.mockResolvedValueOnce(buildVerifiedProbeResult());
 
       await monitor.checkProvider('openai');
       await monitor.checkProvider('openai'); // Need 2 for recovery threshold
@@ -113,10 +132,7 @@ describe('AvailabilityMonitor', () => {
     });
 
     it('should mark as degraded after failures', async () => {
-      mockTestConnection.mockResolvedValueOnce({
-        success: false,
-        message: 'Connection failed',
-      });
+      mockTestConnection.mockResolvedValueOnce(buildFailedProbeResult());
 
       await monitor.checkProvider('openai');
       
@@ -125,10 +141,7 @@ describe('AvailabilityMonitor', () => {
     });
 
     it('should mark as unavailable after threshold failures', async () => {
-      mockTestConnection.mockResolvedValue({
-        success: false,
-        message: 'Connection failed',
-      });
+      mockTestConnection.mockResolvedValue(buildFailedProbeResult());
 
       // Fail multiple times to exceed threshold
       await monitor.checkProvider('openai');
@@ -142,17 +155,29 @@ describe('AvailabilityMonitor', () => {
     it('should check all providers', async () => {
       monitor.registerProvider('anthropic', { apiKey: 'test-key' });
       
-      mockTestConnection.mockResolvedValue({
-        success: true,
-        message: 'Connected',
-        latency_ms: 100,
-      });
+      mockTestConnection.mockResolvedValue(buildVerifiedProbeResult());
 
       const results = await monitor.checkAllProviders();
       
       expect(results.size).toBe(2);
       expect(results.has('openai')).toBe(true);
       expect(results.has('anthropic')).toBe(true);
+    });
+
+    it('keeps runtime-limited probes in unknown state instead of treating them as transport failures', async () => {
+      monitor.registerProvider('anthropic', { apiKey: 'sk-ant-test' });
+      mockTestConnection.mockResolvedValueOnce(buildFailedProbeResult({
+        message: 'Authoritative verification requires the desktop app.',
+        latency_ms: 0,
+        outcome: 'limited',
+        authoritative: false,
+      }));
+
+      await monitor.checkProvider('anthropic');
+
+      const availability = monitor.getAvailability('anthropic');
+      expect(availability?.status).toBe('unknown');
+      expect(availability?.errorMessage).toMatch(/desktop app/i);
     });
   });
 
@@ -169,11 +194,7 @@ describe('AvailabilityMonitor', () => {
     });
 
     it('should check if provider is available', async () => {
-      mockTestConnection.mockResolvedValue({
-        success: true,
-        message: 'Connected',
-        latency_ms: 100,
-      });
+      mockTestConnection.mockResolvedValue(buildVerifiedProbeResult());
 
       await monitor.checkProvider('openai');
       await monitor.checkProvider('openai');
@@ -182,11 +203,7 @@ describe('AvailabilityMonitor', () => {
     });
 
     it('should get available providers list', async () => {
-      mockTestConnection.mockResolvedValue({
-        success: true,
-        message: 'Connected',
-        latency_ms: 100,
-      });
+      mockTestConnection.mockResolvedValue(buildVerifiedProbeResult());
 
       await monitor.checkProvider('openai');
       await monitor.checkProvider('openai');
@@ -202,11 +219,7 @@ describe('AvailabilityMonitor', () => {
     });
 
     it('should store check history', async () => {
-      mockTestConnection.mockResolvedValue({
-        success: true,
-        message: 'Connected',
-        latency_ms: 100,
-      });
+      mockTestConnection.mockResolvedValue(buildVerifiedProbeResult());
 
       await monitor.checkProvider('openai');
       await monitor.checkProvider('openai');
@@ -217,11 +230,7 @@ describe('AvailabilityMonitor', () => {
     });
 
     it('should limit history results', async () => {
-      mockTestConnection.mockResolvedValue({
-        success: true,
-        message: 'Connected',
-        latency_ms: 100,
-      });
+      mockTestConnection.mockResolvedValue(buildVerifiedProbeResult());
 
       for (let i = 0; i < 10; i++) {
         await monitor.checkProvider('openai');
@@ -248,11 +257,7 @@ describe('AvailabilityMonitor', () => {
       const callback = jest.fn();
       monitor.subscribe(callback);
       
-      mockTestConnection.mockResolvedValue({
-        success: true,
-        message: 'Connected',
-        latency_ms: 100,
-      });
+      mockTestConnection.mockResolvedValue(buildVerifiedProbeResult());
 
       await monitor.checkProvider('openai');
       
@@ -269,19 +274,12 @@ describe('AvailabilityMonitor', () => {
       monitor.subscribe(callback);
       
       // First, make it available
-      mockTestConnection.mockResolvedValue({
-        success: true,
-        message: 'Connected',
-        latency_ms: 100,
-      });
+      mockTestConnection.mockResolvedValue(buildVerifiedProbeResult());
       await monitor.checkProvider('openai');
       await monitor.checkProvider('openai');
       
       // Then make it fail
-      mockTestConnection.mockResolvedValue({
-        success: false,
-        message: 'Failed',
-      });
+      mockTestConnection.mockResolvedValue(buildFailedProbeResult({ message: 'Failed' }));
       await monitor.checkProvider('openai');
       await monitor.checkProvider('openai');
       await monitor.checkProvider('openai');
@@ -297,11 +295,7 @@ describe('AvailabilityMonitor', () => {
       const unsubscribe = monitor.subscribe(callback);
       unsubscribe();
       
-      mockTestConnection.mockResolvedValue({
-        success: true,
-        message: 'Connected',
-        latency_ms: 100,
-      });
+      mockTestConnection.mockResolvedValue(buildVerifiedProbeResult());
 
       await monitor.checkProvider('openai');
       

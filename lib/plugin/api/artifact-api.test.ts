@@ -20,7 +20,7 @@ jest.mock('@/components/artifacts/artifact-preview', () => ({
 }));
 
 // Mock artifact store
-const mockArtifacts: Record<string, { id: string; sessionId: string; title: string; content: string; type: string; language?: string }> = {};
+const mockArtifacts: Record<string, { id: string; sessionId: string; title: string; content: string; type: string; language?: string; metadata?: Record<string, unknown> }> = {};
 let mockActiveArtifactId: string | null = null;
 let mockPanelView: string | null = null;
 const mockSubscribers: Array<(state: unknown) => void> = [];
@@ -159,6 +159,31 @@ describe('Artifact API', () => {
 
       expect(id).toBeDefined();
       expect(typeof id).toBe('string');
+    });
+
+    it('should add deterministic source metadata while preserving explicit overrides', async () => {
+      const api = createArtifactAPI(testPluginId);
+
+      const id = await api.createArtifact({
+        title: 'Plugin Artifact',
+        content: 'console.log("plugin");',
+        type: 'code',
+        language: 'javascript',
+        sessionId: 'session-1',
+        messageId: 'plugin-msg-1',
+        metadata: {
+          sourceOrigin: 'manual',
+          userInitiated: false,
+        },
+      });
+
+      expect(mockArtifacts[id].metadata).toEqual(
+        expect.objectContaining({
+          sourceOrigin: 'manual',
+          userInitiated: false,
+          sourceFingerprint: expect.any(String),
+        })
+      );
     });
   });
 

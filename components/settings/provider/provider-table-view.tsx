@@ -31,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import type { ProviderConfig } from '@/types/provider';
+import { getBuiltInProviderCodingPackage } from '@/types/provider/built-in-provider-catalog';
 import { getCategoryIcon } from '@/lib/ai/providers/provider-helpers';
 import type { ApiTestResult } from '@/lib/ai/infrastructure/api-test';
 
@@ -290,6 +291,7 @@ export const ProviderTableView = React.memo(function ProviderTableView({
                 const apiKey = settings.apiKey || '';
                 const hasAnyApiKey = apiKey.length > 0 || (settings.apiKeys && settings.apiKeys.length > 0);
                 const defaultModel = provider.models.find((m) => m.id === (settings.defaultModel || provider.defaultModel));
+                const codingPackage = getBuiltInProviderCodingPackage(providerId);
                 const testResult = testResults[providerId];
                 const pricedModels = provider.models.filter((m) => m.pricing);
                 const minPrice = pricedModels.length ? Math.min(...pricedModels.map((m) => m.pricing?.promptPer1M || 0)) : 0;
@@ -309,10 +311,22 @@ export const ProviderTableView = React.memo(function ProviderTableView({
                         <div className="flex items-center gap-2">
                           <div className="text-muted-foreground">{getCategoryIcon(provider.category)}</div>
                           <div>
-                            <div className="font-medium">{provider.name}</div>
+                            <div className="flex items-center gap-1.5">
+                              <div className="font-medium">{provider.name}</div>
+                              {codingPackage && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                  {codingPackage.label}
+                                </Badge>
+                              )}
+                            </div>
                             <div className="text-xs text-muted-foreground truncate max-w-[140px]">
                               {provider.description || ''}
                             </div>
+                            {codingPackage && (
+                              <div className="text-xs text-muted-foreground truncate max-w-[140px]">
+                                {codingPackage.defaultModel}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </TableCell>
@@ -459,6 +473,22 @@ export const ProviderTableView = React.memo(function ProviderTableView({
                                 ))}
                               </div>
                             </div>
+                            {codingPackage && (
+                              <div className="space-y-2">
+                                <h4 className="text-sm font-medium">{codingPackage.label}</h4>
+                                <div className="flex flex-wrap gap-1">
+                                  {codingPackage.modelIds.map((modelId) => (
+                                    <Badge
+                                      key={`${providerId}-${modelId}`}
+                                      variant={modelId === codingPackage.defaultModel ? 'default' : 'outline'}
+                                      className="text-xs"
+                                    >
+                                      {modelId}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                             {/* Pricing Details */}
                             <div className="space-y-2">
                               <h4 className="text-sm font-medium">{t('pricingPerMillion')}</h4>

@@ -28,10 +28,12 @@ import {
   useArenaStore,
   selectActiveBattle,
   selectActiveBattleId,
+  selectActiveReviewBattleId,
   selectSettings as selectArenaSettings,
   selectTotalBattleCount,
   selectCompletedBattleCount,
   selectBattles,
+  selectWorkflowDraftPrompt,
 } from '@/stores/arena';
 import { useArena, useLeaderboardSync, useLeaderboardOnlineStatus } from '@/hooks/arena';
 import { getRandomPrompts, getRecentBattlePrompts } from '@/lib/arena';
@@ -45,7 +47,8 @@ export default function ArenaPage() {
   const [activeTab, setActiveTab] = useState('leaderboard');
   const [showArenaDialog, setShowArenaDialog] = useState(false);
   const [selectedBattleId, setSelectedBattleId] = useState<string | null>(null);
-  const [quickPrompt, setQuickPrompt] = useState('');
+  const workflowDraftPrompt = useArenaStore(selectWorkflowDraftPrompt);
+  const activeReviewBattleId = useArenaStore(selectActiveReviewBattleId);
   const [suggestedPrompts, setSuggestedPrompts] = useState<ArenaPrompt[]>(() => getRandomPrompts(4));
   const [rematchModels, setRematchModels] = useState<ModelSelection[] | undefined>(undefined);
   const [rematchOptions, setRematchOptions] = useState<Partial<ArenaLaunchOptionsSnapshot> | undefined>(undefined);
@@ -61,7 +64,11 @@ export default function ArenaPage() {
   const getBattle = useArenaStore((state) => state.getBattle);
   const recordRecovery = useArenaStore((state) => state.recordRecovery);
   const getActiveBattle = useArenaStore((state) => state.getActiveBattle);
+  const setWorkflowDraftPrompt = useArenaStore((state) => state.setWorkflowDraftPrompt);
+  const setWorkflowEntryPoint = useArenaStore((state) => state.setWorkflowEntryPoint);
+  const setActiveReviewBattle = useArenaStore((state) => state.setActiveReviewBattle);
   const { continueTurn, canContinue } = useArena();
+  const quickPrompt = workflowDraftPrompt;
 
   // Leaderboard sync - auto-fetch when leaderboard tab is active
   const {
@@ -76,12 +83,22 @@ export default function ArenaPage() {
 
   const recentPrompts = useMemo(() => getRecentBattlePrompts(battles, 5), [battles]);
 
+  useEffect(() => {
+    setWorkflowEntryPoint('workspace');
+    loggers.ui.info('arena_workflow_handoff_to_workspace', {
+      event: 'workflow_handoff',
+      target: 'workspace',
+      hasDraft: Boolean(workflowDraftPrompt),
+    });
+  }, [setWorkflowEntryPoint, workflowDraftPrompt]);
+
   const handleRefreshSuggestions = useCallback(() => {
     setSuggestedPrompts(getRandomPrompts(4));
   }, []);
 
   const handleRematch = useCallback((battle: ArenaBattle) => {
-    setQuickPrompt(battle.prompt);
+    setWorkflowDraftPrompt(battle.prompt);
+    setActiveReviewBattle(battle.id);
     setRematchModels(
       battle.contestants.map((c) => ({
         provider: c.provider,
@@ -98,7 +115,7 @@ export default function ArenaPage() {
       taskCategory: battle.taskCategoryOverride,
     });
     setShowArenaDialog(true);
-  }, []);
+  }, [setActiveReviewBattle, setWorkflowDraftPrompt]);
 
   // Recover active battle deterministically and clear stale references.
   useEffect(() => {
@@ -132,16 +149,17 @@ export default function ArenaPage() {
     recoveryLoggedRef.current = activeBattleId;
   }, [activeBattleId, getBattle, recordRecovery, setActiveBattle]);
 
-  const currentBattleId = selectedBattleId || activeBattleId;
+  const currentBattleId = selectedBattleId || activeBattleId || activeReviewBattleId;
 
   const handleCloseBattle = useCallback(() => {
     setSelectedBattleId(null);
+    setActiveReviewBattle(null);
     // Use getActiveBattle() for imperative access to check completion status
     const battle = getActiveBattle();
     if (battle) {
       setActiveBattle(null);
     }
-  }, [getActiveBattle, setActiveBattle]);
+  }, [getActiveBattle, setActiveBattle, setActiveReviewBattle]);
 
   return (
     <div className="flex flex-col h-full">
@@ -253,7 +271,9 @@ export default function ArenaPage() {
                 </div>
                 <Textarea
                   value={quickPrompt}
-                  onChange={(event) => setQuickPrompt(event.target.value)}
+                  onChange={(event) => {
+                    setWorkflowDraftPrompt(event.target.value);
+                  }}
                   placeholder={t('promptPlaceholder')}
                   className="min-h-[120px]"
                 />
@@ -279,7 +299,9 @@ export default function ArenaPage() {
                     <button
                       key={sp.id}
                       className="p-3 rounded-lg border text-left hover:bg-muted/50 transition-colors"
-                      onClick={() => setQuickPrompt(sp.prompt)}
+                      onClick={() => {
+                        setWorkflowDraftPrompt(sp.prompt);
+                      }}
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <Badge variant="outline" className="text-[10px] capitalize">{sp.category}</Badge>
@@ -304,7 +326,9 @@ export default function ArenaPage() {
                       <button
                         key={i}
                         className="w-full p-2 rounded text-left hover:bg-muted/50 transition-colors"
-                        onClick={() => setQuickPrompt(rp)}
+                        onClick={() => {
+                          setWorkflowDraftPrompt(rp);
+                        }}
                       >
                         <p className="text-sm line-clamp-1">{rp}</p>
                       </button>
@@ -330,7 +354,10 @@ export default function ArenaPage() {
           <TabsContent value="history" className="h-[calc(100%-60px)]">
             <ArenaErrorBoundary sectionName="History">
               <ArenaHistory
-                onViewBattle={(battleId) => setSelectedBattleId(battleId)}
+                onViewBattle={(battleId) => {
+                  setSelectedBattleId(battleId);
+                  setActiveReviewBattle(battleId);
+                }}
                 onRematch={handleRematch}
               />
             </ArenaErrorBoundary>
@@ -358,7 +385,7 @@ export default function ArenaPage() {
         initialModels={rematchModels}
         initialOptions={rematchOptions}
         onBattleComplete={() => {
-          setQuickPrompt('');
+          setWorkflowDraftPrompt('');
           setRematchModels(undefined);
           setRematchOptions(undefined);
         }}

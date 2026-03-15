@@ -67,6 +67,7 @@ import {
 import { MODE_CONFIGS } from '@/stores/chat';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
+import { createPresetInputFromSession, createSessionUpdateFromPreset } from '@/lib/presets';
 import Link from 'next/link';
 import { BeautifulExportDialog } from '@/components/export';
 import {
@@ -294,19 +295,12 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
 
   const handleSaveAsPreset = useCallback(() => {
     if (!session) return;
-    const newPreset = createFromSession({
-      name: session.title || t('newPreset'),
-      description: `${t('savedFromSession')}`,
-      provider: session.provider || 'auto',
-      model: session.model || 'gpt-4o',
-      mode: session.mode || 'chat',
-      systemPrompt: session.systemPrompt,
-      builtinPrompts: session.builtinPrompts,
-      temperature: session.temperature,
-      maxTokens: session.maxTokens,
-      webSearchEnabled: session.webSearchEnabled,
-      thinkingEnabled: session.thinkingEnabled,
-    });
+    const newPreset = createFromSession(
+      createPresetInputFromSession(session, {
+        name: session.title || t('newPreset'),
+        description: t('savedFromSession'),
+      })
+    );
     if (newPreset) {
       updateSession(session.id, { presetId: newPreset.id });
       toast.success(t('savedAsPreset'));
@@ -315,18 +309,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
 
   const handlePresetSelect = (preset: Preset) => {
     if (session) {
-      updateSession(session.id, {
-        provider: preset.provider,
-        model: preset.model,
-        mode: preset.mode,
-        systemPrompt: preset.systemPrompt,
-        builtinPrompts: preset.builtinPrompts,
-        temperature: preset.temperature,
-        maxTokens: preset.maxTokens,
-        webSearchEnabled: preset.webSearchEnabled,
-        thinkingEnabled: preset.thinkingEnabled,
-        presetId: preset.id,
-      });
+      updateSession(session.id, createSessionUpdateFromPreset(preset));
     }
     selectPreset(preset.id);
   };
@@ -755,7 +738,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
                     <p className="text-xs text-muted-foreground">{t('canvasDesc')}</p>
                   </div>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => openPanel('artifact')}>
+                <DropdownMenuItem data-testid="chat-open-artifact-panel" onClick={() => openPanel('artifact')}>
                   <Sparkles className="mr-2 h-4 w-4" />
                   <div className="flex-1">
                     <span>{t('artifacts')}</span>

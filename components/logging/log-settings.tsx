@@ -50,6 +50,12 @@ export function LogSettings({ className }: LogSettingsProps) {
       includeSource: currentConfig.includeSource,
       bufferSize: currentConfig.bufferSize,
       flushInterval: currentConfig.flushInterval,
+      remoteQueueMaxEntries: currentConfig.remoteQueueMaxEntries,
+      remoteQueueMaxBytes: currentConfig.remoteQueueMaxBytes,
+      diagnosticRateLimitMs: currentConfig.diagnosticRateLimitMs,
+      redaction: {
+        ...currentConfig.redaction,
+      },
     };
   });
 
@@ -80,6 +86,21 @@ export function LogSettings({ className }: LogSettingsProps) {
     setHasChanges(true);
   };
 
+  const handleRedactionChange = <K extends keyof NonNullable<UnifiedLoggerConfig['redaction']>>(
+    key: K,
+    value: NonNullable<UnifiedLoggerConfig['redaction']>[K]
+  ) => {
+    setConfig((prev) => ({
+      ...prev,
+      redaction: {
+        ...bootstrapState.config.redaction,
+        ...(prev.redaction || {}),
+        [key]: value,
+      },
+    }));
+    setHasChanges(true);
+  };
+
   const handleSave = () => {
     setSaveStatus('saving');
 
@@ -96,6 +117,12 @@ export function LogSettings({ className }: LogSettingsProps) {
         includeSource: next.config.includeSource,
         bufferSize: next.config.bufferSize,
         flushInterval: next.config.flushInterval,
+        remoteQueueMaxEntries: next.config.remoteQueueMaxEntries,
+        remoteQueueMaxBytes: next.config.remoteQueueMaxBytes,
+        diagnosticRateLimitMs: next.config.diagnosticRateLimitMs,
+        redaction: {
+          ...next.config.redaction,
+        },
       });
 
       setHasChanges(false);
@@ -115,6 +142,14 @@ export function LogSettings({ className }: LogSettingsProps) {
       includeSource: false,
       bufferSize: 50,
       flushInterval: 5000,
+      remoteQueueMaxEntries: 5000,
+      remoteQueueMaxBytes: 10 * 1024 * 1024,
+      diagnosticRateLimitMs: 2000,
+      redaction: {
+        ...bootstrapState.config.redaction,
+        enabled: true,
+        maxDepth: 8,
+      },
     });
     setTransports({
       console: true,
@@ -140,6 +175,15 @@ export function LogSettings({ className }: LogSettingsProps) {
         return t('settings.save');
     }
   };
+
+  const redactionSettings = {
+    ...bootstrapState.config.redaction,
+    ...(config.redaction || {}),
+  };
+  const remoteQueueMb = Math.max(
+    1,
+    Math.round(((config.remoteQueueMaxBytes ?? bootstrapState.config.remoteQueueMaxBytes) || 1024 * 1024) / (1024 * 1024))
+  );
 
   return (
     <div className={cn('space-y-4 sm:space-y-6', className)}>
@@ -325,6 +369,123 @@ export function LogSettings({ className }: LogSettingsProps) {
       </Card>
 
       {/* Retention Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            {t('settings.advanced.title')}
+          </CardTitle>
+          <CardDescription>{t('settings.advanced.description')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 sm:space-y-6">
+          <div className="space-y-3">
+            <div className="flex items-start sm:items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <Label className="text-sm">{t('settings.advanced.redactionEnabled')}</Label>
+                <p className="text-xs text-muted-foreground">
+                  {t('settings.advanced.redactionEnabledDesc')}
+                </p>
+              </div>
+              <Switch
+                checked={redactionSettings.enabled}
+                onCheckedChange={(checked) => handleRedactionChange('enabled', checked)}
+                className="shrink-0"
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-sm">{t('settings.advanced.redactionDepth')}</Label>
+              <span className="text-xs sm:text-sm font-mono shrink-0">
+                {redactionSettings.maxDepth}
+              </span>
+            </div>
+            <Slider
+              value={[redactionSettings.maxDepth]}
+              onValueChange={([value]) => handleRedactionChange('maxDepth', value)}
+              min={1}
+              max={16}
+              step={1}
+              className="touch-none"
+            />
+            <p className="text-xs text-muted-foreground">
+              {t('settings.advanced.redactionDepthDesc')}
+            </p>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-sm">{t('settings.advanced.remoteQueueEntries')}</Label>
+              <span className="text-xs sm:text-sm font-mono shrink-0">
+                {(config.remoteQueueMaxEntries ?? bootstrapState.config.remoteQueueMaxEntries)?.toLocaleString()}
+              </span>
+            </div>
+            <Slider
+              value={[config.remoteQueueMaxEntries ?? bootstrapState.config.remoteQueueMaxEntries]}
+              onValueChange={([value]) => handleConfigChange('remoteQueueMaxEntries', value)}
+              min={100}
+              max={20000}
+              step={100}
+              className="touch-none"
+            />
+            <p className="text-xs text-muted-foreground">
+              {t('settings.advanced.remoteQueueEntriesDesc')}
+            </p>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-sm">{t('settings.advanced.remoteQueueBytes')}</Label>
+              <span className="text-xs sm:text-sm font-mono shrink-0">
+                {remoteQueueMb} MB
+              </span>
+            </div>
+            <Slider
+              value={[remoteQueueMb]}
+              onValueChange={([value]) =>
+                handleConfigChange('remoteQueueMaxBytes', value * 1024 * 1024)
+              }
+              min={1}
+              max={50}
+              step={1}
+              className="touch-none"
+            />
+            <p className="text-xs text-muted-foreground">
+              {t('settings.advanced.remoteQueueBytesDesc')}
+            </p>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-sm">{t('settings.advanced.diagnosticRateLimit')}</Label>
+              <span className="text-xs sm:text-sm font-mono shrink-0">
+                {config.diagnosticRateLimitMs ?? bootstrapState.config.diagnosticRateLimitMs} ms
+              </span>
+            </div>
+            <Slider
+              value={[config.diagnosticRateLimitMs ?? bootstrapState.config.diagnosticRateLimitMs]}
+              onValueChange={([value]) => handleConfigChange('diagnosticRateLimitMs', value)}
+              min={250}
+              max={10000}
+              step={250}
+              className="touch-none"
+            />
+            <p className="text-xs text-muted-foreground">
+              {t('settings.advanced.diagnosticRateLimitDesc')}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">

@@ -57,6 +57,7 @@ const mockUseGit: Record<string, unknown> = {
   commit: jest.fn().mockResolvedValue(true),
   push: jest.fn().mockResolvedValue(true),
   pull: jest.fn().mockResolvedValue(true),
+  fetch: jest.fn().mockResolvedValue(true),
   createBranch: jest.fn().mockResolvedValue(true),
   deleteBranch: jest.fn().mockResolvedValue(true),
   checkout: jest.fn().mockResolvedValue(true),
@@ -71,6 +72,9 @@ const mockUseGit: Record<string, unknown> = {
   mergeBranch: jest.fn().mockResolvedValue(true),
   getDiffBetween: jest.fn().mockResolvedValue([]),
   revertCommit: jest.fn().mockResolvedValue(true),
+  revertAbort: jest.fn().mockResolvedValue(true),
+  cherryPickAbort: jest.fn().mockResolvedValue(true),
+  mergeAbort: jest.fn().mockResolvedValue(true),
 };
 
 jest.mock('@/hooks/native/use-git', () => ({
@@ -119,6 +123,11 @@ describe('GitPanel', () => {
         date: new Date().toISOString(),
         message: 'Initial commit',
       },
+      syncState: 'up-to-date',
+      hasConflicts: false,
+      inProgressOperation: null,
+      canAbortOperation: false,
+      recommendedRecoveryAction: null,
     };
     mockUseGit.fileStatus = [];
     mockUseGit.error = null;
@@ -346,5 +355,46 @@ describe('GitPanel', () => {
     const { container } = render(<GitPanel repoPath="/test/repo" />);
 
     expect(container).toBeInTheDocument();
+  });
+
+  it('should show fetch action when repository has a remote', () => {
+    render(<GitPanel repoPath="/test/repo" />);
+
+    expect(screen.getByTitle('actions.fetch')).toBeInTheDocument();
+  });
+
+  it('should show recovery alert and disable commit while merge is in progress', () => {
+    mockUseGit.currentRepo = {
+      path: '/test/repo',
+      isGitRepo: true,
+      status: 'dirty',
+      branch: 'main',
+      remoteName: 'origin',
+      remoteUrl: 'https://github.com/test/repo.git',
+      ahead: 0,
+      behind: 0,
+      hasUncommittedChanges: true,
+      hasUntrackedFiles: false,
+      lastCommit: {
+        hash: 'abc123',
+        shortHash: 'abc123',
+        author: 'Test User',
+        authorEmail: 'test@example.com',
+        date: new Date().toISOString(),
+        message: 'Initial commit',
+      },
+      syncState: 'diverged',
+      inProgressOperation: 'merge',
+      canAbortOperation: true,
+      hasConflicts: true,
+      recommendedRecoveryAction: 'Resolve merge conflicts, then continue the merge or abort it.',
+    };
+    mockUseGit.fileStatus = [{ path: 'test.ts', status: 'modified', staged: false }];
+
+    render(<GitPanel repoPath="/test/repo" />);
+
+    expect(screen.getByText('Resolve merge conflicts, then continue the merge or abort it.')).toBeInTheDocument();
+    const commitButton = screen.getByText('actions.commit').closest('button');
+    expect(commitButton).toBeDisabled();
   });
 });

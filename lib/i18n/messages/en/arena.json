@@ -116,7 +116,21 @@
     "deleteDescription": "Are you sure you want to delete this battle? This action cannot be undone.",
     "cancel": "Cancel",
     "delete": "Delete",
-    "rematch": "Rematch"
+    "rematch": "Rematch",
+    "selectForExport": "Select for Export",
+    "deselectForExport": "Remove from Export",
+    "markReviewed": "Mark Reviewed",
+    "markUnreviewed": "Mark Unreviewed",
+    "bookmark": "Bookmark",
+    "unbookmark": "Remove Bookmark",
+    "reviewed": "Reviewed",
+    "bookmarked": "Bookmarked",
+    "reviewNotePlaceholder": "Add a review note...",
+    "exportSelected": "Export Reviewed",
+    "selectedForExport": "{count} selected",
+    "exportableCount": "{count} exportable",
+    "blockedCount": "{count} blocked",
+    "hiddenSelected": "{count} selected hidden by filters"
   },
   "stats": {
     "title": "Stats",
@@ -197,6 +211,9 @@
     "rlhfAvgResponseLen": "Avg Response Length",
     "rlhfByCategory": "By Category",
     "rlhfNoValidPairs": "No valid preference pairs available. Complete battles with a winner to generate RLHF data.",
+    "reviewExportSelected": "Selected {count}",
+    "reviewExportableCount": "Exportable {count}",
+    "reviewBlockedCount": "Blocked {count}",
     "importFailed": "Import Failed",
     "importInvalidFormat": "Invalid file format. Expected JSON with a 'preferences' array.",
     "importInvalidPreferences": "Invalid preference data. Each entry must have id, battleId, winner, loser, and timestamp.",
@@ -322,7 +339,8 @@
     "selectedModels": "Selected Models",
     "shuffle": "Shuffle Models",
     "blindMode": "Blind Mode",
-    "multiTurn": "Multi-turn"
+    "multiTurn": "Multi-turn",
+    "cyclingNotice": "Suggestions are cycling through the available matchup pool."
   },
   "launchReadiness": {
     "invalidPrompt": "Enter a prompt before starting a battle.",

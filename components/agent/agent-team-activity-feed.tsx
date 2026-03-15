@@ -28,6 +28,7 @@ import {
   RotateCcw,
   Filter,
   Zap,
+  type LucideIcon,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -58,7 +59,7 @@ interface AgentTeamActivityFeedProps {
 
 const EVENT_CONFIG: Record<
   string,
-  { icon: React.ElementType; label: string; color: string; category: string }
+  { icon: LucideIcon; label: string; color: string; category: string }
 > = {
   team_started: { icon: Play, label: 'Team Started', color: 'text-primary', category: 'team' },
   team_completed: { icon: CheckCircle2, label: 'Team Completed', color: 'text-green-500', category: 'team' },
@@ -75,6 +76,12 @@ const EVENT_CONFIG: Record<
   plan_submitted: { icon: FileCheck, label: 'Plan Submitted', color: 'text-purple-500', category: 'plan' },
   plan_approved: { icon: CheckCircle2, label: 'Plan Approved', color: 'text-green-500', category: 'plan' },
   plan_rejected: { icon: XCircle, label: 'Plan Rejected', color: 'text-orange-500', category: 'plan' },
+  routing_assessed: { icon: Zap, label: 'Routing Assessed', color: 'text-indigo-500', category: 'system' },
+  pattern_selected: { icon: Play, label: 'Pattern Selected', color: 'text-blue-500', category: 'system' },
+  approval_requested: { icon: AlertTriangle, label: 'Approval Requested', color: 'text-yellow-500', category: 'plan' },
+  delegation_started: { icon: Play, label: 'Delegation Started', color: 'text-blue-500', category: 'task' },
+  delegation_completed: { icon: CheckCircle2, label: 'Delegation Completed', color: 'text-green-500', category: 'task' },
+  delegation_failed: { icon: XCircle, label: 'Delegation Failed', color: 'text-destructive', category: 'task' },
   budget_exceeded: { icon: AlertTriangle, label: 'Budget Exceeded', color: 'text-destructive', category: 'budget' },
   deadlock_resolved: { icon: Unlock, label: 'Deadlock Resolved', color: 'text-yellow-500', category: 'system' },
 };

@@ -11,6 +11,7 @@ import {
   Layers,
   GitBranch,
   Users,
+  type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,7 @@ import { useAgentTeamStore } from '@/stores/agent/agent-team-store';
 // Icon Map
 // ============================================================================
 
-const ICON_MAP: Record<string, React.ElementType> = {
+const ICON_MAP: Record<string, LucideIcon> = {
   ShieldCheck,
   FlaskConical,
   BookOpen,

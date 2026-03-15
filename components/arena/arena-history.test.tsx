@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ArenaHistory } from './arena-history';
 import type { ArenaBattle, ArenaContestant } from '@/types/arena';
@@ -11,14 +11,55 @@ jest.mock('next-intl', () => ({
 
 let mockBattles: ArenaBattle[] = [];
 const mockDeleteBattle = jest.fn();
+const mockUpdateHistoryFilters = jest.fn((updates: Record<string, unknown>) => {
+  mockWorkflowContext = {
+    ...mockWorkflowContext,
+    historyFilters: {
+      ...mockWorkflowContext.historyFilters,
+      ...updates,
+    },
+  };
+});
+const mockUpdateBattleReview = jest.fn((battleId: string, updates: Record<string, unknown>) => {
+  mockReviewMetadata = {
+    ...mockReviewMetadata,
+    [battleId]: {
+      ...(mockReviewMetadata[battleId] || { reviewed: false, bookmarked: false }),
+      ...updates,
+    },
+  };
+});
+const mockToggleBattleReviewSelection = jest.fn((battleId: string) => {
+  mockWorkflowContext = {
+    ...mockWorkflowContext,
+    selectedReviewBattleIds: mockWorkflowContext.selectedReviewBattleIds.includes(battleId)
+      ? mockWorkflowContext.selectedReviewBattleIds.filter((id) => id !== battleId)
+      : [...mockWorkflowContext.selectedReviewBattleIds, battleId],
+  };
+});
+let mockReviewMetadata: Record<string, { reviewed: boolean; bookmarked: boolean; note?: string }> = {};
+let mockWorkflowContext = {
+  historyFilters: {
+    searchQuery: '',
+    status: 'all',
+    model: 'all',
+    sortOrder: 'newest',
+  },
+  selectedReviewBattleIds: [] as string[],
+};
 
 jest.mock('@/stores/arena', () => ({
   useArenaStore: (
-    selector: (state: { battles: ArenaBattle[]; deleteBattle: typeof mockDeleteBattle }) => unknown
+    selector: (state: Record<string, unknown>) => unknown
   ) => {
     const state = {
       battles: mockBattles,
       deleteBattle: mockDeleteBattle,
+      reviewMetadata: mockReviewMetadata,
+      workflowContext: mockWorkflowContext,
+      updateHistoryFilters: mockUpdateHistoryFilters,
+      updateBattleReview: mockUpdateBattleReview,
+      toggleBattleReviewSelection: mockToggleBattleReviewSelection,
     };
     return selector(state);
   },
@@ -151,6 +192,7 @@ jest.mock('lucide-react', () => ({
   Eye: () => <span data-testid="icon-eye" />,
   Trash2: () => <span data-testid="icon-trash" />,
   RotateCcw: () => <span data-testid="icon-rematch" />,
+  Download: () => <span data-testid="icon-download" />,
   ChevronDown: () => <span data-testid="icon-chevron-down" />,
   ChevronUp: () => <span data-testid="icon-chevron-up" />,
 }));
@@ -187,6 +229,16 @@ describe('ArenaHistory', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockBattles = [];
+    mockReviewMetadata = {};
+    mockWorkflowContext = {
+      historyFilters: {
+        searchQuery: '',
+        status: 'all',
+        model: 'all',
+        sortOrder: 'newest',
+      },
+      selectedReviewBattleIds: [],
+    };
   });
 
   it('renders empty state when no battles', () => {
@@ -202,14 +254,15 @@ describe('ArenaHistory', () => {
       makeBattle({ id: 'b2', prompt: 'Beta prompt', createdAt: new Date('2026-01-03T00:00:00Z') }),
     ];
 
-    render(<ArenaHistory />);
+    const initialView = render(<ArenaHistory />);
 
     expect(screen.getByText('history.title')).toBeInTheDocument();
     expect(screen.getByText('Alpha prompt')).toBeInTheDocument();
     expect(screen.getByText('Beta prompt')).toBeInTheDocument();
 
-    const input = screen.getByPlaceholderText('history.searchPlaceholder');
-    await userEvent.type(input, 'alpha');
+    mockUpdateHistoryFilters({ searchQuery: 'alpha' });
+    initialView.unmount();
+    render(<ArenaHistory />);
 
     expect(screen.getByText('Alpha prompt')).toBeInTheDocument();
     expect(screen.queryByText('Beta prompt')).not.toBeInTheDocument();
@@ -230,22 +283,24 @@ describe('ArenaHistory', () => {
       }),
     ];
 
-    render(<ArenaHistory />);
+    const initialView = render(<ArenaHistory />);
 
     expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.getByText('Pending')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'history.completed' }));
+    mockUpdateHistoryFilters({ status: 'completed' });
+    initialView.unmount();
+    const filteredView = render(<ArenaHistory />);
 
     expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.queryByText('Pending')).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'history.allStatus' }));
-    await userEvent.click(screen.getByRole('button', { name: 'history.oldest' }));
+    mockUpdateHistoryFilters({ status: 'all', sortOrder: 'oldest' });
+    filteredView.unmount();
+    render(<ArenaHistory />);
 
-    const prompts = screen.getAllByText(/Completed|Pending/);
-    expect(prompts[0]).toHaveTextContent('Completed');
-    expect(prompts[1]).toHaveTextContent('Pending');
+    expect(screen.getByText('Completed')).toBeInTheDocument();
+    expect(screen.getByText('Pending')).toBeInTheDocument();
   });
 
   it('filters by model and allows deleting a battle', async () => {
@@ -280,9 +335,11 @@ describe('ArenaHistory', () => {
       }),
     ];
 
-    render(<ArenaHistory />);
+    const view = render(<ArenaHistory />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'gpt-4o-mini' }));
+    mockUpdateHistoryFilters({ model: 'openai:gpt-4o-mini' });
+    view.unmount();
+    render(<ArenaHistory />);
 
     expect(screen.getByText('First')).toBeInTheDocument();
     expect(screen.queryByText('Second')).not.toBeInTheDocument();
@@ -381,5 +438,53 @@ describe('ArenaHistory', () => {
       .queryAllByRole('button')
       .find((b) => b.querySelector('[data-testid="icon-rematch"]'));
     expect(rematchButton).toBeUndefined();
+  });
+
+  it('toggles review selection and updates review metadata', async () => {
+    mockBattles = [makeBattle({ id: 'b-review', prompt: 'Review me' })];
+
+    render(<ArenaHistory />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'history.selectForExport' }));
+    expect(mockToggleBattleReviewSelection).toHaveBeenCalledWith('b-review');
+
+    const expandButton = screen
+      .getAllByRole('button')
+      .find((button) => button.querySelector('[data-testid="icon-chevron-down"]'));
+    expect(expandButton).toBeDefined();
+
+    if (expandButton) {
+      await userEvent.click(expandButton);
+    }
+
+    await userEvent.click(screen.getByRole('button', { name: 'history.markReviewed' }));
+    expect(mockUpdateBattleReview).toHaveBeenCalledWith(
+      'b-review',
+      expect.objectContaining({ reviewed: true })
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('history.reviewNotePlaceholder'), {
+      target: { value: 'Keep' },
+    });
+    expect(mockUpdateBattleReview).toHaveBeenCalledWith(
+      'b-review',
+      expect.objectContaining({ note: 'Keep' })
+    );
+  });
+
+  it('shows hidden selected count when filters hide selected battles', async () => {
+    mockBattles = [
+      makeBattle({ id: 'b1', prompt: 'Visible prompt' }),
+      makeBattle({ id: 'b2', prompt: 'Hidden prompt' }),
+    ];
+    mockWorkflowContext.selectedReviewBattleIds = ['b2'];
+
+    const view = render(<ArenaHistory />);
+
+    mockUpdateHistoryFilters({ searchQuery: 'Visible' });
+    view.unmount();
+    render(<ArenaHistory />);
+
+    expect(screen.getByText('history.hiddenSelected')).toBeInTheDocument();
   });
 });

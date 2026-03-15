@@ -38,7 +38,12 @@ import { usePromptTemplateStore } from '@/stores/prompt/prompt-template-store';
 import { MARKETPLACE_CATEGORIES } from '@/types/content/prompt-marketplace';
 import type { MarketplaceCategory } from '@/types/content/prompt-marketplace';
 import { toast } from '@/components/ui/sonner';
-import { isPublishableMarketplaceCategory, normalizeTags } from '@/lib/prompts/marketplace-utils';
+import {
+  derivePromptPublishReadiness,
+  derivePromptWorkflowState,
+  isPublishableMarketplaceCategory,
+  normalizeTags,
+} from '@/lib/prompts/marketplace-utils';
 
 interface PromptPublishDialogProps {
   templateId?: string;
@@ -81,6 +86,30 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
     [templates, selectedTemplateId]
   );
 
+  const publishState = useMemo(() => {
+    if (!selectedTemplate) {
+      return null;
+    }
+
+    const templateForPublish = {
+      ...selectedTemplate,
+      name: name.trim() || selectedTemplate.name,
+      description: description.trim() || selectedTemplate.description,
+      category,
+      tags: normalizeTags(tags.length > 0 ? tags : selectedTemplate.tags || []),
+    };
+    const workflow = derivePromptWorkflowState({ template: templateForPublish });
+    const readiness = derivePromptPublishReadiness({
+      template: templateForPublish,
+      workflow,
+    });
+
+    return {
+      workflow,
+      readiness,
+    };
+  }, [category, description, name, selectedTemplate, tags]);
+
   const handleSelectTemplate = (id: string) => {
     setSelectedTemplateId(id);
     const tmpl = templates.find((t) => t.id === id);
@@ -110,19 +139,35 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
 
   const validateForm = useCallback(() => {
     const errors: typeof fieldErrors = {};
-    if (!name.trim()) {
+    const templateForPublish = selectedTemplate
+      ? {
+          ...selectedTemplate,
+          name: name.trim() || selectedTemplate.name,
+          description: description.trim() || selectedTemplate.description,
+          category,
+          tags: normalizeTags(tags.length > 0 ? tags : selectedTemplate.tags || []),
+        }
+      : null;
+    const readiness = templateForPublish
+      ? derivePromptPublishReadiness({
+          template: templateForPublish,
+          workflow: derivePromptWorkflowState({ template: templateForPublish }),
+        })
+      : null;
+
+    if (!name.trim() || readiness?.reasons.includes('missing-name')) {
       errors.name = t('publish.validation.nameRequired');
     }
-    if (!description.trim()) {
+    if (!description.trim() || readiness?.reasons.includes('missing-description')) {
       errors.description = t('publish.validation.descriptionRequired');
     }
-    if (!isPublishableMarketplaceCategory(category)) {
+    if (!isPublishableMarketplaceCategory(category) || readiness?.reasons.includes('invalid-category')) {
       errors.category = t('publish.validation.categoryInvalid');
     }
 
     setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
-  }, [name, description, category, t]);
+    return Object.keys(errors).length === 0 && readiness?.isReady !== false;
+  }, [name, description, category, selectedTemplate, tags, t]);
 
   const handlePublish = async () => {
     if (!selectedTemplateId || !validateForm()) return;
@@ -159,7 +204,7 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
     setFieldErrors({});
   };
 
-  const canProceedToReview = name.trim() && description.trim() && category;
+  const canProceedToReview = Boolean(name.trim() && description.trim() && category && publishState?.readiness.isReady);
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
@@ -373,6 +418,22 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
                 />
               </div>
 
+              {publishState && (
+                <div className="rounded-lg border border-dashed border-border/70 bg-muted/30 px-3 py-3 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline">{publishState.workflow.saveBehavior}</Badge>
+                    <Badge variant={publishState.readiness.isReady ? 'secondary' : 'outline'}>
+                      {publishState.readiness.mode === 'update' ? 'Update published prompt' : 'Publish new prompt'}
+                    </Badge>
+                  </div>
+                  {!publishState.readiness.isReady && (
+                    <p className="text-xs text-amber-700">
+                      {`Publish blockers: ${publishState.readiness.reasons.join(', ')}`}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="flex justify-between pt-2">
                 <Button variant="outline" onClick={() => setStep('select')}>
                   {tDetail('cancel')}
@@ -449,7 +510,7 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
                   ) : (
                     <>
                       <Upload className="h-4 w-4" />
-                      {t('publish.publishButton')}
+                      {publishState?.readiness.mode === 'update' ? 'Update published prompt' : t('publish.publishButton')}
                     </>
                   )}
                 </Button>

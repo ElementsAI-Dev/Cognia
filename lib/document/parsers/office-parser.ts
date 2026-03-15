@@ -494,10 +494,10 @@ export function extractExcelEmbeddableContent(result: ExcelParseResult): string 
 export function detectOfficeType(filename: string): 'word' | 'excel' | 'unknown' {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
 
-  if (['docx', 'doc'].includes(ext)) {
+  if (['docx', 'doc', 'docm', 'odt'].includes(ext)) {
     return 'word';
   }
-  if (['xlsx', 'xls'].includes(ext)) {
+  if (['xlsx', 'xls', 'xlsm', 'ods'].includes(ext)) {
     return 'excel';
   }
 

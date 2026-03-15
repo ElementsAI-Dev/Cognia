@@ -85,6 +85,7 @@ export function LiveTracePanel({
       : session.status === 'error'
         ? 'text-red-500'
         : 'text-muted-foreground';
+  const latestOutcome = session.lastError ?? session.lastResponsePreview;
 
   return (
     <Card className={className}>
@@ -153,6 +154,22 @@ export function LiveTracePanel({
       </CardHeader>
 
       <CardContent className="p-0">
+        {!compact && (latestOutcome || session.correlation.traceId || session.correlation.turnId) && (
+          <div className="border-b px-3 py-2 text-xs">
+            <div className="font-medium">Latest outcome</div>
+            {latestOutcome && (
+              <p className={cn('mt-1', session.lastError ? 'text-red-500' : 'text-muted-foreground')}>
+                {latestOutcome}
+              </p>
+            )}
+            {(session.correlation.traceId || session.correlation.turnId) && (
+              <div className="mt-1 flex flex-wrap gap-2 text-muted-foreground">
+                {session.correlation.traceId && <span>Trace: {session.correlation.traceId}</span>}
+                {session.correlation.turnId && <span>Turn: {session.correlation.turnId}</span>}
+              </div>
+            )}
+          </div>
+        )}
         <ScrollArea className={compact ? 'max-h-[200px]' : 'max-h-[400px]'}>
           <div ref={scrollRef} className="divide-y">
             {recentEvents.length === 0 ? (

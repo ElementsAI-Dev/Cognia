@@ -85,6 +85,7 @@ export function AgentTeamConfigEditor({ teamId, className }: AgentTeamConfigEdit
   if (!team) return null;
 
   const config = team.config;
+  const governancePolicy = config.governancePolicy;
 
   return (
     <div className={cn('space-y-4 px-3 py-3', className)}>
@@ -144,6 +145,43 @@ export function AgentTeamConfigEditor({ teamId, className }: AgentTeamConfigEdit
             : config.executionMode === 'autonomous'
               ? (t('configEditor.autonomousDesc') || 'Teammates self-claim available tasks')
               : (t('configEditor.delegateDesc') || 'Lead delegates, never implements itself')}
+        </p>
+      </div>
+
+      <Separator />
+
+      {/* Execution Pattern */}
+      <div className="space-y-1.5">
+        <Label className="text-xs flex items-center gap-1.5">
+          <GitBranch className="h-3 w-3" />
+          {t('configEditor.executionPattern') || 'Execution Pattern'}
+        </Label>
+        <Select
+          value={config.preferredExecutionPattern || 'manager_worker'}
+          onValueChange={(value) =>
+            handleConfigChange({
+              preferredExecutionPattern: value as NonNullable<AgentTeamConfig['preferredExecutionPattern']>,
+            })
+          }
+          disabled={!isEditable}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="manager_worker">
+              {t('configEditor.patternManagerWorker') || 'Manager Worker'}
+            </SelectItem>
+            <SelectItem value="parallel_specialists">
+              {t('configEditor.patternParallelSpecialists') || 'Parallel Specialists'}
+            </SelectItem>
+            <SelectItem value="background_handoff">
+              {t('configEditor.patternBackgroundHandoff') || 'Background Handoff'}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-[10px] text-muted-foreground">
+          {t('configEditor.executionPatternDesc') || 'Preferred orchestration intent before launch.'}
         </p>
       </div>
 
@@ -223,6 +261,35 @@ export function AgentTeamConfigEditor({ teamId, className }: AgentTeamConfigEdit
           onCheckedChange={(v) => handleConfigChange({ enableTaskRetry: v })}
           disabled={!isEditable}
         />
+        <ToggleRow
+          icon={<GitBranch className="h-3 w-3" />}
+          label={t('configEditor.delegationApproval') || 'Require Delegation Approval'}
+          description={t('configEditor.delegationApprovalDesc') || 'Pause background handoffs until approved.'}
+          checked={governancePolicy?.approval.requireDelegationApproval ?? false}
+          onCheckedChange={(value) =>
+            handleConfigChange({
+              governancePolicy: {
+                ...governancePolicy,
+                approval: {
+                  ...governancePolicy?.approval,
+                  requirePlanApproval: governancePolicy?.approval.requirePlanApproval ?? (config.requirePlanApproval ?? false),
+                  requireDelegationApproval: value,
+                },
+                budget: governancePolicy?.budget ?? {
+                  tokenBudget: config.tokenBudget || 0,
+                  warningThreshold: 0.8,
+                  criticalThreshold: 0.95,
+                  onCritical: 'notify',
+                },
+                escalation: governancePolicy?.escalation ?? {
+                  allowOperatorPatternOverride: true,
+                  pauseOnHighRisk: false,
+                },
+              },
+            })
+          }
+          disabled={!isEditable}
+        />
       </div>
 
       {config.enableTaskRetry && (
@@ -245,6 +312,74 @@ export function AgentTeamConfigEditor({ teamId, className }: AgentTeamConfigEdit
           />
         </div>
       )}
+
+      <Separator />
+
+      {/* Budget Escalation */}
+      <div className="space-y-1.5">
+        <Label className="text-xs flex items-center gap-1.5">
+          <Zap className="h-3 w-3" />
+          {t('configEditor.budgetEscalation') || 'Budget Escalation'}
+        </Label>
+        <Select
+          value={governancePolicy?.budget.onCritical || 'notify'}
+          onValueChange={(value) =>
+            handleConfigChange({
+              governancePolicy: {
+                ...governancePolicy,
+                approval: governancePolicy?.approval ?? {
+                  requirePlanApproval: config.requirePlanApproval ?? false,
+                  requireDelegationApproval: false,
+                },
+                budget: {
+                  tokenBudget: config.tokenBudget || 0,
+                  warningThreshold: governancePolicy?.budget.warningThreshold ?? 0.8,
+                  criticalThreshold: governancePolicy?.budget.criticalThreshold ?? 0.95,
+                  onCritical: value as NonNullable<NonNullable<AgentTeamConfig['governancePolicy']>['budget']>['onCritical'],
+                },
+                escalation: governancePolicy?.escalation ?? {
+                  allowOperatorPatternOverride: true,
+                  pauseOnHighRisk: false,
+                },
+              },
+            })
+          }
+          disabled={!isEditable}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="notify">
+              {t('configEditor.budgetEscalationNotify') || 'Notify Only'}
+            </SelectItem>
+            <SelectItem value="pause_for_review">
+              {t('configEditor.budgetEscalationPause') || 'Pause For Review'}
+            </SelectItem>
+            <SelectItem value="reduce_concurrency">
+              {t('configEditor.budgetEscalationReduce') || 'Reduce Concurrency'}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-[10px] text-muted-foreground">
+          {t('configEditor.budgetEscalationDesc') || 'Choose what happens when token usage reaches the critical threshold.'}
+        </p>
+      </div>
+
+      <div className="rounded-md border bg-muted/30 p-2.5">
+        <p className="text-xs font-medium">
+          {t('configEditor.policySummary') || 'Policy Summary'}
+        </p>
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          Pattern: {config.preferredExecutionPattern || 'manager_worker'}
+        </p>
+        <p className="text-[10px] text-muted-foreground">
+          Delegation approval: {governancePolicy?.approval.requireDelegationApproval ? 'on' : 'off'}
+        </p>
+        <p className="text-[10px] text-muted-foreground">
+          Budget escalation: {governancePolicy?.budget.onCritical || 'notify'}
+        </p>
+      </div>
 
       <Separator />
 

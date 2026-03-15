@@ -2,9 +2,19 @@ import { executeCodeStep } from './code-executor';
 
 const mockExecuteSandboxCode = jest.fn();
 const mockIsTauri = jest.fn();
+const mockExecuteSandboxEntrypoint = jest.fn();
 
 jest.mock('@/lib/native/sandbox', () => ({
   executeCode: (...args: unknown[]) => mockExecuteSandboxCode(...args),
+}));
+
+jest.mock('@/lib/sandbox/consumption', () => ({
+  SANDBOX_ENTRYPOINT_POLICIES: {
+    workflowCodeStep: {
+      entrypoint: 'workflow-code-step',
+    },
+  },
+  executeSandboxEntrypoint: (...args: unknown[]) => mockExecuteSandboxEntrypoint(...args),
 }));
 
 jest.mock('@/lib/utils', () => ({
@@ -15,12 +25,22 @@ describe('executeCodeStep', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockIsTauri.mockReturnValue(true);
-    mockExecuteSandboxCode.mockResolvedValue({
-      stdout: '{"ok":true}',
-      stderr: '',
-      runtime: 'native',
-      exit_code: 0,
-      execution_time_ms: 10,
+    mockExecuteSandboxEntrypoint.mockResolvedValue({
+      kind: 'executed',
+      metadata: {
+        entrypoint: 'workflow-code-step',
+        blocked: false,
+        bypassed: false,
+      },
+      result: {
+        stdout: '{"ok":true}',
+        stderr: '',
+        runtime: 'native',
+        exit_code: 0,
+        execution_time_ms: 10,
+        status: 'completed',
+        lifecycle_status: 'success',
+      },
     });
   });
 
@@ -40,9 +60,11 @@ describe('executeCodeStep', () => {
       { value: 1 }
     );
 
-    expect(mockExecuteSandboxCode).toHaveBeenCalledWith(
+    expect(mockExecuteSandboxEntrypoint).toHaveBeenCalledWith(
       expect.objectContaining({
-        timeout_secs: 30,
+        request: expect.objectContaining({
+          timeout_secs: 30,
+        }),
       })
     );
   });
@@ -66,9 +88,11 @@ describe('executeCodeStep', () => {
       {}
     );
 
-    expect(mockExecuteSandboxCode).toHaveBeenCalledWith(
+    expect(mockExecuteSandboxEntrypoint).toHaveBeenCalledWith(
       expect.objectContaining({
-        timeout_secs: 1,
+        request: expect.objectContaining({
+          timeout_secs: 1,
+        }),
       })
     );
   });
@@ -96,14 +120,16 @@ describe('executeCodeStep', () => {
       { foo: 'bar' }
     );
 
-    expect(mockExecuteSandboxCode).toHaveBeenCalledWith(
+    expect(mockExecuteSandboxEntrypoint).toHaveBeenCalledWith(
       expect.objectContaining({
-        runtime: 'docker',
-        memory_limit_mb: 1024,
-        network_enabled: true,
-        env: { FOO: 'bar' },
-        args: ['--test'],
-        files: { 'data/input.txt': 'ok' },
+        request: expect.objectContaining({
+          runtime: 'docker',
+          memory_limit_mb: 1024,
+          network_enabled: true,
+          env: { FOO: 'bar' },
+          args: ['--test'],
+          files: { 'data/input.txt': 'ok' },
+        }),
       })
     );
   });
@@ -126,10 +152,52 @@ describe('executeCodeStep', () => {
       {}
     );
 
-    expect(mockExecuteSandboxCode).toHaveBeenCalledWith(
-      expect.not.objectContaining({
-        runtime: 'auto',
+    expect(mockExecuteSandboxEntrypoint).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.not.objectContaining({
+          runtime: 'auto',
+        }),
       })
     );
+  });
+
+  it('throws blocked contract errors before raw sandbox execution', async () => {
+    mockExecuteSandboxEntrypoint.mockResolvedValue({
+      kind: 'blocked',
+      metadata: {
+        entrypoint: 'workflow-code-step',
+        blocked: true,
+        bypassed: false,
+      },
+      result: {
+        status: 'failed',
+        lifecycle_status: 'error',
+        error: 'Sandbox is unavailable',
+        stdout: '',
+        stderr: '',
+        runtime: 'native',
+        exit_code: null,
+        execution_time_ms: 0,
+        language: 'python',
+      },
+    });
+
+    await expect(
+      executeCodeStep(
+        {
+          id: 'code-1',
+          name: 'Code',
+          description: '',
+          type: 'code',
+          code: 'print("x")',
+          language: 'python',
+          inputs: {},
+          outputs: {},
+        },
+        {}
+      )
+    ).rejects.toThrow('Code execution failed: Sandbox is unavailable');
+
+    expect(mockExecuteSandboxCode).not.toHaveBeenCalled();
   });
 });

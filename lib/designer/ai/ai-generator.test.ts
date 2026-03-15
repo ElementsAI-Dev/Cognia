@@ -7,9 +7,13 @@ jest.mock('ai', () => ({
   generateObject: jest.fn(),
 }));
 
-jest.mock('@/lib/ai/core/client', () => ({
-  getProviderModel: jest.fn(() => ({ id: 'mock-model' })),
-}));
+jest.mock('@/lib/ai/provider-consumption', () => {
+  const actual = jest.requireActual('@/lib/ai/provider-consumption');
+  return {
+    ...actual,
+    createFeatureProviderModel: jest.fn(() => ({ id: 'mock-model' })),
+  };
+});
 
 jest.mock('nanoid', () => ({
   nanoid: jest.fn(() => 'mock-id-123'),
@@ -24,12 +28,14 @@ import {
 
 import { generateText, generateObject } from 'ai';
 import type { DesignerAIConfig } from './ai';
+import { createFeatureProviderModel } from '@/lib/ai/provider-consumption';
 
 const mockConfig: DesignerAIConfig = {
   provider: 'openai',
   model: 'gpt-4',
   apiKey: 'test-api-key',
 };
+const mockCreateFeatureProviderModel = createFeatureProviderModel as jest.Mock;
 
 describe('AI Generator', () => {
   beforeEach(() => {
@@ -65,6 +71,7 @@ describe('AI Generator', () => {
       expect(result.variant).toBeDefined();
       expect(result.variant?.framework).toBe('react');
       expect(result.variant?.style).toBe('modern');
+      expect(mockCreateFeatureProviderModel).toHaveBeenCalled();
     });
 
     it('should return error when API key is missing', async () => {
@@ -81,7 +88,7 @@ describe('AI Generator', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('No API key');
+      expect(result.error).toBe('Add an API key before using this provider at runtime.');
     });
 
     it('should allow ollama without API key', async () => {
@@ -89,6 +96,7 @@ describe('AI Generator', () => {
         ...mockConfig,
         provider: 'ollama',
         apiKey: undefined,
+        baseURL: 'http://localhost:11434/v1',
       };
 
       const result = await generateComponent(
@@ -192,7 +200,7 @@ describe('AI Generator', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('No API key');
+      expect(result.error).toBe('Add an API key before using this provider at runtime.');
     });
 
     it('should handle empty variants result', async () => {
@@ -271,7 +279,7 @@ describe('AI Generator', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('No API key');
+      expect(result.error).toBe('Add an API key before using this provider at runtime.');
     });
 
     it('should handle API errors', async () => {

@@ -103,6 +103,18 @@ const PROVIDER_ICON_REGISTRY: Record<string, ProviderIconInfo> = {
     brandColor: '#ff6600',
     hasLocalIcon: true,
   },
+  zhipu: {
+    name: 'Zhipu AI (智谱清言)',
+    localIcon: '/icons/providers/zhipu.png',
+    brandColor: '#2563eb',
+    hasLocalIcon: true,
+  },
+  minimax: {
+    name: 'MiniMax',
+    localIcon: '/icons/providers/minimax.png',
+    brandColor: '#0f766e',
+    hasLocalIcon: true,
+  },
   ollama: {
     name: 'Ollama',
     localIcon: '/icons/providers/ollama.svg',
@@ -185,6 +197,8 @@ const CDN_PROVIDER_MAP: Record<string, string> = {
   deepseek: 'deepseek',
   groq: 'groq',
   mistral: 'mistral',
+  zhipu: 'zhipu',
+  minimax: 'minimax',
   openrouter: 'openrouter',
   cohere: 'cohere',
   cerebras: 'cerebras',

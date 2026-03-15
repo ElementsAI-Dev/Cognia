@@ -16,6 +16,8 @@ import {
   Globe,
   Network,
   FileCode,
+  Plus,
+  Download,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -28,6 +30,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { GitPanel } from '@/components/git';
@@ -44,6 +54,7 @@ import { GitCommitSearch } from '@/components/git/git-commit-search';
 import type { GitCommitDetail } from '@/types/system/git';
 import { useGitStore } from '@/stores/git/git-store';
 import { open } from '@tauri-apps/plugin-dialog';
+import { useGit } from '@/hooks/native/use-git';
 
 type MainTab = 'overview' | 'graph' | 'stats' | 'checkpoints' | 'tags' | 'remotes' | 'blame' | 'file-history' | 'search';
 
@@ -53,7 +64,24 @@ export default function GitPage() {
   const [repoPath, setRepoPath] = useState('');
   const [activeRepo, setActiveRepo] = useState<string | null>(null);
   const [mainTab, setMainTab] = useState<MainTab>('overview');
+  const [showInitDialog, setShowInitDialog] = useState(false);
+  const [showCloneDialog, setShowCloneDialog] = useState(false);
+  const [cloneUrl, setCloneUrl] = useState('');
+  const [clonePath, setClonePath] = useState('');
+  const [cloneBranch, setCloneBranch] = useState('');
   const gitPanelRef = useRef<GitPanelRef>(null);
+
+  const {
+    trackedRepos,
+    currentRepo,
+    initRepo,
+    cloneRepo,
+    addTrackedRepo,
+  } = useGit({
+    autoCheck: true,
+    autoLoadStatus: false,
+    repoPath: activeRepo || undefined,
+  });
 
   const {
     graphCommits,
@@ -129,6 +157,16 @@ export default function GitPage() {
     }
   };
 
+  useEffect(() => {
+    if (activeRepo && currentRepo?.path === activeRepo && currentRepo.isGitRepo) {
+      addTrackedRepo(activeRepo, {
+        source: 'manual',
+        remoteUrl: currentRepo.remoteUrl ?? null,
+        branch: currentRepo.branch ?? null,
+      });
+    }
+  }, [activeRepo, currentRepo, addTrackedRepo]);
+
   const handlePickFolder = useCallback(async () => {
     try {
       const selected = await open({
@@ -143,6 +181,31 @@ export default function GitPage() {
       // User cancelled or error - silently ignore
     }
   }, [t]);
+
+  const handleInitRepo = useCallback(async () => {
+    if (!repoPath.trim()) return;
+
+    const success = await initRepo(repoPath.trim());
+    if (success) {
+      setActiveRepo(repoPath.trim());
+      setShowInitDialog(false);
+    }
+  }, [initRepo, repoPath]);
+
+  const handleCloneRepo = useCallback(async () => {
+    if (!cloneUrl.trim() || !clonePath.trim()) return;
+
+    const success = await cloneRepo(cloneUrl.trim(), clonePath.trim(), {
+      branch: cloneBranch.trim() || undefined,
+    });
+    if (success) {
+      setActiveRepo(clonePath.trim());
+      setCloneUrl('');
+      setClonePath('');
+      setCloneBranch('');
+      setShowCloneDialog(false);
+    }
+  }, [cloneBranch, clonePath, cloneRepo, cloneUrl]);
 
   // Tag handlers
   const handleCreateTag = useCallback(async (name: string, message?: string, target?: string) => {
@@ -256,6 +319,40 @@ export default function GitPage() {
             >
               {t('openRepository')}
             </Button>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <Button variant="outline" onClick={() => setShowInitDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                {t('initializeRepository')}
+              </Button>
+              <Button variant="outline" onClick={() => setShowCloneDialog(true)}>
+                <Download className="h-4 w-4 mr-2" />
+                {t('cloneRepository')}
+              </Button>
+            </div>
+            {trackedRepos.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {t('trackedRepositories')}
+                </p>
+                {trackedRepos
+                  .slice()
+                  .sort((a, b) => b.lastOpenedAt.localeCompare(a.lastOpenedAt))
+                  .map((repo) => (
+                    <button
+                      key={repo.path}
+                      type="button"
+                      className="w-full rounded-md border p-2 text-left hover:bg-muted/50"
+                      onClick={() => {
+                        setRepoPath(repo.path);
+                        setActiveRepo(repo.path);
+                      }}
+                    >
+                      <p className="text-sm font-medium truncate">{repo.displayName}</p>
+                      <p className="text-xs text-muted-foreground truncate">{repo.path}</p>
+                    </button>
+                  ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -325,6 +422,38 @@ export default function GitPage() {
                 >
                   {t('openRepository')}
                 </Button>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button variant="outline" onClick={() => setShowInitDialog(true)}>
+                    {t('initializeRepository')}
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowCloneDialog(true)}>
+                    {t('cloneRepository')}
+                  </Button>
+                </div>
+                {trackedRepos.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>{t('trackedRepositories')}</Label>
+                    <div className="space-y-2">
+                      {trackedRepos
+                        .slice()
+                        .sort((a, b) => b.lastOpenedAt.localeCompare(a.lastOpenedAt))
+                        .map((repo) => (
+                          <button
+                            key={repo.path}
+                            type="button"
+                            className="w-full rounded-md border p-3 text-left hover:bg-muted/50"
+                            onClick={() => {
+                              setRepoPath(repo.path);
+                              setActiveRepo(repo.path);
+                            }}
+                          >
+                            <p className="font-medium truncate">{repo.displayName}</p>
+                            <p className="text-xs text-muted-foreground truncate">{repo.path}</p>
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -542,6 +671,80 @@ export default function GitPage() {
           </Tabs>
         )}
       </div>
+
+      <Dialog open={showInitDialog} onOpenChange={setShowInitDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('initializeRepository')}</DialogTitle>
+            <DialogDescription>{t('initializeRepositoryDescription')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="initRepoPath">{t('repositoryPath')}</Label>
+              <Input
+                id="initRepoPath"
+                value={repoPath}
+                onChange={(e) => setRepoPath(e.target.value)}
+                placeholder={t('repositoryPathPlaceholder')}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowInitDialog(false)}>
+              {tc('cancel')}
+            </Button>
+            <Button onClick={handleInitRepo} disabled={!repoPath.trim()}>
+              {t('initializeRepository')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCloneDialog} onOpenChange={setShowCloneDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('cloneRepository')}</DialogTitle>
+            <DialogDescription>{t('cloneRepositoryDescription')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="cloneUrl">{t('cloneUrl')}</Label>
+              <Input
+                id="cloneUrl"
+                value={cloneUrl}
+                onChange={(e) => setCloneUrl(e.target.value)}
+                placeholder="https://github.com/user/repo.git"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="clonePath">{t('clonePath')}</Label>
+              <Input
+                id="clonePath"
+                value={clonePath}
+                onChange={(e) => setClonePath(e.target.value)}
+                placeholder={t('repositoryPathPlaceholder')}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cloneBranch">{t('cloneBranch')}</Label>
+              <Input
+                id="cloneBranch"
+                value={cloneBranch}
+                onChange={(e) => setCloneBranch(e.target.value)}
+                placeholder={t('cloneBranchPlaceholder')}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCloneDialog(false)}>
+              {tc('cancel')}
+            </Button>
+            <Button onClick={handleCloneRepo} disabled={!cloneUrl.trim() || !clonePath.trim()}>
+              {t('cloneRepository')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

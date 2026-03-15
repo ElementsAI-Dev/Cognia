@@ -26,7 +26,7 @@ import {
   Legend,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, AlertTriangle, Clock, Layers } from 'lucide-react';
+import { Activity, AlertTriangle, Clock, Layers, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TOOLTIP_STYLE, CHART_MARGINS } from '@/lib/observability/chart-config';
 import type { StructuredLogEntry, LogLevel } from '@/lib/logger';
@@ -109,7 +109,7 @@ function StatCard({
   sub,
   color,
 }: {
-  icon: React.ElementType;
+  icon: LucideIcon;
   label: string;
   value: string | number;
   sub?: string;

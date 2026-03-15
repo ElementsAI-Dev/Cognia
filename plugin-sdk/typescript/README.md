@@ -103,6 +103,19 @@ Create a `plugin.json` file in your plugin root:
 - Declare `engines.cognia` to express host compatibility requirements.
 - `cognia-plugin build` validates required manifest fields and output artifacts (`dist/index.js`, `dist/plugin.json`).
 - `cognia-plugin dev` now emits update/error events with build-on-change flow enabled by default.
+- `cognia-plugin build` and `cognia-plugin pack` now validate declared capabilities against the current host capability matrix.
+
+### Source-Aware Dev Extensions
+
+- Prefer dev extensions for local iteration so the host can preserve source-path metadata and expose reload-oriented operations.
+- `cognia-plugin dev` emits `cognia-dev-extension-update` events with `reload-ready` / `reload-error` payloads for host-side dev extension controllers.
+
+### Capability Support Levels
+
+- `supported`: `tools`, `components`, `modes`, `commands`, `hooks`, `a2ui`, `python`, `scheduler`
+- `partial`: `themes`, `exporters`, `importers`
+- `experimental`: `processors`, `providers`
+- `blocked`: `skills`
 
 ## What's Included
 

@@ -3,18 +3,17 @@
  */
 
 import { generateText, streamText } from 'ai';
+import { nanoid } from 'nanoid';
 import { getProviderModel, type ProviderName } from '../core/client';
+import type {
+  CanvasActionAttachment,
+  CanvasPendingReview,
+  CanvasReviewDiffLine,
+  CanvasReviewItem,
+  CanvasWorkbenchActionType,
+} from '@/types/artifact/artifact';
 
-export type CanvasActionType =
-  | 'review'
-  | 'fix'
-  | 'improve'
-  | 'explain'
-  | 'simplify'
-  | 'expand'
-  | 'translate'
-  | 'format'
-  | 'run';
+export type CanvasActionType = CanvasWorkbenchActionType;
 
 export interface CanvasActionConfig {
   provider: ProviderName;
@@ -30,7 +29,26 @@ export interface CanvasActionResult {
   error?: string;
 }
 
+export interface CanvasReviewBuildInput {
+  requestId: string;
+  actionType: CanvasActionType;
+  originalContent: string;
+  proposedContent: string;
+}
+
+export interface CanvasActionExecutionOptions {
+  language?: string;
+  targetLanguage?: string;
+  selection?: string;
+  prompt?: string;
+  attachments?: CanvasActionAttachment[];
+}
+
 const ACTION_PROMPTS: Record<CanvasActionType, string> = {
+  custom: `You are an expert editing assistant working inside a document canvas.
+Apply the user's instruction to the provided content while preserving valid syntax, formatting, and intent.
+Return ONLY the updated content without any explanation.`,
+
   review: `You are a code/text reviewer. Analyze the following content and provide a detailed review including:
 - Overall quality assessment
 - Potential issues or bugs
@@ -102,6 +120,75 @@ Return ONLY the formatted content without any explanation.`,
 Note: This is a simulation, not actual execution.`,
 };
 
+function isContentAction(actionType: CanvasActionType): boolean {
+  return [
+    'custom',
+    'fix',
+    'improve',
+    'simplify',
+    'expand',
+    'translate',
+    'format',
+  ].includes(actionType);
+}
+
+function buildAttachmentContext(attachments?: CanvasActionAttachment[]): string {
+  if (!attachments || attachments.length === 0) {
+    return '';
+  }
+
+  const sections = attachments.map((attachment) => {
+    const flags = [
+      attachment.isMissing ? 'missing' : null,
+      attachment.isTruncated ? 'truncated' : null,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    const suffix = flags ? ` (${flags})` : '';
+    return `Attachment: ${attachment.label} [${attachment.sourceType}]${suffix}\n${attachment.snapshot}`;
+  });
+
+  return `\n\nAdditional context:\n${sections.join('\n\n')}`;
+}
+
+function buildInstructionContext(prompt?: string): string {
+  if (!prompt || !prompt.trim()) {
+    return '';
+  }
+
+  return `\n\nUser instruction:\n${prompt.trim()}`;
+}
+
+function buildCanvasPrompts(
+  actionType: CanvasActionType,
+  content: string,
+  options?: CanvasActionExecutionOptions
+): {
+  systemPrompt: string;
+  userPrompt: string;
+} {
+  const { language, targetLanguage, selection, prompt, attachments } = options || {};
+
+  let systemPrompt = ACTION_PROMPTS[actionType];
+  const userPrompt = selection && selection.trim() ? selection : content;
+
+  if (language && ['review', 'fix', 'improve', 'explain', 'format', 'run', 'custom'].includes(actionType)) {
+    systemPrompt = `Language: ${language}\n\n${systemPrompt}`;
+  }
+
+  if (actionType === 'translate' && targetLanguage) {
+    systemPrompt = `Target language: ${targetLanguage}\n\n${systemPrompt}`;
+  }
+
+  systemPrompt = `${systemPrompt}${buildInstructionContext(prompt)}${buildAttachmentContext(attachments)}`;
+
+  return {
+    systemPrompt,
+    userPrompt,
+  };
+}
+
 /**
  * Execute a canvas action on the given content
  */
@@ -109,50 +196,26 @@ export async function executeCanvasAction(
   actionType: CanvasActionType,
   content: string,
   config: CanvasActionConfig,
-  options?: {
-    language?: string;
-    targetLanguage?: string;
-    selection?: string;
-  }
+  options?: CanvasActionExecutionOptions
 ): Promise<CanvasActionResult> {
   const { provider, model, apiKey, baseURL } = config;
-  const { language, targetLanguage, selection } = options || {};
 
   try {
     const modelInstance = getProviderModel(provider, model, apiKey, baseURL);
-
-    let systemPrompt = ACTION_PROMPTS[actionType];
-    let userPrompt = content;
-
-    // Add language context for code
-    if (language && ['review', 'fix', 'improve', 'explain', 'format', 'run'].includes(actionType)) {
-      systemPrompt = `Language: ${language}\n\n${systemPrompt}`;
-    }
-
-    // Handle translation with target language
-    if (actionType === 'translate' && targetLanguage) {
-      systemPrompt = `Target language: ${targetLanguage}\n\n${systemPrompt}`;
-    }
-
-    // If there's a selection, process only the selection
-    if (selection && selection.trim()) {
-      userPrompt = selection;
-    }
+    const { systemPrompt, userPrompt } = buildCanvasPrompts(actionType, content, options);
 
     const result = await generateText({
       model: modelInstance,
       system: systemPrompt,
       prompt: userPrompt,
-      temperature: actionType === 'fix' || actionType === 'format' ? 0.3 : 0.7,
+      temperature:
+        actionType === 'fix' || actionType === 'format' ? 0.3 : 0.7,
     });
-
-    // For actions that return modified content, we might want to apply it
-    const isContentAction = ['fix', 'improve', 'simplify', 'expand', 'translate', 'format'].includes(actionType);
 
     return {
       success: true,
       result: result.text,
-      explanation: isContentAction ? undefined : result.text,
+      explanation: isContentAction(actionType) ? undefined : result.text,
     };
   } catch (error) {
     return {
@@ -175,7 +238,6 @@ export function applyCanvasActionResult(
     return result;
   }
 
-  // Replace the selection with the result
   const selectionIndex = originalContent.indexOf(selection);
   if (selectionIndex === -1) {
     return result;
@@ -193,6 +255,7 @@ export function applyCanvasActionResult(
  */
 export function getActionDescription(actionType: CanvasActionType): string {
   const descriptions: Record<CanvasActionType, string> = {
+    custom: 'Apply a custom editing instruction to the current content',
     review: 'Analyze and review the content for issues and improvements',
     fix: 'Automatically fix bugs, errors, and issues',
     improve: 'Enhance quality, readability, and best practices',
@@ -223,38 +286,20 @@ export async function executeCanvasActionStreaming(
   content: string,
   config: CanvasActionConfig,
   callbacks: StreamingCallbacks,
-  options?: {
-    language?: string;
-    targetLanguage?: string;
-    selection?: string;
-  }
+  options?: CanvasActionExecutionOptions
 ): Promise<void> {
   const { provider, model, apiKey, baseURL } = config;
-  const { language, targetLanguage, selection } = options || {};
 
   try {
     const modelInstance = getProviderModel(provider, model, apiKey, baseURL);
-
-    let systemPrompt = ACTION_PROMPTS[actionType];
-    let userPrompt = content;
-
-    if (language && ['review', 'fix', 'improve', 'explain', 'format', 'run'].includes(actionType)) {
-      systemPrompt = `Language: ${language}\n\n${systemPrompt}`;
-    }
-
-    if (actionType === 'translate' && targetLanguage) {
-      systemPrompt = `Target language: ${targetLanguage}\n\n${systemPrompt}`;
-    }
-
-    if (selection && selection.trim()) {
-      userPrompt = selection;
-    }
+    const { systemPrompt, userPrompt } = buildCanvasPrompts(actionType, content, options);
 
     const result = streamText({
       model: modelInstance,
       system: systemPrompt,
       prompt: userPrompt,
-      temperature: actionType === 'fix' || actionType === 'format' ? 0.3 : 0.7,
+      temperature:
+        actionType === 'fix' || actionType === 'format' ? 0.3 : 0.7,
     });
 
     let fullText = '';
@@ -269,15 +314,7 @@ export async function executeCanvasActionStreaming(
   }
 }
 
-/**
- * Diff line type for preview
- */
-export interface DiffLine {
-  type: 'unchanged' | 'added' | 'removed';
-  content: string;
-  lineNumber?: number;
-  newLineNumber?: number;
-}
+export type DiffLine = CanvasReviewDiffLine;
 
 /**
  * Generate a simple line-by-line diff preview between original and modified content
@@ -291,10 +328,8 @@ export function generateDiffPreview(original: string, modified: string): DiffLin
   let origIdx = 0;
   let modIdx = 0;
 
-  // Simple line-by-line comparison (LCS-based would be better for production)
   while (origIdx < originalLines.length || modIdx < modifiedLines.length) {
     if (origIdx >= originalLines.length) {
-      // Remaining lines are additions
       diff.push({
         type: 'added',
         content: modifiedLines[modIdx],
@@ -302,7 +337,6 @@ export function generateDiffPreview(original: string, modified: string): DiffLin
       });
       modIdx++;
     } else if (modIdx >= modifiedLines.length) {
-      // Remaining lines are removals
       diff.push({
         type: 'removed',
         content: originalLines[origIdx],
@@ -310,7 +344,6 @@ export function generateDiffPreview(original: string, modified: string): DiffLin
       });
       origIdx++;
     } else if (originalLines[origIdx] === modifiedLines[modIdx]) {
-      // Lines match
       diff.push({
         type: 'unchanged',
         content: originalLines[origIdx],
@@ -320,24 +353,28 @@ export function generateDiffPreview(original: string, modified: string): DiffLin
       origIdx++;
       modIdx++;
     } else {
-      // Lines differ - look ahead to find best match
       const lookAhead = Math.min(5, maxLen - Math.max(origIdx, modIdx));
       let foundOrigMatch = -1;
       let foundModMatch = -1;
 
       for (let i = 1; i <= lookAhead; i++) {
-        if (modIdx + i < modifiedLines.length && originalLines[origIdx] === modifiedLines[modIdx + i]) {
+        if (
+          modIdx + i < modifiedLines.length &&
+          originalLines[origIdx] === modifiedLines[modIdx + i]
+        ) {
           foundModMatch = modIdx + i;
           break;
         }
-        if (origIdx + i < originalLines.length && originalLines[origIdx + i] === modifiedLines[modIdx]) {
+        if (
+          origIdx + i < originalLines.length &&
+          originalLines[origIdx + i] === modifiedLines[modIdx]
+        ) {
           foundOrigMatch = origIdx + i;
           break;
         }
       }
 
       if (foundModMatch >= 0) {
-        // Lines were added before the match
         while (modIdx < foundModMatch) {
           diff.push({
             type: 'added',
@@ -347,7 +384,6 @@ export function generateDiffPreview(original: string, modified: string): DiffLin
           modIdx++;
         }
       } else if (foundOrigMatch >= 0) {
-        // Lines were removed before the match
         while (origIdx < foundOrigMatch) {
           diff.push({
             type: 'removed',
@@ -357,7 +393,6 @@ export function generateDiffPreview(original: string, modified: string): DiffLin
           origIdx++;
         }
       } else {
-        // No nearby match - mark as removed + added
         diff.push({
           type: 'removed',
           content: originalLines[origIdx],
@@ -375,4 +410,104 @@ export function generateDiffPreview(original: string, modified: string): DiffLin
   }
 
   return diff;
+}
+
+export function buildCanvasReview(
+  input: CanvasReviewBuildInput
+): CanvasPendingReview {
+  const diffLines = generateDiffPreview(input.originalContent, input.proposedContent);
+  const items: CanvasReviewItem[] = [];
+  let block: DiffLine[] = [];
+  let fallbackStartLine = 1;
+
+  const flushBlock = () => {
+    if (block.length === 0) {
+      return;
+    }
+
+    const removedLines = block.filter((line) => line.type === 'removed');
+    const addedLines = block.filter((line) => line.type === 'added');
+    const startLine =
+      removedLines[0]?.lineNumber ??
+      addedLines[0]?.newLineNumber ??
+      fallbackStartLine;
+    const endLine =
+      removedLines.length > 0
+        ? removedLines[removedLines.length - 1].lineNumber ?? startLine
+        : startLine - 1;
+
+    let changeType: CanvasReviewItem['changeType'] = 'replace';
+    if (removedLines.length === 0 && addedLines.length > 0) {
+      changeType = 'insert';
+    } else if (removedLines.length > 0 && addedLines.length === 0) {
+      changeType = 'delete';
+    }
+
+    items.push({
+      id: nanoid(),
+      actionType: input.actionType,
+      changeType,
+      originalText: removedLines.map((line) => line.content).join('\n'),
+      proposedText: addedLines.map((line) => line.content).join('\n'),
+      status: 'pending',
+      range: {
+        startLine,
+        endLine,
+      },
+      diffLines: block.map((line) => ({ ...line })),
+    });
+
+    block = [];
+  };
+
+  for (const line of diffLines) {
+    if (line.type === 'unchanged') {
+      flushBlock();
+      fallbackStartLine = (line.lineNumber ?? fallbackStartLine) + 1;
+      continue;
+    }
+
+    if (block.length === 0) {
+      fallbackStartLine =
+        line.lineNumber ??
+        line.newLineNumber ??
+        fallbackStartLine;
+    }
+    block.push(line);
+  }
+  flushBlock();
+
+  return {
+    id: nanoid(),
+    requestId: input.requestId,
+    actionType: input.actionType,
+    originalContent: input.originalContent,
+    proposedContent: input.proposedContent,
+    createdAt: new Date(),
+    status: 'pending',
+    items,
+  };
+}
+
+export function applyAcceptedCanvasReviewItems(
+  originalContent: string,
+  items: CanvasReviewItem[]
+): string {
+  const lines = originalContent.split('\n');
+  const acceptedItems = items
+    .filter((item) => item.status === 'accepted')
+    .sort((a, b) => b.range.startLine - a.range.startLine);
+
+  for (const item of acceptedItems) {
+    const startIndex = Math.max(0, item.range.startLine - 1);
+    const deleteCount =
+      item.range.endLine >= item.range.startLine
+        ? item.range.endLine - item.range.startLine + 1
+        : 0;
+    const replacementLines =
+      item.proposedText.length > 0 ? item.proposedText.split('\n') : [];
+    lines.splice(startIndex, deleteCount, ...replacementLines);
+  }
+
+  return lines.join('\n');
 }

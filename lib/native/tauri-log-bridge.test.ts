@@ -25,6 +25,7 @@ jest.mock('@/lib/utils', () => ({
 }));
 
 jest.mock('@/lib/logger', () => ({
+  createLogRuntimeContext: jest.fn((value: Record<string, unknown>) => value),
   loggers: {
     native: {
       info: jest.fn(),
@@ -240,6 +241,8 @@ describe('tauri-log-bridge', () => {
       expect(mockChildLogger.info).toHaveBeenCalledWith(
         'Test',
         expect.objectContaining({
+          runtime: 'tauri',
+          origin: 'tauri',
           source: 'tauri',
           target: 'app_lib::mcp',
           custom: 'value',
@@ -259,6 +262,8 @@ describe('tauri-log-bridge', () => {
       expect(mockChildLogger.info).toHaveBeenCalledWith(
         'Test',
         expect.objectContaining({
+          runtime: 'tauri',
+          origin: 'tauri',
           tauriTimestamp: '2024-01-01T12:00:00Z',
         })
       );

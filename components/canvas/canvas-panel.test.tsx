@@ -24,6 +24,7 @@ const mockUseCanvasAutoSave = jest.fn((options?: Record<string, unknown>) => ({
 }));
 const mockCanvasDocument = {
   id: 'canvas-1',
+  sessionId: 'session-1',
   title: 'Test Document',
   content: 'const x = 1;',
   type: 'code' as const,
@@ -32,6 +33,14 @@ const mockCanvasDocument = {
     saveState: 'saved',
     performanceMode: 'standard',
   } as CanvasEditorContext,
+  aiWorkbench: {
+    promptDraft: '',
+    selectedPresetAction: null,
+    attachments: [],
+    actionHistory: [],
+    pendingReview: null,
+    isInlineCommandOpen: false,
+  },
 };
 const mockCanvasMonacoSetupReturn = {
   editorRef: { current: null },
@@ -83,9 +92,15 @@ jest.mock('@/hooks/canvas', () => ({
     actionResult: null,
     diffPreview: null,
     pendingContent: null,
+    pendingReview: null,
     handleAction: jest.fn(),
+    submitActionRequest: jest.fn(),
     acceptDiffChanges: jest.fn(),
     rejectDiffChanges: jest.fn(),
+    acceptReviewItem: jest.fn(),
+    rejectReviewItem: jest.fn(),
+    applyAcceptedReviewItems: jest.fn(),
+    retryAction: jest.fn(),
     setActionError: jest.fn(),
     setActionResult: jest.fn(),
   }),
@@ -169,6 +184,7 @@ jest.mock('@/stores', () => ({
       panelView: 'canvas',
       closePanel: mockClosePanel,
       activeCanvasId: 'canvas-1',
+      artifacts: {},
       canvasDocuments: {
         'canvas-1': mockCanvasDocument,
       },
@@ -187,7 +203,21 @@ jest.mock('@/stores', () => ({
   },
   useSessionStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
-      getActiveSession: () => ({ provider: 'openai', model: 'gpt-4o-mini' }),
+      getActiveSession: () => ({
+        id: 'session-1',
+        title: 'Current session context',
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+      }),
+    };
+    return selector(state);
+  },
+  useChatStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      messages: [
+        { id: 'message-1', role: 'user', content: 'Please improve this code.' },
+        { id: 'message-2', role: 'assistant', content: 'Sure, here is a starting point.' },
+      ],
     };
     return selector(state);
   },
@@ -198,7 +228,7 @@ jest.mock('@/components/ui/sheet', () => ({
   Sheet: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
     open ? <div data-testid="sheet">{children}</div> : null,
   SheetContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="sheet-content" data-className={className}>
+    <div data-testid="sheet-content" data-classname={className}>
       {children}
     </div>
   ),
@@ -289,7 +319,7 @@ jest.mock('@/components/ui/dialog', () => ({
   Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
     open ? <div data-testid="dialog">{children}</div> : null,
   DialogContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="dialog-content" data-className={className}>
+    <div data-testid="dialog-content" data-classname={className}>
       {children}
     </div>
   ),
@@ -350,6 +380,17 @@ jest.mock('next-intl', () => ({
       actionExpand: 'Expand',
       actionTranslate: 'Translate',
       actionFormat: 'Format',
+      inlineCommand: 'Inline AI',
+      inlineCommandPlaceholder: 'Describe the change you want',
+      attachContext: 'Attach context',
+      selectedContext: 'Selected context',
+      runInlineCommand: 'Run command',
+      currentSessionContext: 'Current session context',
+      recentAiActions: 'Recent AI actions',
+      retryAction: 'Retry action',
+      applyAcceptedChanges: 'Apply accepted changes',
+      acceptItem: 'Accept item',
+      rejectItem: 'Reject item',
       more: 'More',
       processing: 'Processing...',
       noDocument: 'No document selected',
@@ -502,7 +543,7 @@ describe('CanvasPanel', () => {
         render(<CanvasPanel />);
       });
       const sheetContent = screen.getByTestId('sheet-content');
-      const className = sheetContent.getAttribute('data-className');
+      const className = sheetContent.getAttribute('data-classname');
       expect(className).toContain('w-full');
       expect(className).toContain('sm:w-[600px]');
       expect(className).toContain('lg:w-[700px]');
@@ -515,7 +556,7 @@ describe('CanvasPanel', () => {
       const dialogContent = screen.queryByTestId('dialog-content');
       // Dialog may not be rendered until opened, but if rendered, should have responsive width
       if (dialogContent) {
-        const className = dialogContent.getAttribute('data-className');
+        const className = dialogContent.getAttribute('data-classname');
         expect(className).toContain('w-[95vw]');
         expect(className).toContain('sm:max-w-[400px]');
       }
@@ -555,6 +596,16 @@ describe('CanvasPanel', () => {
       expect(screen.getByTestId('canvas-performance-mode')).toHaveTextContent('Very large mode');
       expect(screen.getByTestId('canvas-resume-notice')).toBeInTheDocument();
       expect(screen.getByTestId('canvas-performance-alert')).toBeInTheDocument();
+    });
+  });
+
+  describe('AI Workbench', () => {
+    it('renders inline AI command trigger when workbench feature is enabled', async () => {
+      await act(async () => {
+        render(<CanvasPanel />);
+      });
+
+      expect(screen.getByTestId('canvas-inline-command-trigger')).toBeInTheDocument();
     });
   });
 

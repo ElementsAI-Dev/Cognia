@@ -16,6 +16,7 @@ import {
   Check,
   X,
   AlertCircle,
+  AlertTriangle,
   Loader2,
   Plus,
   History,
@@ -46,11 +47,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { useGit } from '@/hooks/native/use-git';
 import { formatCommitDate, formatCommitMessage } from '@/types/system/git';
 import { isTauri } from '@/lib/utils';
 import { GitignoreTemplateSelector } from '@/components/git/gitignore-template-selector';
+import { GitCommitComposer } from '@/components/git/git-commit-composer';
 
 interface ProjectGitPanelProps {
   projectId: string;
@@ -65,6 +66,7 @@ export function ProjectGitPanel({ projectId }: ProjectGitPanelProps) {
     currentRepo,
     commits,
     fileStatus,
+    trackedRepos,
     isOperating,
     error,
     checkGitInstalled,
@@ -74,6 +76,9 @@ export function ProjectGitPanel({ projectId }: ProjectGitPanelProps) {
     push,
     pull,
     fetch,
+    mergeAbort,
+    revertAbort,
+    cherryPickAbort,
     clearError,
     projectConfig,
     enableGitForProject,
@@ -93,6 +98,17 @@ export function ProjectGitPanel({ projectId }: ProjectGitPanelProps) {
   const [isInitializing, setIsInitializing] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
   const [gitignoreContent, setGitignoreContent] = useState('');
+  const isRecoveryState = Boolean(currentRepo?.inProgressOperation || currentRepo?.hasConflicts);
+  const statusKey =
+    currentRepo?.status === 'ahead'
+      ? 'status.ahead'
+      : currentRepo?.status === 'behind'
+        ? 'status.behind'
+        : currentRepo?.status === 'diverged'
+          ? 'status.diverged'
+          : currentRepo?.status === 'clean'
+            ? 'status.clean'
+            : 'status.dirty';
 
   // Load repo path from project config
   useEffect(() => {
@@ -242,6 +258,24 @@ export function ProjectGitPanel({ projectId }: ProjectGitPanelProps) {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          {trackedRepos.length > 0 && (
+            <div className="mt-4 text-left">
+              <p className="text-sm font-medium mb-2">{t('repoStatus.title')}</p>
+              <div className="space-y-2">
+                {trackedRepos.map((repo) => (
+                  <button
+                    key={repo.path}
+                    type="button"
+                    className="w-full rounded-md border px-3 py-2 text-left hover:bg-muted/50"
+                    onClick={() => setRepoPath(repo.path)}
+                  >
+                    <p className="text-sm font-medium truncate">{repo.displayName}</p>
+                    <p className="text-xs text-muted-foreground truncate">{repo.path}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
@@ -258,6 +292,32 @@ export function ProjectGitPanel({ projectId }: ProjectGitPanelProps) {
             <Button size="sm" variant="ghost" onClick={clearError}>
               {tCommon('dismiss')}
             </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isRecoveryState && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="space-y-2">
+            <span>{currentRepo?.recommendedRecoveryAction || t('recovery.defaultMessage')}</span>
+            <div className="flex gap-2">
+              {currentRepo?.inProgressOperation === 'merge' && currentRepo?.canAbortOperation && (
+                <Button size="sm" variant="outline" onClick={() => mergeAbort()} disabled={isOperating}>
+                  {t('recovery.abortMerge')}
+                </Button>
+              )}
+              {currentRepo?.inProgressOperation === 'revert' && currentRepo?.canAbortOperation && (
+                <Button size="sm" variant="outline" onClick={() => revertAbort()} disabled={isOperating}>
+                  {t('recovery.abortRevert')}
+                </Button>
+              )}
+              {currentRepo?.inProgressOperation === 'cherry-pick' && currentRepo?.canAbortOperation && (
+                <Button size="sm" variant="outline" onClick={() => cherryPickAbort()} disabled={isOperating}>
+                  {t('recovery.abortCherryPick')}
+                </Button>
+              )}
+            </div>
           </AlertDescription>
         </Alert>
       )}
@@ -305,10 +365,16 @@ export function ProjectGitPanel({ projectId }: ProjectGitPanelProps) {
                       ? 'bg-green-500'
                       : currentRepo.status === 'dirty'
                       ? 'bg-yellow-500'
+                      : currentRepo.status === 'ahead'
+                      ? 'bg-blue-500'
+                      : currentRepo.status === 'behind'
+                      ? 'bg-orange-500'
+                      : currentRepo.status === 'diverged'
+                      ? 'bg-red-500'
                       : ''
                   }
                 >
-                  {currentRepo.status === 'clean' ? t('status.clean') : t('status.dirty')}
+                  {t(statusKey)}
                 </Badge>
                 {currentRepo.remoteUrl ? (
                   <Badge variant="outline" className="flex items-center gap-1">
@@ -366,78 +432,19 @@ export function ProjectGitPanel({ projectId }: ProjectGitPanelProps) {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            {/* Commit Dialog */}
-            <Dialog open={showCommitDialog} onOpenChange={setShowCommitDialog}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DialogTrigger asChild>
-                    <Button
-                      size="sm"
-                      disabled={!currentRepo?.hasUncommittedChanges && !currentRepo?.hasUntrackedFiles}
-                    >
-                      <GitCommit className="h-4 w-4 mr-2" />
-                      {t('quickActions.commit')}
-                    </Button>
-                  </DialogTrigger>
-                </TooltipTrigger>
-                <TooltipContent>{t('quickActions.commitTooltip')}</TooltipContent>
-              </Tooltip>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{t('commitDialog.title')}</DialogTitle>
-                  <DialogDescription>{t('commitDialog.description')}</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  {fileStatus.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>{t('commitDialog.changes')}</Label>
-                      <ScrollArea className="h-32 rounded-md border p-2">
-                        {fileStatus.map((file, idx) => (
-                          <div key={idx} className="flex items-center gap-2 text-sm py-1">
-                            <Badge
-                              variant="outline"
-                              className={
-                                file.status === 'added'
-                                  ? 'text-green-600'
-                                  : file.status === 'deleted'
-                                  ? 'text-red-600'
-                                  : 'text-yellow-600'
-                              }
-                            >
-                              {file.status.charAt(0).toUpperCase()}
-                            </Badge>
-                            <span className="truncate">{file.path}</span>
-                          </div>
-                        ))}
-                      </ScrollArea>
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    <Label htmlFor="commitMessage">{t('commitDialog.message')}</Label>
-                    <Textarea
-                      id="commitMessage"
-                      value={commitMessage}
-                      onChange={(e) => setCommitMessage(e.target.value)}
-                      placeholder={t('commitDialog.messagePlaceholder')}
-                      rows={3}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setShowCommitDialog(false)}>
-                    {tCommon('cancel')}
-                  </Button>
-                  <Button onClick={handleCommit} disabled={!commitMessage.trim() || isCommitting}>
-                    {isCommitting ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Check className="h-4 w-4 mr-2" />
-                    )}
-                    {t('commitDialog.commit')}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  disabled={(!currentRepo?.hasUncommittedChanges && !currentRepo?.hasUntrackedFiles) || isRecoveryState}
+                  onClick={() => setShowCommitDialog(true)}
+                >
+                  <GitCommit className="h-4 w-4 mr-2" />
+                  {t('quickActions.commit')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('quickActions.commitTooltip')}</TooltipContent>
+            </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
@@ -486,6 +493,30 @@ export function ProjectGitPanel({ projectId }: ProjectGitPanelProps) {
           </div>
         </CardContent>
       </Card>
+
+      <GitCommitComposer
+        open={showCommitDialog}
+        onOpenChange={setShowCommitDialog}
+        title={t('commitDialog.title')}
+        description={t('commitDialog.description')}
+        messageLabel={t('commitDialog.message')}
+        messagePlaceholder={t('commitDialog.messagePlaceholder')}
+        reviewLabel={t('commitDialog.changes')}
+        stagedSummary={t('commitDialog.stagedSummary', {
+          count: fileStatus.filter((file) => file.staged).length,
+        })}
+        unstagedSummary={t('commitDialog.unstagedSummary', {
+          count: fileStatus.filter((file) => !file.staged).length,
+        })}
+        autoStageMessage={t('commitDialog.autoStageNotice')}
+        cancelLabel={tCommon('cancel')}
+        confirmLabel={t('commitDialog.commit')}
+        fileStatus={fileStatus}
+        commitMessage={commitMessage}
+        onCommitMessageChange={setCommitMessage}
+        onSubmit={handleCommit}
+        isSubmitting={isCommitting}
+      />
 
       {/* Recent Commits */}
       {commits.length > 0 && (

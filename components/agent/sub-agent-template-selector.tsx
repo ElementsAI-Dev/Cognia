@@ -5,7 +5,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { Search, Code, FileText, BarChart, Sparkles, Plus, ChevronRight } from 'lucide-react';
+import { Search, Code, FileText, BarChart, Sparkles, Plus, ChevronRight, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,7 @@ export interface SubAgentTemplateSelectorProps {
 const categoryConfig: Record<
   SubAgentTemplate['category'],
   {
-    icon: React.ElementType;
+    icon: LucideIcon;
     color: string;
     bgColor: string;
   }

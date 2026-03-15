@@ -9,7 +9,14 @@
 
 import { generateText, generateObject } from 'ai';
 import { z } from 'zod';
-import { getProviderModel, type ProviderName } from '@/lib/ai/core/client';
+import {
+  createFeatureProviderModel,
+  createFeatureRoutePolicy,
+  getFeatureProviderBlockedGuidance,
+  resolveFeatureProvider,
+  resolveFeatureProviderFromRuntimeConfig,
+} from '@/lib/ai/provider-consumption';
+import type { ApiProtocol } from '@/types/provider';
 import type { AIConversationMessage } from './ai-conversation';
 import {
   getElementLocation,
@@ -26,10 +33,13 @@ import {
 import type { DesignerElement } from '@/types/designer';
 
 export interface DesignerAIConfig {
-  provider: ProviderName;
+  provider: string;
   model: string;
   apiKey?: string;
   baseURL?: string;
+  protocol?: ApiProtocol;
+  isCustomProvider?: boolean;
+  useProxy?: boolean;
 }
 
 export interface DesignerAIResult {
@@ -63,23 +73,42 @@ const aiSuggestionsArraySchema = z.object({
  * Centralizes the repeated validation and model creation pattern
  */
 function validateAndGetModel(config: DesignerAIConfig): 
-  | { success: true; model: ReturnType<typeof getProviderModel> }
+  | { success: true; model: ReturnType<typeof createFeatureProviderModel> }
   | { success: false; error: string } {
-  if (!config.apiKey && config.provider !== 'ollama') {
-    return {
-      success: false,
-      error: `No API key configured for ${config.provider}. Please add your API key in Settings.`,
-    };
-  }
-
   try {
-    const model = getProviderModel(
-      config.provider,
-      config.model,
-      config.apiKey || '',
-      config.baseURL
+    const resolution = resolveFeatureProviderFromRuntimeConfig(
+      createFeatureRoutePolicy('general-text', {
+        featureId: 'designer-ai',
+        selectionMode: 'explicit-provider',
+        providerId: config.provider,
+        model: config.model,
+        fallbackMode: 'none',
+        proxyMode:
+          config.useProxy === undefined
+            ? 'preferred'
+            : config.useProxy
+              ? 'required'
+              : 'disabled',
+      }),
+      {
+        providerId: config.provider,
+        apiKey: config.apiKey || '',
+        baseURL: config.baseURL,
+        model: config.model,
+        protocol: config.protocol,
+        isCustomProvider: config.isCustomProvider,
+        useProxy: config.useProxy,
+      }
     );
-    return { success: true, model };
+
+    if (resolution.kind !== 'resolved') {
+      return {
+        success: false,
+        error: getFeatureProviderBlockedGuidance(resolution).reason,
+      };
+    }
+
+    return { success: true, model: createFeatureProviderModel(resolution) };
   } catch (error) {
     return {
       success: false,
@@ -244,16 +273,54 @@ Requirements:
  */
 export function getDesignerAIConfig(
   defaultProvider: string | null,
-  providerSettings: Record<string, { apiKey?: string; defaultModel?: string; baseURL?: string }>
+  providerSettings: Record<string, { apiKey?: string; defaultModel?: string; baseURL?: string; enabled?: boolean }>,
+  customProviders: Record<
+    string,
+    {
+      apiKey?: string;
+      baseURL?: string;
+      apiProtocol?: ApiProtocol;
+      defaultModel?: string;
+      enabled?: boolean;
+    } | undefined
+  > = {}
 ): DesignerAIConfig {
-  const provider = (defaultProvider || 'openai') as ProviderName;
-  const settings = providerSettings[provider];
-  
+  const fallbackProvider = defaultProvider || 'openai';
+  const resolution = resolveFeatureProvider(
+    {
+      featureId: 'designer-ai',
+      selectionMode: 'default-provider',
+      fallbackMode: 'first-eligible',
+      proxyMode: 'required',
+    },
+    {
+      defaultProvider: fallbackProvider,
+      providerSettings,
+      customProviders,
+    }
+  );
+
+  if (resolution.kind === 'resolved') {
+    return {
+      provider: resolution.providerId,
+      model: resolution.model,
+      apiKey: resolution.apiKey,
+      baseURL: resolution.baseURL,
+      protocol: resolution.protocol,
+      isCustomProvider: resolution.isCustomProvider,
+      useProxy: resolution.useProxy,
+    };
+  }
+
+  const settings = providerSettings[fallbackProvider];
   return {
-    provider,
+    provider: fallbackProvider,
     model: settings?.defaultModel || 'gpt-4o-mini',
     apiKey: settings?.apiKey,
     baseURL: settings?.baseURL,
+    protocol: 'openai',
+    isCustomProvider: false,
+    useProxy: true,
   };
 }
 

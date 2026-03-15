@@ -3,6 +3,7 @@
  */
 
 export { useSandbox, useQuickCodeExecution } from './use-sandbox';
+export { useSandboxEntrypointExecution } from './use-sandbox-entrypoint';
 export {
   useExecutionHistory,
   useSnippets,

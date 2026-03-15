@@ -4,8 +4,10 @@
  */
 
 import type { WorkflowStepDefinition } from './types';
-import { executeCode as executeSandboxCode } from '@/lib/native/sandbox';
-import { isTauri } from '@/lib/utils';
+import {
+  SANDBOX_ENTRYPOINT_POLICIES,
+  executeSandboxEntrypoint,
+} from '@/lib/sandbox/consumption';
 
 function timeoutMsToSecs(timeoutMs: number): number {
   return Math.max(1, Math.ceil(timeoutMs / 1000));
@@ -19,10 +21,6 @@ export async function executeCodeStep(
     throw new Error('Code step requires code');
   }
 
-  if (!isTauri()) {
-    throw new Error('Code step execution requires desktop runtime (Tauri sandbox)');
-  }
-
   try {
     const codeSandbox = step.codeSandbox;
     const resolvedTimeoutSecs =
@@ -32,20 +30,32 @@ export async function executeCodeStep(
           ? timeoutMsToSecs(step.timeout)
           : undefined;
 
-    const result = await executeSandboxCode({
-      language: step.language || 'javascript',
-      code: step.code,
-      stdin: JSON.stringify(input),
-      timeout_secs: resolvedTimeoutSecs,
-      memory_limit_mb: codeSandbox?.memoryLimitMb,
-      network_enabled: codeSandbox?.networkEnabled,
-      runtime: codeSandbox?.runtime && codeSandbox.runtime !== 'auto'
-        ? codeSandbox.runtime
-        : undefined,
-      env: codeSandbox?.env,
-      args: codeSandbox?.args,
-      files: codeSandbox?.files,
+    const outcome = await executeSandboxEntrypoint({
+      policy: SANDBOX_ENTRYPOINT_POLICIES.workflowCodeStep,
+      request: {
+        language: step.language || 'javascript',
+        code: step.code,
+        stdin: JSON.stringify(input),
+        timeout_secs: resolvedTimeoutSecs,
+        memory_limit_mb: codeSandbox?.memoryLimitMb,
+        network_enabled: codeSandbox?.networkEnabled,
+        runtime: codeSandbox?.runtime && codeSandbox.runtime !== 'auto'
+          ? codeSandbox.runtime
+          : undefined,
+        env: codeSandbox?.env,
+        args: codeSandbox?.args,
+        files: codeSandbox?.files,
+      },
     });
+
+    const result = outcome.result;
+    if (!result) {
+      throw new Error('Sandbox contract returned no execution result');
+    }
+
+    if (outcome.kind !== 'executed' || result.lifecycle_status === 'error') {
+      throw new Error(result.error || result.diagnostics?.message || 'Execution failed');
+    }
 
     const parsedOutput = (() => {
       if (!result.stdout) {
@@ -64,6 +74,8 @@ export async function executeCodeStep(
       runtime: result.runtime,
       exitCode: result.exit_code,
       executionTimeMs: result.execution_time_ms,
+      diagnostics: result.diagnostics,
+      consumptionMetadata: result.consumption_metadata,
     };
   } catch (error) {
     throw new Error(

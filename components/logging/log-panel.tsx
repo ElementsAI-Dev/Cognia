@@ -111,9 +111,11 @@ const TIME_RANGES = {
 type TimeRange = PresetTimeRange;
 type ExportFormat = 'json' | 'csv' | 'text';
 type ViewMode = 'list' | 'dashboard' | 'trace';
+type PanelSource = 'frontend' | 'tauri' | 'mcp' | 'plugin' | 'internal';
 
 const BOOKMARKS_STORAGE_KEY = 'cognia-log-bookmarks';
 const EMPTY_PRESET_VALUE = '__none__';
+const ALL_PANEL_SOURCES: PanelSource[] = ['frontend', 'tauri', 'mcp', 'plugin', 'internal'];
 
 export interface LogPanelProps {
   /** CSS class name */
@@ -151,6 +153,30 @@ const LEVEL_CONFIG: Record<LogLevel, { icon: React.ElementType; color: string; b
   };
 
 const ALL_LEVELS: LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'];
+
+function getLogSource(log: StructuredLogEntry): PanelSource {
+  if (log.origin === 'tauri' || log.runtime === 'tauri') {
+    return 'tauri';
+  }
+
+  if (log.origin === 'mcp' || log.runtime === 'mcp') {
+    return 'mcp';
+  }
+
+  if (log.origin === 'plugin' || log.runtime === 'plugin') {
+    return 'plugin';
+  }
+
+  if (
+    log.origin === 'diagnostic' ||
+    log.module === 'logger.internal' ||
+    (typeof log.data?.sourceTransport === 'string' && log.data.sourceTransport.length > 0)
+  ) {
+    return 'internal';
+  }
+
+  return 'frontend';
+}
 
 /**
  * Split text by search query into parts for highlighting.
@@ -210,6 +236,7 @@ function LogEntry({
   onToggle,
   onSelect,
   onFocusTrace,
+  onFocusSession,
   searchQuery,
   useRegex,
   isBookmarked,
@@ -221,6 +248,7 @@ function LogEntry({
   onToggle: () => void;
   onSelect?: () => void;
   onFocusTrace?: (traceId: string, log: StructuredLogEntry) => void;
+  onFocusSession?: (sessionId: string, log: StructuredLogEntry) => void;
   searchQuery: string;
   useRegex: boolean;
   isBookmarked: boolean;
@@ -236,7 +264,7 @@ function LogEntry({
   const traceColor = isTraceEntry && log.eventId
     ? LIVE_TRACE_EVENT_COLORS[log.eventId as AgentTraceEventType]
     : undefined;
-  const Icon = TraceIcon ?? config.icon;
+  const Icon = (TraceIcon ?? config.icon) as React.ComponentType<{ className?: string }>;
   const iconColor = traceColor ?? config.color;
 
   const handleCopy = useCallback(() => {
@@ -367,6 +395,26 @@ function LogEntry({
             </Tooltip>
           )}
 
+          {onFocusSession && log.sessionId && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  aria-label={t('panel.focusSession')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFocusSession(log.sessionId!, log);
+                  }}
+                >
+                  <Filter className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('panel.focusSession')}</TooltipContent>
+            </Tooltip>
+          )}
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -424,6 +472,7 @@ function TraceGroup({
   expandedIds,
   toggleExpanded,
   onFocusTrace,
+  onFocusSession,
   searchQuery,
   useRegex,
   bookmarkedIds,
@@ -435,6 +484,7 @@ function TraceGroup({
   expandedIds: Set<string>;
   toggleExpanded: (id: string) => void;
   onFocusTrace?: (traceId: string, log: StructuredLogEntry) => void;
+  onFocusSession?: (sessionId: string, log: StructuredLogEntry) => void;
   searchQuery: string;
   useRegex: boolean;
   bookmarkedIds: Set<string>;
@@ -471,6 +521,7 @@ function TraceGroup({
             isExpanded={expandedIds.has(log.id)}
             onToggle={() => toggleExpanded(log.id)}
             onFocusTrace={onFocusTrace}
+            onFocusSession={onFocusSession}
             searchQuery={searchQuery}
             useRegex={useRegex}
             isBookmarked={bookmarkedIds.has(log.id)}
@@ -504,6 +555,7 @@ function VirtualizedLogList({
   toggleBookmark,
   handleSelectLog,
   handleFocusTrace,
+  handleFocusSession,
   t,
 }: {
   scrollRef: React.RefObject<HTMLDivElement | null>;
@@ -522,6 +574,7 @@ function VirtualizedLogList({
   toggleBookmark: (id: string) => void;
   handleSelectLog: (log: StructuredLogEntry) => void;
   handleFocusTrace: (traceId: string, log: StructuredLogEntry) => void;
+  handleFocusSession: (sessionId: string, log: StructuredLogEntry) => void;
   t: ReturnType<typeof useTranslations>;
 }) {
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -577,6 +630,7 @@ function VirtualizedLogList({
               expandedIds={expandedIds}
               toggleExpanded={toggleExpanded}
               onFocusTrace={handleFocusTrace}
+              onFocusSession={handleFocusSession}
               searchQuery={searchQuery}
               useRegex={useRegex}
               bookmarkedIds={bookmarkedIds}
@@ -617,6 +671,7 @@ function VirtualizedLogList({
                 onToggle={() => toggleExpanded(log.id)}
                 onSelect={() => handleSelectLog(log)}
                 onFocusTrace={handleFocusTrace}
+                onFocusSession={handleFocusSession}
                 searchQuery={searchQuery}
                 useRegex={useRegex}
                 isBookmarked={bookmarkedIds.has(log.id)}
@@ -639,13 +694,22 @@ export function LogPanel({
   groupByTraceId = false,
   showStats = true,
   showTimeline = true,
+  sources,
   includeAgentTrace = true,
 }: LogPanelProps) {
   const t = useTranslations('logging');
+  const allowedSources = useMemo<PanelSource[]>(
+    () => (sources && sources.length > 0 ? Array.from(new Set([...sources, 'internal'])) : ALL_PANEL_SOURCES),
+    [sources]
+  );
 
   const [autoRefresh, setAutoRefresh] = useState(defaultAutoRefresh);
   const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>('all');
   const [moduleFilter, setModuleFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<PanelSource | 'all'>(
+    sources && sources.length === 1 ? sources[0] : 'all'
+  );
+  const [sessionFilter, setSessionFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [useRegex, setUseRegex] = useState(false);
@@ -658,6 +722,8 @@ export function LogPanel({
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedLog, setSelectedLog] = useState<StructuredLogEntry | null>(null);
   const [showDetailPanel, setShowDetailPanel] = useState(false);
+  const [selectedTransportHealthName, setSelectedTransportHealthName] = useState<string | null>(null);
+  const [diagnosticTransportFilter, setDiagnosticTransportFilter] = useState<string | null>(null);
   const [presets, setPresets] = useState<LogFilterPreset[]>(() => {
     if (typeof window === 'undefined') {
       return [];
@@ -682,6 +748,10 @@ export function LogPanel({
     autoRefresh: true,
     refreshInterval: Math.max(refreshInterval, 1500),
   });
+  const selectedTransportHealth =
+    selectedTransportHealthName ? healthByTransport[selectedTransportHealthName] ?? null : null;
+  const effectiveSourceFilter =
+    sourceFilter !== 'all' && !allowedSources.includes(sourceFilter) ? 'all' : sourceFilter;
 
   // Persist bookmarks to localStorage
   const toggleBookmark = useCallback((id: string) => {
@@ -775,7 +845,7 @@ export function LogPanel({
     return Date.now() - TIME_RANGES[timeRange];
   }, [timeRange]);
 
-  const { logs, groupedLogs, isLoading, error, refresh, clearLogs, exportLogs, stats, logRate } =
+  const { logs, groupedLogs, isLoading, error, refresh, clearLogs, stats, logRate } =
     useLogStream({
       autoRefresh,
       refreshInterval,
@@ -838,38 +908,15 @@ export function LogPanel({
     URL.revokeObjectURL(url);
   }, []);
 
-  // Export logs in different formats
-  const handleExport = useCallback(
-    (format: ExportFormat = 'json') => {
-      const content = exportLogs(format === 'csv' ? 'text' : format);
-      let mimeType = 'application/json';
-      let extension = 'json';
-
-      if (format === 'csv') {
-        // Convert to CSV format
-        const csvContent = logs
-          .map((log) => {
-            const timestamp = new Date(log.timestamp).toISOString();
-            const message = log.message.replace(/"/g, '""').replace(/[\r\n]+/g, ' ');
-            return `"${timestamp}","${log.level}","${log.module}","${message}"`;
-          })
-          .join('\n');
-        const csvHeader = '"Timestamp","Level","Module","Message"\n';
-        mimeType = 'text/csv';
-        extension = 'csv';
-        const blob = new Blob([csvHeader + csvContent], { type: mimeType });
-        downloadBlob(blob, extension);
-        return;
-      } else if (format === 'text') {
-        mimeType = 'text/plain';
-        extension = 'txt';
-      }
-
-      const blob = new Blob([content], { type: mimeType });
-      downloadBlob(blob, extension);
-    },
-    [exportLogs, logs, downloadBlob]
-  );
+  const createExportBlob = useCallback((content: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    if (typeof (blob as Blob & { text?: () => Promise<string> }).text !== 'function') {
+      Object.defineProperty(blob, 'text', {
+        value: async () => content,
+      });
+    }
+    return blob;
+  }, []);
 
   // Scroll controls
   const scrollToTop = useCallback(() => {
@@ -886,7 +933,7 @@ export function LogPanel({
 
   // Filter logs by time range and module (using merged logs)
   const filteredLogs = useMemo(() => {
-    let result = mergedLogs;
+    let result = mergedLogs.filter((log) => allowedSources.includes(getLogSource(log)));
 
     // Filter by module selection
     if (moduleFilter === AGENT_TRACE_MODULE) {
@@ -895,6 +942,10 @@ export function LogPanel({
     } else if (moduleFilter !== 'all') {
       // When a specific regular module is selected, exclude agent-trace entries
       result = result.filter((log) => log.module !== AGENT_TRACE_MODULE);
+    }
+
+    if (effectiveSourceFilter !== 'all') {
+      result = result.filter((log) => getLogSource(log) === effectiveSourceFilter);
     }
 
     if (timeRange !== 'all') {
@@ -910,8 +961,120 @@ export function LogPanel({
       result = result.filter((log) => log.traceId === traceFocusId);
     }
 
+    if (sessionFilter.trim()) {
+      result = result.filter((log) => log.sessionId === sessionFilter.trim());
+    }
+
+    if (diagnosticTransportFilter) {
+      result = result.filter(
+        (log) =>
+          log.module === 'logger.internal' &&
+          String(log.data?.sourceTransport || '') === diagnosticTransportFilter
+      );
+    }
+
     return result;
-  }, [mergedLogs, timeRange, getTimeRangeCutoff, moduleFilter, highSeverityOnly, traceFocusId]);
+  }, [
+    mergedLogs,
+    allowedSources,
+    effectiveSourceFilter,
+    timeRange,
+    getTimeRangeCutoff,
+    moduleFilter,
+    highSeverityOnly,
+    traceFocusId,
+    sessionFilter,
+    diagnosticTransportFilter,
+  ]);
+
+  const incidentExportBundle = useMemo(
+    () => ({
+      exportedAt: new Date().toISOString(),
+      filters: {
+        levelFilter,
+        moduleFilter,
+        sourceFilter: effectiveSourceFilter,
+        sessionFilter: sessionFilter.trim() || null,
+        timeRange,
+        searchQuery,
+        useRegex,
+        highSeverityOnly,
+        traceFocusId,
+        diagnosticTransportFilter,
+        allowedSources,
+      },
+      transportHealth: healthByTransport,
+      logs: filteredLogs,
+    }),
+    [
+      levelFilter,
+      moduleFilter,
+      effectiveSourceFilter,
+      sessionFilter,
+      timeRange,
+      searchQuery,
+      useRegex,
+      highSeverityOnly,
+      traceFocusId,
+      diagnosticTransportFilter,
+      allowedSources,
+      healthByTransport,
+      filteredLogs,
+    ]
+  );
+
+  // Export logs in different formats
+  const handleExport = useCallback(
+    (format: ExportFormat = 'json') => {
+      let mimeType = 'application/json';
+      let extension = 'json';
+
+      if (format === 'json') {
+        const blob = createExportBlob(JSON.stringify(incidentExportBundle, null, 2), mimeType);
+        downloadBlob(blob, extension);
+        return;
+      }
+
+      if (format === 'csv') {
+        const csvContent = filteredLogs
+          .map((log) => {
+            const timestamp = new Date(log.timestamp).toISOString();
+            const message = log.message.replace(/"/g, '""').replace(/[\r\n]+/g, ' ');
+            return `"${timestamp}","${log.level}","${log.module}","${message}"`;
+          })
+          .join('\n');
+        const csvHeader = '"Timestamp","Level","Module","Message"\n';
+        mimeType = 'text/csv';
+        extension = 'csv';
+        const blob = createExportBlob(csvHeader + csvContent, mimeType);
+        downloadBlob(blob, extension);
+        return;
+      } else if (format === 'text') {
+        mimeType = 'text/plain';
+        extension = 'txt';
+      }
+
+      const content = [
+        '# Cognia Incident Export',
+        `# Filters: ${JSON.stringify(incidentExportBundle.filters)}`,
+        `# TransportHealth: ${JSON.stringify(incidentExportBundle.transportHealth)}`,
+        '',
+        filteredLogs
+          .map((log) => {
+            const timestamp = new Date(log.timestamp).toISOString();
+            const level = log.level.toUpperCase().padEnd(5);
+            const moduleName = log.module.padEnd(15);
+            const trace = log.traceId ? `[${log.traceId.slice(0, 8)}]` : '';
+            return `${timestamp} ${level} ${moduleName} ${trace} ${log.message}`;
+          })
+          .join('\n'),
+      ].join('\n');
+
+      const blob = createExportBlob(content, mimeType);
+      downloadBlob(blob, extension);
+    },
+    [incidentExportBundle, filteredLogs, createExportBlob, downloadBlob]
+  );
 
   // Related logs for the detail panel (same traceId)
   const relatedLogs = useMemo(() => {
@@ -930,6 +1093,12 @@ export function LogPanel({
     setModuleFilter('all');
     setSelectedLog(log);
     setShowDetailPanel(true);
+  }, []);
+
+  const handleFocusSession = useCallback((sessionId: string, log: StructuredLogEntry) => {
+    setSessionFilter(sessionId);
+    setSelectedLog(log);
+    setShowDetailPanel(false);
   }, []);
 
   // Keyboard shortcuts
@@ -1095,6 +1264,31 @@ export function LogPanel({
             </SelectContent>
           </Select>
 
+          <Select
+            value={effectiveSourceFilter}
+            onValueChange={(value) => setSourceFilter(value as PanelSource | 'all')}
+          >
+            <SelectTrigger className="w-[110px] sm:w-[130px] h-8 shrink-0">
+              <SelectValue placeholder={t('panel.allSources')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('panel.allSources')}</SelectItem>
+              {allowedSources.map((source) => (
+                <SelectItem key={source} value={source}>
+                  {t(`panel.sources.${source}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <InputGroup className="w-[140px] sm:w-[180px] h-8 shrink-0">
+            <InputGroupInput
+              placeholder={t('panel.sessionPlaceholder')}
+              value={sessionFilter}
+              onChange={(e) => setSessionFilter(e.target.value)}
+            />
+          </InputGroup>
+
           <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
             <SelectTrigger className="w-[90px] sm:w-[100px] h-8 shrink-0">
               <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
@@ -1175,6 +1369,18 @@ export function LogPanel({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t('panel.clearTraceFocus')}</TooltipContent>
+            </Tooltip>
+          )}
+
+          {sessionFilter.trim() && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={() => setSessionFilter('')}>
+                  <Filter className="h-4 w-4 mr-1" />
+                  {t('panel.clearSessionFocus')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('panel.clearSessionFocus')}</TooltipContent>
             </Tooltip>
           )}
 
@@ -1318,19 +1524,66 @@ export function LogPanel({
             </span>
           )}
           {Object.values(healthByTransport).map((health) => (
-            <Badge
+            <Button
               key={health.transport}
               variant="outline"
+              size="sm"
+              aria-label={`${health.transport}:${health.status} q=${health.queueDepth}`}
               className={cn(
-                'text-[10px] h-5',
+                'text-[10px] h-5 px-2',
                 health.status === 'healthy' && 'border-green-200 text-green-700',
                 health.status === 'degraded' && 'border-yellow-200 text-yellow-700',
                 health.status === 'offline' && 'border-red-200 text-red-700'
               )}
+              onClick={() => setSelectedTransportHealthName(health.transport)}
             >
               {health.transport}:{health.status} q={health.queueDepth}
-            </Badge>
+            </Button>
           ))}
+        </div>
+      )}
+
+      {selectedTransportHealth && (
+        <div className="border-b bg-muted/10 px-3 py-3 text-xs space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="font-medium">
+              <span>{t('panel.transportDetails')}</span>
+              <span>: {selectedTransportHealth.transport}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedTransportHealthName(null);
+                setDiagnosticTransportFilter(null);
+              }}
+            >
+              {t('panel.closeTransportDetails')}
+            </Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span>
+              {t('panel.transportRetries')}: {selectedTransportHealth.retryCount}
+            </span>
+            <span>
+              {t('panel.transportDropped')}: {selectedTransportHealth.droppedEntries}
+            </span>
+            {selectedTransportHealth.lastFailureAt && (
+              <span>
+                {t('panel.transportLastFailure')}: {selectedTransportHealth.lastFailureAt}
+              </span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setDiagnosticTransportFilter(selectedTransportHealth.transport);
+                setSourceFilter('internal');
+              }}
+            >
+              {t('panel.viewDiagnostics')}
+            </Button>
+          </div>
         </div>
       )}
 
@@ -1376,6 +1629,7 @@ export function LogPanel({
               toggleBookmark={toggleBookmark}
               handleSelectLog={handleSelectLog}
               handleFocusTrace={handleFocusTrace}
+              handleFocusSession={handleFocusSession}
               t={t}
             />
           )}

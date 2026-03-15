@@ -173,9 +173,10 @@ describe('QuickAddProviderDialog', () => {
       const ids = QUICK_ADD_PRESETS.map((p) => p.id);
       expect(ids).toContain('siliconflow');
       expect(ids).toContain('moonshot');
-      expect(ids).toContain('zhipu');
       expect(ids).toContain('perplexity');
       expect(ids).toContain('deepinfra');
+      expect(ids).not.toContain('zhipu');
+      expect(ids).not.toContain('minimax');
     });
 
     it('all presets have required fields', () => {

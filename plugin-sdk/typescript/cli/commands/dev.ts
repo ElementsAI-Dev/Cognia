@@ -10,6 +10,7 @@ import * as http from 'http';
 import { execSync } from 'child_process';
 import { WebSocketServer, WebSocket } from 'ws';
 import { watch } from 'chokidar';
+import { createDevReloadEvent } from './dev-events';
 
 interface DevOptions {
   port: string;
@@ -143,28 +144,19 @@ export async function devCommand(options: DevOptions): Promise<void> {
     watcher.on('change', (filePath: string) => {
       console.log(`📝 File changed: ${path.relative(cwd, filePath)}`);
       const buildResult = buildOnChange ? buildPluginBundle(cwd) : { ok: true };
-      notifyClients(buildResult.ok ? 'update' : 'error', {
-        file: filePath,
-        build: buildResult,
-      });
+      notifyClients(createDevReloadEvent(manifest, buildResult, filePath));
     });
 
     watcher.on('add', (filePath: string) => {
       console.log(`➕ File added: ${path.relative(cwd, filePath)}`);
       const buildResult = buildOnChange ? buildPluginBundle(cwd) : { ok: true };
-      notifyClients(buildResult.ok ? 'update' : 'error', {
-        file: filePath,
-        build: buildResult,
-      });
+      notifyClients(createDevReloadEvent(manifest, buildResult, filePath));
     });
 
     watcher.on('unlink', (filePath: string) => {
       console.log(`➖ File removed: ${path.relative(cwd, filePath)}`);
       const buildResult = buildOnChange ? buildPluginBundle(cwd) : { ok: true };
-      notifyClients(buildResult.ok ? 'update' : 'error', {
-        file: filePath,
-        build: buildResult,
-      });
+      notifyClients(createDevReloadEvent(manifest, buildResult, filePath));
     });
 
     console.log('👀 Watching for file changes...');
@@ -215,8 +207,8 @@ function buildPluginBundle(cwd: string): { ok: boolean; error?: string } {
   }
 }
 
-function notifyClients(type: string, data: unknown): void {
-  const message = JSON.stringify({ type, data, timestamp: Date.now() });
+function notifyClients(event: unknown): void {
+  const message = JSON.stringify(event);
   wsClients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(message);

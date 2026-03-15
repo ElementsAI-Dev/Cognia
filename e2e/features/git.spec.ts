@@ -72,6 +72,14 @@ test.describe('Repository Management', () => {
       await expect(openButton).toBeEnabled();
     }
   });
+
+  test('should show initialize and clone onboarding actions', async ({ page }) => {
+    const initButton = page.locator('button:has-text("Initialize Repository")').first();
+    const cloneButton = page.locator('button:has-text("Clone Repository")').first();
+
+    await expect(initButton).toBeVisible({ timeout: 5000 });
+    await expect(cloneButton).toBeVisible({ timeout: 5000 });
+  });
 });
 
 test.describe('Git Operations', () => {
@@ -132,6 +140,17 @@ test.describe('Git Operations', () => {
     const hasPull = await pullButton.isVisible({ timeout: 5000 }).catch(() => false);
     if (hasPull) {
       await expect(pullButton).toBeVisible();
+    }
+  });
+
+  test('should support fetch operation', async ({ page }) => {
+    const fetchButton = page.locator(
+      'button:has-text("Fetch"), [title="Fetch"], [data-testid="fetch-btn"]'
+    ).first();
+
+    const hasFetch = await fetchButton.isVisible({ timeout: 5000 }).catch(() => false);
+    if (hasFetch) {
+      await expect(fetchButton).toBeVisible();
     }
   });
 });

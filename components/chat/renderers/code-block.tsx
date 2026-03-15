@@ -54,7 +54,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useCopy } from '@/hooks/ui';
-import { useSandbox, useCodeExecution, useSnippets } from '@/hooks/sandbox';
+import { useSandbox, useSandboxEntrypointExecution, useSnippets } from '@/hooks/sandbox';
+import { SANDBOX_ENTRYPOINT_POLICIES } from '@/lib/sandbox/consumption';
 import { isValidLanguage } from '@/types/system/sandbox';
 
 interface CodeBlockProps {
@@ -150,7 +151,6 @@ export const CodeBlock = memo(function CodeBlock({
 
   // Sandbox execution
   const { isAvailable: sandboxAvailable } = useSandbox();
-  const { result, executing, error: execError, quickExecute, reset } = useCodeExecution();
   const { createSnippet } = useSnippets({});
 
   // Check if this is a web language that can be opened in Canvas
@@ -158,7 +158,20 @@ export const CodeBlock = memo(function CodeBlock({
 
   // Check if this language can be executed
   const langLower = language?.toLowerCase() || '';
-  const canExecute = showExecuteButton && sandboxAvailable && isValidLanguage(langLower);
+  const isRunnableLanguage = showExecuteButton && isValidLanguage(langLower);
+  const {
+    canExecute,
+    shouldRenderExecuteButton,
+    blockedReason,
+    result,
+    executing,
+    error: execError,
+    execute,
+    reset,
+  } = useSandboxEntrypointExecution({
+    policy: SANDBOX_ENTRYPOINT_POLICIES.chatCodeBlock,
+    language: langLower,
+  });
 
   const lines = code.split('\n');
 
@@ -192,11 +205,11 @@ export const CodeBlock = memo(function CodeBlock({
   }, [code, language, filename, createCanvasDocument, setActiveCanvas, openPanel]);
 
   const handleExecute = useCallback(async () => {
-    if (!canExecute || !language) return;
+    if (!language) return;
     reset();
     setShowResult(true);
-    await quickExecute(langLower, code);
-  }, [canExecute, language, langLower, code, reset, quickExecute]);
+    await execute(code);
+  }, [language, code, reset, execute]);
 
   const handleSaveAsSnippet = useCallback(async () => {
     if (!language) return;
@@ -223,7 +236,9 @@ export const CodeBlock = memo(function CodeBlock({
   // Check if we have syntax highlighting available
   const hasHighlighting = highlightedHtml && darkHighlightedHtml;
 
-  const isSuccess = result?.status === 'completed' && result?.exit_code === 0;
+  const isSuccess =
+    result?.lifecycle_status === 'success' ||
+    (result?.status === 'completed' && result?.exit_code === 0);
 
   const renderCode = useCallback((inFullscreen = false) => {
     // Use Shiki highlighting if available
@@ -318,30 +333,37 @@ export const CodeBlock = memo(function CodeBlock({
                 runnable
               </Badge>
             )}
+            {isRunnableLanguage && !canExecute && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                desktop required
+              </Badge>
+            )}
           </div>
           
           {/* Action buttons */}
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
             {/* Execute button */}
-            {canExecute && (
+            {shouldRenderExecuteButton && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={handleExecute}
-                    disabled={executing}
-                    aria-label="Run code"
-                  >
-                    {executing ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Play className="h-3 w-3 text-green-500" />
-                    )}
-                  </Button>
+                  <span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={handleExecute}
+                      disabled={!canExecute || executing}
+                      aria-label="Run code"
+                    >
+                      {executing ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Play className="h-3 w-3 text-green-500" />
+                      )}
+                    </Button>
+                  </span>
                 </TooltipTrigger>
-                <TooltipContent>Run code</TooltipContent>
+                <TooltipContent>{blockedReason || 'Run code'}</TooltipContent>
               </Tooltip>
             )}
 
@@ -556,25 +578,27 @@ export const CodeBlock = memo(function CodeBlock({
               <span>{language || 'Code'}</span>
               {filename && <span className="text-muted-foreground font-normal">— {filename}</span>}
               <div className="flex items-center gap-1 ml-auto">
-                {canExecute && (
+                {shouldRenderExecuteButton && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={handleExecute}
-                        disabled={executing}
-                        aria-label="Run code"
-                      >
-                        {executing ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Play className="h-3.5 w-3.5 text-green-500" />
-                        )}
-                      </Button>
+                      <span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={handleExecute}
+                          disabled={!canExecute || executing}
+                          aria-label="Run code"
+                        >
+                          {executing ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Play className="h-3.5 w-3.5 text-green-500" />
+                          )}
+                        </Button>
+                      </span>
                     </TooltipTrigger>
-                    <TooltipContent>Run code</TooltipContent>
+                    <TooltipContent>{blockedReason || 'Run code'}</TooltipContent>
                   </Tooltip>
                 )}
                 <Tooltip>

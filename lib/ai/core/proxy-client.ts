@@ -9,9 +9,13 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createMistral } from '@ai-sdk/mistral';
-import { proxyFetch, isProxyEnabled, getCurrentProxyUrl } from '@/lib/network/proxy-fetch';
+import { isProxyEnabled, getCurrentProxyUrl } from '@/lib/network/proxy-fetch';
 import type { ProviderName } from '@/types/provider';
 import { loggers } from '@/lib/logger';
+import {
+  createFeatureProviderClient,
+  recordLegacyProviderFacadeUsage,
+} from '@/lib/ai/provider-consumption';
 
 const log = loggers.ai;
 
@@ -22,14 +26,29 @@ export interface ProxyProviderOptions {
   useProxy?: boolean;
 }
 
-/**
- * Get fetch function based on proxy settings
- */
-function getProxyAwareFetch(useProxy: boolean = true) {
-  if (useProxy && isProxyEnabled()) {
-    return proxyFetch;
-  }
-  return undefined; // Use default fetch
+function createLegacyProxyFacadeClient(options: {
+  helperName: string;
+  providerId: string;
+  apiKey: string;
+  baseURL?: string;
+  useProxy?: boolean;
+  isCustomProvider?: boolean;
+}) {
+  recordLegacyProviderFacadeUsage({
+    facadeId: 'core/proxy-client',
+    helperName: options.helperName,
+    providerId: options.providerId,
+    lastBaseURL: options.baseURL,
+    useProxy: options.useProxy,
+  });
+
+  return createFeatureProviderClient({
+    providerId: options.providerId,
+    apiKey: options.apiKey,
+    baseURL: options.baseURL,
+    useProxy: options.useProxy,
+    isCustomProvider: options.isCustomProvider,
+  });
 }
 
 /**
@@ -37,11 +56,13 @@ function getProxyAwareFetch(useProxy: boolean = true) {
  */
 export function createProxyOpenAIClient(options: ProxyProviderOptions) {
   const { apiKey, baseURL, useProxy = true } = options;
-  return createOpenAI({
+  return createLegacyProxyFacadeClient({
+    helperName: 'createProxyOpenAIClient',
+    providerId: 'openai',
     apiKey,
     baseURL,
-    fetch: getProxyAwareFetch(useProxy),
-  });
+    useProxy,
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
@@ -49,11 +70,13 @@ export function createProxyOpenAIClient(options: ProxyProviderOptions) {
  */
 export function createProxyAnthropicClient(options: ProxyProviderOptions) {
   const { apiKey, baseURL, useProxy = true } = options;
-  return createAnthropic({
+  return createLegacyProxyFacadeClient({
+    helperName: 'createProxyAnthropicClient',
+    providerId: 'anthropic',
     apiKey,
     baseURL,
-    fetch: getProxyAwareFetch(useProxy),
-  });
+    useProxy,
+  }) as ReturnType<typeof createAnthropic>;
 }
 
 /**
@@ -61,11 +84,13 @@ export function createProxyAnthropicClient(options: ProxyProviderOptions) {
  */
 export function createProxyGoogleClient(options: ProxyProviderOptions) {
   const { apiKey, baseURL, useProxy = true } = options;
-  return createGoogleGenerativeAI({
+  return createLegacyProxyFacadeClient({
+    helperName: 'createProxyGoogleClient',
+    providerId: 'google',
     apiKey,
     baseURL,
-    fetch: getProxyAwareFetch(useProxy),
-  });
+    useProxy,
+  }) as ReturnType<typeof createGoogleGenerativeAI>;
 }
 
 /**
@@ -73,11 +98,13 @@ export function createProxyGoogleClient(options: ProxyProviderOptions) {
  */
 export function createProxyMistralClient(options: ProxyProviderOptions) {
   const { apiKey, baseURL, useProxy = true } = options;
-  return createMistral({
+  return createLegacyProxyFacadeClient({
+    helperName: 'createProxyMistralClient',
+    providerId: 'mistral',
     apiKey,
     baseURL,
-    fetch: getProxyAwareFetch(useProxy),
-  });
+    useProxy,
+  }) as ReturnType<typeof createMistral>;
 }
 
 /**
@@ -85,11 +112,12 @@ export function createProxyMistralClient(options: ProxyProviderOptions) {
  */
 export function createProxyDeepSeekClient(options: ProxyProviderOptions) {
   const { apiKey, useProxy = true } = options;
-  return createOpenAI({
+  return createLegacyProxyFacadeClient({
+    helperName: 'createProxyDeepSeekClient',
+    providerId: 'deepseek',
     apiKey,
-    baseURL: 'https://api.deepseek.com/v1',
-    fetch: getProxyAwareFetch(useProxy),
-  });
+    useProxy,
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
@@ -97,11 +125,12 @@ export function createProxyDeepSeekClient(options: ProxyProviderOptions) {
  */
 export function createProxyGroqClient(options: ProxyProviderOptions) {
   const { apiKey, useProxy = true } = options;
-  return createOpenAI({
+  return createLegacyProxyFacadeClient({
+    helperName: 'createProxyGroqClient',
+    providerId: 'groq',
     apiKey,
-    baseURL: 'https://api.groq.com/openai/v1',
-    fetch: getProxyAwareFetch(useProxy),
-  });
+    useProxy,
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
@@ -109,11 +138,12 @@ export function createProxyGroqClient(options: ProxyProviderOptions) {
  */
 export function createProxyXaiClient(options: ProxyProviderOptions) {
   const { apiKey, useProxy = true } = options;
-  return createOpenAI({
+  return createLegacyProxyFacadeClient({
+    helperName: 'createProxyXaiClient',
+    providerId: 'xai',
     apiKey,
-    baseURL: 'https://api.x.ai/v1',
-    fetch: getProxyAwareFetch(useProxy),
-  });
+    useProxy,
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
@@ -121,11 +151,12 @@ export function createProxyXaiClient(options: ProxyProviderOptions) {
  */
 export function createProxyTogetherAIClient(options: ProxyProviderOptions) {
   const { apiKey, useProxy = true } = options;
-  return createOpenAI({
+  return createLegacyProxyFacadeClient({
+    helperName: 'createProxyTogetherAIClient',
+    providerId: 'togetherai',
     apiKey,
-    baseURL: 'https://api.together.xyz/v1',
-    fetch: getProxyAwareFetch(useProxy),
-  });
+    useProxy,
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
@@ -133,15 +164,12 @@ export function createProxyTogetherAIClient(options: ProxyProviderOptions) {
  */
 export function createProxyOpenRouterClient(options: ProxyProviderOptions) {
   const { apiKey, useProxy = true } = options;
-  return createOpenAI({
+  return createLegacyProxyFacadeClient({
+    helperName: 'createProxyOpenRouterClient',
+    providerId: 'openrouter',
     apiKey,
-    baseURL: 'https://openrouter.ai/api/v1',
-    headers: {
-      'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://cognia.app',
-      'X-Title': 'Cognia',
-    },
-    fetch: getProxyAwareFetch(useProxy),
-  });
+    useProxy,
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
@@ -149,11 +177,12 @@ export function createProxyOpenRouterClient(options: ProxyProviderOptions) {
  */
 export function createProxyCohereClient(options: ProxyProviderOptions) {
   const { apiKey, useProxy = true } = options;
-  return createOpenAI({
+  return createLegacyProxyFacadeClient({
+    helperName: 'createProxyCohereClient',
+    providerId: 'cohere',
     apiKey,
-    baseURL: 'https://api.cohere.com/compatibility/v1',
-    fetch: getProxyAwareFetch(useProxy),
-  });
+    useProxy,
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
@@ -161,11 +190,12 @@ export function createProxyCohereClient(options: ProxyProviderOptions) {
  */
 export function createProxyFireworksClient(options: ProxyProviderOptions) {
   const { apiKey, useProxy = true } = options;
-  return createOpenAI({
+  return createLegacyProxyFacadeClient({
+    helperName: 'createProxyFireworksClient',
+    providerId: 'fireworks',
     apiKey,
-    baseURL: 'https://api.fireworks.ai/inference/v1',
-    fetch: getProxyAwareFetch(useProxy),
-  });
+    useProxy,
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
@@ -173,11 +203,12 @@ export function createProxyFireworksClient(options: ProxyProviderOptions) {
  */
 export function createProxyCerebrasClient(options: ProxyProviderOptions) {
   const { apiKey, useProxy = true } = options;
-  return createOpenAI({
+  return createLegacyProxyFacadeClient({
+    helperName: 'createProxyCerebrasClient',
+    providerId: 'cerebras',
     apiKey,
-    baseURL: 'https://api.cerebras.ai/v1',
-    fetch: getProxyAwareFetch(useProxy),
-  });
+    useProxy,
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
@@ -185,11 +216,12 @@ export function createProxyCerebrasClient(options: ProxyProviderOptions) {
  */
 export function createProxySambaNovaClient(options: ProxyProviderOptions) {
   const { apiKey, useProxy = true } = options;
-  return createOpenAI({
+  return createLegacyProxyFacadeClient({
+    helperName: 'createProxySambaNovaClient',
+    providerId: 'sambanova',
     apiKey,
-    baseURL: 'https://api.sambanova.ai/v1',
-    fetch: getProxyAwareFetch(useProxy),
-  });
+    useProxy,
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
@@ -197,11 +229,13 @@ export function createProxySambaNovaClient(options: ProxyProviderOptions) {
  */
 export function createProxyOllamaClient(options: ProxyProviderOptions) {
   const { baseURL, useProxy = true } = options;
-  return createOpenAI({
+  return createLegacyProxyFacadeClient({
+    helperName: 'createProxyOllamaClient',
+    providerId: 'ollama',
     apiKey: 'ollama',
-    baseURL: baseURL || 'http://localhost:11434/v1',
-    fetch: getProxyAwareFetch(useProxy),
-  });
+    baseURL,
+    useProxy,
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
@@ -209,11 +243,14 @@ export function createProxyOllamaClient(options: ProxyProviderOptions) {
  */
 export function createProxyCustomClient(options: ProxyProviderOptions) {
   const { apiKey, baseURL, useProxy = true } = options;
-  return createOpenAI({
+  return createLegacyProxyFacadeClient({
+    helperName: 'createProxyCustomClient',
+    providerId: 'custom-provider',
     apiKey,
     baseURL,
-    fetch: getProxyAwareFetch(useProxy),
-  });
+    useProxy,
+    isCustomProvider: true,
+  }) as ReturnType<typeof createOpenAI>;
 }
 
 /**
@@ -226,40 +263,20 @@ export function getProxyProviderModel(
   baseURL?: string,
   useProxy: boolean = true
 ) {
-  const options: ProxyProviderOptions = { apiKey, baseURL, useProxy };
-
-  switch (provider) {
-    case 'openai':
-      return createProxyOpenAIClient(options)(model);
-    case 'anthropic':
-      return createProxyAnthropicClient(options)(model);
-    case 'google':
-      return createProxyGoogleClient(options)(model);
-    case 'mistral':
-      return createProxyMistralClient(options)(model);
-    case 'deepseek':
-      return createProxyDeepSeekClient(options)(model);
-    case 'groq':
-      return createProxyGroqClient(options)(model);
-    case 'xai':
-      return createProxyXaiClient(options)(model);
-    case 'togetherai':
-      return createProxyTogetherAIClient(options)(model);
-    case 'openrouter':
-      return createProxyOpenRouterClient(options)(model);
-    case 'cohere':
-      return createProxyCohereClient(options)(model);
-    case 'fireworks':
-      return createProxyFireworksClient(options)(model);
-    case 'cerebras':
-      return createProxyCerebrasClient(options)(model);
-    case 'sambanova':
-      return createProxySambaNovaClient(options)(model);
-    case 'ollama':
-      return createProxyOllamaClient({ ...options, baseURL: baseURL || 'http://localhost:11434/v1' })(model);
-    default:
-      throw new Error(`Unknown provider: ${provider}`);
-  }
+  recordLegacyProviderFacadeUsage({
+    facadeId: 'core/proxy-client',
+    helperName: 'getProxyProviderModel',
+    providerId: provider,
+    lastModelId: model,
+    lastBaseURL: baseURL,
+    useProxy,
+  });
+  return createFeatureProviderClient({
+    providerId: provider,
+    apiKey,
+    baseURL,
+    useProxy,
+  })(model);
 }
 
 /**

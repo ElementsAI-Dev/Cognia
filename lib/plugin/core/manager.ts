@@ -8,7 +8,10 @@
 import { invoke } from '@tauri-apps/api/core';
 import { usePluginStore } from '@/stores/plugin';
 import type {
+  ExtensionCompatibilityDiagnostic,
+  ExtensionDescriptor,
   Plugin,
+  PluginInstallRootKind,
   PluginManifest,
   PluginSource,
   PluginContext,
@@ -23,6 +26,7 @@ import type {
 import { PluginLoader } from '@/lib/plugin/core/loader';
 import { PluginRegistry } from '@/lib/plugin/core/registry';
 import { createFullPluginContext } from '@/lib/plugin/core/context';
+import { buildExtensionDescriptor } from '@/lib/plugin/core/descriptor';
 import { createPluginA2UIBridge, type PluginA2UIBridge } from '@/lib/plugin/bridge/a2ui-bridge';
 import { PluginLifecycleHooks, getPluginLifecycleHooks } from '@/lib/plugin/messaging/hooks-system';
 import { validatePluginManifest } from '@/lib/plugin/core/validation';
@@ -60,12 +64,16 @@ interface DiscoveredPlugin {
   manifest: PluginManifest;
   path: string;
   source: PluginSource;
+  descriptor?: ExtensionDescriptor;
 }
 
 interface RuntimePluginState {
   manifest: PluginManifest;
   status: Plugin['status'];
   path: string;
+  source?: PluginSource;
+  installRootKind?: PluginInstallRootKind;
+  compatibilityDiagnostics?: ExtensionCompatibilityDiagnostic[];
   config?: Record<string, unknown>;
 }
 
@@ -78,6 +86,13 @@ type PluginActivationRuntimeEvent =
   | 'startup'
   | `onCommand:${string}`
   | `onTool:${string}`;
+
+interface PluginDiscoveryProjection {
+  source: PluginSource;
+  installRootKind?: PluginInstallRootKind;
+  compatibilityDiagnostics: ExtensionCompatibilityDiagnostic[];
+  descriptor: ExtensionDescriptor;
+}
 
 interface ParsedActivationSpec {
   startup: boolean;
@@ -167,6 +182,34 @@ export class PluginManager {
       });
     }
     return this.a2uiBridge;
+  }
+
+  private buildDiscoveryProjection(
+    manifest: PluginManifest,
+    path: string,
+    source: PluginSource,
+    compatibilityDiagnostics: CompatibilityDiagnostic[] | ExtensionCompatibilityDiagnostic[] = [],
+    installRootKind?: PluginInstallRootKind,
+  ): PluginDiscoveryProjection {
+    const normalizedCompatibilityDiagnostics: ExtensionCompatibilityDiagnostic[] =
+      compatibilityDiagnostics.map((diagnostic) => ({
+        ...diagnostic,
+        field: diagnostic.field || undefined,
+      }));
+
+    return {
+      source,
+      installRootKind,
+      compatibilityDiagnostics: normalizedCompatibilityDiagnostics,
+      descriptor: buildExtensionDescriptor({
+        manifest,
+        source,
+        path,
+        pluginDirectory: this.config.pluginDirectory,
+        installRootKind,
+        compatibilityDiagnostics: normalizedCompatibilityDiagnostics,
+      }),
+    };
   }
 
   // ===========================================================================
@@ -281,11 +324,14 @@ export class PluginManager {
       const localPlugins = await invoke<Array<{
         manifest: PluginManifest;
         path: string;
+        source?: PluginSource;
+        installRootKind?: PluginInstallRootKind;
       }>>('plugin_scan_directory', {
         directory: this.config.pluginDirectory,
       });
 
-      for (const { manifest, path } of localPlugins) {
+      for (const entry of localPlugins) {
+        const { manifest, path } = entry;
         // Validate manifest
         const validation = validatePluginManifest(manifest, {
           governanceMode: this.pluginPointGovernanceMode,
@@ -305,15 +351,32 @@ export class PluginManager {
           continue;
         }
 
+        const projection = this.buildDiscoveryProjection(
+          manifest,
+          path,
+          entry.source || 'local',
+          compatibility.diagnostics,
+          entry.installRootKind,
+        );
+
         // Register with store if not already registered
         if (!store.plugins[manifest.id]) {
-          store.discoverPlugin(manifest, 'local', path);
+          store.discoverPlugin(manifest, projection.source, path, {
+            installRootKind: projection.installRootKind,
+            compatibilityDiagnostics: projection.compatibilityDiagnostics,
+            descriptor: projection.descriptor,
+          });
           await store.installPlugin(manifest.id);
         }
 
         this.registerPluginPermissions(manifest.id, manifest.permissions || []);
 
-        discovered.push({ manifest, path, source: 'local' });
+        discovered.push({
+          manifest,
+          path,
+          source: projection.source,
+          descriptor: projection.descriptor,
+        });
       }
     } catch (error) {
       loggers.manager.error('Failed to scan plugins:', error);
@@ -338,6 +401,8 @@ export class PluginManager {
       const result = await invoke<{
         manifest: PluginManifest;
         path: string;
+        source?: PluginSource;
+        installRootKind?: PluginInstallRootKind;
       }>('plugin_install', {
         source,
         installType: type,
@@ -365,8 +430,20 @@ export class PluginManager {
         throw new Error(`Signature verification failed for plugin ${result.manifest.id}`);
       }
 
+      const projection = this.buildDiscoveryProjection(
+        result.manifest,
+        result.path,
+        result.source || (type as PluginSource),
+        compatibility.diagnostics,
+        result.installRootKind,
+      );
+
       // Register with store
-      store.discoverPlugin(result.manifest, type as PluginSource, result.path);
+      store.discoverPlugin(result.manifest, projection.source, result.path, {
+        installRootKind: projection.installRootKind,
+        compatibilityDiagnostics: projection.compatibilityDiagnostics,
+        descriptor: projection.descriptor,
+      });
       await store.installPlugin(result.manifest.id);
 
       this.registerPluginPermissions(result.manifest.id, result.manifest.permissions || []);
@@ -755,8 +832,19 @@ export class PluginManager {
       for (const entry of runtimeSnapshot) {
         const runtime = entry.plugin;
         const existing = store.plugins[runtime.manifest.id];
+        const projection = this.buildDiscoveryProjection(
+          runtime.manifest,
+          runtime.path,
+          runtime.source || 'local',
+          runtime.compatibilityDiagnostics || [],
+          runtime.installRootKind,
+        );
         if (!existing) {
-          store.discoverPlugin(runtime.manifest, 'local', runtime.path);
+          store.discoverPlugin(runtime.manifest, projection.source, runtime.path, {
+            installRootKind: projection.installRootKind,
+            compatibilityDiagnostics: projection.compatibilityDiagnostics,
+            descriptor: projection.descriptor,
+          });
           await store.installPlugin(runtime.manifest.id);
         }
 
@@ -783,8 +871,19 @@ export class PluginManager {
       const runtimePlugins = await invoke<RuntimePluginState[]>('plugin_get_all');
       for (const runtime of runtimePlugins) {
         const existing = store.plugins[runtime.manifest.id];
+        const projection = this.buildDiscoveryProjection(
+          runtime.manifest,
+          runtime.path,
+          runtime.source || 'local',
+          runtime.compatibilityDiagnostics || [],
+          runtime.installRootKind,
+        );
         if (!existing) {
-          store.discoverPlugin(runtime.manifest, 'local', runtime.path);
+          store.discoverPlugin(runtime.manifest, projection.source, runtime.path, {
+            installRootKind: projection.installRootKind,
+            compatibilityDiagnostics: projection.compatibilityDiagnostics,
+            descriptor: projection.descriptor,
+          });
           await store.installPlugin(runtime.manifest.id);
         }
 

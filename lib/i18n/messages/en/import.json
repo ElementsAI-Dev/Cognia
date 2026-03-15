@@ -2,11 +2,15 @@
   "title": "Import Conversations",
   "description": "Import chat history from ChatGPT, Claude, Gemini or other sources",
   "selectFile": "Click to select a file",
-  "supportedFormats": "Supports ChatGPT, Claude, and Gemini exports",
+  "supportedFormats": "Supports ChatGPT, Claude, Gemini, portable archives, Markdown transcripts, and CSV transcripts",
   "formats": {
     "chatgpt": "ChatGPT",
     "claude": "Claude (Anthropic)",
     "gemini": "Gemini (Google)",
+    "portable": "Portable Archive",
+    "markdown-transcript": "Markdown Transcript",
+    "csv-transcript": "CSV Transcript",
+    "json-transcript": "JSON Transcript",
     "cognia": "Cognia Export",
     "unknown": "Unknown Format"
   },
@@ -19,6 +23,7 @@
   "analyzing": "Analyzing file...",
   "conversations": "conversations",
   "messages": "messages",
+  "compatibility": "Compatibility",
   "importing": "Importing...",
   "importButton": "Import {count} conversations",
   "back": "Back",
@@ -33,7 +38,7 @@
   "errors": {
     "title": "Error",
     "invalidJson": "Invalid JSON file format",
-    "unknownFormat": "Unknown file format. Please use a ChatGPT, Claude, or Gemini export file.",
+    "unknownFormat": "Unknown file format. Please use a supported chat export, portable archive, Markdown transcript, or CSV transcript file.",
     "useCogniaImport": "This is a Cognia backup file. Use the standard Import button instead.",
     "readFailed": "Failed to read file",
     "importFailed": "Import failed",

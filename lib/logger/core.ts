@@ -16,6 +16,7 @@ import { logContext } from './context';
 import { logSampler } from './sampling';
 import { createConsoleTransport } from './transports/console-transport';
 import { redactStructuredLogEntry } from './redaction';
+import { createLogRuntimeContext, normalizeLogOrigin, normalizeLogRuntime } from './runtime';
 
 interface LoggerRuntimeState {
   config: UnifiedLoggerConfig;
@@ -189,6 +190,83 @@ function normalizeEntry(entry: StructuredLogEntry): StructuredLogEntry {
   };
 }
 
+function extractStringField(
+  data: Record<string, unknown>,
+  key: string
+): string | undefined {
+  const value = data[key];
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    delete data[key];
+    return undefined;
+  }
+
+  delete data[key];
+  return value.trim();
+}
+
+function extractTagsField(data: Record<string, unknown>): string[] | undefined {
+  const value = data.tags;
+  if (!Array.isArray(value)) {
+    delete data.tags;
+    return undefined;
+  }
+
+  delete data.tags;
+  const tags = value.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0);
+  if (tags.length === 0) {
+    return undefined;
+  }
+
+  return Array.from(new Set(tags.map((tag) => tag.trim())));
+}
+
+function extractStructuredMetadata(data?: Record<string, unknown>): {
+  data?: Record<string, unknown>;
+  traceId?: string;
+  sessionId?: string;
+  requestId?: string;
+  executionId?: string;
+  workflowId?: string;
+  stepId?: string;
+  eventId?: string;
+  code?: string;
+  runtime?: StructuredLogEntry['runtime'];
+  origin?: StructuredLogEntry['origin'];
+  tags?: string[];
+} {
+  if (!data) {
+    return {};
+  }
+
+  const remaining = { ...data };
+  const runtime = normalizeLogRuntime(extractStringField(remaining, 'runtime'));
+  const origin = normalizeLogOrigin(extractStringField(remaining, 'origin'));
+  const tags = extractTagsField(remaining);
+  const traceId = extractStringField(remaining, 'traceId');
+  const sessionId = extractStringField(remaining, 'sessionId');
+  const requestId = extractStringField(remaining, 'requestId');
+  const executionId = extractStringField(remaining, 'executionId');
+  const workflowId = extractStringField(remaining, 'workflowId');
+  const stepId = extractStringField(remaining, 'stepId');
+  const eventId = extractStringField(remaining, 'eventId');
+  const code = extractStringField(remaining, 'code');
+
+  return {
+    traceId,
+    sessionId,
+    requestId,
+    executionId,
+    workflowId,
+    stepId,
+    eventId,
+    code,
+    runtime,
+    origin,
+    tags,
+    data: Object.keys(remaining).length > 0 ? remaining : undefined,
+  };
+}
+
 function dispatchEntry(
   entry: StructuredLogEntry,
   options?: { skipTransports?: ReadonlySet<string> }
@@ -201,7 +279,18 @@ function dispatchEntry(
     try {
       void transport.log(entry);
     } catch (error) {
-      console.error(`Transport ${transport.name} failed:`, error);
+      emitLoggerDiagnostic({
+        code: 'logger.transport.failed',
+        message: `Transport ${transport.name} failed to handle log entry.`,
+        level: 'error',
+        data: {
+          transport: transport.name,
+          error: error instanceof Error ? error.message : String(error),
+          failedLogModule: entry.module,
+          failedLogLevel: entry.level,
+        },
+        skipTransports: [transport.name],
+      });
     }
   }
 }
@@ -287,6 +376,7 @@ class CoreLogger implements Logger {
       ...this.additionalContext,
       ...(data || {}),
     };
+    const structuredMetadata = extractStructuredMetadata(mergedData);
 
     const entry: StructuredLogEntry = {
       id: generateLogId(),
@@ -294,9 +384,18 @@ class CoreLogger implements Logger {
       level,
       message,
       module: this.module,
-      traceId: this.currentTraceId || logContext.traceId,
-      sessionId: logContext.sessionId,
-      data: Object.keys(mergedData).length > 0 ? mergedData : undefined,
+      traceId: structuredMetadata.traceId || this.currentTraceId || logContext.traceId,
+      requestId: structuredMetadata.requestId,
+      executionId: structuredMetadata.executionId,
+      workflowId: structuredMetadata.workflowId,
+      stepId: structuredMetadata.stepId,
+      eventId: structuredMetadata.eventId,
+      code: structuredMetadata.code,
+      runtime: structuredMetadata.runtime,
+      origin: structuredMetadata.origin,
+      sessionId: structuredMetadata.sessionId || logContext.sessionId,
+      tags: structuredMetadata.tags,
+      data: structuredMetadata.data,
     };
 
     if (config.includeStackTrace && error) {
@@ -490,6 +589,16 @@ export function emitLoggerDiagnostic(params: {
   runtimeState.diagnosticCooldown.set(cooldownKey, nowMs);
   trimDiagnosticCooldown(nowMs);
 
+  const diagnosticMetadata = extractStructuredMetadata(
+    createLogRuntimeContext({
+      runtime: 'internal',
+      origin: 'diagnostic',
+      tags: ['logger', 'diagnostic'],
+      ...(params.data || {}),
+      ...(params.sourceTransport ? { sourceTransport: params.sourceTransport } : {}),
+    })
+  );
+
   const entry: StructuredLogEntry = {
     id: generateLogId(),
     timestamp: new Date(nowMs).toISOString(),
@@ -498,11 +607,10 @@ export function emitLoggerDiagnostic(params: {
     module: LOGGER_DIAGNOSTIC_MODULE,
     code: params.code,
     sessionId: logContext.sessionId,
-    tags: ['logger', 'diagnostic'],
-    data: {
-      ...(params.data || {}),
-      ...(params.sourceTransport ? { sourceTransport: params.sourceTransport } : {}),
-    },
+    runtime: diagnosticMetadata.runtime,
+    origin: diagnosticMetadata.origin,
+    tags: diagnosticMetadata.tags,
+    data: diagnosticMetadata.data,
   };
 
   const normalized = normalizeEntry(entry);

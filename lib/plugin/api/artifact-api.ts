@@ -5,6 +5,7 @@
  */
 
 import { useArtifactStore } from '@/stores/artifact/artifact-store';
+import { buildArtifactSourceMetadata } from '@/lib/artifacts/source-metadata';
 import type {
   PluginArtifactAPI,
   CreateArtifactOptions,
@@ -45,13 +46,33 @@ export function createArtifactAPI(pluginId: string): PluginArtifactAPI {
 
     createArtifact: async (options: CreateArtifactOptions): Promise<string> => {
       const store = useArtifactStore.getState();
+      const sessionId = options.sessionId || '';
+      const messageId = options.messageId || '';
+      const resolvedType =
+        options.type === 'text'
+          ? 'document'
+          : (options.type as 'code' | 'react' | 'html' | 'svg' | 'mermaid' | 'document') ||
+            'code';
       const artifact = store.createArtifact({
-        sessionId: options.sessionId || '',
-        messageId: options.messageId || '',
-        type: options.type === 'text' ? 'document' : (options.type as 'code' | 'react' | 'html' | 'svg' | 'mermaid' | 'document') || 'code',
+        sessionId,
+        messageId,
+        type: resolvedType,
         title: options.title,
         content: options.content,
         language: options.language,
+        metadata: {
+          ...buildArtifactSourceMetadata({
+            sessionId,
+            messageId,
+            type: resolvedType,
+            content: options.content,
+            language: options.language,
+            sourceOrigin: options.metadata?.sourceOrigin || 'tool',
+            userInitiated: options.metadata?.userInitiated ?? true,
+            metadata: options.metadata,
+          }),
+          ...options.metadata,
+        },
       });
       const id = typeof artifact === 'string' ? artifact : artifact?.id || '';
       logger.info(`Created artifact: ${id}`);

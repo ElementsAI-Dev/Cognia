@@ -404,6 +404,16 @@ export function PluginDetailModal({
               {plugin.verified && (
                 <CheckCircle className="h-5 w-5 text-blue-500 shrink-0" />
               )}
+              {plugin.source && (
+                <Badge variant="outline" className="text-[10px] uppercase">
+                  {plugin.source}
+                </Badge>
+              )}
+              {plugin.compatibilityStatus && plugin.compatibilityStatus !== 'compatible' && (
+                <Badge variant="secondary" className="text-[10px] capitalize">
+                  {plugin.compatibilityStatus}
+                </Badge>
+              )}
             </div>
             <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
               {plugin.author.url ? (
@@ -448,6 +458,17 @@ export function PluginDetailModal({
               {operationError.category ? `${operationError.category}` : 'operation-error'}
             </div>
             <div className="mt-1">{operationError.message}</div>
+          </div>
+        )}
+
+        {plugin.compatibilityDiagnostics && plugin.compatibilityDiagnostics.length > 0 && (
+          <div className="mt-4 p-3 rounded-lg border border-amber-300/40 bg-amber-500/10 text-xs">
+            <div className="font-medium text-amber-700">Compatibility diagnostics</div>
+            <div className="mt-1 space-y-1 text-amber-800">
+              {plugin.compatibilityDiagnostics.slice(0, 3).map((diagnostic, index) => (
+                <div key={`${diagnostic.code}-${index}`}>{diagnostic.message}</div>
+              ))}
+            </div>
           </div>
         )}
 

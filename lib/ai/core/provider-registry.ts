@@ -3,13 +3,18 @@
  * Enables intelligent routing and middleware support
  */
 
-import { createOpenAI, type OpenAIProvider } from '@ai-sdk/openai';
-import { createAnthropic, type AnthropicProvider } from '@ai-sdk/anthropic';
-import { createGoogleGenerativeAI, type GoogleGenerativeAIProvider } from '@ai-sdk/google';
-import { createMistral, type MistralProvider } from '@ai-sdk/mistral';
-import { createCohere, type CohereProvider } from '@ai-sdk/cohere';
+import type { OpenAIProvider } from '@ai-sdk/openai';
+import type { AnthropicProvider } from '@ai-sdk/anthropic';
+import type { GoogleGenerativeAIProvider } from '@ai-sdk/google';
+import type { MistralProvider } from '@ai-sdk/mistral';
+import type { CohereProvider } from '@ai-sdk/cohere';
 import type { ProviderName } from '@/types/provider';
 import type { LanguageModel } from 'ai';
+import {
+  createFeatureProviderClient,
+  recordLegacyProviderFacadeUsage,
+} from '@/lib/ai/provider-consumption';
+import { getProviderConfig } from '@/types/provider';
 
 type AIProvider = OpenAIProvider | AnthropicProvider | GoogleGenerativeAIProvider | MistralProvider | CohereProvider;
 
@@ -36,149 +41,24 @@ function createProviderInstance(
   credentials: ProviderCredentials
 ): AIProvider | null {
   const { apiKey, baseURL } = credentials;
+  const providerConfig = getProviderConfig(providerName);
 
-  if (!apiKey && providerName !== 'ollama') {
+  if ((providerConfig?.apiKeyRequired ?? true) && !apiKey) {
     return null;
   }
 
-  switch (providerName) {
-    case 'openai':
-      return createOpenAI({ apiKey, baseURL });
+  recordLegacyProviderFacadeUsage({
+    facadeId: 'core/provider-registry',
+    helperName: 'createProviderInstance',
+    providerId: providerName,
+    lastBaseURL: baseURL,
+  });
 
-    case 'anthropic':
-      return createAnthropic({ apiKey, baseURL });
-
-    case 'google':
-      return createGoogleGenerativeAI({ apiKey, baseURL });
-
-    case 'mistral':
-      return createMistral({ apiKey, baseURL });
-
-    case 'cohere':
-      return createCohere({ apiKey, baseURL });
-
-    case 'deepseek':
-      return createOpenAI({
-        apiKey,
-        baseURL: baseURL || 'https://api.deepseek.com/v1',
-      });
-
-    case 'groq':
-      return createOpenAI({
-        apiKey,
-        baseURL: baseURL || 'https://api.groq.com/openai/v1',
-      });
-
-    case 'xai':
-      return createOpenAI({
-        apiKey,
-        baseURL: baseURL || 'https://api.x.ai/v1',
-      });
-
-    case 'togetherai':
-      return createOpenAI({
-        apiKey,
-        baseURL: baseURL || 'https://api.together.xyz/v1',
-      });
-
-    case 'openrouter':
-      return createOpenAI({
-        apiKey,
-        baseURL: baseURL || 'https://openrouter.ai/api/v1',
-        headers: {
-          'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://cognia.app',
-          'X-Title': 'Cognia',
-        },
-      });
-
-    case 'fireworks':
-      return createOpenAI({
-        apiKey,
-        baseURL: baseURL || 'https://api.fireworks.ai/inference/v1',
-      });
-
-    case 'cerebras':
-      return createOpenAI({
-        apiKey,
-        baseURL: baseURL || 'https://api.cerebras.ai/v1',
-      });
-
-    case 'sambanova':
-      return createOpenAI({
-        apiKey,
-        baseURL: baseURL || 'https://api.sambanova.ai/v1',
-      });
-
-    case 'ollama':
-      return createOpenAI({
-        apiKey: 'ollama',
-        baseURL: baseURL || 'http://localhost:11434/v1',
-      });
-
-    // Local providers - all OpenAI-compatible
-    case 'lmstudio':
-      return createOpenAI({
-        apiKey: apiKey || 'lm-studio',
-        baseURL: baseURL || 'http://localhost:1234/v1',
-      });
-
-    case 'llamacpp':
-      return createOpenAI({
-        apiKey: apiKey || 'llama-cpp',
-        baseURL: baseURL || 'http://localhost:8080/v1',
-      });
-
-    case 'llamafile':
-      return createOpenAI({
-        apiKey: apiKey || 'llamafile',
-        baseURL: baseURL || 'http://localhost:8080/v1',
-      });
-
-    case 'vllm':
-      return createOpenAI({
-        apiKey: apiKey || 'vllm',
-        baseURL: baseURL || 'http://localhost:8000/v1',
-      });
-
-    case 'localai':
-      return createOpenAI({
-        apiKey: apiKey || 'localai',
-        baseURL: baseURL || 'http://localhost:8080/v1',
-      });
-
-    case 'jan':
-      return createOpenAI({
-        apiKey: apiKey || 'jan',
-        baseURL: baseURL || 'http://localhost:1337/v1',
-      });
-
-    case 'textgenwebui':
-      return createOpenAI({
-        apiKey: apiKey || 'textgen',
-        baseURL: baseURL || 'http://localhost:5000/v1',
-      });
-
-    case 'koboldcpp':
-      return createOpenAI({
-        apiKey: apiKey || 'koboldcpp',
-        baseURL: baseURL || 'http://localhost:5001/v1',
-      });
-
-    case 'tabbyapi':
-      return createOpenAI({
-        apiKey: apiKey || 'tabbyapi',
-        baseURL: baseURL || 'http://localhost:5000/v1',
-      });
-
-    case 'cliproxyapi':
-      return createOpenAI({
-        apiKey,
-        baseURL: baseURL || 'http://localhost:8317/v1',
-      });
-
-    default:
-      return null;
-  }
+  return createFeatureProviderClient({
+    providerId: providerName,
+    apiKey,
+    baseURL,
+  }) as AIProvider;
 }
 
 /**

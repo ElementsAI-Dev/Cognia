@@ -211,13 +211,14 @@ export function usePPTAI(): UsePPTAIReturn {
   const defaultProviderRaw = useSettingsStore((state) => state.defaultProvider);
   const defaultProvider = defaultProviderRaw as ProviderName;
   const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const customProviders = useSettingsStore((state) => state.customProviders);
 
   /**
    * Call AI API with a prompt — uses getProxyProviderModel for multi-provider support
    */
   const callAI = useCallback(
     async (prompt: string): Promise<string> => {
-      const config = resolvePPTAIConfig(defaultProvider, providerSettings);
+      const config = resolvePPTAIConfig(defaultProvider, providerSettings, customProviders);
 
       if (!config.apiKey) {
         throw new Error('API key not configured');
@@ -247,7 +248,7 @@ export function usePPTAI(): UsePPTAIReturn {
       setStreamingText('');
       return fullText;
     },
-    [defaultProvider, providerSettings]
+    [defaultProvider, providerSettings, customProviders]
   );
 
   /**

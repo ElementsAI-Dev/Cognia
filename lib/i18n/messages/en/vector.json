@@ -213,7 +213,7 @@
       "description": "Upload files to collection: {collection}",
       "dropHere": "Drop files here",
       "orClick": "or click to browse",
-      "supportedFormats": "Supports: .txt, .md, .json, .csv, .xml, .html",
+      "supportedFormats": "Supports: {formats}",
       "chunkingStrategy": "Chunking Strategy",
       "strategy": {
         "fixed": "Fixed Size",

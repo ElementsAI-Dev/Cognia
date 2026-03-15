@@ -9,6 +9,8 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { loggers } from '@/lib/logger';
 import { useSettingsStore } from '@/stores';
+import { createProviderSettingsSnapshot } from '@/lib/ai/provider-consumption';
+import { resolveVideoGenerationAccess } from '@/lib/ai/provider-consumption/capability-provider';
 import {
   generateVideo,
   checkVideoGenerationStatus,
@@ -109,16 +111,15 @@ export function useVideoGeneration(
 
   const availableModels = getAvailableVideoModelsForUI();
 
-  // Get API key based on provider
-  const getApiKey = useCallback(
-    (provider: VideoProvider): string => {
-      if (provider === 'google-veo') {
-        return providerSettings.google?.apiKey || '';
-      } else if (provider === 'openai-sora') {
-        return providerSettings.openai?.apiKey || '';
-      }
-      return '';
-    },
+  const getProviderAccess = useCallback(
+    (provider: VideoProvider) =>
+      resolveVideoGenerationAccess(
+        provider,
+        createProviderSettingsSnapshot({
+          defaultProvider: '',
+          providerSettings,
+        })
+      ),
     [providerSettings]
   );
 
@@ -136,14 +137,14 @@ export function useVideoGeneration(
         return null;
       }
 
-      const apiKey = getApiKey(job.provider);
-      if (!apiKey) {
-        setError(`API key required for ${job.provider}`);
+      const access = getProviderAccess(job.provider);
+      if (access.kind !== 'resolved') {
+        setError(access.reason);
         return null;
       }
 
       try {
-        const result = await checkVideoGenerationStatus(apiKey, jobId, job.provider);
+        const result = await checkVideoGenerationStatus(access.apiKey, jobId, job.provider);
 
         updateJobStatus(jobId, {
           status: result.status,
@@ -166,7 +167,7 @@ export function useVideoGeneration(
         return null;
       }
     },
-    [jobs, getApiKey, updateJobStatus]
+    [jobs, getProviderAccess, updateJobStatus]
   );
 
   // Poll active jobs
@@ -213,11 +214,10 @@ export function useVideoGeneration(
       opts?: Partial<Omit<VideoGenerationOptions, 'prompt'>>
     ): Promise<VideoGenerationResult | null> => {
       const provider = opts?.provider || defaultProvider;
-      const apiKey = getApiKey(provider);
+      const access = getProviderAccess(provider);
 
-      if (!apiKey) {
-        const providerName = provider === 'google-veo' ? 'Google' : 'OpenAI';
-        setError(`${providerName} API key is required for video generation`);
+      if (access.kind !== 'resolved') {
+        setError(access.reason);
         return null;
       }
 
@@ -225,7 +225,7 @@ export function useVideoGeneration(
       setError(null);
 
       try {
-        const result = await generateVideo(apiKey, {
+        const result = await generateVideo(access.apiKey, {
           prompt,
           provider,
           model: opts?.model || defaultModel,
@@ -278,7 +278,7 @@ export function useVideoGeneration(
       }
     },
     [
-      getApiKey,
+      getProviderAccess,
       defaultProvider,
       defaultModel,
       defaultResolution,
@@ -294,11 +294,14 @@ export function useVideoGeneration(
       const job = jobs.find((j) => j.id === jobId);
       if (!job) return false;
 
-      const apiKey = getApiKey(job.provider);
-      if (!apiKey) return false;
+      const access = getProviderAccess(job.provider);
+      if (access.kind !== 'resolved') {
+        setError(access.reason);
+        return false;
+      }
 
       try {
-        const success = await cancelVideoGeneration(apiKey, jobId, job.provider);
+        const success = await cancelVideoGeneration(access.apiKey, jobId, job.provider);
         if (success) {
           updateJobStatus(jobId, { status: 'cancelled' });
           activeJobsRef.current.delete(jobId);
@@ -308,7 +311,7 @@ export function useVideoGeneration(
         return false;
       }
     },
-    [jobs, getApiKey, updateJobStatus]
+    [jobs, getProviderAccess, updateJobStatus]
   );
 
   // Remove a job from the list

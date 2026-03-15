@@ -68,8 +68,11 @@ describe('useMcpInstallation', () => {
     downloadDetails: mockDownloadResponse,
     isLoadingDetails: false,
     fetchItemDetails: jest.fn(),
+    getItemDetails: jest.fn().mockReturnValue(mockDownloadResponse),
     setInstallStatus: jest.fn(),
     getInstallStatus: jest.fn().mockReturnValue('not_installed'),
+    linkInstalledServer: jest.fn(),
+    getLinkedServerId: jest.fn().mockReturnValue(null),
     ...overrides,
   });
 
@@ -82,14 +85,13 @@ describe('useMcpInstallation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockParseInstallationConfig.mockReturnValue({
-      name: 'Test MCP Server',
+      mode: 'automatic',
+      derivedFrom: 'fallback',
+      validationStatus: 'valid',
       command: 'npx',
-      args: ['test-mcp'],
-      env: {},
+      args: ['-y', 'test-mcp'],
       connectionType: 'stdio' as const,
-      url: '',
-      enabled: true,
-      autoStart: false,
+      envKeys: [],
     } as unknown as McpInstallConfig);
     mockCheckMcpEnvironment.mockResolvedValue(mockEnvCheckResult);
   });
@@ -171,13 +173,15 @@ describe('useMcpInstallation', () => {
       );
 
       expect(result.current.isCurrentlyInstalled).toBe(true);
-      expect(mockGetInstallStatus).toHaveBeenCalledWith(mockItem.mcpId);
+      expect(mockGetInstallStatus).toHaveBeenCalledWith(mockItem);
     });
 
     it('should return false when item is not installed', () => {
       const mockGetInstallStatus = jest.fn().mockReturnValue('not_installed');
+      const mockGetLinkedServerId = jest.fn().mockReturnValue(null);
       mockUseMcpMarketplaceStore.mockReturnValue(createMockMarketplaceStore({
         getInstallStatus: mockGetInstallStatus,
+        getLinkedServerId: mockGetLinkedServerId,
       }));
       mockUseMcpStore.mockReturnValue(createMockMcpStore());
 
@@ -186,6 +190,22 @@ describe('useMcpInstallation', () => {
       );
 
       expect(result.current.isCurrentlyInstalled).toBe(false);
+    });
+
+    it('should treat linked marketplace server as installed even when names differ', () => {
+      const mockGetLinkedServerId = jest.fn().mockReturnValue('local-server-1');
+      mockUseMcpMarketplaceStore.mockReturnValue(createMockMarketplaceStore({
+        getLinkedServerId: mockGetLinkedServerId,
+      }));
+      mockUseMcpStore.mockReturnValue(createMockMcpStore({
+        servers: [{ id: 'local-server-1', name: 'Different Display Name' }],
+      }));
+
+      const { result } = renderHook(() =>
+        useMcpInstallation({ item: mockItem, isOpen: false })
+      );
+
+      expect(result.current.isCurrentlyInstalled).toBe(true);
     });
   });
 
@@ -227,27 +247,30 @@ describe('useMcpInstallation', () => {
     it('should install successfully', async () => {
       const mockSetInstallStatus = jest.fn();
       const mockAddServer = jest.fn();
+      const mockLinkInstalledServer = jest.fn();
       const onSuccess = jest.fn();
 
       mockUseMcpMarketplaceStore.mockReturnValue(createMockMarketplaceStore({
         setInstallStatus: mockSetInstallStatus,
+        linkInstalledServer: mockLinkInstalledServer,
       }));
       mockUseMcpStore.mockReturnValue(createMockMcpStore({
         addServer: mockAddServer,
       }));
 
       const { result } = renderHook(() => 
-        useMcpInstallation({ item: mockItem, isOpen: true, onSuccess })
+        useMcpInstallation({ item: mockItem, isOpen: false, onSuccess })
       );
 
       await act(async () => {
         await result.current.handleInstall();
       });
 
-      expect(mockSetInstallStatus).toHaveBeenCalledWith(mockItem.mcpId, 'installing');
+      expect(mockSetInstallStatus).toHaveBeenCalledWith(mockItem, 'installing');
       expect(mockParseInstallationConfig).toHaveBeenCalledWith(mockItem, mockDownloadResponse);
       expect(mockAddServer).toHaveBeenCalledWith(mockItem.mcpId, expect.any(Object));
-      expect(mockSetInstallStatus).toHaveBeenCalledWith(mockItem.mcpId, 'installed');
+      expect(mockLinkInstalledServer).toHaveBeenCalledWith(mockItem, mockItem.mcpId);
+      expect(mockSetInstallStatus).toHaveBeenCalledWith(mockItem, 'installed');
       expect(onSuccess).toHaveBeenCalled();
       expect(result.current.isInstalling).toBe(false);
       expect(result.current.installError).toBeNull();
@@ -267,7 +290,7 @@ describe('useMcpInstallation', () => {
       }));
 
       const { result } = renderHook(() => 
-        useMcpInstallation({ item: mockItem, isOpen: true, onError })
+        useMcpInstallation({ item: mockItem, isOpen: false, onError })
       );
 
       await act(async () => {
@@ -276,7 +299,46 @@ describe('useMcpInstallation', () => {
 
       expect(result.current.isInstalling).toBe(false);
       expect(result.current.installError).toBe(errorMessage);
-      expect(mockSetInstallStatus).toHaveBeenCalledWith(mockItem.mcpId, 'error', errorMessage);
+      expect(mockSetInstallStatus).toHaveBeenCalledWith(mockItem, 'error', errorMessage);
+    });
+
+    it('should block installation when install plan is invalid', async () => {
+      const mockSetInstallStatus = jest.fn();
+      const mockAddServer = jest.fn();
+      mockParseInstallationConfig.mockReturnValue({
+        mode: 'manual',
+        derivedFrom: 'fallback',
+        validationStatus: 'invalid',
+        validationError: 'Unable to derive install plan from marketplace metadata.',
+        command: '',
+        args: [],
+        connectionType: 'stdio',
+      } as McpInstallConfig);
+
+      mockUseMcpMarketplaceStore.mockReturnValue(createMockMarketplaceStore({
+        setInstallStatus: mockSetInstallStatus,
+      }));
+      mockUseMcpStore.mockReturnValue(createMockMcpStore({
+        addServer: mockAddServer,
+      }));
+
+      const { result } = renderHook(() =>
+        useMcpInstallation({ item: mockItem, isOpen: false })
+      );
+
+      await act(async () => {
+        await result.current.handleInstall();
+      });
+
+      expect(mockAddServer).not.toHaveBeenCalled();
+      expect(result.current.installError).toBe(
+        'Unable to derive install plan from marketplace metadata.'
+      );
+      expect(mockSetInstallStatus).toHaveBeenCalledWith(
+        mockItem,
+        'error',
+        'Unable to derive install plan from marketplace metadata.'
+      );
     });
 
     it('should not install if already installed', async () => {
@@ -290,16 +352,15 @@ describe('useMcpInstallation', () => {
       mockUseMcpStore.mockReturnValue(createMockMcpStore());
 
       const { result } = renderHook(() => 
-        useMcpInstallation({ item: mockItem, isOpen: true })
+        useMcpInstallation({ item: mockItem, isOpen: false })
       );
 
       await act(async () => {
         await result.current.handleInstall();
       });
 
-      // Should still call setInstallStatus with 'installing' first, then handle the already installed case
-      expect(mockSetInstallStatus).toHaveBeenCalledWith(mockItem.mcpId, 'installing');
-      expect(mockSetInstallStatus).toHaveBeenCalledWith(mockItem.mcpId, 'installed');
+      expect(mockSetInstallStatus).toHaveBeenCalledWith(mockItem, 'installing');
+      expect(mockSetInstallStatus).toHaveBeenCalledWith(mockItem, 'installed');
     });
 
     it('should set loading state during installation', async () => {
@@ -318,11 +379,11 @@ describe('useMcpInstallation', () => {
       }));
 
       const { result } = renderHook(() => 
-        useMcpInstallation({ item: mockItem, isOpen: true })
+        useMcpInstallation({ item: mockItem, isOpen: false })
       );
 
-      act(() => {
-        result.current.handleInstall();
+      await act(async () => {
+        void result.current.handleInstall();
       });
 
       expect(result.current.isInstalling).toBe(true);
@@ -367,35 +428,37 @@ describe('useMcpInstallation', () => {
       mockUseMcpStore.mockReturnValue(createMockMcpStore());
 
       const { result } = renderHook(() => 
-        useMcpInstallation({ item: null, isOpen: true })
+        useMcpInstallation({ item: null, isOpen: false })
       );
 
       expect(result.current.isCurrentlyInstalled).toBe(false);
 
       act(() => {
-        result.current.handleInstall();
+        void result.current.handleInstall();
       });
 
       // Should not set error when item is null - just returns early
       expect(result.current.installError).toBeNull();
     });
 
-    it('should handle missing download details gracefully', () => {
+    it('should surface install-plan error when detail data is unavailable', () => {
       mockUseMcpMarketplaceStore.mockReturnValue(createMockMarketplaceStore({
         downloadDetails: null,
+        getItemDetails: jest.fn().mockReturnValue(null),
       }));
       mockUseMcpStore.mockReturnValue(createMockMcpStore());
 
       const { result } = renderHook(() => 
-        useMcpInstallation({ item: mockItem, isOpen: true })
+        useMcpInstallation({ item: mockItem, isOpen: false })
       );
 
       act(() => {
-        result.current.handleInstall();
+        void result.current.handleInstall();
       });
 
-      // Should use default config when no download details available
-      expect(result.current.installError).toBeNull();
+      expect(result.current.installError).toBe(
+        'Unable to derive install plan from marketplace metadata.'
+      );
     });
   });
 });

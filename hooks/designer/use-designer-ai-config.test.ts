@@ -74,15 +74,19 @@ describe('useDesignerAIConfig', () => {
 
     result.current.getConfig();
 
-    expect(mockGetDesignerAIConfig).toHaveBeenCalledWith('openai', {
-      openai: {
-        apiKey: 'test-key',
-        defaultModel: 'gpt-4o-mini',
+    expect(mockGetDesignerAIConfig).toHaveBeenCalledWith(
+      'openai',
+      {
+        openai: {
+          apiKey: 'test-key',
+          defaultModel: 'gpt-4o-mini',
+        },
+        ollama: {
+          defaultModel: 'llama2',
+        },
       },
-      ollama: {
-        defaultModel: 'llama2',
-      },
-    });
+      undefined
+    );
   });
 
   it('should return consistent config values', () => {

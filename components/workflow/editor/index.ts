@@ -40,6 +40,7 @@ export {
   type WorkflowTrigger,
   type TriggerConfig,
   WorkflowInputTestPanel,
+  WorkflowInspectorPanel,
 } from './panels';
 
 // Search components

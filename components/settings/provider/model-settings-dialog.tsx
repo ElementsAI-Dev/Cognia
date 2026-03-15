@@ -211,7 +211,7 @@ export function ModelSettingsDialog({
         <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
             <ProviderIcon
-              icon={`/icons/providers/${providerId}.svg`}
+              providerId={providerId}
               size={20}
             />
           </div>

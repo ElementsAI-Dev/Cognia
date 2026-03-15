@@ -4,6 +4,10 @@
   "version": "1.0.0",
   "description": "Advanced session management, backup, and export capabilities",
   "type": "python",
+  "engines": {
+    "cognia": ">=0.1.0",
+    "python": ">=3.10.0"
+  },
   "capabilities": ["tools", "hooks", "commands"],
   "pythonMain": "main.py",
   "permissions": ["session:read", "session:write", "export:session"],
@@ -24,7 +28,7 @@
         "default": "json"
       },
       "retentionDays": {
-        "type": "integer",
+        "type": "number",
         "title": "Retention Days",
         "description": "Days to keep old sessions before cleanup suggestion",
         "default": 90,

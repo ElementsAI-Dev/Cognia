@@ -2,15 +2,10 @@
 const fs = require('fs');
 const path = require('path');
 
-const CHANGE_NAME = 'improve-canvas-feature-completeness';
-const CHANGE_DIR = path.resolve('openspec', 'changes', CHANGE_NAME);
-const TASKS_PATH = path.join(CHANGE_DIR, 'tasks.md');
-const SPEC_PATH = path.join(
-  CHANGE_DIR,
-  'specs',
-  'canvas-completeness-assurance',
-  'spec.md'
-);
+const CANVAS_CHANGE_NAMES = [
+  'improve-existing-canvas-large-document-editing',
+  'improve-existing-canvas-ai-workbench',
+];
 
 function readFileOrThrow(filePath) {
   if (!fs.existsSync(filePath)) {
@@ -40,30 +35,67 @@ function collectSpecBenchmarkViolations(specContent) {
   return missingPatternRefs;
 }
 
+function collectSpecFiles(specsDir) {
+  if (!fs.existsSync(specsDir)) {
+    return [];
+  }
+
+  const entries = fs.readdirSync(specsDir, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const fullPath = path.join(specsDir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectSpecFiles(fullPath));
+    } else if (entry.isFile() && entry.name === 'spec.md') {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
+
 function main() {
-  const tasksContent = readFileOrThrow(TASKS_PATH);
-  const specContent = readFileOrThrow(SPEC_PATH);
+  for (const changeName of CANVAS_CHANGE_NAMES) {
+    const changeDir = path.resolve('openspec', 'changes', changeName);
+    const tasksPath = path.join(changeDir, 'tasks.md');
+    const specFiles = collectSpecFiles(path.join(changeDir, 'specs'));
 
-  const { priorityLines, missingBenchmark } = collectPriorityTaskViolations(tasksContent);
-  const missingSpecPatternRefs = collectSpecBenchmarkViolations(specContent);
+    const tasksContent = readFileOrThrow(tasksPath);
+    const { priorityLines, missingBenchmark } = collectPriorityTaskViolations(tasksContent);
 
-  if (priorityLines.length === 0) {
-    throw new Error('No prioritized tasks ([P0]/[P1]) found in tasks.md for traceability validation.');
-  }
+    if (priorityLines.length === 0) {
+      throw new Error(
+        `No prioritized tasks ([P0]/[P1]) found in tasks.md for traceability validation: ${changeName}`
+      );
+    }
 
-  if (missingBenchmark.length > 0) {
-    throw new Error(
-      `Prioritized tasks missing benchmark IDs:\n${missingBenchmark.join('\n')}`
-    );
-  }
+    if (missingBenchmark.length > 0) {
+      throw new Error(
+        `Prioritized tasks missing benchmark IDs in ${changeName}:\n${missingBenchmark.join('\n')}`
+      );
+    }
 
-  if (missingSpecPatternRefs.length > 0) {
-    const labels = missingSpecPatternRefs
-      .map((block) => block.split('\n')[0])
-      .join('\n');
-    throw new Error(
-      `Requirements missing benchmark IDs:\n${labels}`
-    );
+    if (specFiles.length === 0) {
+      throw new Error(`No spec.md files found for Canvas change: ${changeName}`);
+    }
+
+    const missingRequirementRefs = [];
+    for (const specPath of specFiles) {
+      const specContent = readFileOrThrow(specPath);
+      const missingSpecPatternRefs = collectSpecBenchmarkViolations(specContent);
+      if (missingSpecPatternRefs.length > 0) {
+        missingRequirementRefs.push(
+          ...missingSpecPatternRefs.map((block) => `${path.relative(changeDir, specPath)} :: ${block.split('\n')[0]}`)
+        );
+      }
+    }
+
+    if (missingRequirementRefs.length > 0) {
+      throw new Error(
+        `Requirements missing benchmark IDs in ${changeName}:\n${missingRequirementRefs.join('\n')}`
+      );
+    }
   }
 
   console.log('Canvas benchmark traceability validation passed.');

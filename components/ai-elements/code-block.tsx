@@ -31,7 +31,8 @@ import {
   useRef,
 } from 'react';
 import { type BundledLanguage, codeToHtml, type ShikiTransformer } from 'shiki';
-import { useSandbox, useCodeExecution, useSnippets } from '@/hooks/sandbox';
+import { useSandbox, useSandboxEntrypointExecution, useSnippets } from '@/hooks/sandbox';
+import { SANDBOX_ENTRYPOINT_POLICIES } from '@/lib/sandbox/consumption';
 import { isValidLanguage } from '@/types/system/sandbox';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -117,14 +118,28 @@ export const CodeBlock = ({
 
   // Sandbox execution
   const { isAvailable: sandboxAvailable } = useSandbox();
-  const { result, executing, error: execError, quickExecute, reset } = useCodeExecution();
   const { createSnippet } = useSnippets({});
 
   // Check if this language can be executed
   const langLower = language?.toLowerCase() || '';
-  const canExecute = showExecuteButton && sandboxAvailable && isValidLanguage(langLower);
+  const isRunnableLanguage = showExecuteButton && isValidLanguage(langLower);
+  const {
+    canExecute,
+    shouldRenderExecuteButton,
+    blockedReason,
+    result,
+    executing,
+    error: execError,
+    execute,
+    reset,
+  } = useSandboxEntrypointExecution({
+    policy: SANDBOX_ENTRYPOINT_POLICIES.aiCodeBlock,
+    language: langLower,
+  });
 
-  const isSuccess = result?.status === 'completed' && result?.exit_code === 0;
+  const isSuccess =
+    result?.lifecycle_status === 'success' ||
+    (result?.status === 'completed' && result?.exit_code === 0);
 
   useEffect(() => {
     highlightCode(code, language, showLineNumbers).then(([light, dark]) => {
@@ -179,11 +194,11 @@ export const CodeBlock = ({
   };
 
   const handleExecute = useCallback(async () => {
-    if (!canExecute) return;
+    if (!language) return;
     reset();
     setShowResult(true);
-    await quickExecute(langLower, code);
-  }, [canExecute, langLower, code, reset, quickExecute]);
+    await execute(code);
+  }, [language, code, reset, execute]);
 
   const handleSaveAsSnippet = useCallback(async () => {
     if (!language) return;
@@ -225,6 +240,11 @@ export const CodeBlock = ({
                 runnable
               </Badge>
             )}
+            {isRunnableLanguage && !canExecute && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                desktop required
+              </Badge>
+            )}
           </div>
         </div>
         <div className="relative">
@@ -240,25 +260,28 @@ export const CodeBlock = ({
           />
           <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             {/* Execute button */}
-            {canExecute && (
+            {shouldRenderExecuteButton && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    className="shrink-0"
-                    onClick={handleExecute}
-                    disabled={executing}
-                    size="icon"
-                    variant="ghost"
-                    title="Run code"
-                  >
-                    {executing ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      <Play size={14} className="text-green-500" />
-                    )}
-                  </Button>
+                  <span>
+                    <Button
+                      className="shrink-0"
+                      onClick={handleExecute}
+                      disabled={!canExecute || executing}
+                      size="icon"
+                      variant="ghost"
+                      title={blockedReason || 'Run code'}
+                      aria-label="Run code"
+                    >
+                      {executing ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Play size={14} className="text-green-500" />
+                      )}
+                    </Button>
+                  </span>
                 </TooltipTrigger>
-                <TooltipContent>Run code</TooltipContent>
+                <TooltipContent>{blockedReason || 'Run code'}</TooltipContent>
               </Tooltip>
             )}
 

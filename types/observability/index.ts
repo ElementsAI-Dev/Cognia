@@ -71,6 +71,69 @@ export interface ObservabilitySettingsData {
   serviceName: string;
 }
 
+export type ObservabilityReadinessStatus = 'disabled' | 'incomplete' | 'ready';
+
+export type ObservabilitySurfaceStatus = ObservabilityReadinessStatus | 'history-only';
+
+export type ObservabilityMissingField =
+  | 'langfusePublicKey'
+  | 'langfuseSecretKey'
+  | 'langfuseHost'
+  | 'openTelemetryEndpoint'
+  | 'serviceName';
+
+export interface ObservabilityIntegrationProjection {
+  enabled: boolean;
+  configured: boolean;
+  active: boolean;
+  status: ObservabilityReadinessStatus;
+  missingFields: ObservabilityMissingField[];
+}
+
+export interface ObservabilityAgentTraceProjection {
+  enabled: boolean;
+  status: 'disabled' | 'ready';
+  maxRecords: number;
+  autoCleanupDays: number;
+  traceShellCommands: boolean;
+  traceCodeEdits: boolean;
+  traceFailedCalls: boolean;
+}
+
+export interface ObservabilityHistoryProjection {
+  usageRecordCount: number;
+  traceRecordCount: number;
+  hasUsageHistory: boolean;
+  hasTraceHistory: boolean;
+  hasAnyHistory: boolean;
+}
+
+export interface ObservabilitySurfaceProjection {
+  visible: boolean;
+  status: ObservabilitySurfaceStatus;
+}
+
+export interface ObservabilityTraceViewerExternalProjection {
+  available: boolean;
+  status: ObservabilityReadinessStatus;
+  missingFields: ObservabilityMissingField[];
+}
+
+export interface ObservabilitySettingsProjection {
+  status: ObservabilitySurfaceStatus;
+  captureEnabled: boolean;
+  runtimeCaptureEnabled: boolean;
+  langfuse: ObservabilityIntegrationProjection;
+  openTelemetry: ObservabilityIntegrationProjection;
+  agentTrace: ObservabilityAgentTraceProjection;
+  history: ObservabilityHistoryProjection;
+  surfaces: {
+    sidebar: ObservabilitySurfaceProjection;
+    dashboard: ObservabilitySurfaceProjection;
+    traceViewerExternal: ObservabilityTraceViewerExternalProjection;
+  };
+}
+
 export interface SessionData {
   sessionId: string;
   tokens: number;

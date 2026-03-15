@@ -173,5 +173,11 @@
   "tableShowing": "Showing {start}-{end} of {total}",
   "tablePrevious": "Previous",
   "tableNext": "Next",
-  "tablePage": "Page {current} of {total}"
+  "tablePage": "Page {current} of {total}",
+  "richOutput": {
+    "previous": "Previous",
+    "next": "Next",
+    "richOutputFallback": "Fallback",
+    "richOutputUnavailable": "This rich output is unavailable in the current runtime."
+  }
 }

@@ -37,7 +37,9 @@
     "duplicate": "复制",
     "search": "搜索作品...",
     "filterByType": "按类型筛选",
+    "filterByRuntime": "按运行时筛选",
     "allTypes": "所有类型",
+    "allRuntimeStates": "所有运行时状态",
     "batchSelect": "切换批量选择",
     "batchDelete": "批量删除",
     "batchDeleteConfirm": "删除 {count} 个作品？",
@@ -50,7 +52,13 @@
     "noVersions": "暂无版本历史",
     "versionRestored": "版本已恢复",
     "analysisResults": "分析结果",
-    "recentArtifacts": "最近作品"
+    "recentArtifacts": "最近作品",
+    "runtimeStates": {
+      "ready": "可用",
+      "loading": "加载中",
+      "error": "错误",
+      "unsupported": "不支持"
+    }
   },
   "artifactPreview": {
     "previewError": "预览错误",

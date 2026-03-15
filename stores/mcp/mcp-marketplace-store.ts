@@ -17,7 +17,7 @@ import type {
 import { DEFAULT_MARKETPLACE_FILTERS } from '@/types/mcp/mcp-marketplace';
 import {
   fetchMcpMarketplace,
-  downloadMcpServer,
+  fetchMcpMarketplaceDetail,
   filterMarketplaceItems,
   getUniqueTags,
 } from '@/lib/mcp/marketplace';
@@ -38,11 +38,15 @@ interface McpMarketplaceState {
   // Installation tracking
   installingItems: Map<string, McpInstallStatus>;
   installErrors: Map<string, string>;
+  installedServerLinks: Map<string, string>;
 
   // Selected item for detail view
   selectedItem: McpMarketplaceItem | null;
+  selectedItemKey: string | null;
   downloadDetails: McpDownloadResponse | null;
   isLoadingDetails: boolean;
+  detailsByItemKey: Map<string, McpDownloadResponse>;
+  detailStatusByItemKey: Map<string, 'idle' | 'loading' | 'success' | 'error'>;
 
   // API Keys for sources that require them
   smitheryApiKey: string | null;
@@ -73,8 +77,12 @@ interface McpMarketplaceState {
   setFilters: (filters: Partial<McpMarketplaceFilters>) => void;
   resetFilters: () => void;
   selectItem: (item: McpMarketplaceItem | null) => void;
-  fetchItemDetails: (mcpId: string) => Promise<McpDownloadResponse | null>;
-  setInstallStatus: (mcpId: string, status: McpInstallStatus, error?: string) => void;
+  fetchItemDetails: (item: McpMarketplaceItem) => Promise<McpDownloadResponse | null>;
+  getItemDetails: (item: McpMarketplaceItem | string | null | undefined) => McpDownloadResponse | null;
+  getDetailStatus: (item: McpMarketplaceItem | string | null | undefined) => 'idle' | 'loading' | 'success' | 'error';
+  setInstallStatus: (item: McpMarketplaceItem | string, status: McpInstallStatus, error?: string) => void;
+  linkInstalledServer: (item: McpMarketplaceItem | string, serverId: string) => void;
+  getLinkedServerId: (item: McpMarketplaceItem | string | null | undefined) => string | null;
   setSmitheryApiKey: (key: string | null) => void;
   clearError: () => void;
 
@@ -104,10 +112,16 @@ interface McpMarketplaceState {
   getPaginatedItems: () => McpMarketplaceItem[];
   getTotalPages: () => number;
   getUniqueTags: () => string[];
-  isItemInstalled: (mcpId: string) => boolean;
-  getInstallStatus: (mcpId: string) => McpInstallStatus;
+  isItemInstalled: (item: McpMarketplaceItem | string) => boolean;
+  getInstallStatus: (item: McpMarketplaceItem | string) => McpInstallStatus;
   getSourceCount: (source: McpMarketplaceSource) => number;
   getFavoritesCount: () => number;
+}
+
+function toItemKey(item: McpMarketplaceItem | string | null | undefined): string | null {
+  if (!item) return null;
+  if (typeof item === 'string') return item;
+  return item.itemKey || `${item.source}:${item.mcpId}`;
 }
 
 export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
@@ -133,9 +147,13 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
       },
       installingItems: new Map(),
       installErrors: new Map(),
+      installedServerLinks: new Map(),
       selectedItem: null,
+      selectedItemKey: null,
       downloadDetails: null,
       isLoadingDetails: false,
+      detailsByItemKey: new Map(),
+      detailStatusByItemKey: new Map(),
       smitheryApiKey: null,
       favorites: new Set(),
       recentlyViewed: [],
@@ -251,44 +269,106 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
       },
 
       selectItem: (item) => {
-        set({ selectedItem: item, downloadDetails: null });
+        const itemKey = toItemKey(item);
+        const detail = itemKey ? get().detailsByItemKey.get(itemKey) || null : null;
+        const detailStatus = itemKey ? get().detailStatusByItemKey.get(itemKey) : 'idle';
+        set({
+          selectedItem: item,
+          selectedItemKey: itemKey,
+          downloadDetails: detail,
+          isLoadingDetails: detailStatus === 'loading',
+        });
       },
 
-      fetchItemDetails: async (mcpId) => {
-        // Check cache first
-        const cached = getCachedDetails<McpDownloadResponse>(mcpId);
+      fetchItemDetails: async (item) => {
+        const itemKey = toItemKey(item);
+        if (!itemKey) return null;
+
+        const cached = getCachedDetails<McpDownloadResponse>(itemKey);
         if (cached) {
-          set({ downloadDetails: cached, isLoadingDetails: false });
+          set((state) => {
+            const detailsByItemKey = new Map(state.detailsByItemKey);
+            const detailStatusByItemKey = new Map(state.detailStatusByItemKey);
+            detailsByItemKey.set(itemKey, cached);
+            detailStatusByItemKey.set(itemKey, cached.error ? 'error' : 'success');
+            return {
+              detailsByItemKey,
+              detailStatusByItemKey,
+              downloadDetails: cached,
+              isLoadingDetails: false,
+            };
+          });
           return cached;
         }
 
-        set({ isLoadingDetails: true });
+        set((state) => {
+          const detailStatusByItemKey = new Map(state.detailStatusByItemKey);
+          detailStatusByItemKey.set(itemKey, 'loading');
+          return {
+            detailStatusByItemKey,
+            isLoadingDetails: state.selectedItemKey === itemKey ? true : state.isLoadingDetails,
+          };
+        });
 
         try {
-          const details = await downloadMcpServer(mcpId);
-          // Cache the result
+          const details = await fetchMcpMarketplaceDetail(item, {
+            smitheryApiKey: get().smitheryApiKey || undefined,
+          });
           if (!details.error) {
-            setCachedDetails(mcpId, details);
+            setCachedDetails(itemKey, details);
           }
-          set({ downloadDetails: details, isLoadingDetails: false });
+
+          set((state) => {
+            const detailsByItemKey = new Map(state.detailsByItemKey);
+            const detailStatusByItemKey = new Map(state.detailStatusByItemKey);
+            detailsByItemKey.set(itemKey, details);
+            detailStatusByItemKey.set(itemKey, details.error ? 'error' : 'success');
+            return {
+              detailsByItemKey,
+              detailStatusByItemKey,
+              downloadDetails: details,
+              isLoadingDetails: false,
+            };
+          });
           return details;
         } catch (_error) {
-          set({ isLoadingDetails: false });
+          set((state) => {
+            const detailStatusByItemKey = new Map(state.detailStatusByItemKey);
+            detailStatusByItemKey.set(itemKey, 'error');
+            return {
+              detailStatusByItemKey,
+              isLoadingDetails: state.selectedItemKey === itemKey ? false : state.isLoadingDetails,
+            };
+          });
           return null;
         }
       },
 
-      setInstallStatus: (mcpId, status, error) => {
+      getItemDetails: (item) => {
+        const itemKey = toItemKey(item);
+        if (!itemKey) return null;
+        return get().detailsByItemKey.get(itemKey) || null;
+      },
+
+      getDetailStatus: (item) => {
+        const itemKey = toItemKey(item);
+        if (!itemKey) return 'idle';
+        return get().detailStatusByItemKey.get(itemKey) || 'idle';
+      },
+
+      setInstallStatus: (item, status, error) => {
+        const itemKey = toItemKey(item);
+        if (!itemKey) return;
         set((state) => {
           const newInstallingItems = new Map(state.installingItems);
           const newInstallErrors = new Map(state.installErrors);
 
-          newInstallingItems.set(mcpId, status);
+          newInstallingItems.set(itemKey, status);
 
           if (error) {
-            newInstallErrors.set(mcpId, error);
+            newInstallErrors.set(itemKey, error);
           } else {
-            newInstallErrors.delete(mcpId);
+            newInstallErrors.delete(itemKey);
           }
 
           return {
@@ -296,6 +376,22 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
             installErrors: newInstallErrors,
           };
         });
+      },
+
+      linkInstalledServer: (item, serverId) => {
+        const itemKey = toItemKey(item);
+        if (!itemKey) return;
+        set((state) => {
+          const installedServerLinks = new Map(state.installedServerLinks);
+          installedServerLinks.set(itemKey, serverId);
+          return { installedServerLinks };
+        });
+      },
+
+      getLinkedServerId: (item) => {
+        const itemKey = toItemKey(item);
+        if (!itemKey) return null;
+        return get().installedServerLinks.get(itemKey) || null;
       },
 
       setSmitheryApiKey: (key) => {
@@ -411,13 +507,19 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
         return getUniqueTags(state.catalog.items);
       },
 
-      isItemInstalled: (mcpId) => {
-        const status = get().installingItems.get(mcpId);
-        return status === 'installed';
+      isItemInstalled: (item) => {
+        const itemKey = toItemKey(item);
+        if (!itemKey) return false;
+        return (
+          get().installingItems.get(itemKey) === 'installed' ||
+          get().installedServerLinks.has(itemKey)
+        );
       },
 
-      getInstallStatus: (mcpId) => {
-        return get().installingItems.get(mcpId) || 'not_installed';
+      getInstallStatus: (item) => {
+        const itemKey = toItemKey(item);
+        if (!itemKey) return 'not_installed';
+        return get().installingItems.get(itemKey) || 'not_installed';
       },
 
       getSourceCount: (source) => {
@@ -437,6 +539,7 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
         // Persist installation status and user preferences
         installingItems: Array.from(state.installingItems.entries()),
         installErrors: Array.from(state.installErrors.entries()),
+        installedServerLinks: Array.from(state.installedServerLinks.entries()),
         favorites: Array.from(state.favorites),
         recentlyViewed: state.recentlyViewed,
         searchHistory: state.searchHistory,
@@ -448,6 +551,7 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
         const persistedState = persisted as {
           installingItems?: [string, McpInstallStatus][];
           installErrors?: [string, string][];
+          installedServerLinks?: [string, string][];
           favorites?: string[];
           recentlyViewed?: string[];
           searchHistory?: string[];
@@ -459,6 +563,7 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
           ...current,
           installingItems: new Map(persistedState.installingItems || []),
           installErrors: new Map(persistedState.installErrors || []),
+          installedServerLinks: new Map(persistedState.installedServerLinks || []),
           favorites: new Set(persistedState.favorites || []),
           recentlyViewed: persistedState.recentlyViewed || [],
           searchHistory: persistedState.searchHistory || [],

@@ -40,6 +40,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useSettingsStore } from '@/stores';
+import { createProviderSettingsSnapshot } from '@/lib/ai/provider-consumption';
+import { resolveImageGenerationAccess } from '@/lib/ai/provider-consumption/capability-provider';
 import {
   generateImage,
   downloadImageAsBlob,
@@ -74,13 +76,19 @@ export function ImageGenerationDialog({
   const [style, setStyle] = useState<ImageStyle>('vivid');
 
   const providerSettings = useSettingsStore((state) => state.providerSettings);
-  const openaiApiKey = providerSettings.openai?.apiKey;
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
 
-    if (!openaiApiKey) {
-      setError('OpenAI API key is required. Please configure it in Settings.');
+    const access = resolveImageGenerationAccess(
+      createProviderSettingsSnapshot({
+        defaultProvider: '',
+        providerSettings,
+      })
+    );
+
+    if (access.kind !== 'resolved') {
+      setError(access.reason);
       return;
     }
 
@@ -88,7 +96,7 @@ export function ImageGenerationDialog({
     setError(null);
 
     try {
-      const result = await generateImage(openaiApiKey, {
+      const result = await generateImage(access.apiKey, {
         prompt: prompt.trim(),
         model,
         size,

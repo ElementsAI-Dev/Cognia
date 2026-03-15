@@ -30,13 +30,13 @@ jest.mock('next-intl', () => ({
 
 // Mock stores
 jest.mock('@/stores', () => ({
-  useSettingsStore: () => ({
+  useSettingsStore: jest.fn(() => ({
     providerSettings: {
       openai: {
         apiKey: 'test-api-key',
       },
     },
-  }),
+  })),
 }));
 
 // Mock AI lib
@@ -109,6 +109,28 @@ jest.mock('@/components/ui/alert', () => ({
 describe('ImageGenerationDialog', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('shows shared blocked guidance when image generation provider is unavailable', () => {
+    const stores = jest.requireMock('@/stores');
+    stores.useSettingsStore.mockImplementationOnce(() => ({
+      providerSettings: {
+        openai: {
+          apiKey: '',
+        },
+      },
+    }));
+
+    render(<ImageGenerationDialog />);
+    const textarea = screen.getByPlaceholderText(/Japanese garden/);
+    fireEvent.change(textarea, { target: { value: 'A beautiful sunset' } });
+
+    const generateButton = screen.getByText('Generate').closest('button');
+    fireEvent.click(generateButton!);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Add an API key before using this provider at runtime.'
+    );
   });
 
   it('renders trigger button', () => {

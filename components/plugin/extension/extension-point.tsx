@@ -19,7 +19,7 @@ interface PluginExtensionPointProps {
   className?: string;
   
   /** Optional wrapper element type */
-  as?: React.ElementType;
+  as?: React.ElementType<React.HTMLAttributes<HTMLElement>>;
   
   /** Whether to render extensions inline */
   inline?: boolean;
@@ -131,7 +131,7 @@ export function PluginExtensionPoint({
     return fallback ? <>{fallback}</> : null;
   }
 
-  const Wrapper = Component as React.ElementType;
+  const Wrapper = Component as React.ElementType<React.HTMLAttributes<HTMLElement>>;
 
   return (
     <Wrapper

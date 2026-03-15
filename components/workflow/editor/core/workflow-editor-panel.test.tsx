@@ -84,6 +84,7 @@ const mockEditorState = {
   setViewport: jest.fn(),
   pushHistory: jest.fn(),
   saveWorkflow: jest.fn(),
+  setActiveInspectorSection: jest.fn(),
 };
 
 // Mock next-intl
@@ -181,11 +182,8 @@ jest.mock('./node-palette', () => ({
 jest.mock('./workflow-toolbar', () => ({
   WorkflowToolbar: () => <div data-testid="workflow-toolbar" />,
 }));
-jest.mock('../panels/node-config-panel', () => ({
-  NodeConfigPanel: () => <div data-testid="node-config-panel" />,
-}));
-jest.mock('../execution/execution-panel', () => ({
-  ExecutionPanel: () => <div data-testid="execution-panel" />,
+jest.mock('../panels/workflow-inspector-panel', () => ({
+  WorkflowInspectorPanel: () => <div data-testid="workflow-inspector-panel" />,
 }));
 jest.mock('../edges/custom-connection-line', () => ({
   CustomConnectionLine: () => <div />,
@@ -213,6 +211,7 @@ describe('WorkflowEditorPanel', () => {
     mockSetCenter.mockClear();
     mockEditorState.deleteNodes.mockClear();
     mockEditorState.deleteEdges.mockClear();
+    mockEditorState.setActiveInspectorSection.mockClear();
     mockEditorState.selectedNodes = [];
     mockEditorState.selectedEdges = [];
     mockEditorState.validationFocusTarget = null;
@@ -261,6 +260,7 @@ describe('WorkflowEditorPanel', () => {
 
     render(<WorkflowEditorPanel />);
     expect(mockSetCenter).toHaveBeenCalled();
+    expect(mockEditorState.setActiveInspectorSection).toHaveBeenCalledWith('config');
   });
 
   it('deletes nodes and remaining unrelated edges from React Flow delete payload', () => {

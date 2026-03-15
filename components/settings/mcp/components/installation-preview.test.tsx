@@ -38,6 +38,9 @@ const renderWithProviders = (ui: React.ReactElement) => {
 
 describe('InstallationPreview', () => {
   const mockInstallConfig: McpInstallConfig = {
+    mode: 'automatic',
+    derivedFrom: 'fallback',
+    validationStatus: 'valid',
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-example'],
     connectionType: 'stdio',
@@ -166,6 +169,9 @@ describe('InstallationPreview', () => {
 
   it('displays SSE url when connection type is sse', () => {
     const sseConfig: McpInstallConfig = {
+      mode: 'automatic',
+      derivedFrom: 'connection-config',
+      validationStatus: 'valid',
       command: 'node',
       args: ['server.js'],
       connectionType: 'sse',
@@ -183,5 +189,29 @@ describe('InstallationPreview', () => {
       <InstallationPreview {...defaultProps} installConfig={null} />
     );
     expect(screen.getByText(/npx -y @modelcontextprotocol\/server-example/)).toBeInTheDocument();
+  });
+
+  it('shows manual install guidance when install plan is invalid', () => {
+    const invalidConfig: McpInstallConfig = {
+      mode: 'manual',
+      derivedFrom: 'fallback',
+      validationStatus: 'invalid',
+      validationError: 'Unable to derive install plan from marketplace metadata.',
+      command: '',
+      args: [],
+      connectionType: 'stdio',
+      manualSteps: ['Review https://example.com for installation details.'],
+    };
+
+    renderWithProviders(
+      <InstallationPreview {...defaultProps} installConfig={invalidConfig} />
+    );
+
+    expect(
+      screen.getByText('Unable to derive install plan from marketplace metadata.')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Review https://example.com for installation details.')
+    ).toBeInTheDocument();
   });
 });

@@ -4,6 +4,8 @@
  */
 
 import type {
+  PromptTemplateMarketplaceLinkage,
+  PromptTemplateMarketplaceSyncStatus,
   PromptTemplateSource,
   PromptTemplateTarget,
   TemplateVariable,
@@ -159,12 +161,20 @@ export interface InstalledMarketplacePrompt {
   id: string;
   marketplaceId: string;
   localTemplateId: string;
+  linkageType?: PromptTemplateMarketplaceLinkage;
+  sourcePromptId?: string;
   installedVersion: string;
   latestVersion?: string;
   hasUpdate: boolean;
   autoUpdate: boolean;
   installedAt: Date;
   lastSyncedAt?: Date;
+  syncStatus?: PromptTemplateMarketplaceSyncStatus;
+  draftSessionId?: string;
+  conflict?: {
+    state: 'none' | 'requires-resolution';
+    detectedAt?: string;
+  };
   customizations?: {
     name?: string;
     content?: string;

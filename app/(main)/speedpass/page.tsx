@@ -38,6 +38,7 @@ import {
   CheckCircle2,
   RotateCcw,
   Trash2,
+  type LucideIcon,
 } from 'lucide-react';
 import { useSpeedPassStore, type SpeedPassState } from '@/stores/learning/speedpass-store';
 import { cn } from '@/lib/utils';
@@ -613,7 +614,7 @@ function OverviewTab({ store, router, onModeSelect, onAddTextbook }: OverviewTab
 // ============================================================================
 
 interface StatCardProps {
-  icon: React.ElementType;
+  icon: LucideIcon;
   label: string;
   value: string;
   trend: string;
@@ -639,7 +640,7 @@ function StatCard({ icon: Icon, label, value, trend }: StatCardProps) {
 }
 
 interface QuickActionCardProps {
-  icon: React.ElementType;
+  icon: LucideIcon;
   title: string;
   description: string;
   duration: string;

@@ -69,6 +69,7 @@ import {
   type PluginHealthStatus,
   type RollbackInfo,
 } from '@/lib/plugin';
+import { reloadExtensionRuntime } from '@/lib/plugin/devtools/reload-extension-runtime';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 
@@ -101,6 +102,7 @@ export function PluginInstalledDetail({
   const [selectedRollbackVersion, setSelectedRollbackVersion] = useState<string | null>(null);
   const [isRollingBack, setIsRollingBack] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isReloading, setIsReloading] = useState(false);
 
   // Load health and rollback data when plugin changes
   useEffect(() => {
@@ -182,6 +184,19 @@ export function PluginInstalledDetail({
     }
   }, [plugin, t]);
 
+  const handleReload = useCallback(async () => {
+    if (!plugin) return;
+    setIsReloading(true);
+    try {
+      await reloadExtensionRuntime(getPluginManager(), plugin);
+      toast.success('Reload complete');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsReloading(false);
+    }
+  }, [plugin]);
+
   if (!plugin) return null;
 
   const { manifest, status, error } = plugin;
@@ -206,6 +221,15 @@ export function PluginInstalledDetail({
                   <span>v{manifest.version}</span>
                   <span>•</span>
                   <span className="capitalize">{manifest.type}</span>
+                  <Badge variant="outline" className="text-[10px] capitalize">
+                    {plugin.source}
+                  </Badge>
+                  {plugin.descriptor?.compatibility?.status &&
+                    plugin.descriptor.compatibility.status !== 'compatible' && (
+                      <Badge variant="secondary" className="text-[10px] capitalize">
+                        {plugin.descriptor.compatibility.status}
+                      </Badge>
+                    )}
                   <Badge
                     variant={isEnabled ? 'default' : isError ? 'destructive' : 'secondary'}
                     className={cn('text-[10px] h-5', isEnabled && 'bg-green-500')}
@@ -236,6 +260,18 @@ export function PluginInstalledDetail({
               >
                 <Settings className="h-3.5 w-3.5 mr-1.5" />
                 {t('actions.configure')}
+              </Button>
+            )}
+            {plugin.source === 'dev' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReload}
+                disabled={isReloading}
+                className="flex-1"
+              >
+                <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                {isReloading ? 'Reloading...' : 'Reload'}
               </Button>
             )}
             <Button
@@ -301,6 +337,7 @@ export function PluginInstalledDetail({
                 <div className="space-y-3">
                   <h4 className="text-xs font-medium text-muted-foreground">{t('overview.details')}</h4>
                   <DetailRow icon={Code} label={t('overview.id')} value={manifest.id} />
+                  <DetailRow icon={Info} label="Source" value={plugin.source} />
                   {manifest.author && (
                     <DetailRow icon={User} label={t('overview.author')} value={manifest.author.name} />
                   )}
@@ -311,6 +348,20 @@ export function PluginInstalledDetail({
                     <DetailRow icon={Package} label={t('overview.minVersion')} value={`Cognia ${manifest.engines.cognia}`} />
                   )}
                 </div>
+
+                {plugin.descriptor?.compatibility?.diagnostics?.length ? (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-medium text-muted-foreground">Compatibility</h4>
+                      <div className="rounded-lg border border-amber-300/40 bg-amber-500/10 p-3 text-xs space-y-1">
+                        {plugin.descriptor.compatibility.diagnostics.slice(0, 3).map((diagnostic, index) => (
+                          <div key={`${diagnostic.code}-${index}`}>{diagnostic.message}</div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : null}
 
                 {/* Links */}
                 {(manifest.homepage || manifest.repository) && (

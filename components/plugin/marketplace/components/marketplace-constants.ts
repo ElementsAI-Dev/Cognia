@@ -18,10 +18,11 @@ import {
   Sparkles,
   Clock,
   TrendingUp,
+  type LucideIcon,
 } from 'lucide-react';
 import type { CategoryFilter, QuickFilter, PluginCollection } from './marketplace-types';
 
-export const CATEGORY_INFO: Record<CategoryFilter, { icon: React.ElementType; label: string; color: string }> = {
+export const CATEGORY_INFO: Record<CategoryFilter, { icon: LucideIcon; label: string; color: string }> = {
   all: { icon: Grid3X3, label: 'All', color: 'bg-slate-500' },
   tools: { icon: Wrench, label: 'Tools', color: 'bg-blue-500' },
   components: { icon: Layers, label: 'Components', color: 'bg-purple-500' },
@@ -39,7 +40,7 @@ export const CATEGORY_INFO: Record<CategoryFilter, { icon: React.ElementType; la
   scheduler: { icon: Clock, label: 'Scheduler', color: 'bg-sky-500' },
 };
 
-export const QUICK_FILTERS: { id: QuickFilter; label: string; icon: React.ElementType }[] = [
+export const QUICK_FILTERS: { id: QuickFilter; label: string; icon: LucideIcon }[] = [
   { id: 'all', label: 'All', icon: Package },
   { id: 'verified', label: 'Verified', icon: Shield },
   { id: 'free', label: 'Free', icon: Sparkles },

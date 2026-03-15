@@ -5,6 +5,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { useCanvasSuggestions } from './use-canvas-suggestions';
 import type { ArtifactLanguage } from '@/types';
+import { createFeatureProviderModelFromRuntimeConfig } from '@/lib/ai/provider-consumption';
 
 // Mock AI SDK
 jest.mock('ai', () => ({
@@ -43,9 +44,14 @@ jest.mock('@/stores', () => ({
   }),
 }));
 
-// Mock AI core
-jest.mock('@/lib/ai/core/client', () => ({
-  getProviderModel: jest.fn(() => ({
+// Mock shared routing contract
+jest.mock('@/lib/ai/provider-consumption', () => ({
+  createFeatureRoutePolicy: jest.fn((routeProfile, overrides) => ({
+    routeProfile,
+    selectionMode: 'default-provider',
+    ...overrides,
+  })),
+  createFeatureProviderModelFromRuntimeConfig: jest.fn(() => ({
     generateText: jest.fn(),
   })),
 }));
@@ -58,12 +64,15 @@ jest.mock('nanoid', () => ({
 describe('useCanvasSuggestions', () => {
   let mockGenerateText: jest.Mock;
   let mockAddSuggestion: jest.Mock;
+  let mockCreateFeatureProviderModelFromRuntimeConfig: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     
     mockGenerateText = jest.requireMock('ai').generateText;
     mockAddSuggestion = jest.fn();
+    mockCreateFeatureProviderModelFromRuntimeConfig =
+      createFeatureProviderModelFromRuntimeConfig as jest.Mock;
     
     // Mock the useArtifactStore to return the mock function
     jest.requireMock('@/stores').useArtifactStore.mockImplementation((_selector: unknown) => {
@@ -172,7 +181,17 @@ describe('useCanvasSuggestions', () => {
         await result.current.generateSuggestions(mockContext);
       });
 
-      expect(mockGenerateText).toHaveBeenCalled();
+      expect(mockCreateFeatureProviderModelFromRuntimeConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          routeProfile: 'general-text',
+          featureId: 'canvas-suggestions',
+        }),
+        expect.objectContaining({
+          providerId: 'openai',
+          model: 'gpt-4o',
+          apiKey: 'test-api-key',
+        })
+      );
     });
 
     it('should use default provider when session has no provider', async () => {
@@ -208,6 +227,9 @@ describe('useCanvasSuggestions', () => {
         };
         return selector(state);
       });
+      mockCreateFeatureProviderModelFromRuntimeConfig.mockImplementationOnce(() => {
+        throw new Error('Add an API key before using this provider at runtime.');
+      });
 
       const { result } = renderHook(() => useCanvasSuggestions());
 
@@ -216,7 +238,7 @@ describe('useCanvasSuggestions', () => {
         expect(suggestions).toEqual([]);
       });
 
-      expect(result.current.error).toBe('No API key configured for openai');
+      expect(result.current.error).toBe('Add an API key before using this provider at runtime.');
     });
 
     it('should allow ollama provider without API key', async () => {

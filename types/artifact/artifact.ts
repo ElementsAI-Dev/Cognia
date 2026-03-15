@@ -18,6 +18,7 @@ export type ArtifactLanguage =
   | 'javascript'
   | 'typescript'
   | 'python'
+  | 'plaintext'
   | 'html'
   | 'css'
   | 'json'
@@ -31,6 +32,36 @@ export type ArtifactLanguage =
   | 'svg'
   | 'mermaid'
   | 'latex';
+
+export type ArtifactRuntimeHealth = 'ready' | 'loading' | 'error' | 'unsupported';
+
+export type ArtifactExportFormat = 'raw' | 'html' | 'svg' | 'png' | 'pdf';
+
+export type ArtifactWorkspaceScope = 'session' | 'recent';
+
+export interface ArtifactSourceRange {
+  startIndex: number;
+  endIndex: number;
+}
+
+export interface ArtifactWorkspaceReturnContext {
+  scope: ArtifactWorkspaceScope;
+  sessionId?: string | null;
+  searchQuery: string;
+  typeFilter: ArtifactType | 'all';
+  runtimeFilter: ArtifactRuntimeHealth | 'all';
+  activeArtifactId?: string | null;
+}
+
+export interface ArtifactWorkspaceState {
+  scope: ArtifactWorkspaceScope;
+  sessionId?: string | null;
+  searchQuery: string;
+  typeFilter: ArtifactType | 'all';
+  runtimeFilter: ArtifactRuntimeHealth | 'all';
+  recentArtifactIds: string[];
+  returnContext: ArtifactWorkspaceReturnContext | null;
+}
 
 export interface Artifact {
   id: string;
@@ -55,12 +86,29 @@ export interface ArtifactMetadata {
   wordCount?: number;
 
   // For charts
-  chartType?: 'line' | 'bar' | 'pie' | 'area' | 'scatter';
+  chartType?: 'line' | 'bar' | 'pie' | 'doughnut' | 'area' | 'scatter';
   dataSource?: string;
 
   // For HTML/React previews
   previewable?: boolean;
   sandboxed?: boolean;
+
+  // For routed rich output
+  outputProfileId?: string;
+  technology?: string;
+  hostStrategy?: string;
+  requestCategory?: string;
+  rolloutTier?: 'core' | 'advanced';
+
+  // Artifact workspace / detection metadata
+  sourceOrigin?: 'manual' | 'auto' | 'tool';
+  sourceFingerprint?: string;
+  sourceRange?: ArtifactSourceRange;
+  lastAccessedAt?: Date;
+  runtimeHealth?: ArtifactRuntimeHealth;
+  runtimeError?: string;
+  exportFormats?: ArtifactExportFormat[];
+  userInitiated?: boolean;
 }
 
 export interface ArtifactVersion {
@@ -84,6 +132,117 @@ export type CanvasEditorNavigationSource =
 export type CanvasDocumentSaveState = 'saved' | 'autosaved' | 'dirty';
 
 export type CanvasPerformanceMode = 'standard' | 'large' | 'very-large';
+
+export type CanvasWorkbenchActionType =
+  | 'custom'
+  | 'review'
+  | 'fix'
+  | 'improve'
+  | 'explain'
+  | 'simplify'
+  | 'expand'
+  | 'translate'
+  | 'format'
+  | 'run';
+
+export type CanvasActionScope = 'selection' | 'document';
+
+export type CanvasActionEntryPoint = 'toolbar' | 'inline' | 'retry';
+
+export type CanvasAttachmentSourceType =
+  | 'canvas-document'
+  | 'artifact'
+  | 'session-message';
+
+export type CanvasReviewItemStatus =
+  | 'pending'
+  | 'accepted'
+  | 'rejected'
+  | 'invalidated';
+
+export type CanvasReviewStatus =
+  | 'pending'
+  | 'partial'
+  | 'completed'
+  | 'rejected'
+  | 'invalidated';
+
+export type CanvasActionHistoryStatus =
+  | 'pending-review'
+  | 'completed'
+  | 'rejected'
+  | 'failed'
+  | 'invalidated';
+
+export interface CanvasActionAttachment {
+  id: string;
+  sourceType: CanvasAttachmentSourceType;
+  sourceId: string;
+  label: string;
+  snapshot: string;
+  isMissing?: boolean;
+  isTruncated?: boolean;
+}
+
+export interface CanvasReviewDiffLine {
+  type: 'unchanged' | 'added' | 'removed';
+  content: string;
+  lineNumber?: number;
+  newLineNumber?: number;
+}
+
+export interface CanvasReviewLineRange {
+  startLine: number;
+  endLine: number;
+}
+
+export interface CanvasReviewItem {
+  id: string;
+  actionType: CanvasWorkbenchActionType;
+  changeType: 'replace' | 'insert' | 'delete';
+  originalText: string;
+  proposedText: string;
+  status: CanvasReviewItemStatus;
+  range: CanvasReviewLineRange;
+  diffLines: CanvasReviewDiffLine[];
+}
+
+export interface CanvasPendingReview {
+  id: string;
+  requestId: string;
+  actionType: CanvasWorkbenchActionType;
+  originalContent: string;
+  proposedContent: string;
+  createdAt: Date;
+  status: CanvasReviewStatus;
+  items: CanvasReviewItem[];
+  isStale?: boolean;
+}
+
+export interface CanvasActionHistoryEntry {
+  id: string;
+  requestId: string;
+  actionType: CanvasWorkbenchActionType;
+  prompt: string;
+  scope: CanvasActionScope;
+  entryPoint: CanvasActionEntryPoint;
+  createdAt: Date;
+  status: CanvasActionHistoryStatus;
+  attachmentSummary: string[];
+  attachments?: CanvasActionAttachment[];
+  reviewId?: string;
+  error?: string;
+  lineageId?: string;
+}
+
+export interface CanvasAIWorkbenchState {
+  promptDraft: string;
+  selectedPresetAction: CanvasWorkbenchActionType | null;
+  attachments: CanvasActionAttachment[];
+  pendingReview: CanvasPendingReview | null;
+  actionHistory: CanvasActionHistoryEntry[];
+  isInlineCommandOpen: boolean;
+}
 
 export interface CanvasEditorSelection {
   startLineNumber: number;
@@ -129,6 +288,7 @@ export interface CanvasDocument {
   createdAt: Date;
   updatedAt: Date;
   editorContext?: CanvasEditorContext;
+  aiWorkbench?: CanvasAIWorkbenchState;
   aiSuggestions?: CanvasSuggestion[];
   versions?: CanvasDocumentVersion[];
   currentVersionId?: string;
@@ -160,15 +320,15 @@ export interface CanvasSuggestion {
 
 export interface CanvasAction {
   type:
-    | 'review' // Review code/text
-    | 'fix' // Fix issues
-    | 'explain' // Explain selection
-    | 'improve' // Improve quality
-    | 'translate' // Translate to another language
-    | 'simplify' // Simplify content
-    | 'expand' // Expand/elaborate
-    | 'format' // Format/beautify
-    | 'run'; // Execute code (Python)
+    | 'review'
+    | 'fix'
+    | 'explain'
+    | 'improve'
+    | 'translate'
+    | 'simplify'
+    | 'expand'
+    | 'format'
+    | 'run';
   label: string;
   icon: string;
   shortcut?: string;

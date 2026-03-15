@@ -41,6 +41,18 @@ jest.mock('next-intl', () => ({
       'settings.transports.langfuseDesc': 'Send to Langfuse',
       'settings.transports.opentelemetry': 'OpenTelemetry',
       'settings.transports.opentelemetryDesc': 'OpenTelemetry integration',
+      'settings.advanced.title': 'Advanced Controls',
+      'settings.advanced.description': 'Configure queueing, diagnostics, and redaction safety',
+      'settings.advanced.remoteQueueEntries': 'Remote Queue Entries',
+      'settings.advanced.remoteQueueEntriesDesc': 'Maximum queued log entries for remote retry',
+      'settings.advanced.remoteQueueBytes': 'Remote Queue Size (MB)',
+      'settings.advanced.remoteQueueBytesDesc': 'Maximum remote retry queue size in megabytes',
+      'settings.advanced.diagnosticRateLimit': 'Diagnostic Rate Limit (ms)',
+      'settings.advanced.diagnosticRateLimitDesc': 'Throttle repeated transport diagnostics',
+      'settings.advanced.redactionEnabled': 'Enable Redaction',
+      'settings.advanced.redactionEnabledDesc': 'Redact sensitive keys and token-like values before transport',
+      'settings.advanced.redactionDepth': 'Redaction Depth',
+      'settings.advanced.redactionDepthDesc': 'Maximum object traversal depth during redaction',
       'settings.retention.title': 'Log Retention',
       'settings.retention.description': 'Configure log retention',
       'settings.retention.maxEntries': 'Maximum Entries',
@@ -98,6 +110,13 @@ const defaultBootstrapState = {
   enableStorage: true,
   enableRemote: false,
   maxStorageEntries: 10000,
+  redaction: {
+    enabled: true,
+    replacement: '[REDACTED]',
+    redactKeys: ['token'],
+    redactPatterns: ['Bearer\\\\s+.+'],
+    maxDepth: 8,
+  },
   remoteQueueMaxEntries: 5000,
   remoteQueueMaxBytes: 10485760,
   diagnosticRateLimitMs: 2000,
@@ -146,6 +165,14 @@ describe('LogSettings', () => {
       expect(screen.getByText('Log Transports')).toBeInTheDocument();
       expect(screen.getByText('Console Output')).toBeInTheDocument();
       expect(screen.getByText('IndexedDB Storage')).toBeInTheDocument();
+    });
+
+    it('renders advanced logging controls', () => {
+      render(<LogSettings />);
+
+      expect(screen.getByText('Advanced Controls')).toBeInTheDocument();
+      expect(screen.getByText('Remote Queue Entries')).toBeInTheDocument();
+      expect(screen.getByText('Enable Redaction')).toBeInTheDocument();
     });
 
     it('renders retention settings', () => {
@@ -341,7 +368,15 @@ describe('LogSettings', () => {
       await waitFor(() => {
         expect(mockApplyLoggingSettings).toHaveBeenCalledWith(
           expect.objectContaining({
-            config: expect.any(Object),
+            config: expect.objectContaining({
+              remoteQueueMaxEntries: 5000,
+              remoteQueueMaxBytes: 10485760,
+              diagnosticRateLimitMs: 2000,
+              redaction: expect.objectContaining({
+                enabled: true,
+                maxDepth: 8,
+              }),
+            }),
             retention: expect.objectContaining({
               maxEntries: expect.any(Number),
               maxAgeDays: expect.any(Number),

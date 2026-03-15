@@ -200,4 +200,48 @@ describe('PluginMarketplace', () => {
     );
     expect(container.firstChild).toHaveClass('custom-class');
   });
+
+  it('respects canonical source filter when rendering plugin results', () => {
+    mockUseMarketplace.mockReturnValue({
+      plugins: [
+        { ...basePlugin, id: 'market', name: 'Market Plugin', source: 'marketplace' },
+        { ...basePlugin, id: 'dev', name: 'Dev Plugin', source: 'dev', featured: false, trending: false },
+      ],
+      featuredPlugins: [],
+      trendingPlugins: [],
+      isLoading: false,
+      error: null,
+      sourceMode: 'remote',
+      sourceErrorCategory: undefined,
+      sourceErrorMessage: undefined,
+      query: '',
+      sortBy: 'popular',
+      categoryFilter: 'all',
+      quickFilter: 'all',
+      sourceFilter: 'dev',
+      compatibilityFilter: 'all',
+      setQuery: jest.fn(),
+      setSortBy: jest.fn(),
+      setCategoryFilter: jest.fn(),
+      setQuickFilter: jest.fn(),
+      setSourceFilter: jest.fn(),
+      setCompatibilityFilter: jest.fn(),
+      setPage: jest.fn(),
+      page: 1,
+      refresh: jest.fn(),
+      installPlugin: jest.fn().mockResolvedValue({ success: true }),
+      updatePlugin: jest.fn().mockResolvedValue({ success: true }),
+      retryPluginOperation: jest.fn().mockResolvedValue({ success: true }),
+      getVersions: jest.fn().mockResolvedValue([]),
+      getInstallProgress: jest.fn(),
+      getOperationError: jest.fn().mockReturnValue({}),
+      isFavorite: jest.fn().mockReturnValue(false),
+      toggleFavorite: jest.fn(),
+    });
+
+    renderWithProviders(<PluginMarketplace {...mockHandlers} />);
+
+    expect(screen.getByText('Dev Plugin')).toBeInTheDocument();
+    expect(screen.queryByText('Market Plugin')).not.toBeInTheDocument();
+  });
 });

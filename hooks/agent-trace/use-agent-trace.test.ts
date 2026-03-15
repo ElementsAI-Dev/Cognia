@@ -45,6 +45,7 @@ jest.mock('@/lib/db/repositories/agent-trace-repository', () => ({
     findByLineNumber: jest.fn(),
     findLineAttributionWithBlame: jest.fn(),
     exportAsSpecRecord: jest.fn(),
+    exportObservationBundle: jest.fn(),
   },
 }));
 
@@ -56,6 +57,7 @@ const mockClear = agentTraceRepository.clear as jest.Mock;
 const mockFindByLineNumber = agentTraceRepository.findByLineNumber as jest.Mock;
 const mockFindLineAttributionWithBlame = agentTraceRepository.findLineAttributionWithBlame as jest.Mock;
 const mockExportAsSpecRecord = agentTraceRepository.exportAsSpecRecord as jest.Mock;
+const mockExportObservationBundle = agentTraceRepository.exportObservationBundle as jest.Mock;
 
 jest.mock('@/stores/settings', () => ({
   useSettingsStore: jest.fn((selector) => {
@@ -163,6 +165,63 @@ describe('useAgentTrace', () => {
 
       expect(result.current.traces).toHaveLength(1);
       expect(result.current.traces[0].id).toBe('trace-a');
+    });
+
+    it('derives observation rows and filters by outcome, tool name, and trace correlation', () => {
+      const traceA = {
+        id: 'trace-a',
+        sessionId: 'session-1',
+        timestamp: new Date(),
+        record: JSON.stringify({
+          traceId: 'trace-a',
+          turnId: 'turn-a',
+          eventType: 'tool_call_result',
+          metadata: {
+            toolName: 'file_write',
+            success: true,
+          },
+          files: [],
+        }),
+        createdAt: new Date(),
+      };
+      const traceB = {
+        id: 'trace-b',
+        sessionId: 'session-1',
+        timestamp: new Date(),
+        record: JSON.stringify({
+          traceId: 'trace-b',
+          turnId: 'turn-b',
+          eventType: 'tool_call_result',
+          metadata: {
+            toolName: 'code_edit',
+            success: false,
+            error: 'boom',
+          },
+          files: [],
+        }),
+        createdAt: new Date(),
+      };
+      setLiveQueryResults([traceA, traceB], 2);
+
+      const { result } = renderHook(() =>
+        useAgentTrace({
+          outcome: 'error',
+          toolName: 'code',
+          traceId: 'trace-b',
+          turnId: 'turn-b',
+        })
+      );
+
+      expect(result.current.observations).toHaveLength(1);
+      expect(result.current.observations[0]).toMatchObject({
+        id: 'trace-b',
+        outcome: 'error',
+        toolName: 'code_edit',
+        correlation: {
+          traceId: 'trace-b',
+          turnId: 'turn-b',
+        },
+      });
     });
   });
 
@@ -398,6 +457,50 @@ describe('useAgentTrace', () => {
 
       expect(record).toBeNull();
       expect(result.current.error).toBe('Export failed');
+    });
+  });
+
+  describe('exportObservationBundle', () => {
+    it('exports an enriched observation bundle with current filters', async () => {
+      const mockBundle = {
+        exportedAt: '2026-03-14T00:00:00.000Z',
+        filters: {
+          sessionId: 'session-1',
+          outcome: 'error',
+          toolName: 'code',
+        },
+        rows: [],
+        sessionSummaries: [],
+        totalRows: 0,
+        parseFailureCount: 0,
+      };
+      mockExportObservationBundle.mockResolvedValue(mockBundle);
+
+      const { result } = renderHook(() =>
+        useAgentTrace({
+          sessionId: 'session-1',
+          outcome: 'error',
+          toolName: 'code',
+        })
+      );
+
+      let bundle;
+      await act(async () => {
+        bundle = await result.current.exportObservationBundle();
+      });
+
+      expect(bundle).toEqual(mockBundle);
+      expect(mockExportObservationBundle).toHaveBeenCalledWith({
+        sessionId: 'session-1',
+        filePath: undefined,
+        vcsRevision: undefined,
+        eventType: undefined,
+        outcome: 'error',
+        toolName: 'code',
+        traceId: undefined,
+        turnId: undefined,
+        limit: 200,
+      });
     });
   });
 

@@ -4,6 +4,8 @@
  * https://a2ui.org/specification/v0.9-a2ui/
  */
 
+import type { ArtifactLanguage } from './artifact';
+
 // =============================================================================
 // Core Types
 // =============================================================================
@@ -46,6 +48,7 @@ export type A2UIComponentType =
   | 'Icon'
   | 'Animation'
   | 'InteractiveGuide'
+  | 'RichOutput'
   | string; // Allow custom component types
 
 /**
@@ -556,6 +559,85 @@ export interface A2UIToggleComponent extends A2UIBaseComponent {
   action?: string;
 }
 
+export interface A2UIRichOutputItem {
+  id: string;
+  title: string;
+  description?: string;
+  value?: string;
+  badge?: string;
+}
+
+export interface A2UIRichOutputStep {
+  id: string;
+  title: string;
+  description?: string;
+  body?: string;
+}
+
+export interface A2UIRichOutputTableColumn {
+  key: string;
+  label: string;
+  numeric?: boolean;
+}
+
+export interface A2UIRichOutputChartDataset {
+  label: string;
+  data: number[];
+  borderColor?: string;
+  backgroundColor?: string;
+}
+
+export interface A2UIRichOutputChartData {
+  labels: string[];
+  datasets: A2UIRichOutputChartDataset[];
+}
+
+export interface A2UIRichOutputGraphNode {
+  id: string;
+  label: string;
+  group?: string;
+}
+
+export interface A2UIRichOutputGraphEdge {
+  source: string;
+  target: string;
+  value?: number;
+}
+
+export interface A2UIRichOutputPlotPoint {
+  x: number;
+  y: number;
+}
+
+export interface A2UIRichOutputComponent extends A2UIBaseComponent {
+  component: 'RichOutput';
+  profileId: A2UIStringOrPath;
+  title?: A2UIStringOrPath;
+  description?: A2UIStringOrPath;
+  content?: A2UIStringOrPath;
+  fallbackContent?: A2UIStringOrPath;
+  codeLanguage?: ArtifactLanguage;
+  items?: A2UIArrayOrPath<A2UIRichOutputItem>;
+  steps?: A2UIArrayOrPath<A2UIRichOutputStep>;
+  currentStep?: A2UINumberOrPath;
+  currentStepPath?: string;
+  stepChangeAction?: string;
+  tableColumns?: A2UIRichOutputTableColumn[];
+  tableRows?: A2UIArrayOrPath<Record<string, unknown>>;
+  sortKeyPath?: string;
+  sortDirectionPath?: string;
+  sortAction?: string;
+  chartData?: A2UIRichOutputChartData | A2UIPathValue<A2UIRichOutputChartData>;
+  networkNodes?: A2UIRichOutputGraphNode[] | A2UIPathValue<A2UIRichOutputGraphNode[]>;
+  networkEdges?: A2UIRichOutputGraphEdge[] | A2UIPathValue<A2UIRichOutputGraphEdge[]>;
+  plotPoints?: A2UIRichOutputPlotPoint[] | A2UIPathValue<A2UIRichOutputPlotPoint[]>;
+  simulationConfig?: Record<string, unknown> | A2UIPathValue<Record<string, unknown>>;
+  scenePrompt?: A2UIStringOrPath;
+  audioPrompt?: A2UIStringOrPath;
+  height?: number;
+  allowAdvancedProfiles?: boolean;
+}
+
 /**
  * Union type of all component definitions
  */
@@ -590,6 +672,7 @@ export type A2UIComponent =
   | A2UITabsComponent
   | A2UIAccordionComponent
   | A2UIToggleComponent
+  | A2UIRichOutputComponent
   | A2UIBaseComponent; // Fallback for custom components
 
 // =============================================================================

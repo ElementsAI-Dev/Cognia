@@ -14,3 +14,4 @@ export {
   type TriggerConfig,
 } from './workflow-trigger-panel';
 export { WorkflowInputTestPanel } from './workflow-input-test-panel';
+export { WorkflowInspectorPanel } from './workflow-inspector-panel';

@@ -17,6 +17,31 @@ import type {
   ExecutableCell,
 } from '@/types/jupyter';
 
+const WORKSPACE_RETENTION_LIMIT = 5;
+
+type TestNotebookWorkspaceRecoveryStatus = 'ready' | 'restoring' | 'needs_reconnect' | 'error';
+
+interface TestNotebookWorkspaceSnapshot {
+  surfaceId: string;
+  sessionId: string | null;
+  kernelId: string | null;
+  selectedEnvPath: string | null;
+  filePath: string | null;
+  notebookContent: string | null;
+  isDirty: boolean;
+  recoveryStatus: TestNotebookWorkspaceRecoveryStatus;
+  recoveryError: string | null;
+  lastSavedAt: string | null;
+  lastExecutedAt: string | null;
+  updatedAt: string;
+}
+
+interface WorkspaceStoreExtensions {
+  workspaces: Record<string, TestNotebookWorkspaceSnapshot>;
+  upsertWorkspace: (snapshot: TestNotebookWorkspaceSnapshot) => void;
+  getWorkspace: (surfaceId: string) => TestNotebookWorkspaceSnapshot | null;
+}
+
 const createMockSession = (overrides: Partial<JupyterSession> = {}): JupyterSession => ({
   id: 'session-1',
   name: 'Test Session',
@@ -58,6 +83,24 @@ const _createMockResult = (
   displayData: [],
   error: null,
   executionTimeMs: 100,
+  ...overrides,
+});
+
+const createMockWorkspace = (
+  overrides: Partial<TestNotebookWorkspaceSnapshot> = {}
+): TestNotebookWorkspaceSnapshot => ({
+  surfaceId: 'notebook-page',
+  sessionId: 'session-1',
+  kernelId: 'kernel-1',
+  selectedEnvPath: '/path/to/env',
+  filePath: 'C:/notebooks/demo.ipynb',
+  notebookContent: '{"cells":[],"metadata":{},"nbformat":4,"nbformat_minor":5}',
+  isDirty: true,
+  recoveryStatus: 'ready',
+  recoveryError: null,
+  lastSavedAt: null,
+  lastExecutedAt: null,
+  updatedAt: '2026-03-14T10:00:00.000Z',
   ...overrides,
 });
 
@@ -321,6 +364,87 @@ describe('useJupyterStore', () => {
 
       const mapping = result.current.getJupyterSessionForChat('chat-1');
       expect(mapping?.jupyterSessionId).toBe('jupyter-1');
+    });
+  });
+
+  describe('Notebook Workspaces', () => {
+    it('stores and restores a notebook workspace by surface id', () => {
+      const { result } = renderHook(() => useJupyterStore());
+      const workspaceStore = result.current as typeof result.current & WorkspaceStoreExtensions;
+      const workspace = createMockWorkspace();
+
+      act(() => {
+        workspaceStore.upsertWorkspace(workspace);
+      });
+
+      const state = useJupyterStore.getState() as typeof result.current & WorkspaceStoreExtensions;
+
+      expect(state.workspaces['notebook-page']).toMatchObject({
+        filePath: 'C:/notebooks/demo.ipynb',
+        selectedEnvPath: '/path/to/env',
+        isDirty: true,
+      });
+      expect(state.getWorkspace('notebook-page')).toMatchObject({
+        surfaceId: 'notebook-page',
+        notebookContent: workspace.notebookContent,
+      });
+    });
+
+    it('keeps document context and marks workspace for reconnect when its session is removed', () => {
+      const { result } = renderHook(() => useJupyterStore());
+      const workspaceStore = result.current as typeof result.current & WorkspaceStoreExtensions;
+
+      act(() => {
+        result.current.addSession(createMockSession({ id: 'session-1', kernelId: 'kernel-1' }));
+        workspaceStore.upsertWorkspace(
+          createMockWorkspace({
+            surfaceId: 'notebook-page',
+            sessionId: 'session-1',
+            kernelId: 'kernel-1',
+            notebookContent: '{"cells":[{"cell_type":"code","source":["print(1)"]}]}',
+            filePath: 'C:/notebooks/recover.ipynb',
+          })
+        );
+      });
+
+      act(() => {
+        result.current.removeSession('session-1');
+      });
+
+      const state = useJupyterStore.getState() as typeof result.current & WorkspaceStoreExtensions;
+
+      expect(state.getWorkspace('notebook-page')).toMatchObject({
+        surfaceId: 'notebook-page',
+        sessionId: null,
+        kernelId: null,
+        recoveryStatus: 'needs_reconnect',
+        filePath: 'C:/notebooks/recover.ipynb',
+        notebookContent: '{"cells":[{"cell_type":"code","source":["print(1)"]}]}',
+      });
+    });
+
+    it('evicts the oldest workspace snapshots beyond the retention limit', () => {
+      const { result } = renderHook(() => useJupyterStore());
+      const workspaceStore = result.current as typeof result.current & WorkspaceStoreExtensions;
+
+      act(() => {
+        for (let i = 0; i <= WORKSPACE_RETENTION_LIMIT; i += 1) {
+          workspaceStore.upsertWorkspace(
+            createMockWorkspace({
+              surfaceId: `surface-${i}`,
+              updatedAt: `2026-03-14T10:0${i}:00.000Z`,
+            })
+          );
+        }
+      });
+
+      const state = useJupyterStore.getState() as typeof result.current & WorkspaceStoreExtensions;
+
+      expect(Object.keys(state.workspaces)).toHaveLength(WORKSPACE_RETENTION_LIMIT);
+      expect(state.getWorkspace('surface-0')).toBeNull();
+      expect(state.getWorkspace(`surface-${WORKSPACE_RETENTION_LIMIT}`)).toMatchObject({
+        surfaceId: `surface-${WORKSPACE_RETENTION_LIMIT}`,
+      });
     });
   });
 

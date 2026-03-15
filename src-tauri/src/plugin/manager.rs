@@ -46,6 +46,14 @@ pub struct PluginRuntimeDirs {
 }
 
 impl PluginManager {
+    fn normalize_install_root_kind(raw: Option<&str>) -> String {
+        match raw.unwrap_or("installed") {
+            "builtin" => "builtin".to_string(),
+            "dev" => "dev".to_string(),
+            _ => "installed".to_string(),
+        }
+    }
+
     /// Create a new plugin manager
     pub fn new(plugin_dir: PathBuf) -> Self {
         // Ensure plugin directory exists
@@ -281,9 +289,18 @@ impl PluginManager {
             // Parse manifest
             match self.parse_manifest(&manifest_file) {
                 Ok(manifest) => {
+                    let existing_state = self.plugins.read().await.get(&manifest.id).cloned();
                     results.push(PluginScanResult {
                         manifest,
+                        source: existing_state
+                            .as_ref()
+                            .map(|state| state.source.clone())
+                            .unwrap_or_else(|| "local".to_string()),
                         path: path.to_string_lossy().to_string(),
+                        install_root_kind: existing_state
+                            .as_ref()
+                            .map(|state| state.install_root_kind.clone())
+                            .unwrap_or_else(|| "installed".to_string()),
                     });
                 }
                 Err(e) => {
@@ -301,14 +318,18 @@ impl PluginManager {
                 let mut state = existing.unwrap_or(PluginState {
                     manifest: result.manifest.clone(),
                     status: PluginStatus::Installed,
+                    source: result.source.clone(),
                     path: result.path.clone(),
+                    install_root_kind: result.install_root_kind.clone(),
                     config: serde_json::json!({}),
                     error: None,
                     installed_at: Some(Self::now_iso8601()),
                     enabled_at: None,
                 });
                 state.manifest = result.manifest.clone();
+                state.source = result.source.clone();
                 state.path = result.path.clone();
+                state.install_root_kind = result.install_root_kind.clone();
                 plugins.insert(id, state);
             }
         }
@@ -492,7 +513,7 @@ impl PluginManager {
         let source_path = PathBuf::from(&options.source);
 
         // Determine installation method
-        let result = match options.install_type.as_str() {
+        let mut result = match options.install_type.as_str() {
             "local" => self.install_from_local(&source_path).await,
             "git" => self.install_from_git(&options.source).await,
             "marketplace" => self.install_from_marketplace(&options.source).await,
@@ -501,6 +522,9 @@ impl PluginManager {
                 options.install_type
             ))),
         }?;
+        result.source = options.install_type.clone();
+        result.install_root_kind =
+            Self::normalize_install_root_kind(options.install_root_kind.as_deref());
 
         {
             let mut plugins = self.plugins.write().await;
@@ -509,7 +533,9 @@ impl PluginManager {
                 PluginState {
                     manifest: result.manifest.clone(),
                     status: PluginStatus::Installed,
+                    source: result.source.clone(),
                     path: result.path.clone(),
+                    install_root_kind: result.install_root_kind.clone(),
                     config: serde_json::json!({}),
                     error: None,
                     installed_at: Some(Self::now_iso8601()),
@@ -550,7 +576,9 @@ impl PluginManager {
 
         Ok(PluginScanResult {
             manifest,
+            source: "local".to_string(),
             path: dest_path.to_string_lossy().to_string(),
+            install_root_kind: "installed".to_string(),
         })
     }
 
@@ -607,7 +635,9 @@ impl PluginManager {
 
         Ok(PluginScanResult {
             manifest,
+            source: "git".to_string(),
             path: dest_path.to_string_lossy().to_string(),
+            install_root_kind: "installed".to_string(),
         })
     }
 
@@ -672,7 +702,9 @@ impl PluginManager {
 
         Ok(PluginScanResult {
             manifest,
+            source: "marketplace".to_string(),
             path: dest_path.to_string_lossy().to_string(),
+            install_root_kind: "installed".to_string(),
         })
     }
 
@@ -1303,6 +1335,37 @@ mod tests {
         let plugins = result.unwrap();
         assert_eq!(plugins.len(), 1);
         assert_eq!(plugins[0].manifest.id, "test-plugin");
+        assert_eq!(plugins[0].source, "local");
+        assert_eq!(plugins[0].install_root_kind, "installed");
+    }
+
+    #[tokio::test]
+    async fn test_install_plugin_persists_source_and_install_root_kind() {
+        let temp_dir = tempdir().unwrap();
+        let manager = PluginManager::new(temp_dir.path().to_path_buf());
+
+        let source_dir = tempdir().unwrap();
+        let manifest = create_test_manifest();
+        let manifest_json = serde_json::to_string_pretty(&manifest).unwrap();
+        fs::write(source_dir.path().join("plugin.json"), manifest_json).unwrap();
+
+        let result = manager
+            .install_plugin(PluginInstallOptions {
+                source: source_dir.path().to_string_lossy().to_string(),
+                install_type: "local".to_string(),
+                plugin_dir: temp_dir.path().to_string_lossy().to_string(),
+                install_root_kind: Some("dev".to_string()),
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(result.source, "local");
+        assert_eq!(result.install_root_kind, "dev");
+
+        let plugins = manager.get_all_plugins().await;
+        assert_eq!(plugins.len(), 1);
+        assert_eq!(plugins[0].source, "local");
+        assert_eq!(plugins[0].install_root_kind, "dev");
     }
 
     #[tokio::test]

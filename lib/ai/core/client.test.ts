@@ -16,6 +16,8 @@ import {
   createFireworksClient,
   createCerebrasClient,
   createSambaNovaClient,
+  createZhipuClient,
+  createMiniMaxClient,
   createCustomProviderClient,
   getProviderModel,
   getCustomProviderModel,
@@ -26,6 +28,10 @@ import {
   getDefaultModel,
   type ProviderName,
 } from '../core/client';
+import {
+  getLegacyProviderFacadeDiagnostics,
+  resetLegacyProviderFacadeDiagnostics,
+} from '@/lib/ai/provider-consumption';
 
 // Helper type for mock model results
 interface MockModelResult {
@@ -63,6 +69,10 @@ jest.mock('@ai-sdk/mistral', () => ({
     return mockProvider;
   }),
 }));
+
+beforeEach(() => {
+  resetLegacyProviderFacadeDiagnostics();
+});
 
 describe('createOpenAIClient', () => {
   it('creates OpenAI client with API key', () => {
@@ -268,6 +278,38 @@ describe('createSambaNovaClient', () => {
   });
 });
 
+describe('createZhipuClient', () => {
+  it('creates Zhipu client with correct base URL', () => {
+    const client = createZhipuClient('test-api-key');
+    expect(client).toBeDefined();
+    expect(typeof client).toBe('function');
+  });
+
+  it('returns a callable model function', () => {
+    const client = createZhipuClient('test-api-key');
+    const model = client('glm-4-flash') as unknown as MockModelResult;
+    expect(model).toBeDefined();
+    expect(model.model).toBe('glm-4-flash');
+    expect(model.baseURL).toBe('https://open.bigmodel.cn/api/paas/v4');
+  });
+});
+
+describe('createMiniMaxClient', () => {
+  it('creates MiniMax client with correct base URL', () => {
+    const client = createMiniMaxClient('test-api-key');
+    expect(client).toBeDefined();
+    expect(typeof client).toBe('function');
+  });
+
+  it('returns a callable model function', () => {
+    const client = createMiniMaxClient('test-api-key');
+    const model = client('abab6.5s-chat') as unknown as MockModelResult;
+    expect(model).toBeDefined();
+    expect(model.model).toBe('abab6.5s-chat');
+    expect(model.baseURL).toBe('https://api.minimax.chat/v1');
+  });
+});
+
 describe('createCustomProviderClient', () => {
   it('creates custom provider client with base URL and API key (default OpenAI protocol)', () => {
     const client = createCustomProviderClient('https://custom.api.com/v1', 'test-api-key');
@@ -309,6 +351,22 @@ describe('createCustomProviderClient', () => {
 });
 
 describe('getProviderModel', () => {
+  it('records migration diagnostics for legacy direct model lookups', () => {
+    getProviderModel('openai', 'gpt-4o', 'test-key');
+
+    expect(getLegacyProviderFacadeDiagnostics()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          facadeId: 'core/client',
+          helperName: 'getProviderModel',
+          providerId: 'openai',
+          routeProfile: 'legacy-compat',
+          count: 1,
+        }),
+      ])
+    );
+  });
+
   it('returns OpenAI model for openai provider', () => {
     const model = getProviderModel('openai', 'gpt-4o', 'test-key') as unknown as MockModelResult;
     expect(model).toBeDefined();
@@ -405,6 +463,20 @@ describe('getProviderModel', () => {
     const model = getProviderModel('sambanova', 'Meta-Llama-3.3-70B-Instruct', 'test-key') as unknown as MockModelResult;
     expect(model).toBeDefined();
     expect(model.model).toBe('Meta-Llama-3.3-70B-Instruct');
+  });
+
+  it('returns Zhipu model for zhipu provider', () => {
+    const model = getProviderModel('zhipu', 'glm-4-flash', 'test-key') as unknown as MockModelResult;
+    expect(model).toBeDefined();
+    expect(model.model).toBe('glm-4-flash');
+    expect(model.baseURL).toBe('https://open.bigmodel.cn/api/paas/v4');
+  });
+
+  it('returns MiniMax model for minimax provider', () => {
+    const model = getProviderModel('minimax', 'abab6.5s-chat', 'test-key') as unknown as MockModelResult;
+    expect(model).toBeDefined();
+    expect(model.model).toBe('abab6.5s-chat');
+    expect(model.baseURL).toBe('https://api.minimax.chat/v1');
   });
 });
 
@@ -556,6 +628,14 @@ describe('defaultModels', () => {
   it('has default model for sambanova', () => {
     expect(defaultModels.sambanova).toBe('Meta-Llama-3.3-70B-Instruct');
   });
+
+  it('has default model for zhipu', () => {
+    expect(defaultModels.zhipu).toBe('glm-4-flash');
+  });
+
+  it('has default model for minimax', () => {
+    expect(defaultModels.minimax).toBe('abab6.5s-chat');
+  });
 });
 
 describe('isValidProvider', () => {
@@ -563,6 +643,7 @@ describe('isValidProvider', () => {
     const validProviders = [
       'openai', 'anthropic', 'google', 'deepseek', 'groq',
       'mistral', 'xai', 'togetherai', 'openrouter', 'cohere',
+      'zhipu', 'minimax',
       'fireworks', 'cerebras', 'sambanova', 'ollama', 'auto'
     ];
     validProviders.forEach(provider => {
@@ -618,6 +699,8 @@ describe('getDefaultModel', () => {
     expect(getDefaultModel('anthropic')).toBe('claude-sonnet-4-20250514');
     expect(getDefaultModel('google')).toBe('gemini-2.0-flash-exp');
     expect(getDefaultModel('openrouter')).toBe('anthropic/claude-sonnet-4');
+    expect(getDefaultModel('zhipu')).toBe('glm-4-flash');
+    expect(getDefaultModel('minimax')).toBe('abab6.5s-chat');
   });
 
   it('returns openai default for auto mode', () => {

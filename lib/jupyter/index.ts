@@ -67,3 +67,12 @@ export { KERNEL_STATUS_CONFIG, VARIABLE_TYPE_COLORS } from './constants';
 
 // Notebook utilities
 export { toJupyterOutputs, applyCellsToNotebook } from './notebook-utils';
+
+// Workspace adapter
+export {
+  NOTEBOOK_PAGE_WORKSPACE_SURFACE_ID,
+  DEFAULT_INTERACTIVE_NOTEBOOK_SURFACE_ID,
+  getInteractiveNotebookSurfaceId,
+  buildNotebookWorkspaceSnapshotInput,
+  syncNotebookContentWithSessionCells,
+} from './workspace';

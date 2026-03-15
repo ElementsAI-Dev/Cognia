@@ -27,7 +27,8 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
-import { testProviderConnection } from '@/lib/ai/infrastructure/api-test';
+import { probeProviderConnection } from '@/lib/ai/infrastructure/api-test';
+import { resolveBuiltInProviderConnectivityTarget } from '@/lib/ai/providers/connectivity';
 import { useProviderHealth } from '@/hooks/ai/use-provider-manager';
 
 interface ProviderHealthStatusProps {
@@ -64,6 +65,7 @@ export function ProviderHealthStatus({
   const settings = providerSettings[providerId];
   const [isChecking, setIsChecking] = useState(false);
   const [lastLatency, setLastLatency] = useState<number | null>(null);
+  const [lastMessage, setLastMessage] = useState<string | null>(null);
   
   const healthStatus: HealthStatus = settings?.healthStatus || 'unknown';
   const lastHealthCheck = settings?.lastHealthCheck;
@@ -73,32 +75,27 @@ export function ProviderHealthStatus({
 
   // Wire infrastructure health data (circuit breaker, availability)
   const { circuitState, availability, resetCircuit } = useProviderHealth(providerId);
-  const baseURL = settings?.baseURL;
-  const activeApiKey =
-    settings?.apiKey ||
-    settings?.apiKeys?.[settings.currentKeyIndex || 0] ||
-    settings?.apiKeys?.[0] ||
-    '';
+  const target = resolveBuiltInProviderConnectivityTarget(providerId, settings);
   
   const checkHealth = useCallback(async () => {
-    if (!activeApiKey && providerId !== 'ollama') return;
+    if ((target.requiresCredential && !target.apiKey) || (target.requiresBaseURL && !target.baseURL)) return;
     
     setIsChecking(true);
     
     try {
-      const result = await testProviderConnection(
-        providerId,
-        activeApiKey,
-        baseURL
-      );
+      const result = await probeProviderConnection(target);
       
       let newStatus: HealthStatus = 'unknown';
-      if (result.success) {
+      if (result.outcome === 'limited' || result.authoritative === false) {
+        newStatus = 'unknown';
+        setLastLatency(null);
+      } else if (result.success) {
         newStatus = result.latency_ms && result.latency_ms > 5000 ? 'degraded' : 'healthy';
         setLastLatency(result.latency_ms || null);
       } else {
         newStatus = 'error';
       }
+      setLastMessage(result.message || null);
       
       updateProviderSettings(providerId, {
         healthStatus: newStatus,
@@ -109,19 +106,23 @@ export function ProviderHealthStatus({
         healthStatus: 'error',
         lastHealthCheck: Date.now(),
       });
+      setLastMessage(null);
     } finally {
       setIsChecking(false);
     }
-  }, [providerId, activeApiKey, baseURL, updateProviderSettings]);
+  }, [providerId, target, updateProviderSettings]);
   
   // Auto-check health on mount if stale (> 5 minutes)
   useEffect(() => {
     if (!lastHealthCheck || Date.now() - lastHealthCheck > 5 * 60 * 1000) {
-      if (activeApiKey || providerId === 'ollama') {
+      if (
+        (!target.requiresCredential || !!target.apiKey) &&
+        (!target.requiresBaseURL || !!target.baseURL)
+      ) {
         checkHealth();
       }
     }
-  }, [providerId, activeApiKey, lastHealthCheck, checkHealth]);
+  }, [providerId, target, lastHealthCheck, checkHealth]);
   
   const formatLastCheck = () => {
     if (!lastHealthCheck) return t('neverChecked');
@@ -174,7 +175,11 @@ export function ProviderHealthStatus({
           variant="ghost"
           size="sm"
           onClick={checkHealth}
-          disabled={isChecking || (!settings?.apiKey && providerId !== 'ollama')}
+          disabled={
+            isChecking ||
+            (target.requiresCredential && !target.apiKey) ||
+            (target.requiresBaseURL && !target.baseURL)
+          }
         >
           {isChecking ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -203,6 +208,12 @@ export function ProviderHealthStatus({
           <Badge variant={lastLatency > 3000 ? 'destructive' : 'secondary'}>
             {lastLatency}ms
           </Badge>
+        </div>
+      )}
+
+      {lastMessage && (
+        <div className="text-xs text-muted-foreground">
+          {lastMessage}
         </div>
       )}
       

@@ -38,6 +38,9 @@ const mockBattles = [
     isBothBad: false,
   },
 ];
+const mockSetWorkflowDraftPrompt = jest.fn();
+const mockSetWorkflowEntryPoint = jest.fn();
+let mockWorkflowDraftPrompt = '';
 
 jest.mock('@/stores/arena', () => ({
   useArenaStore: jest.fn((selector) => {
@@ -47,6 +50,23 @@ jest.mock('@/stores/arena', () => ({
       setActiveBattle: jest.fn(),
       modelRatings: [],
       getRecommendedMatchup: () => null,
+      workflowContext: {
+        draftPrompt: mockWorkflowDraftPrompt,
+        entryPoint: null,
+        activeReviewBattleId: null,
+        lastActiveBattleId: null,
+        historyFilters: {
+          searchQuery: '',
+          status: 'all',
+          model: 'all',
+          sortOrder: 'newest',
+        },
+        selectedReviewBattleIds: [],
+        recentMatchupPairKeys: [],
+        currentRecommendation: null,
+      },
+      setWorkflowDraftPrompt: mockSetWorkflowDraftPrompt,
+      setWorkflowEntryPoint: mockSetWorkflowEntryPoint,
     };
     return typeof selector === 'function' ? selector(state) : state;
   }),
@@ -98,6 +118,7 @@ jest.mock('@/lib/utils', () => ({
 describe('ArenaChatView', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockWorkflowDraftPrompt = '';
   });
 
   describe('rendering', () => {
@@ -174,6 +195,15 @@ describe('ArenaChatView', () => {
 
       expect(container.firstChild).toHaveClass('custom-class');
     });
+
+    it('prefers workflow draft prompt when available', () => {
+      mockWorkflowDraftPrompt = 'Stored workflow draft';
+
+      render(<ArenaChatView initialPrompt="Initial prompt" />);
+
+      const textarea = screen.getByPlaceholderText('Enter a prompt to compare...');
+      expect(textarea).toHaveValue('Stored workflow draft');
+    });
   });
 
   describe('responsive design', () => {
@@ -182,6 +212,18 @@ describe('ArenaChatView', () => {
 
       const header = container.querySelector('.px-3');
       expect(header).toBeInTheDocument();
+    });
+  });
+
+  describe('workflow context', () => {
+    it('updates shared workflow draft when textarea changes', () => {
+      render(<ArenaChatView />);
+
+      fireEvent.change(screen.getByPlaceholderText('Enter a prompt to compare...'), {
+        target: { value: 'New shared draft' },
+      });
+
+      expect(mockSetWorkflowDraftPrompt).toHaveBeenCalledWith('New shared draft');
     });
   });
 });

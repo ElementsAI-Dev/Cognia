@@ -131,7 +131,18 @@ describe('PluginManager', () => {
         pluginDir: '/plugins',
       });
 
-      expect(store.discoverPlugin).toHaveBeenCalledWith(manifest, 'git', '/plugins/git-plugin');
+      expect(store.discoverPlugin).toHaveBeenCalledWith(
+        manifest,
+        'git',
+        '/plugins/git-plugin',
+        expect.objectContaining({
+          descriptor: expect.objectContaining({
+            source: 'git',
+            resolvedPath: '/plugins/git-plugin',
+            installRoot: expect.objectContaining({ kind: 'installed' }),
+          }),
+        })
+      );
       expect(store.installPlugin).toHaveBeenCalledWith('git-plugin');
       expect(plugin?.manifest.id).toBe('git-plugin');
       expect(plugin?.status).toBe('installed');
@@ -332,6 +343,64 @@ describe('PluginManager', () => {
       expect(store.plugins['scanned-plugin'].status).toBe('installed');
       expect(store.plugins['scanned-plugin'].installedAt).toEqual(expect.any(Date));
       // With requireSignatures=false and allowUntrusted=true, verify is skipped
+    });
+
+    it('should pass through backend source metadata when scanning plugins', async () => {
+      const store: {
+        plugins: Record<string, Plugin>;
+        discoverPlugin: jest.Mock;
+        installPlugin: jest.Mock;
+      } = {
+        plugins: {},
+        discoverPlugin: jest.fn((manifest: PluginManifest, source: string, path: string) => {
+          store.plugins[manifest.id] = {
+            manifest,
+            status: 'discovered',
+            source: source as never,
+            path,
+            config: {},
+          };
+        }),
+        installPlugin: jest.fn(async (pluginId: string) => {
+          const p = store.plugins[pluginId];
+          if (p) {
+            store.plugins[pluginId] = {
+              ...p,
+              status: 'installed',
+              installedAt: new Date(),
+            };
+          }
+        }),
+      };
+
+      mockGetState.mockReturnValue(store);
+
+      const manifest = createManifest('dev-scanned-plugin');
+      mockInvoke.mockResolvedValueOnce([
+        {
+          manifest,
+          path: '/plugins/dev-scanned-plugin',
+          source: 'dev',
+          installRootKind: 'dev',
+        },
+      ]);
+
+      const manager = new PluginManager({ pluginDirectory: '/plugins' });
+
+      await manager.scanPlugins();
+
+      expect(store.discoverPlugin).toHaveBeenCalledWith(
+        manifest,
+        'dev',
+        '/plugins/dev-scanned-plugin',
+        expect.objectContaining({
+          installRootKind: 'dev',
+          descriptor: expect.objectContaining({
+            source: 'dev',
+            installRoot: expect.objectContaining({ kind: 'dev' }),
+          }),
+        })
+      );
     });
 
     it('should skip invalid manifests', async () => {

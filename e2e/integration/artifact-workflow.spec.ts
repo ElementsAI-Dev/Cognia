@@ -1,220 +1,140 @@
 import { test, expect } from '@playwright/test';
-import { waitForAnimation } from '../utils/test-helpers';
 
-/**
- * Artifact Workflow Integration Tests
- * Tests the complete artifact creation and management workflow
- */
-test.describe('Artifact Creation Flow', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
-  });
+const SEEDED_SESSION = {
+  id: 'session-artifact-workflow',
+  title: 'Artifact Workflow Session',
+  createdAt: '2026-03-14T00:00:00.000Z',
+  updatedAt: '2026-03-14T00:00:00.000Z',
+  provider: 'openai',
+  model: 'gpt-4o',
+  mode: 'chat',
+  messageCount: 1,
+};
 
-  test('should toggle artifact panel visibility', async ({ page }) => {
-    // Look for artifact panel toggle button
-    const toggleButton = page.locator(
-      '[data-testid="artifact-toggle"], button[aria-label*="artifact" i], button[aria-label*="canvas" i]'
-    ).first();
+const SEEDED_ARTIFACT = {
+  id: 'artifact-workflow-html',
+  sessionId: SEEDED_SESSION.id,
+  messageId: 'assistant-msg-workflow',
+  type: 'html',
+  title: 'Workflow Seed Artifact',
+  content:
+    '<!DOCTYPE html><html><body><section><h1>Workflow Artifact</h1><p>Seeded assistant output</p></section></body></html>',
+  language: 'html',
+  version: 1,
+  createdAt: '2026-03-14T00:00:00.000Z',
+  updatedAt: '2026-03-14T00:00:00.000Z',
+  metadata: {
+    sourceOrigin: 'auto',
+    sourceFingerprint: 'workflow-artifact-fingerprint',
+    runtimeHealth: 'ready',
+    userInitiated: false,
+    exportFormats: ['raw'],
+  },
+};
 
-    if (await toggleButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await toggleButton.click();
-      await waitForAnimation(page);
+async function seedWorkflow(page: import('@playwright/test').Page) {
+  await page.addInitScript(
+    ({ session, artifact }) => {
+      localStorage.setItem('cognia:onboarding:main', 'true');
+      localStorage.setItem('cognia:onboarding:feature-tour', 'true');
+      localStorage.removeItem('cognia-chat-migration-v3');
 
-      // Panel should appear or disappear
-      const panel = page.locator('[data-testid="artifact-panel"], [data-testid="canvas-panel"]').first();
-      const panelVisible = await panel.isVisible({ timeout: 3000 }).catch(() => false);
-      expect(typeof panelVisible).toBe('boolean');
-    }
-  });
-
-  test('should display artifact list when panel is open', async ({ page }) => {
-    // First try to open the artifact panel
-    const toggleButton = page.locator('[data-testid="artifact-toggle"]').first();
-    if (await toggleButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await toggleButton.click();
-      await waitForAnimation(page);
-    }
-
-    // Check for artifact list container
-    const artifactList = page.locator('[data-testid="artifact-list"], .artifacts-container').first();
-    const isVisible = await artifactList.isVisible({ timeout: 5000 }).catch(() => false);
-
-    if (isVisible) {
-      await expect(artifactList).toBeVisible();
-    }
-  });
-
-  test('should show artifact preview on selection', async ({ page }) => {
-    // Navigate to designer which typically has artifact preview
-    await page.goto('/designer');
-    await page.waitForLoadState('domcontentloaded');
-
-    const previewArea = page.locator(
-      '[data-testid="artifact-preview"], .preview-container, iframe'
-    ).first();
-
-    const hasPreview = await previewArea.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasPreview) {
-      await expect(previewArea).toBeVisible();
-    }
-  });
-});
-
-test.describe('Code Artifact Flow', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
-  });
-
-  test('should render code blocks with syntax highlighting', async ({ page }) => {
-    // Code blocks appear in chat messages
-    const codeBlock = page.locator('pre code, .hljs, [data-language]').first();
-
-    // Wait for any code block to appear (may need chat history)
-    const hasCode = await codeBlock.isVisible({ timeout: 3000 }).catch(() => false);
-    if (hasCode) {
-      await expect(codeBlock).toBeVisible();
-
-      // Check for syntax highlighting classes
-      const classes = await codeBlock.getAttribute('class');
-      expect(classes !== null || true).toBe(true);
-    }
-  });
-
-  test('should have copy button for code blocks', async ({ page }) => {
-    const codeBlock = page.locator('pre').first();
-
-    if (await codeBlock.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // Hover to reveal copy button
-      await codeBlock.hover();
-      await waitForAnimation(page);
-
-      const copyButton = page.locator(
-        'button[aria-label*="copy" i], [data-testid="copy-code"]'
-      ).first();
-
-      const hasCopy = await copyButton.isVisible({ timeout: 2000 }).catch(() => false);
-      if (hasCopy) {
-        await expect(copyButton).toBeEnabled();
-      }
-    }
-  });
-
-  test('should copy code to clipboard on button click', async ({ page, context }) => {
-    // Grant clipboard permissions
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-
-    const codeBlock = page.locator('pre').first();
-
-    if (await codeBlock.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await codeBlock.hover();
-      await waitForAnimation(page);
-
-      const copyButton = page.locator('button[aria-label*="copy" i]').first();
-
-      if (await copyButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await copyButton.click();
-
-        // Check for success feedback (toast or button state change)
-        const successIndicator = page.locator(
-          '[data-testid="copy-success"], button[aria-label*="copied" i]'
-        ).first();
-        const hasSuccess = await successIndicator.isVisible({ timeout: 2000 }).catch(() => false);
-        expect(hasSuccess || true).toBe(true);
-      }
-    }
-  });
-});
-
-test.describe('Canvas Artifact Flow', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/designer');
-    await page.waitForLoadState('domcontentloaded');
-  });
-
-  test('should display canvas panel in designer', async ({ page }) => {
-    const canvasPanel = page.locator(
-      '[data-testid="canvas-panel"], .canvas-container, [data-testid="designer-canvas"]'
-    ).first();
-
-    const hasCanvas = await canvasPanel.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasCanvas) {
-      await expect(canvasPanel).toBeVisible();
-    }
-  });
-
-  test('should select artifact items in canvas', async ({ page }) => {
-    const artifactItem = page.locator(
-      '[data-testid="artifact-item"], .artifact-card, [data-testid="canvas-item"]'
-    ).first();
-
-    if (await artifactItem.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await artifactItem.click();
-      await waitForAnimation(page);
-
-      // Check for selection indicator
-      const isSelected = await artifactItem.getAttribute('aria-selected');
-      const hasSelectedClass = await artifactItem.evaluate(
-        (el) => el.classList.contains('selected') || el.classList.contains('ring-2')
+      localStorage.setItem(
+        'cognia-sessions',
+        JSON.stringify({
+          state: {
+            activeSessionId: session.id,
+            modeHistory: [],
+            folders: [],
+            inputDrafts: {},
+          },
+          version: 3,
+        })
       );
-      expect(isSelected === 'true' || hasSelectedClass || true).toBe(true);
+
+      localStorage.setItem(
+        'cognia-sessions-legacy-snapshot-v3',
+        JSON.stringify({
+          state: {
+            sessions: [session],
+            activeSessionId: session.id,
+          },
+        })
+      );
+
+      localStorage.setItem(
+        'cognia-artifacts',
+        JSON.stringify({
+          state: {
+            artifacts: {
+              [artifact.id]: artifact,
+            },
+            artifactVersions: {},
+            artifactWorkspace: {
+              scope: 'session',
+              sessionId: session.id,
+              searchQuery: '',
+              typeFilter: 'all',
+              runtimeFilter: 'all',
+              recentArtifactIds: [artifact.id],
+              returnContext: null,
+            },
+            canvasDocuments: {},
+            analysisResults: {},
+          },
+          version: 2,
+        })
+      );
+    },
+    {
+      session: SEEDED_SESSION,
+      artifact: SEEDED_ARTIFACT,
     }
-  });
+  );
+}
 
-  test('should resize canvas panel with drag handle', async ({ page }) => {
-    const resizeHandle = page.locator(
-      '[data-testid="resize-handle"], .resize-handle, [role="separator"]'
-    ).first();
+async function openArtifactsPanel(page: import('@playwright/test').Page) {
+  const loadingScreen = page.getByRole('status');
+  if (await loadingScreen.isVisible().catch(() => false)) {
+    await expect(loadingScreen).toBeHidden({ timeout: 15000 });
+  }
 
-    if (await resizeHandle.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // Get initial panel width
-      const panel = page.locator('[data-testid="canvas-panel"]').first();
-      const initialBox = await panel.boundingBox();
+  const skipSetup = page.getByRole('button', { name: /skip for now/i });
+  if (await skipSetup.isVisible().catch(() => false)) {
+    await skipSetup.click();
+    await expect(page.getByRole('dialog', { name: /welcome to cognia/i })).toBeHidden({
+      timeout: 10000,
+    });
+  }
 
-      if (initialBox) {
-        // Drag resize handle
-        await resizeHandle.dragTo(resizeHandle, {
-          targetPosition: { x: -50, y: 0 },
-        });
+  await page.getByTestId('chat-panel-toggle').click();
+  await page.getByTestId('chat-open-artifact-panel').click();
+  await expect(page.getByTestId('artifact-panel')).toBeVisible();
+}
 
-        // Panel should have resized
-        const newBox = await panel.boundingBox();
-        expect(newBox !== null).toBe(true);
-      }
-    }
-  });
-});
-
-test.describe('Artifact Export Flow', () => {
+test.describe('Artifact Workflow Integration', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
+    await seedWorkflow(page);
+    await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await expect(page.getByTestId('chat-panel-toggle')).toBeVisible();
   });
 
-  test('should have download option for artifacts', async ({ page }) => {
-    const downloadButton = page.locator(
-      'button[aria-label*="download" i], [data-testid="download-artifact"]'
-    ).first();
+  test('returns to the same artifact after handing off to Canvas', async ({ page }) => {
+    await openArtifactsPanel(page);
+    await page.getByTestId(`artifact-list-item-${SEEDED_ARTIFACT.id}`).click();
 
-    const hasDownload = await downloadButton.isVisible({ timeout: 3000 }).catch(() => false);
-    if (hasDownload) {
-      await expect(downloadButton).toBeEnabled();
+    await expect(page.getByTestId('artifact-panel')).toContainText(SEEDED_ARTIFACT.title);
+    await page.getByTestId('artifact-open-in-canvas').click();
+
+    await expect(page.getByTestId('canvas-panel')).toBeVisible();
+    await expect(page.getByTestId('canvas-save-state')).toBeVisible();
+    await page.getByTestId('canvas-close-button').dispatchEvent('click');
+    const discardClose = page.getByTestId('canvas-close-confirm-discard');
+    if (await discardClose.isVisible().catch(() => false)) {
+      await discardClose.click();
     }
-  });
 
-  test('should export artifact in supported formats', async ({ page }) => {
-    // Check for export format options
-    const exportButton = page.locator('button:has-text("Export")').first();
-
-    if (await exportButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await exportButton.click();
-      await waitForAnimation(page);
-
-      // Format options should appear
-      const formatOptions = page.locator('[data-testid="export-format"], [role="menuitem"]');
-      const formatCount = await formatOptions.count();
-      expect(formatCount).toBeGreaterThanOrEqual(0);
-    }
+    await openArtifactsPanel(page);
+    await expect(page.getByTestId('artifact-panel')).toContainText(SEEDED_ARTIFACT.title);
   });
 });

@@ -14,7 +14,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import type { KnowledgeFile } from '@/types';
-import { detectDocumentType } from '@/lib/document';
+import { detectDocumentType, mapDocumentTypeToKnowledgeFileType } from '@/lib/document';
 
 /**
  * Map of knowledge file types to their icon components
@@ -57,25 +57,8 @@ export const FILE_TYPE_COLORS: Record<string, string> = {
  */
 export function detectFileType(filename: string, content?: string): KnowledgeFile['type'] {
   const docType = detectDocumentType(filename);
-  
-  // Map DocumentType to KnowledgeFile type
-  const typeMap: Record<string, KnowledgeFile['type']> = {
-    markdown: 'markdown',
-    code: 'code',
-    text: 'text',
-    json: 'json',
-    pdf: 'pdf',
-    word: 'word',
-    excel: 'excel',
-    csv: 'csv',
-    html: 'html',
-    presentation: 'presentation',
-    rtf: 'rtf',
-    epub: 'epub',
-    unknown: 'text',
-  };
 
-  const mappedType = typeMap[docType];
+  const mappedType = mapDocumentTypeToKnowledgeFileType(docType);
   if (mappedType && mappedType !== 'text') return mappedType;
 
   // Try to detect from content for text files

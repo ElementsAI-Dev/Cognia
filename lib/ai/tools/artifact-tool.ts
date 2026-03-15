@@ -10,6 +10,7 @@
 
 import { z } from 'zod';
 import { useArtifactStore, useSessionStore } from '@/stores';
+import { buildArtifactSourceMetadata } from '@/lib/artifacts/source-metadata';
 import type { Artifact, ArtifactType, ArtifactLanguage } from '@/types';
 import type { ToolDefinition } from './registry';
 
@@ -58,6 +59,11 @@ export const artifactCreateInputSchema = z.object({
     .optional()
     .describe('Programming language (for code artifacts)'),
   description: z.string().optional().describe('Optional description of what the artifact does'),
+  outputProfileId: z.string().optional().describe('Selected rich-output profile identifier'),
+  technology: z.string().optional().describe('Rendering technology chosen for this artifact'),
+  hostStrategy: z.string().optional().describe('Host strategy used to render this artifact'),
+  requestCategory: z.string().optional().describe('Original routed request category'),
+  rolloutTier: z.enum(['core', 'advanced']).optional().describe('Rollout tier for the selected output profile'),
   autoRender: z.boolean().optional().default(true).describe('Whether to automatically render the artifact'),
 });
 
@@ -155,13 +161,31 @@ export async function executeArtifactCreate(input: ArtifactCreateInput): Promise
     const store = useArtifactStore.getState();
 
     const activeSession = useSessionStore.getState().getActiveSession();
+    const sessionId = activeSession?.id || `agent-session-${Date.now()}`;
+    const messageId = `agent-${Date.now()}`;
     const artifact = store.createArtifact({
-      sessionId: activeSession?.id || `agent-session-${Date.now()}`,
-      messageId: `agent-${Date.now()}`,
+      sessionId,
+      messageId,
       type: input.type as ArtifactType,
       title: input.title,
       content: input.content,
       language: input.language as ArtifactLanguage | undefined,
+      metadata: {
+        ...buildArtifactSourceMetadata({
+          sessionId,
+          messageId,
+          type: input.type as ArtifactType,
+          content: input.content,
+          language: input.language as ArtifactLanguage | undefined,
+          sourceOrigin: 'tool',
+          userInitiated: true,
+        }),
+        outputProfileId: input.outputProfileId,
+        technology: input.technology,
+        hostStrategy: input.hostStrategy,
+        requestCategory: input.requestCategory,
+        rolloutTier: input.rolloutTier,
+      },
     });
 
     if (input.autoRender) {
@@ -355,8 +379,8 @@ export async function executeArtifactExport(input: ArtifactExportInput): Promise
     }
 
     return {
-      success: true,
-      message: `Export to ${input.format} format initiated for "${artifact.title}". Check the artifact panel for download.`,
+      success: false,
+      message: `Export format "${input.format}" is not supported for "${artifact.title}" yet.`,
       artifactId: input.artifactId,
     };
   } catch (error) {
@@ -523,5 +547,10 @@ Use artifacts when you want to provide:
 - Interactive code examples
 - Visualizations and diagrams
 - UI components
-- Formatted documentation`;
+- Formatted documentation
+
+When an artifact is part of the A2UI rich-output matrix, include routing metadata when available:
+- \`outputProfileId\`: selected output profile (for example \`trends-over-time\`, \`database-schema-erd\`)
+- \`technology\`: renderer/runtime choice (for example \`chartjs\`, \`mermaid\`, \`threejs\`)
+- \`hostStrategy\`: how the output is hosted (for example \`native\`, \`artifact-preview\`, \`sandboxed-html\`, \`lazy-runtime\`)`;
 }

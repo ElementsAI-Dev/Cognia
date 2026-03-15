@@ -6,6 +6,11 @@
 import { parseMarkdown, extractEmbeddableContent as extractMarkdownContent } from './parsers/markdown-parser';
 import { parseCode, extractCodeEmbeddableContent, detectLanguage } from './parsers/code-parser';
 import { chunkDocument, type ChunkingOptions } from '@/lib/ai/embedding/chunking';
+import {
+  detectDocumentTypeFromFilename,
+  getFilenameExtension,
+  isBinaryDocumentType,
+} from './support-matrix';
 
 // Re-export canonical types from @/types/document for API compatibility
 export type { DocumentType, DocumentMetadata, ProcessedDocument } from '@/types/document';
@@ -45,36 +50,7 @@ const DEFAULT_PROCESSING_OPTIONS: ProcessingOptions = {
  * Detect document type from filename
  */
 export function detectDocumentType(filename: string): DocumentType {
-  const ext = filename.split('.').pop()?.toLowerCase() || '';
-
-  const markdownExts = ['md', 'markdown', 'mdx'];
-  const codeExts = [
-    'js', 'jsx', 'ts', 'tsx', 'py', 'rb', 'java', 'kt', 'go', 'rs',
-    'cpp', 'c', 'h', 'hpp', 'cs', 'php', 'swift', 'scala', 'r',
-    'sh', 'bash', 'zsh', 'ps1', 'vue', 'svelte', 'sql',
-    'yaml', 'yml', 'css', 'scss', 'less', 'xml',
-  ];
-  const htmlExts = ['html', 'htm', 'xhtml'];
-  const pdfExts = ['pdf'];
-  const wordExts = ['docx', 'doc'];
-  const excelExts = ['xlsx', 'xls'];
-  const csvExts = ['csv', 'tsv'];
-  const presentationExts = ['pptx', 'ppt'];
-
-  if (markdownExts.includes(ext)) return 'markdown';
-  if (codeExts.includes(ext)) return 'code';
-  if (htmlExts.includes(ext)) return 'html';
-  if (pdfExts.includes(ext)) return 'pdf';
-  if (wordExts.includes(ext)) return 'word';
-  if (excelExts.includes(ext)) return 'excel';
-  if (csvExts.includes(ext)) return 'csv';
-  if (presentationExts.includes(ext)) return 'presentation';
-  if (ext === 'json') return 'json';
-  if (ext === 'txt') return 'text';
-  if (ext === 'rtf') return 'rtf';
-  if (ext === 'epub') return 'epub';
-
-  return 'unknown';
+  return detectDocumentTypeFromFilename(filename);
 }
 
 /**
@@ -82,6 +58,20 @@ export function detectDocumentType(filename: string): DocumentType {
  */
 function countWords(text: string): number {
   return text.split(/\s+/).filter(w => w.length > 0).length;
+}
+
+function normalizeDocumentParseError(label: string, error: unknown): Error {
+  const message = error instanceof Error ? error.message : '';
+
+  if (
+    /password protected|encrypted|no readable|legacy powerpoint|convert to \.pptx/i.test(message)
+  ) {
+    return error instanceof Error ? error : new Error(message);
+  }
+
+  return new Error(
+    `Failed to parse ${label} file. Ensure the file is not password protected or corrupted, then retry.`
+  );
 }
 
 /**
@@ -231,38 +221,82 @@ export async function processDocumentAsync(
     }
 
     case 'word': {
-      // Dynamic import to reduce bundle size and memory usage
-      const { parseWord, extractWordEmbeddableContent } = await import('./parsers/office-parser');
-      const buffer = typeof data === 'string' ? stringToArrayBuffer(data) : data;
-      const parsed = await parseWord(buffer);
-      content = parsed.text;
-      embeddableContent = opts.extractEmbeddable ? extractWordEmbeddableContent(parsed) : content;
-      metadata = {
-        ...metadata,
-        lineCount: content.split('\n').length,
-        wordCount: countWords(content),
-        language: 'word',
-      };
-      parseResult = parsed;
+      try {
+        const extension = getFileExtension(filename);
+        const buffer = typeof data === 'string' ? stringToArrayBuffer(data) : data;
+
+        if (extension === 'odt') {
+          const { parseOpenDocumentText } = await import('./parsers/open-document-parser');
+          const parsed = await parseOpenDocumentText(buffer);
+          content = parsed.text;
+          embeddableContent = opts.extractEmbeddable ? content : content;
+          metadata = {
+            ...metadata,
+            title: parsed.metadata?.title,
+            author: parsed.metadata?.author,
+            lineCount: content.split('\n').length,
+            wordCount: countWords(content),
+            language: 'word',
+          };
+          parseResult = parsed;
+        } else {
+          // Dynamic import to reduce bundle size and memory usage
+          const { parseWord, extractWordEmbeddableContent } = await import('./parsers/office-parser');
+          const parsed = await parseWord(buffer);
+          content = parsed.text;
+          embeddableContent = opts.extractEmbeddable ? extractWordEmbeddableContent(parsed) : content;
+          metadata = {
+            ...metadata,
+            lineCount: content.split('\n').length,
+            wordCount: countWords(content),
+            language: 'word',
+          };
+          parseResult = parsed;
+        }
+      } catch (error) {
+        throw normalizeDocumentParseError('word processing', error);
+      }
       break;
     }
 
     case 'excel': {
-      // Dynamic import to reduce bundle size and memory usage
-      const { parseExcel, extractExcelEmbeddableContent } = await import('./parsers/office-parser');
-      const buffer = typeof data === 'string' ? stringToArrayBuffer(data) : data;
-      const parsed = await parseExcel(buffer);
-      content = parsed.text;
-      embeddableContent = opts.extractEmbeddable ? extractExcelEmbeddableContent(parsed) : content;
-      metadata = {
-        ...metadata,
-        lineCount: content.split('\n').length,
-        wordCount: countWords(content),
-        language: 'excel',
-        sheetCount: parsed.sheets.length,
-        sheetNames: parsed.sheetNames,
-      };
-      parseResult = parsed;
+      try {
+        const extension = getFileExtension(filename);
+        const buffer = typeof data === 'string' ? stringToArrayBuffer(data) : data;
+
+        if (extension === 'ods') {
+          const { parseOpenDocumentSpreadsheet } = await import('./parsers/open-document-parser');
+          const parsed = await parseOpenDocumentSpreadsheet(buffer);
+          content = parsed.text;
+          embeddableContent = content;
+          metadata = {
+            ...metadata,
+            lineCount: content.split('\n').length,
+            wordCount: countWords(content),
+            language: 'excel',
+            sheetCount: parsed.sheets.length,
+            sheetNames: parsed.sheetNames,
+          };
+          parseResult = parsed;
+        } else {
+          // Dynamic import to reduce bundle size and memory usage
+          const { parseExcel, extractExcelEmbeddableContent } = await import('./parsers/office-parser');
+          const parsed = await parseExcel(buffer);
+          content = parsed.text;
+          embeddableContent = opts.extractEmbeddable ? extractExcelEmbeddableContent(parsed) : content;
+          metadata = {
+            ...metadata,
+            lineCount: content.split('\n').length,
+            wordCount: countWords(content),
+            language: 'excel',
+            sheetCount: parsed.sheets.length,
+            sheetNames: parsed.sheetNames,
+          };
+          parseResult = parsed;
+        }
+      } catch (error) {
+        throw normalizeDocumentParseError('spreadsheet', error);
+      }
       break;
     }
 
@@ -272,21 +306,43 @@ export async function processDocumentAsync(
         throw new Error('Legacy PowerPoint (.ppt) is not supported. Please convert to .pptx and retry.');
       }
 
-      const { parsePresentation, extractPresentationEmbeddableContent } = await import('./parsers/presentation-parser');
-      const buffer = typeof data === 'string' ? stringToArrayBuffer(data) : data;
-      const parsed = await parsePresentation(buffer);
-      content = parsed.text;
-      embeddableContent = opts.extractEmbeddable ? extractPresentationEmbeddableContent(parsed) : content;
-      metadata = {
-        ...metadata,
-        title: parsed.metadata.title,
-        author: parsed.metadata.author,
-        lineCount: content.split('\n').length,
-        wordCount: countWords(content),
-        language: 'presentation',
-        slideCount: parsed.slideCount,
-      };
-      parseResult = parsed;
+      try {
+        const buffer = typeof data === 'string' ? stringToArrayBuffer(data) : data;
+
+        if (ext === 'odp') {
+          const { parseOpenDocumentPresentation } = await import('./parsers/open-document-parser');
+          const parsed = await parseOpenDocumentPresentation(buffer);
+          content = parsed.text;
+          embeddableContent = content;
+          metadata = {
+            ...metadata,
+            title: parsed.metadata.title,
+            author: parsed.metadata.author,
+            lineCount: content.split('\n').length,
+            wordCount: countWords(content),
+            language: 'presentation',
+            slideCount: parsed.slideCount,
+          };
+          parseResult = parsed;
+        } else {
+          const { parsePresentation, extractPresentationEmbeddableContent } = await import('./parsers/presentation-parser');
+          const parsed = await parsePresentation(buffer);
+          content = parsed.text;
+          embeddableContent = opts.extractEmbeddable ? extractPresentationEmbeddableContent(parsed) : content;
+          metadata = {
+            ...metadata,
+            title: parsed.metadata.title,
+            author: parsed.metadata.author,
+            lineCount: content.split('\n').length,
+            wordCount: countWords(content),
+            language: 'presentation',
+            slideCount: parsed.slideCount,
+          };
+          parseResult = parsed;
+        }
+      } catch (error) {
+        throw normalizeDocumentParseError('presentation', error);
+      }
       break;
     }
 
@@ -461,11 +517,7 @@ export function extractSummary(content: string, maxLength: number = 200): string
  * Get file extension from filename
  */
 export function getFileExtension(filename: string): string {
-  // Dotfiles like ".gitignore" should be treated as having no extension
-  if (filename.startsWith('.') && filename.indexOf('.', 1) === -1) return '';
-
-  const parts = filename.split('.');
-  return parts.length > 1 ? parts.pop()!.toLowerCase() : '';
+  return getFilenameExtension(filename);
 }
 
 /**
@@ -683,5 +735,5 @@ function computeLineSimilarity(a: string, b: string): number {
  * Check if a document type is a binary format requiring async processing
  */
 export function isBinaryType(type: DocumentType): boolean {
-  return ['pdf', 'word', 'excel', 'presentation', 'epub'].includes(type);
+  return isBinaryDocumentType(type);
 }

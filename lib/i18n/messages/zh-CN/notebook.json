@@ -19,6 +19,7 @@
   "openFile": "打开 .ipynb 文件",
   "unsavedChanges": "未保存的更改",
   "saved": "已保存",
+  "reconnectRequired": "工作区已恢复。重新连接内核后即可继续运行笔记本代码。",
   "untitled": "未命名笔记本",
   "openFailed": "打开笔记本失败",
   "saveFailed": "保存笔记本失败",

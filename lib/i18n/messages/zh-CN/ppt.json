@@ -147,7 +147,7 @@
     "uploadFile": "上传文件",
     "dragDropHere": "拖拽文件到此处",
     "clickToUpload": "或点击选择文件",
-    "supportedFormats": "支持格式：PDF、DOCX、TXT、MD",
+    "supportedFormats": "支持格式：{formats}",
     "enterUrl": "输入网址以导入内容",
     "urlPlaceholder": "https://example.com/article",
     "importUrl": "导入网址",

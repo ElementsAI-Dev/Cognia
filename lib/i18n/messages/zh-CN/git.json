@@ -6,6 +6,15 @@
     "repositoryPath": "仓库路径",
     "repositoryPathPlaceholder": "输入仓库路径...",
     "openRepository": "打开仓库",
+    "initializeRepository": "初始化仓库",
+    "initializeRepositoryDescription": "在所选目录中创建 Git 仓库并开始跟踪。",
+    "cloneRepository": "克隆仓库",
+    "cloneRepositoryDescription": "将远程仓库克隆到本地目录并立即打开。",
+    "trackedRepositories": "已跟踪仓库",
+    "cloneUrl": "远程地址",
+    "clonePath": "目标路径",
+    "cloneBranch": "分支",
+    "cloneBranchPlaceholder": "main",
     "change": "更改",
     "selectRepository": "选择 Git 仓库",
     "repositoryOverview": "仓库概览",
@@ -42,6 +51,9 @@
     "status": {
       "clean": "干净",
       "dirty": "已修改",
+      "ahead": "领先远程",
+      "behind": "落后远程",
+      "diverged": "已分叉",
       "detached": "分离 HEAD"
     },
     "tabs": {
@@ -87,7 +99,16 @@
       "delete": "删除",
       "mergeBranch": "合并分支",
       "mergeBranchConfirm": "将 '{source}' 合并到 '{target}'？",
-      "merge": "合并"
+      "merge": "合并",
+      "rename": "重命名",
+      "renameBranch": "重命名分支",
+      "renameBranchDescription": "重命名所选分支并刷新分支列表。"
+    },
+    "recovery": {
+      "defaultMessage": "当前仓库需要先完成恢复步骤，才能继续普通 Git 操作。",
+      "abortMerge": "中止合并",
+      "abortRevert": "中止还原",
+      "abortCherryPick": "中止摘取"
     },
     "history": {
       "title": "提交历史",
@@ -177,10 +198,19 @@
       "repoPathHint": "选择或输入要初始化 Git 的路径。",
       "initialize": "初始化"
     },
+    "trackedRepositories": "已跟踪仓库",
     "repoStatus": {
       "title": "仓库"
     },
     "loadingStatus": "加载仓库状态...",
+    "status": {
+      "clean": "干净",
+      "dirty": "已修改",
+      "ahead": "领先远程",
+      "behind": "落后远程",
+      "diverged": "已分叉",
+      "detached": "分离 HEAD"
+    },
     "hasRemote": "远程",
     "localOnly": "仅本地",
     "quickActions": {
@@ -200,7 +230,16 @@
       "changes": "待提交的更改",
       "message": "提交信息",
       "messagePlaceholder": "描述您的更改...",
+      "stagedSummary": "{count} 个已暂存",
+      "unstagedSummary": "{count} 个未暂存",
+      "autoStageNotice": "所有未暂存的更改将在提交前自动暂存。",
       "commit": "提交"
+    },
+    "recovery": {
+      "defaultMessage": "当前仓库需要先完成恢复，才能继续项目 Git 操作。",
+      "abortMerge": "中止合并",
+      "abortRevert": "中止还原",
+      "abortCherryPick": "中止摘取"
     },
     "recentCommits": {
       "title": "最近提交"

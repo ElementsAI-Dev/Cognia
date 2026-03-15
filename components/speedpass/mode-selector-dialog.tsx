@@ -38,6 +38,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Sparkles,
+  type LucideIcon,
 } from 'lucide-react';
 
 // ============================================================================
@@ -61,7 +62,7 @@ export interface ModeSelectorDialogProps {
 
 interface ModeOption {
   mode: SpeedLearningMode;
-  icon: React.ElementType;
+  icon: LucideIcon;
   title: string;
   description: string;
   duration: string;

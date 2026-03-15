@@ -281,6 +281,26 @@ describe('usePluginMarketplaceStore', () => {
       expect(state.discoveryState.sortBy).toBe('rating');
       expect(state.discoveryState.page).toBe(1);
     });
+
+    it('should update source filter and reset page', () => {
+      act(() => {
+        usePluginMarketplaceStore.getState().setDiscoveryPage(5);
+        usePluginMarketplaceStore.getState().setDiscoverySourceFilter('dev');
+      });
+      const state = usePluginMarketplaceStore.getState();
+      expect(state.discoveryState.sourceFilter).toBe('dev');
+      expect(state.discoveryState.page).toBe(1);
+    });
+
+    it('should update compatibility filter and reset page', () => {
+      act(() => {
+        usePluginMarketplaceStore.getState().setDiscoveryPage(2);
+        usePluginMarketplaceStore.getState().setDiscoveryCompatibilityFilter('warning');
+      });
+      const state = usePluginMarketplaceStore.getState();
+      expect(state.discoveryState.compatibilityFilter).toBe('warning');
+      expect(state.discoveryState.page).toBe(1);
+    });
   });
 
   // ===========================================================================

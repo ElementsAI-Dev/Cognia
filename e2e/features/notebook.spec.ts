@@ -6,6 +6,15 @@ import { waitForAnimation } from '../utils/test-helpers';
  * Tests Jupyter-style notebook functionality
  */
 
+async function resolveNotebookMode(page: import('@playwright/test').Page) {
+  const notebookShell = page.locator('[data-page="notebook"]').first();
+  if (await notebookShell.isVisible({ timeout: 3000 }).catch(() => false)) {
+    return 'interactive' as const;
+  }
+
+  return 'desktop-required' as const;
+}
+
 test.describe('Notebook Page Layout', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/notebook');
@@ -13,29 +22,37 @@ test.describe('Notebook Page Layout', () => {
   });
 
   test('should load notebook page', async ({ page }) => {
-    const mainContent = page.locator('main, [role="main"]').first();
-    await expect(mainContent).toBeVisible({ timeout: 10000 });
+    const mode = await resolveNotebookMode(page);
+
+    if (mode === 'interactive') {
+      await expect(page.locator('[data-page="notebook"]').first()).toBeVisible();
+    } else {
+      await expect(page.getByText(/desktop application|桌面应用程序/i)).toBeVisible();
+    }
   });
 
   test('should display notebook editor', async ({ page }) => {
-    const editor = page.locator(
-      '[data-testid="notebook-editor"], .notebook-container'
-    ).first();
+    const mode = await resolveNotebookMode(page);
 
-    const hasEditor = await editor.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasEditor) {
-      await expect(editor).toBeVisible();
+    if (mode === 'interactive') {
+      await expect(page.locator('[data-page="notebook"]').first()).toBeVisible();
+    } else {
+      await expect(
+        page.locator('button:has-text("Back"), button:has-text("返回"), a[href="/"]').first()
+      ).toBeVisible();
     }
   });
 
   test('should have notebook toolbar', async ({ page }) => {
-    const toolbar = page.locator(
-      '[data-testid="notebook-toolbar"], .notebook-toolbar'
-    ).first();
+    const mode = await resolveNotebookMode(page);
 
-    const hasToolbar = await toolbar.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasToolbar) {
-      await expect(toolbar).toBeVisible();
+    if (mode === 'interactive') {
+      await expect(page.locator('header').first()).toBeVisible();
+      await expect(
+        page.locator('button[aria-label], button:has-text("Save"), button:has-text("保存")').first()
+      ).toBeVisible();
+    } else {
+      await expect(page.getByText(/desktop application|桌面应用程序/i)).toBeVisible();
     }
   });
 });
@@ -93,13 +110,19 @@ test.describe('Cell Management', () => {
   });
 
   test('should move cell up/down', async ({ page }) => {
+    const mode = await resolveNotebookMode(page);
+    if (mode !== 'interactive') {
+      await expect(page.getByText(/desktop application|桌面应用程序/i)).toBeVisible();
+      return;
+    }
+
     const moveUpButton = page.locator('[data-testid="move-cell-up"], button[aria-label*="move up"]').first();
     const moveDownButton = page.locator('[data-testid="move-cell-down"], button[aria-label*="move down"]').first();
 
     const hasMoveUp = await moveUpButton.isVisible({ timeout: 3000 }).catch(() => false);
     const hasMoveDown = await moveDownButton.isVisible({ timeout: 3000 }).catch(() => false);
 
-    expect(hasMoveUp || hasMoveDown || true).toBe(true);
+    expect(hasMoveUp || hasMoveDown).toBe(true);
   });
 });
 
@@ -143,12 +166,18 @@ test.describe('Code Execution', () => {
   });
 
   test('should show execution status indicator', async ({ page }) => {
+    const mode = await resolveNotebookMode(page);
+    if (mode !== 'interactive') {
+      await expect(page.getByText(/desktop application|桌面应用程序/i)).toBeVisible();
+      return;
+    }
+
     const statusIndicator = page.locator(
       '[data-testid="execution-status"], .execution-indicator'
     ).first();
 
     const hasStatus = await statusIndicator.isVisible({ timeout: 5000 }).catch(() => false);
-    expect(hasStatus || true).toBe(true);
+    expect(hasStatus).toBe(true);
   });
 });
 

@@ -17,6 +17,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 import subprocess
+from .capability_contract import validate_capability_contract
 
 
 # Plugin template files
@@ -293,6 +294,19 @@ def generate_manifest(path: Optional[str] = None, validate_only: bool = False) -
                 print("❌ Missing required field for python/hybrid plugin: pythonMain")
                 sys.exit(1)
 
+            capabilities = manifest.get("capabilities")
+            if capabilities is not None:
+                if not isinstance(capabilities, list):
+                    print("❌ Invalid capabilities field: must be an array")
+                    sys.exit(1)
+                capability_errors, capability_warnings = validate_capability_contract(capabilities)
+                for warning in capability_warnings:
+                    print(f"⚠️ {warning}")
+                if capability_errors:
+                    for error in capability_errors:
+                        print(f"❌ {error}")
+                    sys.exit(1)
+
             engines = manifest.get("engines")
             if engines is not None:
                 if not isinstance(engines, dict):
@@ -390,6 +404,19 @@ def pack_plugin(path: Optional[str] = None, output: Optional[str] = None) -> Non
         print("Error: plugin.json must include pythonMain for python/hybrid plugin")
         sys.exit(1)
 
+    capabilities = manifest.get("capabilities")
+    if capabilities is not None:
+        if not isinstance(capabilities, list):
+            print("Error: plugin.json capabilities field must be an array")
+            sys.exit(1)
+        capability_errors, capability_warnings = validate_capability_contract(capabilities)
+        for warning in capability_warnings:
+            print(f"Warning: {warning}")
+        if capability_errors:
+            for error in capability_errors:
+                print(f"Error: {error}")
+            sys.exit(1)
+
     engines = manifest.get("engines")
     if engines is not None and not isinstance(engines, dict):
         print("Error: plugin.json engines field must be an object")
@@ -467,6 +494,19 @@ def _snapshot_dev_files(target_dir: Path) -> Dict[str, float]:
     return snapshot
 
 
+def create_dev_reload_event(plugin_id: str, rel_path: str, *, ok: bool, error: Optional[str] = None) -> Dict[str, Any]:
+    """Create a structured dev reload event for host consumption."""
+    return {
+        "type": "cognia-dev-extension-update",
+        "pluginId": plugin_id,
+        "payload": {
+            "event": "reload-ready" if ok else "reload-error",
+            "path": rel_path,
+            "error": error,
+        },
+    }
+
+
 def start_dev_server(
     path: Optional[str] = None,
     port: int = 9876,
@@ -474,10 +514,19 @@ def start_dev_server(
     poll_interval: float = 1.0,
     max_cycles: Optional[int] = None,
     on_change: Optional[Callable[[str], None]] = None,
+    on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
     initial_snapshot: Optional[Dict[str, float]] = None,
 ) -> Dict[str, float]:
     """Start development watcher for plugin reload workflow."""
     target_dir = Path(path) if path else Path.cwd()
+    manifest_path = target_dir / "plugin.json"
+    plugin_id = "plugin"
+    if manifest_path.exists():
+        try:
+            with open(manifest_path) as f:
+                plugin_id = json.load(f).get("id", plugin_id)
+        except Exception:
+            plugin_id = "plugin"
     
     print(f"Starting development server for plugin at {target_dir}")
     print(f"Watching for changes on port {port}...")
@@ -508,6 +557,8 @@ def start_dev_server(
                     print(f"[dev] change detected: {rel_path}")
                     if on_change:
                         on_change(rel_path)
+                    if on_event:
+                        on_event(create_dev_reload_event(plugin_id, rel_path, ok=True))
                 print("[dev] trigger reload")
 
             previous_snapshot = current_snapshot

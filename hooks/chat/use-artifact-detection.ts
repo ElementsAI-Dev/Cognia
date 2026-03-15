@@ -9,11 +9,12 @@ import { useMemo } from 'react';
 import type { ArtifactType, ArtifactLanguage } from '@/types';
 import {
   mapToArtifactLanguage as centralMapToArtifactLanguage,
-  LANGUAGE_MAP,
+  generateArtifactTitle,
 } from '@/lib/artifacts';
-import { generateArtifactTitle } from '@/lib/artifacts';
 import {
   detectArtifactType as centralDetectArtifactType,
+  detectArtifacts,
+  DEFAULT_DETECTION_CONFIG,
   extractCodeBlocks,
 } from '@/lib/ai/generation/artifact-detector';
 
@@ -43,30 +44,52 @@ export function useArtifactDetection(
   const artifacts = useMemo(() => {
     if (!enabled || !content) return [];
 
-    const detected: DetectedArtifact[] = [];
-    const codeBlocks = extractCodeBlocks(content);
+    const pipelineArtifacts: DetectedArtifact[] = detectArtifacts(content, {
+      ...DEFAULT_DETECTION_CONFIG,
+      minLines: 1,
+    })
+      .filter((artifact) => artifact.type === 'math' || artifact.content.length >= minCodeLength)
+      .map(
+        (artifact): DetectedArtifact => ({
+          type: artifact.type,
+          language: artifact.language as ArtifactLanguage | undefined,
+          content: artifact.content,
+          title: artifact.title,
+          startIndex: artifact.startIndex,
+          endIndex: artifact.endIndex,
+        })
+      );
 
-    for (const block of codeBlocks) {
-      const trimmedContent = block.code;
+    const fallbackArtifacts: DetectedArtifact[] = extractCodeBlocks(content)
+      .map((block): DetectedArtifact | null => {
+        const trimmedContent = block.code;
 
-      // Skip short code blocks
-      if (trimmedContent.length < minCodeLength) continue;
+        if (trimmedContent.length < minCodeLength) {
+          return null;
+        }
 
-      const { type } = centralDetectArtifactType(trimmedContent, block.language);
-      const language = LANGUAGE_MAP[block.language.toLowerCase()] || (block.language as ArtifactLanguage);
-      const title = generateArtifactTitle(trimmedContent, type, block.language);
+        const { type } = centralDetectArtifactType(trimmedContent, block.language);
+        const language = centralMapToArtifactLanguage(block.language);
 
-      detected.push({
-        type,
-        language: language || undefined,
-        content: trimmedContent,
-        title,
-        startIndex: block.startIndex,
-        endIndex: block.endIndex,
-      });
-    }
+        return {
+          type,
+          language: language || undefined,
+          content: trimmedContent,
+          title: generateArtifactTitle(trimmedContent, type, block.language),
+          startIndex: block.startIndex,
+          endIndex: block.endIndex,
+        };
+      })
+      .filter((artifact): artifact is DetectedArtifact => artifact !== null)
+      .filter(
+        (artifact) =>
+          !pipelineArtifacts.some(
+            (existing) =>
+              existing.startIndex === artifact.startIndex && existing.endIndex === artifact.endIndex
+          )
+      );
 
-    return detected;
+    return [...pipelineArtifacts, ...fallbackArtifacts];
   }, [content, enabled, minCodeLength]);
 
   return artifacts;

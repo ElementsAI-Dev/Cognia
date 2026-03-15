@@ -5,7 +5,10 @@
 
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { getProviderModel } from '@/lib/ai/core/client';
+import {
+  createFeatureProviderModelFromRuntimeConfig,
+  createFeatureRoutePolicy,
+} from '@/lib/ai/provider-consumption';
 import type { DesignerAIConfig, AISuggestion } from './ai';
 
 export interface CodePattern {
@@ -251,19 +254,21 @@ export async function analyzeCodeWithAI(
   code: string,
   config: DesignerAIConfig
 ): Promise<{ success: boolean; analysis?: CodeAnalysisResult; error?: string }> {
-  if (!config.apiKey && config.provider !== 'ollama') {
-    return {
-      success: false,
-      error: `No API key configured for ${config.provider}`,
-    };
-  }
-
   try {
-    const model = getProviderModel(
-      config.provider,
-      config.model,
-      config.apiKey || '',
-      config.baseURL
+    const model = createFeatureProviderModelFromRuntimeConfig(
+      createFeatureRoutePolicy('general-text', {
+        featureId: 'designer-ai-analyzer',
+        selectionMode: 'explicit-provider',
+        providerId: config.provider,
+        model: config.model,
+        fallbackMode: 'none',
+      }),
+      {
+        providerId: config.provider,
+        model: config.model,
+        apiKey: config.apiKey || '',
+        baseURL: config.baseURL,
+      }
     );
 
     const result = await generateObject({

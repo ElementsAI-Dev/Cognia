@@ -80,18 +80,25 @@ const mockGetProjectConfig = jest.fn().mockReturnValue(null);
 const mockSetProjectConfig = jest.fn();
 const mockEnableGitForProject = jest.fn().mockResolvedValue(true);
 const mockDisableGitForProject = jest.fn();
+const mockAddTrackedRepoStore = jest.fn();
+const mockRemoveTrackedRepoStore = jest.fn();
 
 let mockStoreState = {
   gitStatus: { installed: false, version: null },
   isCheckingGit: false,
   isInstallingGit: false,
   installProgress: null,
-  currentRepoInfo: null as null | { isGitRepo: boolean },
+  currentRepoInfo: null as null | {
+    isGitRepo: boolean;
+    syncState?: string | null;
+    inProgressOperation?: string | null;
+  },
   branches: [] as Array<{ name: string; current: boolean }>,
   commits: [] as Array<{ hash: string; message: string }>,
   fileStatus: [] as Array<{ path: string; status: string }>,
   operationStatus: 'idle' as string,
   lastError: null as string | null,
+  trackedRepos: [] as Array<{ path: string; displayName: string; source: string }>,
 };
 
 jest.mock('@/stores/git', () => ({
@@ -136,6 +143,8 @@ jest.mock('@/stores/git', () => ({
       setProjectConfig: mockSetProjectConfig,
       enableGitForProject: mockEnableGitForProject,
       disableGitForProject: mockDisableGitForProject,
+      addTrackedRepo: mockAddTrackedRepoStore,
+      removeTrackedRepo: mockRemoveTrackedRepoStore,
       clearError: mockClearError,
       remotes: [],
       tags: [],
@@ -159,6 +168,7 @@ describe('useGit', () => {
       fileStatus: [],
       operationStatus: 'idle',
       lastError: null,
+      trackedRepos: [],
     };
   });
 
@@ -170,6 +180,7 @@ describe('useGit', () => {
       expect(result.current.isInstalled).toBe(false);
       expect(result.current.currentRepo).toBeNull();
       expect(result.current.branches).toEqual([]);
+      expect(result.current.trackedRepos).toEqual([]);
       expect(result.current.error).toBeNull();
     });
 
@@ -184,6 +195,8 @@ describe('useGit', () => {
       expect(typeof result.current.commit).toBe('function');
       expect(typeof result.current.push).toBe('function');
       expect(typeof result.current.pull).toBe('function');
+      expect(typeof result.current.addTrackedRepo).toBe('function');
+      expect(typeof result.current.removeTrackedRepo).toBe('function');
     });
   });
 
@@ -311,6 +324,47 @@ describe('useGit', () => {
       });
 
       expect(mockClearError).toHaveBeenCalled();
+    });
+  });
+
+  describe('tracked repositories', () => {
+    it('should expose tracked repositories from the store', () => {
+      mockStoreState.trackedRepos = [
+        { path: '/tracked/repo', displayName: 'repo', source: 'manual' },
+      ];
+
+      const { result } = renderHook(() => useGit({ autoCheck: false }));
+
+      expect(result.current.trackedRepos).toEqual([
+        { path: '/tracked/repo', displayName: 'repo', source: 'manual' },
+      ]);
+    });
+
+    it('should delegate tracked repository updates to the store', () => {
+      const { result } = renderHook(() => useGit({ autoCheck: false }));
+
+      act(() => {
+        result.current.addTrackedRepo('/tracked/repo', { source: 'clone' });
+        result.current.removeTrackedRepo('/tracked/repo');
+      });
+
+      expect(mockAddTrackedRepoStore).toHaveBeenCalledWith('/tracked/repo', { source: 'clone' });
+      expect(mockRemoveTrackedRepoStore).toHaveBeenCalledWith('/tracked/repo');
+    });
+  });
+
+  describe('recovery capabilities', () => {
+    it('should expose recovery hints from the current repo info', () => {
+      mockStoreState.currentRepoInfo = {
+        isGitRepo: true,
+        syncState: 'diverged',
+        inProgressOperation: 'merge',
+      };
+
+      const { result } = renderHook(() => useGit({ autoCheck: false }));
+
+      expect(result.current.currentRepo?.syncState).toBe('diverged');
+      expect(result.current.currentRepo?.inProgressOperation).toBe('merge');
     });
   });
 });

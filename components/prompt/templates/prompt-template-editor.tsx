@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,6 +19,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { applyTemplateVariables, buildTemplateVariables } from '@/lib/prompts/template-utils';
+import { derivePromptWorkflowState } from '@/lib/prompts/marketplace-utils';
 import type {
   CreatePromptTemplateInput,
   PromptTemplate,
@@ -28,29 +30,71 @@ import { cn } from '@/lib/utils';
 
 export interface PromptTemplateEditorProps {
   template?: PromptTemplate;
+  draftSnapshot?: Partial<CreatePromptTemplateInput>;
   categories: string[];
   submitError?: string;
   onCancel?: () => void;
+  onSaveDraft?: (input: CreatePromptTemplateInput) => void;
   onSubmit: (input: CreatePromptTemplateInput) => void;
 }
 
 export function PromptTemplateEditor({
   template,
+  draftSnapshot,
   categories,
   submitError,
   onCancel,
+  onSaveDraft,
   onSubmit,
 }: PromptTemplateEditorProps) {
   const t = useTranslations('promptTemplate.editor');
-  
+
   // State initialized from template props - parent should use key={template?.id} to reset on template change
-  const [name, setName] = useState(template?.name ?? '');
-  const [description, setDescription] = useState(template?.description ?? '');
-  const [content, setContent] = useState(template?.content ?? '');
-  const [category, setCategory] = useState(template?.category ?? categories[0] ?? 'custom');
-  const [tags, setTags] = useState<string[]>(template?.tags ?? []);
-  const [variables, setVariables] = useState<TemplateVariable[]>(template?.variables ?? []);
-  const [targets, setTargets] = useState<NonNullable<PromptTemplate['targets']>>(template?.targets ?? ['chat']);
+  const initialSnapshot = useMemo(
+    () => ({
+      name: draftSnapshot?.name ?? template?.name ?? '',
+      description: draftSnapshot?.description ?? template?.description ?? '',
+      content: draftSnapshot?.content ?? template?.content ?? '',
+      category: draftSnapshot?.category ?? template?.category ?? categories[0] ?? 'custom',
+      tags: draftSnapshot?.tags ?? template?.tags ?? [],
+      variables: draftSnapshot?.variables ?? template?.variables ?? [],
+      targets: (draftSnapshot?.targets ?? template?.targets ?? ['chat']) as NonNullable<
+        PromptTemplate['targets']
+      >,
+    }),
+    [
+      categories,
+      draftSnapshot?.category,
+      draftSnapshot?.content,
+      draftSnapshot?.description,
+      draftSnapshot?.name,
+      draftSnapshot?.tags,
+      draftSnapshot?.targets,
+      draftSnapshot?.variables,
+      template?.category,
+      template?.content,
+      template?.description,
+      template?.name,
+      template?.tags,
+      template?.targets,
+      template?.variables,
+    ]
+  );
+  const initialName = initialSnapshot.name;
+  const initialDescription = initialSnapshot.description;
+  const initialContent = initialSnapshot.content;
+  const initialCategory = initialSnapshot.category;
+  const initialTags = initialSnapshot.tags;
+  const initialVariables = initialSnapshot.variables;
+  const initialTargets = initialSnapshot.targets;
+
+  const [name, setName] = useState(initialName);
+  const [description, setDescription] = useState(initialDescription);
+  const [content, setContent] = useState(initialContent);
+  const [category, setCategory] = useState(initialCategory);
+  const [tags, setTags] = useState<string[]>(initialTags);
+  const [variables, setVariables] = useState<TemplateVariable[]>(initialVariables);
+  const [targets, setTargets] = useState<NonNullable<PromptTemplate['targets']>>(initialTargets);
   const [variableValues, setVariableValues] = useState<Record<string, string | number | boolean>>({});
   const [previewTab, setPreviewTab] = useState<'values' | 'output'>('values');
 
@@ -73,9 +117,7 @@ export function PromptTemplateEditor({
     [content, computedVariableValues]
   );
 
-  const handleSubmit = () => {
-    if (!name.trim() || !content.trim()) return;
-    onSubmit({
+  const buildEditorInput = useCallback((): CreatePromptTemplateInput => ({
       name: name.trim(),
       description: description.trim(),
       content,
@@ -83,9 +125,92 @@ export function PromptTemplateEditor({
       tags: tags.map((t) => t.trim()).filter(Boolean),
       variables: detectedVariables,
       targets,
-      source: template?.source ?? 'user',
-      meta: template?.meta,
-    });
+      source: template?.source ?? draftSnapshot?.source ?? 'user',
+      meta: template?.meta ?? draftSnapshot?.meta,
+    }),
+    [
+      category,
+      content,
+      description,
+      detectedVariables,
+      draftSnapshot?.meta,
+      draftSnapshot?.source,
+      name,
+      tags,
+      targets,
+      template?.meta,
+      template?.source,
+    ]
+  );
+
+  const editorInput = useMemo(() => buildEditorInput(), [buildEditorInput]);
+  const currentTemplate = useMemo<PromptTemplate>(() => ({
+    id: template?.id ?? '__editor__',
+    name: editorInput.name,
+    description: editorInput.description,
+    content: editorInput.content,
+    category: editorInput.category,
+    tags: editorInput.tags ?? [],
+    variables: editorInput.variables ?? [],
+    targets: editorInput.targets ?? ['chat'],
+    source: editorInput.source ?? 'user',
+    meta: editorInput.meta,
+    usageCount: template?.usageCount ?? 0,
+    createdAt: template?.createdAt ?? new Date(),
+    updatedAt: new Date(),
+  }), [editorInput, template?.createdAt, template?.id, template?.usageCount]);
+  const workflowState = useMemo(
+    () => derivePromptWorkflowState({ template: currentTemplate }),
+    [currentTemplate]
+  );
+  const hasChanges = useMemo(
+    () =>
+      JSON.stringify({
+        name,
+        description,
+        content,
+        category,
+        tags,
+        variables: detectedVariables,
+        targets,
+      }) !==
+      JSON.stringify({
+        name: initialName,
+        description: initialDescription,
+        content: initialContent,
+        category: initialCategory,
+        tags: initialTags,
+        variables: buildTemplateVariables(initialContent, initialVariables),
+        targets: initialTargets,
+      }),
+    [
+      category,
+      content,
+      description,
+      detectedVariables,
+      initialCategory,
+      initialContent,
+      initialDescription,
+      initialName,
+      initialTags,
+      initialTargets,
+      initialVariables,
+      name,
+      tags,
+      targets,
+    ]
+  );
+
+  const handleSubmit = () => {
+    if (!name.trim() || !content.trim()) return;
+    onSubmit(editorInput);
+  };
+
+  const handleCancel = () => {
+    if (hasChanges && onSaveDraft) {
+      onSaveDraft(editorInput);
+    }
+    onCancel?.();
   };
 
   const updateVariable = (index: number, patch: Partial<TemplateVariable>) => {
@@ -154,6 +279,30 @@ export function PromptTemplateEditor({
           className="min-h-[180px] font-mono"
         />
         <p className="text-muted-foreground text-xs">{t('contentHint')}</p>
+      </div>
+
+      <div className="rounded-md border border-dashed border-border/70 bg-muted/30 px-3 py-2 space-y-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="outline">{workflowState.saveBehavior}</Badge>
+          <Badge variant={workflowState.publishReadiness.isReady ? 'secondary' : 'outline'}>
+            {workflowState.publishReadiness.isReady ? 'Publish ready' : 'Publish blocked'}
+          </Badge>
+          {hasChanges && (
+            <Badge variant="outline">Unsaved changes</Badge>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {workflowState.saveBehavior === 'fork-on-save'
+            ? 'Saving this template creates a user-owned copy.'
+            : workflowState.saveBehavior === 'restricted-update'
+              ? 'This template keeps marketplace linkage and may require publish or update resolution.'
+              : 'Saving updates this template directly.'}
+        </p>
+        {!workflowState.publishReadiness.isReady && (
+          <p className="text-xs text-amber-700">
+            {`Publish blockers: ${workflowState.publishReadiness.reasons.join(', ')}`}
+          </p>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -339,7 +488,7 @@ export function PromptTemplateEditor({
         </div>
         <div className="flex items-center gap-2">
         {onCancel && (
-          <Button variant="ghost" onClick={onCancel}>
+          <Button variant="ghost" onClick={handleCancel}>
             {t('cancel')}
           </Button>
         )}

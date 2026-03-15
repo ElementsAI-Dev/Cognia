@@ -15,6 +15,7 @@ import {
   flushLogs,
   shutdownLogger,
 } from './core';
+import { createLogRuntimeContext } from './runtime';
 import type { Transport, StructuredLogEntry } from './types';
 
 // Mock context and sampling
@@ -209,6 +210,33 @@ describe('Logger Core', () => {
         override: 'call-value',
       });
     });
+
+    it('should lift runtime metadata into top-level structured fields', () => {
+      const logger = createLogger('test').withContext(
+        createLogRuntimeContext({
+          runtime: 'browser',
+          origin: 'frontend',
+          tags: ['panel'],
+          requestId: 'req-123',
+        })
+      );
+
+      logger.info('runtime metadata', {
+        code: 'logging.panel.loaded',
+        widget: 'log-panel',
+      });
+
+      expect(loggedEntries[0]).toMatchObject({
+        runtime: 'browser',
+        origin: 'frontend',
+        requestId: 'req-123',
+        code: 'logging.panel.loaded',
+        tags: expect.arrayContaining(['panel', 'runtime:browser', 'source:frontend']),
+      });
+      expect(loggedEntries[0].data).toEqual({
+        widget: 'log-panel',
+      });
+    });
   });
 
   describe('Logger.setTraceId', () => {
@@ -361,8 +389,7 @@ describe('Logger Core', () => {
   });
 
   describe('Transport error handling', () => {
-    it('should catch and log transport errors', () => {
-      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
+    it('should catch transport errors and emit a diagnostic entry', () => {
       const failingTransport: Transport = {
         name: 'failing',
         log: jest.fn(() => {
@@ -374,9 +401,15 @@ describe('Logger Core', () => {
       const logger = createLogger('test');
       
       expect(() => logger.info('test')).not.toThrow();
-      expect(errorSpy).toHaveBeenCalled();
-      
-      errorSpy.mockRestore();
+      expect(mockConsoleTransport.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          module: 'logger.internal',
+          code: 'logger.transport.failed',
+          data: expect.objectContaining({
+            transport: 'failing',
+          }),
+        })
+      );
     });
   });
 

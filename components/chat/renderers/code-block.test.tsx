@@ -186,6 +186,13 @@ line3`;
       customRender(<CodeBlock code="test" />);
       expect(screen.getByLabelText(/word wrap/i)).toBeInTheDocument();
     });
+
+    it('renders a disabled execute button with remediation when sandbox is unavailable', () => {
+      customRender(<CodeBlock code="print(1)" language="python" />);
+
+      expect(screen.getByLabelText('Run code')).toBeDisabled();
+      expect(screen.getByText('desktop required')).toBeInTheDocument();
+    });
   });
 
   describe('Line Numbers Toggle', () => {

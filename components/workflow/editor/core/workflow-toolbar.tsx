@@ -24,6 +24,10 @@ import {
 import { cn } from '@/lib/utils';
 import { isWorkflowEditorFeatureEnabled } from '@/lib/workflow-editor/feature-flags';
 import {
+  getWorkflowLifecycleLabel,
+  getWorkflowValidationSummary,
+} from '@/lib/workflow-editor';
+import {
   Save,
   Undo2,
   Redo2,
@@ -129,24 +133,12 @@ export function WorkflowToolbar({
   } = useToolbarActions();
 
   const isPaused = executionState?.status === 'paused';
-  const hasErrors = blockingValidationErrors.length > 0;
-  const warningCount = validationErrors.filter(
-    (error) => !(error.blocking ?? error.severity === 'error') && error.severity === 'warning'
-  ).length;
-  const hasWarnings = warningCount > 0;
+  const validationSummary = getWorkflowValidationSummary(validationErrors);
+  const hasErrors = validationSummary.hasBlockingErrors;
+  const warningCount = validationSummary.warningCount;
+  const hasWarnings = validationSummary.hasWarnings;
   const { canUndo, canRedo, hasSelection, canSave } = state;
-  const lifecycleLabel =
-    editorLifecycleState === 'saving'
-      ? 'Saving...'
-      : editorLifecycleState === 'saveFailed'
-        ? 'Save failed'
-        : editorLifecycleState === 'publishBlocked'
-          ? 'Publish blocked'
-          : editorLifecycleState === 'readyToPublish'
-            ? 'Ready to publish'
-            : editorLifecycleState === 'dirty'
-              ? 'Unsaved changes'
-              : 'Saved';
+  const lifecycleLabel = getWorkflowLifecycleLabel(editorLifecycleState);
 
   // Mobile toolbar - simplified version
   if (isMobile) {

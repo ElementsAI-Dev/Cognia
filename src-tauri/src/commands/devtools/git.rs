@@ -43,6 +43,16 @@ pub struct GitRepoInfo {
     pub has_untracked_files: bool,
     #[serde(rename = "lastCommit")]
     pub last_commit: Option<GitCommitInfo>,
+    #[serde(rename = "syncState")]
+    pub sync_state: Option<String>,
+    #[serde(rename = "hasConflicts")]
+    pub has_conflicts: bool,
+    #[serde(rename = "inProgressOperation")]
+    pub in_progress_operation: Option<String>,
+    #[serde(rename = "canAbortOperation")]
+    pub can_abort_operation: bool,
+    #[serde(rename = "recommendedRecoveryAction")]
+    pub recommended_recovery_action: Option<String>,
 }
 
 /// Git commit info
@@ -419,6 +429,68 @@ fn get_current_timestamp() -> String {
     chrono::Utc::now().to_rfc3339()
 }
 
+fn derive_sync_state(remote_url: Option<&String>, ahead: i32, behind: i32) -> Option<String> {
+    if remote_url.is_none() {
+        return Some("local-only".to_string());
+    }
+
+    if ahead > 0 && behind > 0 {
+        Some("diverged".to_string())
+    } else if ahead > 0 {
+        Some("ahead".to_string())
+    } else if behind > 0 {
+        Some("behind".to_string())
+    } else {
+        Some("up-to-date".to_string())
+    }
+}
+
+fn detect_in_progress_operation(repo_path: &str) -> Option<String> {
+    let git_dir = run_git_command(&["rev-parse", "--git-dir"], Some(repo_path)).ok()?;
+    let git_dir_path = Path::new(repo_path).join(git_dir.trim());
+
+    if git_dir_path.join("MERGE_HEAD").exists() {
+        return Some("merge".to_string());
+    }
+    if git_dir_path.join("REVERT_HEAD").exists() {
+        return Some("revert".to_string());
+    }
+    if git_dir_path.join("CHERRY_PICK_HEAD").exists() {
+        return Some("cherry-pick".to_string());
+    }
+
+    None
+}
+
+fn detect_conflicts(repo_path: &str) -> bool {
+    run_git_command(&["diff", "--name-only", "--diff-filter=U"], Some(repo_path))
+        .map(|output| !output.trim().is_empty())
+        .unwrap_or(false)
+}
+
+fn recommended_recovery_action(
+    in_progress_operation: Option<&String>,
+    has_conflicts: bool,
+) -> Option<String> {
+    match in_progress_operation.map(|value| value.as_str()) {
+        Some("merge") if has_conflicts => Some(
+            "Resolve merge conflicts, then continue the merge or abort it.".to_string(),
+        ),
+        Some("merge") => Some("Complete the merge commit or abort the merge.".to_string()),
+        Some("revert") if has_conflicts => Some(
+            "Resolve revert conflicts, then continue the revert or abort it.".to_string(),
+        ),
+        Some("revert") => Some("Complete the revert or abort it.".to_string()),
+        Some("cherry-pick") if has_conflicts => Some(
+            "Resolve cherry-pick conflicts, then continue the cherry-pick or abort it."
+                .to_string(),
+        ),
+        Some("cherry-pick") => Some("Complete the cherry-pick or abort it.".to_string()),
+        _ if has_conflicts => Some("Resolve conflicted files before continuing.".to_string()),
+        _ => None,
+    }
+}
+
 fn parse_git_status_short(line: &str) -> Option<GitFileStatus> {
     if line.len() < 3 {
         return None;
@@ -784,6 +856,11 @@ fn git_status_internal(repo_path: &str) -> Result<GitRepoInfo, String> {
             has_uncommitted_changes: false,
             has_untracked_files: false,
             last_commit: None,
+            sync_state: None,
+            has_conflicts: false,
+            in_progress_operation: None,
+            can_abort_operation: false,
+            recommended_recovery_action: None,
         });
     }
 
@@ -832,6 +909,11 @@ fn git_status_internal(repo_path: &str) -> Result<GitRepoInfo, String> {
 
     let has_uncommitted_changes = status_output.lines().any(|l| !l.starts_with("??"));
     let has_untracked_files = status_output.lines().any(|l| l.starts_with("??"));
+    let has_conflicts = detect_conflicts(repo_path);
+    let in_progress_operation = detect_in_progress_operation(repo_path);
+    let sync_state = derive_sync_state(remote_url.as_ref(), ahead, behind);
+    let recommended_recovery_action =
+        recommended_recovery_action(in_progress_operation.as_ref(), has_conflicts);
 
     // Determine overall status - consider untracked files as dirty too
     let status = if has_uncommitted_changes || has_untracked_files {
@@ -881,6 +963,11 @@ fn git_status_internal(repo_path: &str) -> Result<GitRepoInfo, String> {
         has_uncommitted_changes,
         has_untracked_files,
         last_commit,
+        sync_state,
+        has_conflicts,
+        in_progress_operation: in_progress_operation.clone(),
+        can_abort_operation: in_progress_operation.is_some(),
+        recommended_recovery_action,
     })
 }
 

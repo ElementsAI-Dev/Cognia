@@ -7,12 +7,22 @@ jest.mock('@/lib/utils', () => ({
 }));
 
 jest.mock('@/lib/native/sandbox', () => ({
-  executeWithLimits: jest.fn(),
   quickExecute: jest.fn(),
 }));
 
+const mockExecuteSandboxEntrypoint = jest.fn();
+
+jest.mock('@/lib/sandbox/consumption', () => ({
+  SANDBOX_ENTRYPOINT_POLICIES: {
+    schedulerScript: {
+      entrypoint: 'scheduler-script',
+    },
+  },
+  executeSandboxEntrypoint: (...args: unknown[]) => mockExecuteSandboxEntrypoint(...args),
+}));
+
 import { isTauri } from '@/lib/utils';
-import { executeWithLimits, quickExecute } from '@/lib/native/sandbox';
+import { quickExecute } from '@/lib/native/sandbox';
 import {
   executeScript,
   validateScript,
@@ -24,19 +34,36 @@ describe('Script Executor', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (isTauri as jest.Mock).mockReturnValue(true);
-  });
-
-  describe('executeScript', () => {
-    it('should execute script in sandbox with limits', async () => {
-      const mockResult = {
+    mockExecuteSandboxEntrypoint.mockResolvedValue({
+      kind: 'executed',
+      metadata: {
+        entrypoint: 'scheduler-script',
+        blocked: false,
+        bypassed: false,
+        sandbox_enabled: true,
+      },
+      result: {
         status: 'completed',
+        lifecycle_status: 'success',
         exit_code: 0,
         stdout: 'Hello World',
         stderr: '',
         error: null,
-      };
-      (executeWithLimits as jest.Mock).mockResolvedValue(mockResult);
+        runtime: 'native',
+        execution_time_ms: 5,
+        language: 'python',
+        consumption_metadata: {
+          entrypoint: 'scheduler-script',
+          blocked: false,
+          bypassed: false,
+          sandbox_enabled: true,
+        },
+      },
+    });
+  });
 
+  describe('executeScript', () => {
+    it('should execute script in sandbox with limits', async () => {
       const result = await executeScript({
         type: 'execute_script',
         language: 'python',
@@ -46,21 +73,42 @@ describe('Script Executor', () => {
         memory_mb: 512,
       });
 
-      expect(executeWithLimits).toHaveBeenCalledWith('python', 'print("Hello World")', 300, 512);
+      expect(mockExecuteSandboxEntrypoint).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            language: 'python',
+            code: 'print("Hello World")',
+            timeout_secs: 300,
+            memory_limit_mb: 512,
+          }),
+        })
+      );
       expect(result.success).toBe(true);
       expect(result.stdout).toBe('Hello World');
     });
 
-    it('should use quickExecute when sandbox is disabled', async () => {
-      const mockResult = {
+    it('should mark sandbox bypass metadata when sandbox is disabled', async () => {
+      mockExecuteSandboxEntrypoint.mockResolvedValue({
+        kind: 'bypassed',
+        metadata: {
+          entrypoint: 'scheduler-script',
+          blocked: false,
+          bypassed: true,
+          sandbox_enabled: false,
+        },
+        result: null,
+      });
+      (quickExecute as jest.Mock).mockResolvedValue({
         status: 'completed',
+        lifecycle_status: 'success',
         exit_code: 0,
         stdout: 'output',
         stderr: '',
         error: null,
-      };
-      (quickExecute as jest.Mock).mockResolvedValue(mockResult);
-
+        runtime: 'native',
+        execution_time_ms: 5,
+        language: 'javascript',
+      });
       const result = await executeScript({
         type: 'execute_script',
         language: 'javascript',
@@ -68,8 +116,19 @@ describe('Script Executor', () => {
         use_sandbox: false,
       });
 
+      expect(mockExecuteSandboxEntrypoint).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bypassSandbox: true,
+        })
+      );
       expect(quickExecute).toHaveBeenCalledWith('javascript', 'console.log("test")');
       expect(result.success).toBe(true);
+      expect(result.sandbox_metadata).toEqual(
+        expect.objectContaining({
+          bypassed: true,
+          sandbox_enabled: false,
+        })
+      );
     });
 
     it('should return error when not in Tauri', async () => {
@@ -86,7 +145,7 @@ describe('Script Executor', () => {
     });
 
     it('should handle execution errors', async () => {
-      (executeWithLimits as jest.Mock).mockRejectedValue(new Error('Execution failed'));
+      mockExecuteSandboxEntrypoint.mockRejectedValue(new Error('Execution failed'));
 
       const result = await executeScript({
         type: 'execute_script',
@@ -99,14 +158,32 @@ describe('Script Executor', () => {
     });
 
     it('should detect failed execution from exit code', async () => {
-      const mockResult = {
-        status: 'completed',
-        exit_code: 1,
-        stdout: '',
-        stderr: 'Error: something went wrong',
-        error: null,
-      };
-      (executeWithLimits as jest.Mock).mockResolvedValue(mockResult);
+      mockExecuteSandboxEntrypoint.mockResolvedValue({
+        kind: 'executed',
+        metadata: {
+          entrypoint: 'scheduler-script',
+          blocked: false,
+          bypassed: false,
+          sandbox_enabled: true,
+        },
+        result: {
+          status: 'completed',
+          lifecycle_status: 'success',
+          exit_code: 1,
+          stdout: '',
+          stderr: 'Error: something went wrong',
+          error: null,
+          runtime: 'native',
+          execution_time_ms: 5,
+          language: 'python',
+          consumption_metadata: {
+            entrypoint: 'scheduler-script',
+            blocked: false,
+            bypassed: false,
+            sandbox_enabled: true,
+          },
+        },
+      });
 
       const result = await executeScript({
         type: 'execute_script',
@@ -119,22 +196,35 @@ describe('Script Executor', () => {
     });
 
     it('should use default timeout and memory when not specified', async () => {
-      const mockResult = {
-        status: 'completed',
-        exit_code: 0,
-        stdout: '',
-        stderr: '',
-        error: null,
-      };
-      (executeWithLimits as jest.Mock).mockResolvedValue(mockResult);
-
       await executeScript({
         type: 'execute_script',
         language: 'python',
         code: 'pass',
       });
 
-      expect(executeWithLimits).toHaveBeenCalledWith('python', 'pass', 300, 512);
+      expect(mockExecuteSandboxEntrypoint).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            timeout_secs: 300,
+            memory_limit_mb: 512,
+          }),
+        })
+      );
+    });
+
+    it('should return sandbox metadata for sandbox-enabled runs', async () => {
+      const result = await executeScript({
+        type: 'execute_script',
+        language: 'python',
+        code: 'print(1)',
+      });
+
+      expect(result.sandbox_metadata).toEqual(
+        expect.objectContaining({
+          entrypoint: 'scheduler-script',
+          sandbox_enabled: true,
+        })
+      );
     });
   });
 

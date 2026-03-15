@@ -32,6 +32,8 @@ describe('PromptTemplateManager', () => {
       categories: ['testing', 'custom'],
       selectedTemplateId: null,
       isInitialized: true,
+      draftSessions: {},
+      operationStates: {},
     });
   });
 
@@ -63,5 +65,55 @@ describe('PromptTemplateManager', () => {
     await user.click(screen.getByRole('button', { name: 'Import' }));
 
     expect(usePromptTemplateStore.getState().templates.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('shows workflow cues for saved drafts and blocked publish readiness', () => {
+    usePromptTemplateStore.setState({
+      templates: [
+        {
+          ...makeTemplate('1', 'First'),
+          description: '',
+          meta: {
+            marketplace: {
+              marketplaceId: 'market-1',
+              linkageType: 'installed',
+              installedVersion: '1.0.0',
+              latestVersion: '2.0.0',
+              baseline: {
+                version: '1.0.0',
+                name: 'First',
+                description: '',
+                content: 'Content',
+                category: 'testing',
+                tags: ['tag'],
+                variables: [],
+                targets: ['chat'],
+                capturedAt: '2026-03-14T00:00:00.000Z',
+              },
+            },
+          },
+        },
+      ],
+      draftSessions: {
+        '1': {
+          id: '1',
+          templateId: '1',
+          origin: 'editor',
+          snapshot: {
+            name: 'First',
+            description: '',
+            content: 'Draft content',
+          },
+          dirty: true,
+          createdAt: new Date('2026-03-14T00:00:00.000Z'),
+          updatedAt: new Date('2026-03-14T00:00:00.000Z'),
+        },
+      },
+    });
+
+    render(<PromptTemplateManager />);
+
+    expect(screen.getByText('Resume draft')).toBeInTheDocument();
+    expect(screen.getByText('Publish blocked')).toBeInTheDocument();
   });
 });

@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronDown, FileJson, Clock, Server, Tag, Hash, AlertCircle, Info } from 'lucide-react';
+import { ChevronDown, FileJson, Clock, Server, Tag, Hash, AlertCircle, Info, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/card';
@@ -52,7 +52,7 @@ export interface MCPCallDetailsProps {
 
 interface DetailSectionProps {
   title: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   defaultOpen?: boolean;
   children: React.ReactNode;
 }

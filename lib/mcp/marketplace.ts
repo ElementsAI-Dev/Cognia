@@ -10,6 +10,10 @@ import type {
   McpDownloadResponse,
   McpMarketplaceFilters,
   McpMarketplaceSource,
+  McpMarketplaceErrorCategory,
+  McpMarketplaceSourceHealth,
+  McpRemoteMarketplaceSource,
+  McpConnectionConfig,
   SmitheryServer,
   SmitheryResponse,
   GlamaServer,
@@ -35,34 +39,246 @@ const BASE_RETRY_DELAY = 1000;
 /** User agent for API requests */
 const USER_AGENT = 'cognia-app';
 
+interface SmitheryDetailResponse {
+  qualifiedName: string;
+  displayName?: string;
+  description?: string;
+  homepage?: string;
+  readme?: string;
+  remote?: boolean;
+  connections?: Array<{
+    type?: string;
+    command?: string;
+    args?: string[];
+    deploymentUrl?: string;
+    url?: string;
+    env?: Record<string, string>;
+    configSchema?: Record<string, unknown>;
+  }>;
+  security?: {
+    schemes?: Array<{
+      type?: string;
+      name?: string;
+      env?: string;
+    }>;
+  } | null;
+}
+
+type McpConnectionType = 'stdio' | 'sse' | 'streamableHttp';
+
+export interface McpInstallConfig {
+  mode: 'automatic' | 'manual';
+  derivedFrom: 'connection-config' | 'llms' | 'readme' | 'fallback';
+  validationStatus: 'valid' | 'invalid';
+  validationError?: string;
+  command: string;
+  args: string[];
+  connectionType: McpConnectionType;
+  url?: string;
+  fallbackToSse?: boolean;
+  envKeys?: string[];
+  manualSteps?: string[];
+}
+
 interface FetchOptions extends RequestInit {
   timeout?: number;
   retries?: number;
+}
+
+export function getMcpMarketplaceItemKey(
+  source: McpMarketplaceSource,
+  mcpId: string
+): string {
+  return `${source}:${mcpId}`;
+}
+
+function encodeQualifiedName(qualifiedName: string): string {
+  return qualifiedName.split('/').map(encodeURIComponent).join('/');
+}
+
+function categorizeMarketplaceError(
+  error: Error,
+  status?: number
+): McpMarketplaceErrorCategory {
+  const message = error.message.toLowerCase();
+
+  if (status === 401 || status === 403 || message.includes('unauthorized') || message.includes('forbidden')) {
+    return 'auth';
+  }
+  if (message.includes('api key required') || message.includes('invalid api key')) {
+    return 'auth';
+  }
+  if (status === 404 || message.includes('not found')) {
+    return 'not_found';
+  }
+  if (status === 429 || message.includes('rate')) {
+    return 'rate_limit';
+  }
+  if (
+    error.name === 'AbortError' ||
+    message.includes('timeout') ||
+    message.includes('timed out')
+  ) {
+    return 'timeout';
+  }
+  if (
+    message.includes('network') ||
+    message.includes('fetch failed') ||
+    message.includes('fetch') ||
+    message.includes('econn')
+  ) {
+    return 'network';
+  }
+  if (status && status >= 500 && status < 600) {
+    return 'server';
+  }
+  return 'unknown';
+}
+
+function createSourceHealth(
+  source: McpRemoteMarketplaceSource,
+  itemCount: number,
+  error?: Error
+): McpMarketplaceSourceHealth {
+  if (!error) {
+    return {
+      source,
+      status: itemCount === 0 ? 'empty' : 'ok',
+      itemCount,
+      retryable: false,
+    };
+  }
+
+  const errorCategory = categorizeMarketplaceError(error);
+  return {
+    source,
+    status: 'error',
+    itemCount,
+    retryable:
+      errorCategory === 'network' ||
+      errorCategory === 'timeout' ||
+      errorCategory === 'rate_limit' ||
+      errorCategory === 'server',
+    errorCategory,
+    errorMessage: error.message,
+  };
+}
+
+function withItemKey(
+  source: McpRemoteMarketplaceSource,
+  item: Omit<McpMarketplaceItem, 'source' | 'itemKey'>
+): McpMarketplaceItem {
+  return {
+    ...item,
+    source,
+    itemKey: getMcpMarketplaceItemKey(source, item.mcpId),
+  };
+}
+
+function buildCatalog(
+  source: McpMarketplaceSource,
+  items: McpMarketplaceItem[],
+  sourceHealth?: Partial<Record<McpRemoteMarketplaceSource, McpMarketplaceSourceHealth>>,
+  pagination?: Pick<McpMarketplaceCatalog, 'page' | 'pageSize' | 'totalCount'>
+): McpMarketplaceCatalog {
+  return {
+    items,
+    source,
+    totalCount: pagination?.totalCount ?? items.length,
+    page: pagination?.page,
+    pageSize: pagination?.pageSize,
+    sourceHealth,
+  };
+}
+
+function baseDetail(item: McpMarketplaceItem): McpDownloadResponse {
+  return {
+    itemKey: item.itemKey || getMcpMarketplaceItemKey(item.source, item.mcpId),
+    source: item.source as McpRemoteMarketplaceSource,
+    mcpId: item.mcpId,
+    githubUrl: item.githubUrl || '',
+    name: item.name || '',
+    author: item.author || '',
+    description: item.description || '',
+    readmeContent: '',
+    requiresApiKey: Boolean(item.requiresApiKey),
+    homepage: item.homepage,
+    connectionConfig: item.connectionConfig,
+  };
+}
+
+function dedupeStrings(values: Array<string | undefined>): string[] {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
+}
+
+function extractEnvKeysFromSecurity(security?: SmitheryDetailResponse['security']): string[] {
+  if (!security?.schemes) return [];
+  return security.schemes
+    .map((scheme) => scheme.name || scheme.env || '')
+    .filter((value): value is string => value.length > 0);
+}
+
+function extractEnvKeysFromConfigSchema(schema?: Record<string, unknown>): string[] {
+  if (!schema || typeof schema !== 'object') return [];
+  const properties =
+    typeof schema.properties === 'object'
+      ? (schema.properties as Record<string, unknown>)
+      : undefined;
+  if (!properties) return [];
+  return Object.keys(properties).filter((key) => /[A-Z]/.test(key) || key.includes('_'));
+}
+
+function normalizeSmitheryConnection(
+  connection?: NonNullable<SmitheryDetailResponse['connections']>[number]
+): McpConnectionConfig | undefined {
+  if (!connection) return undefined;
+
+  if (connection.type === 'http') {
+    return {
+      type: 'http',
+      url: connection.deploymentUrl || connection.url,
+      configSchema: connection.configSchema,
+      env: connection.env,
+    };
+  }
+
+  if (connection.type === 'sse') {
+    return {
+      type: 'sse',
+      url: connection.deploymentUrl || connection.url,
+      configSchema: connection.configSchema,
+      env: connection.env,
+    };
+  }
+
+  if (connection.type === 'streamable-http') {
+    return {
+      type: 'streamable-http',
+      url: connection.deploymentUrl || connection.url,
+      configSchema: connection.configSchema,
+      env: connection.env,
+    };
+  }
+
+  if (connection.command) {
+    return {
+      type: 'stdio',
+      command: connection.command,
+      args: connection.args || [],
+      configSchema: connection.configSchema,
+      env: connection.env,
+    };
+  }
+
+  return undefined;
 }
 
 /**
  * Check if error is retryable
  */
 function isRetryableError(error: Error, status?: number): boolean {
-  const message = error.message.toLowerCase();
-  // Retry on network errors
-  if (
-    message.includes('network') ||
-    message.includes('timeout') ||
-    message.includes('aborted') ||
-    message.includes('fetch')
-  ) {
-    return true;
-  }
-  // Retry on 5xx server errors
-  if (status && status >= 500 && status < 600) {
-    return true;
-  }
-  // Retry on rate limiting
-  if (status === 429) {
-    return true;
-  }
-  return false;
+  const category = categorizeMarketplaceError(error, status);
+  return category === 'network' || category === 'timeout' || category === 'rate_limit' || category === 'server';
 }
 
 /**
@@ -151,22 +367,25 @@ export async function fetchClineMarketplace(): Promise<McpMarketplaceCatalog> {
       throw new Error('Invalid response from Cline marketplace API');
     }
 
-    const items: McpMarketplaceItem[] = data.map((item: Record<string, unknown>) => ({
-      mcpId: String(item.mcpId || ''),
-      name: String(item.name || ''),
-      author: String(item.author || ''),
-      description: String(item.description || ''),
-      githubUrl: String(item.githubUrl || ''),
-      githubStars: Number(item.githubStars) || 0,
-      downloadCount: Number(item.downloadCount) || 0,
-      tags: Array.isArray(item.tags) ? item.tags : [],
-      requiresApiKey: Boolean(item.requiresApiKey),
-      iconUrl: item.iconUrl ? String(item.iconUrl) : undefined,
-      updatedAt: item.updatedAt ? String(item.updatedAt) : undefined,
-      source: 'cline' as const,
-    }));
+    const items: McpMarketplaceItem[] = data.map((item: Record<string, unknown>) =>
+      withItemKey('cline', {
+        mcpId: String(item.mcpId || ''),
+        name: String(item.name || ''),
+        author: String(item.author || ''),
+        description: String(item.description || ''),
+        githubUrl: String(item.githubUrl || ''),
+        githubStars: Number(item.githubStars) || 0,
+        downloadCount: Number(item.downloadCount) || 0,
+        tags: Array.isArray(item.tags) ? item.tags.map(String) : [],
+        requiresApiKey: Boolean(item.requiresApiKey),
+        iconUrl: item.iconUrl ? String(item.iconUrl) : undefined,
+        updatedAt: item.updatedAt ? String(item.updatedAt) : undefined,
+      })
+    );
 
-    return { items, source: 'cline' };
+    return buildCatalog('cline', items, {
+      cline: createSourceHealth('cline', items.length),
+    });
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('Cline request timed out');
@@ -218,31 +437,37 @@ export async function fetchSmitheryMarketplace(
 
     const data: SmitheryResponse = await response.json();
 
-    const items: McpMarketplaceItem[] = (data.servers || []).map((server: SmitheryServer) => ({
-      mcpId: server.qualifiedName,
-      name: server.displayName,
-      author: server.qualifiedName.split('/')[0] || 'Unknown',
-      description: server.description || '',
-      githubUrl: server.homepage || '',
-      githubStars: 0,
-      downloadCount: server.useCount || 0,
-      tags: [],
-      requiresApiKey: false,
-      iconUrl: server.iconUrl,
-      updatedAt: server.createdAt,
-      source: 'smithery' as const,
-      verified: server.verified,
-      remote: server.remote,
-      homepage: server.homepage,
-    }));
+    const items: McpMarketplaceItem[] = (data.servers || []).map((server: SmitheryServer) =>
+      withItemKey('smithery', {
+        mcpId: server.qualifiedName,
+        name: server.displayName,
+        author: server.qualifiedName.split('/')[0] || 'Unknown',
+        description: server.description || '',
+        githubUrl: server.homepage || '',
+        githubStars: 0,
+        downloadCount: server.useCount || 0,
+        tags: [],
+        requiresApiKey: false,
+        iconUrl: server.iconUrl,
+        updatedAt: server.createdAt,
+        verified: server.verified,
+        remote: server.remote,
+        homepage: server.homepage,
+      })
+    );
 
-    return {
+    return buildCatalog(
+      'smithery',
       items,
-      source: 'smithery',
-      totalCount: data.pagination?.totalCount,
-      page: data.pagination?.currentPage,
-      pageSize: data.pagination?.pageSize,
-    };
+      {
+        smithery: createSourceHealth('smithery', items.length),
+      },
+      {
+        totalCount: data.pagination?.totalCount,
+        page: data.pagination?.currentPage,
+        pageSize: data.pagination?.pageSize,
+      }
+    );
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('Smithery request timed out');
@@ -286,30 +511,36 @@ export async function fetchGlamaMarketplace(
 
     const data: GlamaResponse = await response.json();
 
-    const items: McpMarketplaceItem[] = (data.servers || []).map((server: GlamaServer) => ({
-      mcpId: server.id || server.name,
-      name: server.name,
-      author: server.author || 'Unknown',
-      description: server.description || '',
-      githubUrl: server.repository || server.homepage || '',
-      githubStars: server.stars || 0,
-      downloadCount: server.weeklyDownloads || 0,
-      tags: server.tags || [],
-      requiresApiKey: false,
-      iconUrl: server.iconUrl,
-      updatedAt: server.updatedAt,
-      source: 'glama' as const,
-      verified: server.official,
-      homepage: server.homepage,
-    }));
+    const items: McpMarketplaceItem[] = (data.servers || []).map((server: GlamaServer) =>
+      withItemKey('glama', {
+        mcpId: server.id || server.name,
+        name: server.name,
+        author: server.author || 'Unknown',
+        description: server.description || '',
+        githubUrl: server.repository || server.homepage || '',
+        githubStars: server.stars || 0,
+        downloadCount: server.weeklyDownloads || 0,
+        tags: server.tags || [],
+        requiresApiKey: false,
+        iconUrl: server.iconUrl,
+        updatedAt: server.updatedAt,
+        verified: server.official,
+        homepage: server.homepage,
+      })
+    );
 
-    return {
+    return buildCatalog(
+      'glama',
       items,
-      source: 'glama',
-      totalCount: data.total,
-      page: data.page,
-      pageSize: data.pageSize,
-    };
+      {
+        glama: createSourceHealth('glama', items.length),
+      },
+      {
+        totalCount: data.total,
+        page: data.page,
+        pageSize: data.pageSize,
+      }
+    );
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('Glama request timed out');
@@ -348,25 +579,34 @@ export async function fetchMcpMarketplace(
     return fetchGlamaMarketplace(query, page, pageSize);
   }
 
-  // Fetch from all sources in parallel
   const results = await Promise.allSettled([
     fetchClineMarketplace(),
-    fetchSmitheryMarketplace(query, page, Math.floor(pageSize / 3), smitheryApiKey),
-    fetchGlamaMarketplace(query, page, Math.floor(pageSize / 3)),
+    fetchSmitheryMarketplace(query, page, Math.max(1, Math.floor(pageSize / 3)), smitheryApiKey),
+    fetchGlamaMarketplace(query, page, Math.max(1, Math.floor(pageSize / 3))),
   ]);
 
+  const sourceHealth: Partial<Record<McpRemoteMarketplaceSource, McpMarketplaceSourceHealth>> = {};
   const allItems: McpMarketplaceItem[] = [];
   const errors: string[] = [];
+  const sources: McpRemoteMarketplaceSource[] = ['cline', 'smithery', 'glama'];
 
-  for (const result of results) {
+  results.forEach((result, index) => {
+    const source = sources[index];
     if (result.status === 'fulfilled') {
       allItems.push(...result.value.items);
-    } else {
-      errors.push(result.reason?.message || 'Unknown error');
+      sourceHealth[source] = createSourceHealth(source, result.value.items.length);
+      return;
     }
+
+    const error = result.reason instanceof Error ? result.reason : new Error(String(result.reason));
+    sourceHealth[source] = createSourceHealth(source, 0, error);
+    errors.push(error.message);
+  });
+
+  if (allItems.length === 0 && errors.length > 0) {
+    throw new Error(`Failed to fetch from all sources: ${errors.join(', ')}`);
   }
 
-  // Deduplicate by mcpId (prefer Cline > Smithery > Glama)
   const seen = new Map<string, McpMarketplaceItem>();
   for (const item of allItems) {
     const key = item.mcpId.toLowerCase();
@@ -375,21 +615,195 @@ export async function fetchMcpMarketplace(
     }
   }
 
-  if (allItems.length === 0 && errors.length > 0) {
-    throw new Error(`Failed to fetch from all sources: ${errors.join(', ')}`);
-  }
-
-  return {
-    items: Array.from(seen.values()),
-    source: 'all',
+  return buildCatalog('all', Array.from(seen.values()), sourceHealth, {
     totalCount: seen.size,
-  };
+  });
 }
 
 /**
- * Download MCP server details from the marketplace
- * @param mcpId - The MCP server ID to download
- * @returns Promise with download response
+ * Fetch source-aware MCP marketplace detail data.
+ */
+function manualDetail(item: McpMarketplaceItem, reason?: string): McpDownloadResponse {
+  const detail = baseDetail(item);
+  return {
+    ...detail,
+    connectionConfig: {
+      type: 'manual',
+    },
+    manualSteps: dedupeStrings([
+      reason,
+      detail.homepage ? `Visit ${detail.homepage} for setup instructions.` : undefined,
+      detail.githubUrl ? `Review ${detail.githubUrl} for installation details.` : undefined,
+    ]),
+  };
+}
+
+async function fetchClineMarketplaceDetail(
+  item: McpMarketplaceItem
+): Promise<McpDownloadResponse> {
+  const detail = baseDetail(item);
+
+  try {
+    const response = await fetchWithTimeout(`${API_URLS.cline}/download`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': USER_AGENT,
+      },
+      body: JSON.stringify({ mcpId: item.mcpId }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return {
+          ...detail,
+          error: 'MCP server not found in marketplace.',
+          errorCategory: 'not_found',
+        };
+      }
+      if (response.status === 500) {
+        return {
+          ...detail,
+          error: 'Internal server error. Please try again later.',
+          errorCategory: 'server',
+        };
+      }
+      throw new Error(`Failed to download MCP: ${response.statusText}`);
+    }
+
+    const payload = await response.json();
+    const raw =
+      payload && typeof payload === 'object' && 'data' in payload && payload.data
+        ? (payload.data as Record<string, unknown>)
+        : (payload as Record<string, unknown>);
+
+    if (!raw || typeof raw !== 'object') {
+      return {
+        ...detail,
+        error: 'Invalid response from MCP marketplace API',
+        errorCategory: 'server',
+      };
+    }
+
+    if (!raw.githubUrl) {
+      return {
+        ...detail,
+        error: 'Missing GitHub URL in MCP download response',
+        errorCategory: 'server',
+      };
+    }
+
+    return {
+      ...detail,
+      mcpId: String(raw.mcpId || item.mcpId),
+      githubUrl: String(raw.githubUrl),
+      name: String(raw.name || item.name || ''),
+      author: String(raw.author || item.author || ''),
+      description: String(raw.description || item.description || ''),
+      readmeContent: String(raw.readmeContent || ''),
+      llmsInstallationContent: raw.llmsInstallationContent
+        ? String(raw.llmsInstallationContent)
+        : undefined,
+      requiresApiKey: Boolean(raw.requiresApiKey ?? item.requiresApiKey),
+    };
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    return {
+      ...detail,
+      error:
+        err.name === 'AbortError'
+          ? 'Request timed out. Please try again.'
+          : err.message || 'Failed to download MCP',
+      errorCategory: categorizeMarketplaceError(err),
+    };
+  }
+}
+
+async function fetchSmitheryMarketplaceDetail(
+  item: McpMarketplaceItem,
+  apiKey?: string
+): Promise<McpDownloadResponse> {
+  const detail = baseDetail(item);
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'User-Agent': USER_AGENT,
+  };
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+
+  const response = await fetchWithTimeout(
+    `${API_URLS.smithery}/servers/${encodeQualifiedName(item.mcpId)}`,
+    {
+      method: 'GET',
+      headers,
+    }
+  );
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      return {
+        ...detail,
+        error: 'Smithery API key required or invalid',
+        errorCategory: 'auth',
+      };
+    }
+
+    return {
+      ...detail,
+      error: `Smithery detail unavailable: ${response.statusText}`,
+      errorCategory: categorizeMarketplaceError(new Error(response.statusText), response.status),
+    };
+  }
+
+  const payload: SmitheryDetailResponse = await response.json();
+  const connectionConfig = normalizeSmitheryConnection(payload.connections?.[0]);
+  const envKeys = dedupeStrings([
+    ...extractEnvKeysFromSecurity(payload.security),
+    ...extractEnvKeysFromConfigSchema(connectionConfig?.configSchema),
+  ]);
+
+  return {
+    ...detail,
+    githubUrl: payload.homepage || detail.githubUrl,
+    homepage: payload.homepage || detail.homepage,
+    name: payload.displayName || detail.name,
+    description: payload.description || detail.description,
+    readmeContent: payload.readme || payload.description || '',
+    connectionConfig,
+    envKeys,
+    requiresApiKey: detail.requiresApiKey || envKeys.length > 0,
+  };
+}
+
+async function fetchGlamaMarketplaceDetail(
+  item: McpMarketplaceItem
+): Promise<McpDownloadResponse> {
+  return manualDetail(
+    item,
+    'Detailed installation metadata is unavailable for this Glama listing.'
+  );
+}
+
+export async function fetchMcpMarketplaceDetail(
+  item: McpMarketplaceItem,
+  options?: { smitheryApiKey?: string }
+): Promise<McpDownloadResponse> {
+  switch (item.source) {
+    case 'cline':
+      return fetchClineMarketplaceDetail(item);
+    case 'smithery':
+      return fetchSmitheryMarketplaceDetail(item, options?.smitheryApiKey);
+    case 'glama':
+      return fetchGlamaMarketplaceDetail(item);
+    default:
+      return manualDetail(item, 'Marketplace detail is unavailable for this source.');
+  }
+}
+
+/**
+ * Legacy helper kept for compatibility with older call sites.
  */
 export async function downloadMcpServer(mcpId: string): Promise<McpDownloadResponse> {
   if (!mcpId) {
@@ -402,107 +816,23 @@ export async function downloadMcpServer(mcpId: string): Promise<McpDownloadRespo
       readmeContent: '',
       requiresApiKey: false,
       error: 'MCP ID is required',
+      errorCategory: 'unknown',
     };
   }
 
-  try {
-    const response = await fetchWithTimeout(`${API_URLS.cline}/download`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': USER_AGENT,
-      },
-      body: JSON.stringify({ mcpId }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return {
-          mcpId,
-          githubUrl: '',
-          name: '',
-          author: '',
-          description: '',
-          readmeContent: '',
-          requiresApiKey: false,
-          error: 'MCP server not found in marketplace.',
-        };
-      }
-      if (response.status === 500) {
-        return {
-          mcpId,
-          githubUrl: '',
-          name: '',
-          author: '',
-          description: '',
-          readmeContent: '',
-          requiresApiKey: false,
-          error: 'Internal server error. Please try again later.',
-        };
-      }
-      throw new Error(`Failed to download MCP: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    if (!data) {
-      return {
-        mcpId,
-        githubUrl: '',
-        name: '',
-        author: '',
-        description: '',
-        readmeContent: '',
-        requiresApiKey: false,
-        error: 'Invalid response from MCP marketplace API',
-      };
-    }
-
-    if (!data.githubUrl) {
-      return {
-        mcpId,
-        githubUrl: '',
-        name: '',
-        author: '',
-        description: '',
-        readmeContent: '',
-        requiresApiKey: false,
-        error: 'Missing GitHub URL in MCP download response',
-      };
-    }
-
-    return {
-      mcpId: data.mcpId || mcpId,
-      githubUrl: data.githubUrl,
-      name: data.name || '',
-      author: data.author || '',
-      description: data.description || '',
-      readmeContent: data.readmeContent || '',
-      llmsInstallationContent: data.llmsInstallationContent,
-      requiresApiKey: data.requiresApiKey || false,
-    };
-  } catch (error) {
-    let errorMessage = 'Failed to download MCP';
-
-    if (error instanceof Error) {
-      if (error.name === 'AbortError') {
-        errorMessage = 'Request timed out. Please try again.';
-      } else {
-        errorMessage = error.message;
-      }
-    }
-
-    return {
+  return fetchClineMarketplaceDetail(
+    withItemKey('cline', {
       mcpId,
-      githubUrl: '',
       name: '',
       author: '',
       description: '',
-      readmeContent: '',
+      githubUrl: '',
+      githubStars: 0,
+      downloadCount: 0,
+      tags: [],
       requiresApiKey: false,
-      error: errorMessage,
-    };
-  }
+    })
+  );
 }
 
 /**
@@ -652,109 +982,242 @@ export function formatRelativeTime(dateString: string): string {
   }
 }
 
-/**
- * Installation configuration parsed from MCP server details
- */
-export interface McpInstallConfig {
-  command: string;
-  args: string[];
-  connectionType: 'stdio' | 'sse' | 'streamableHttp';
-  url?: string;
-  fallbackToSse?: boolean;
-  envKeys?: string[];
+function isLikelyPackageName(mcpId: string): boolean {
+  return mcpId.startsWith('@') || !mcpId.includes('/');
 }
 
-/**
- * Parse installation configuration from MCP server item and download details
- * Attempts to extract command, args, and required env vars from readme or llms content
- */
+function createInvalidInstallConfig(
+  detail: McpDownloadResponse,
+  reason: string
+): McpInstallConfig {
+  return {
+    mode: 'manual',
+    derivedFrom: 'fallback',
+    validationStatus: 'invalid',
+    validationError: reason,
+    command: '',
+    args: [],
+    connectionType: 'stdio',
+    envKeys: detail.envKeys || [],
+    manualSteps: detail.manualSteps || dedupeStrings([
+      detail.homepage ? `Visit ${detail.homepage} for installation instructions.` : undefined,
+      detail.githubUrl ? `Review ${detail.githubUrl} for setup details.` : undefined,
+    ]),
+  };
+}
+
+function normalizeConnectionConfig(
+  config: McpConnectionConfig,
+  detail: McpDownloadResponse
+): McpInstallConfig | null {
+  const envKeys = dedupeStrings([
+    ...(detail.envKeys || []),
+    ...(config.env ? Object.keys(config.env) : []),
+    ...extractEnvKeysFromConfigSchema(config.configSchema),
+  ]);
+
+  switch (config.type) {
+    case 'http':
+      if (!config.url) {
+        return createInvalidInstallConfig(detail, 'Unable to derive install plan from marketplace metadata.');
+      }
+      return {
+        mode: 'automatic',
+        derivedFrom: 'connection-config',
+        validationStatus: 'valid',
+        command: '',
+        args: [],
+        connectionType: 'streamableHttp',
+        url: config.url,
+        fallbackToSse: true,
+        envKeys,
+      };
+    case 'streamable-http':
+      if (!config.url) {
+        return createInvalidInstallConfig(detail, 'Unable to derive install plan from marketplace metadata.');
+      }
+      return {
+        mode: 'automatic',
+        derivedFrom: 'connection-config',
+        validationStatus: 'valid',
+        command: '',
+        args: [],
+        connectionType: 'streamableHttp',
+        url: config.url,
+        fallbackToSse: false,
+        envKeys,
+      };
+    case 'sse':
+      if (!config.url) {
+        return createInvalidInstallConfig(detail, 'Unable to derive install plan from marketplace metadata.');
+      }
+      return {
+        mode: 'automatic',
+        derivedFrom: 'connection-config',
+        validationStatus: 'valid',
+        command: '',
+        args: [],
+        connectionType: 'sse',
+        url: config.url,
+        envKeys,
+      };
+    case 'stdio':
+      if (!config.command) {
+        return createInvalidInstallConfig(detail, 'Unable to derive install plan from marketplace metadata.');
+      }
+      return {
+        mode: 'automatic',
+        derivedFrom: 'connection-config',
+        validationStatus: 'valid',
+        command: config.command,
+        args: config.args || [],
+        connectionType: 'stdio',
+        envKeys,
+      };
+    default:
+      return null;
+  }
+}
+
 export function parseInstallationConfig(
   item: McpMarketplaceItem,
   downloadDetails: McpDownloadResponse
 ): McpInstallConfig {
-  const config: McpInstallConfig = {
-    command: 'npx',
-    args: ['-y', item.mcpId],
-    connectionType: 'stdio',
+  const detail = {
+    ...downloadDetails,
+    source: downloadDetails.source || (item.source as McpRemoteMarketplaceSource),
+    itemKey:
+      downloadDetails.itemKey || item.itemKey || getMcpMarketplaceItemKey(item.source, item.mcpId),
   };
 
-  // Check for SSE/remote connection config from item
-  if (item.remote && item.connectionConfig) {
-    if (item.connectionConfig.type === 'sse' || item.connectionConfig.type === 'streamable-http') {
-      config.connectionType =
-        item.connectionConfig.type === 'streamable-http' ? 'streamableHttp' : 'sse';
-      config.url = item.connectionConfig.url;
-      config.fallbackToSse = item.connectionConfig.type === 'streamable-http';
-      config.command = '';
-      config.args = [];
-    } else if (item.connectionConfig.command) {
-      config.command = item.connectionConfig.command;
-      config.args = item.connectionConfig.args || [];
-    }
-    if (item.connectionConfig.env) {
-      config.envKeys = Object.keys(item.connectionConfig.env);
+  const sourceConnectionConfig = detail.connectionConfig || item.connectionConfig;
+  if (sourceConnectionConfig) {
+    const normalized = normalizeConnectionConfig(sourceConnectionConfig, detail);
+    if (normalized) {
+      return normalized;
     }
   }
 
-  // Try to parse from llmsInstallationContent (most accurate)
-  if (downloadDetails.llmsInstallationContent) {
-    const llmsConfig = parseLlmsInstallation(downloadDetails.llmsInstallationContent);
+  if (detail.llmsInstallationContent) {
+    const llmsConfig = parseLlmsInstallation(detail.llmsInstallationContent, detail);
     if (llmsConfig) {
-      Object.assign(config, llmsConfig);
+      return llmsConfig;
     }
   }
 
-  // Try to extract env keys from readme if not already found
-  if (!config.envKeys || config.envKeys.length === 0) {
-    config.envKeys = extractEnvKeysFromText(downloadDetails.readmeContent || '');
-  }
+  const envKeys = dedupeStrings([
+    ...(detail.envKeys || []),
+    ...extractEnvKeysFromText(detail.readmeContent || ''),
+  ]);
 
-  // Special handling for official MCP servers
-  if (downloadDetails.githubUrl?.includes('modelcontextprotocol/servers')) {
+  if (detail.githubUrl?.includes('modelcontextprotocol/servers')) {
     const serverName = item.mcpId.replace(/^@modelcontextprotocol\/server-/, '');
-    config.command = 'npx';
-    config.args = ['-y', `@modelcontextprotocol/server-${serverName}`];
+    return {
+      mode: 'automatic',
+      derivedFrom: 'fallback',
+      validationStatus: 'valid',
+      command: 'npx',
+      args: ['-y', `@modelcontextprotocol/server-${serverName}`],
+      connectionType: 'stdio',
+      envKeys,
+    };
   }
 
-  // Handle npm package names
-  if (item.mcpId.startsWith('@') || item.mcpId.includes('/')) {
-    config.args = ['-y', item.mcpId];
+  if (detail.source === 'cline' && isLikelyPackageName(item.mcpId) && !item.remote) {
+    return {
+      mode: 'automatic',
+      derivedFrom: 'fallback',
+      validationStatus: 'valid',
+      command: 'npx',
+      args: ['-y', item.mcpId],
+      connectionType: 'stdio',
+      envKeys,
+    };
   }
 
-  return config;
+  return createInvalidInstallConfig(detail, 'Unable to derive install plan from marketplace metadata.');
 }
 
-/**
- * Parse llms installation content for config
- */
-function parseLlmsInstallation(content: string): Partial<McpInstallConfig> | null {
+function parseLlmsInstallation(
+  content: string,
+  detail: McpDownloadResponse
+): McpInstallConfig | null {
   try {
-    // Look for JSON config blocks
     const jsonMatch = content.match(/```json\s*(\{[\s\S]*?\})\s*```/);
     if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[1]);
+      const parsed = JSON.parse(jsonMatch[1]) as {
+        command?: string;
+        args?: string[];
+        transportType?: string;
+        url?: string;
+        env?: Record<string, string>;
+      };
+
+      const envKeys = dedupeStrings([
+        ...(detail.envKeys || []),
+        ...(parsed.env ? Object.keys(parsed.env) : []),
+      ]);
+
+      if (parsed.transportType === 'sse' && parsed.url) {
+        return {
+          mode: 'automatic',
+          derivedFrom: 'llms',
+          validationStatus: 'valid',
+          command: '',
+          args: [],
+          connectionType: 'sse',
+          url: parsed.url,
+          envKeys,
+        };
+      }
+
+      if (
+        (parsed.transportType === 'streamableHttp' ||
+          parsed.transportType === 'streamable-http' ||
+          parsed.transportType === 'http') &&
+        parsed.url
+      ) {
+        return {
+          mode: 'automatic',
+          derivedFrom: 'llms',
+          validationStatus: 'valid',
+          command: '',
+          args: [],
+          connectionType: 'streamableHttp',
+          url: parsed.url,
+          fallbackToSse: parsed.transportType === 'http',
+          envKeys,
+        };
+      }
+
       if (parsed.command) {
         return {
+          mode: 'automatic',
+          derivedFrom: 'llms',
+          validationStatus: 'valid',
           command: parsed.command,
           args: parsed.args || [],
-          connectionType: parsed.transportType === 'sse' ? 'sse' : 'stdio',
-          url: parsed.url,
-          envKeys: parsed.env ? Object.keys(parsed.env) : undefined,
+          connectionType: 'stdio',
+          envKeys,
         };
       }
     }
 
-    // Look for command patterns
     const cmdMatch = content.match(/command["\s:]+["']?(\w+)["']?/i);
     const argsMatch = content.match(/args["\s:]+\[([^\]]+)\]/i);
-    
+
     if (cmdMatch) {
-      const args = argsMatch 
-        ? argsMatch[1].split(',').map(s => s.trim().replace(/["']/g, ''))
+      const args = argsMatch
+        ? argsMatch[1].split(',').map((segment) => segment.trim().replace(/["']/g, ''))
         : [];
       return {
+        mode: 'automatic',
+        derivedFrom: 'readme',
+        validationStatus: 'valid',
         command: cmdMatch[1],
         args,
+        connectionType: 'stdio',
+        envKeys: detail.envKeys || [],
       };
     }
 
@@ -764,13 +1227,8 @@ function parseLlmsInstallation(content: string): Partial<McpInstallConfig> | nul
   }
 }
 
-/**
- * Extract environment variable keys from text (readme, etc.)
- */
 function extractEnvKeysFromText(text: string): string[] {
   const envKeys = new Set<string>();
-  
-  // Common patterns for env vars
   const patterns = [
     /([A-Z][A-Z0-9_]{2,}_(?:KEY|TOKEN|SECRET|API_KEY|PASSWORD|CREDENTIAL))/g,
     /\$\{?([A-Z][A-Z0-9_]+)\}?/g,
@@ -789,5 +1247,5 @@ function extractEnvKeysFromText(text: string): string[] {
     }
   }
 
-  return Array.from(envKeys).slice(0, 10); // Limit to 10 keys
+  return Array.from(envKeys).slice(0, 10);
 }

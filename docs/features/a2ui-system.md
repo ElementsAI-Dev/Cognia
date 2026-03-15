@@ -11,6 +11,7 @@ A2UI (AI-to-UI) is a system for generating interactive web applications from AI 
 | **Data Model** | Structured data binding for generated UIs |
 | **Error Boundary** | Graceful error handling for generated components |
 | **Live Preview** | Real-time preview of generated applications |
+| **Rich Output Routing** | Route requests to the best-fit output profile and runtime |
 
 ## How It Works
 
@@ -46,6 +47,32 @@ types/artifact/a2ui.ts             → TypeScript type definitions
 - **Data**: Forms, inputs, filters, data tables
 - **Academic**: Citation viewers, paper analyzers, knowledge maps
 - **Layout**: Tabs, accordions, split panes, modals
+
+## Rich Output Matrix
+
+A2UI now supports a profile-driven rich-output layer that picks the right answer shape for the request instead of forcing everything into plain text.
+
+### Core Profiles
+
+- Plain text and warm text for quick answers or support-oriented responses
+- Code blocks for implementation-heavy answers
+- SVG diagrams for physical explanations, flowcharts, structural diagrams, plotters, and decorative illustrations
+- Mermaid diagrams for schema and relationship views
+- HTML hosts for explainers, KPI dashboards, UI mockups, comparison grids, steppers, and sortable exploration tables
+
+### Advanced Profiles
+
+- Chart.js for line, bar, and doughnut charts
+- Canvas for lightweight simulations
+- Three.js for 3D scene rendering
+- Tone.js for interactive audio/synth experiences
+- D3 for force-layout network graphs
+
+### Rollout and Fallbacks
+
+- Advanced profiles are gated by `NEXT_PUBLIC_ENABLE_ADVANCED_RICH_OUTPUT_PROFILES`
+- When an advanced runtime is disabled or unavailable, A2UI falls back to a simpler profile and records that fallback in structured logs and artifact metadata
+- Artifact creation can now carry `outputProfileId`, `technology`, `hostStrategy`, `requestCategory`, and `rolloutTier` metadata so downstream renderers know how the answer was planned
 
 ## State Management
 

@@ -6,9 +6,16 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { createLogRuntimeContext, loggers } from '@/lib/logger';
 import { useSettingsStore } from '@/stores';
 import { autoDetectLocale, getSystemTimezone } from '@/lib/i18n';
 import type { Language } from '@/stores/settings';
+
+const localeLogContext = createLogRuntimeContext({
+  runtime: 'browser',
+  origin: 'frontend',
+  tags: ['initializer', 'locale'],
+});
 
 export function LocaleInitializer() {
   const initializedRef = useRef(false);
@@ -45,7 +52,10 @@ export function LocaleInitializer() {
           setLanguage(result.locale as Language);
         }
       } catch (error) {
-        console.warn('Failed to auto-detect locale:', error);
+        loggers.ui.warn('Failed to auto-detect locale', {
+          ...localeLogContext,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     };
 

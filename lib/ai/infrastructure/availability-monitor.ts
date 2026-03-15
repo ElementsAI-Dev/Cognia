@@ -8,9 +8,10 @@
  * - Event-based notifications for status changes
  */
 
-import { testProviderConnection } from './api-test';
+import { probeProviderConnection, type ProviderConnectionProbeResult } from './api-test';
 import { circuitBreakerRegistry, type CircuitState } from './circuit-breaker';
 import { loggers } from '@/lib/logger';
+import { getActiveCredential } from '@/lib/ai/providers/completeness';
 
 const log = loggers.ai;
 
@@ -35,6 +36,8 @@ export interface HealthCheckResult {
   latencyMs: number;
   message: string;
   timestamp: number;
+  outcome?: ProviderConnectionProbeResult['outcome'];
+  authoritative?: boolean;
 }
 
 export interface AvailabilityMonitorConfig {
@@ -51,7 +54,7 @@ export interface AvailabilityMonitorConfig {
   /** Enable automatic health checks */
   autoStart: boolean;
   /** Provider credentials for health checks */
-  providerCredentials: Map<string, { apiKey?: string; baseURL?: string }>;
+  providerCredentials: Map<string, { apiKey?: string; apiKeys?: string[]; currentKeyIndex?: number; baseURL?: string }>;
 }
 
 export type AvailabilityEventType = 'status_changed' | 'health_check' | 'error';
@@ -136,7 +139,7 @@ export class AvailabilityMonitor {
    */
   registerProvider(
     providerId: string,
-    credentials?: { apiKey?: string; baseURL?: string }
+    credentials?: { apiKey?: string; apiKeys?: string[]; currentKeyIndex?: number; baseURL?: string }
   ): void {
     if (credentials) {
       this.config.providerCredentials.set(providerId, credentials);
@@ -203,11 +206,11 @@ export class AvailabilityMonitor {
     try {
       // Perform the health check with timeout
       const testResult = await this.withTimeout(
-        testProviderConnection(
+        probeProviderConnection({
           providerId,
-          credentials?.apiKey || '',
-          credentials?.baseURL
-        ),
+          apiKey: getActiveCredential(credentials),
+          baseURL: credentials?.baseURL,
+        }),
         this.config.checkTimeout
       );
 
@@ -217,6 +220,8 @@ export class AvailabilityMonitor {
         latencyMs: testResult.latency_ms || (Date.now() - startTime),
         message: testResult.message,
         timestamp: Date.now(),
+        outcome: testResult.outcome,
+        authoritative: testResult.authoritative,
       };
     } catch (error) {
       result = {
@@ -252,7 +257,12 @@ export class AvailabilityMonitor {
       circuitState: circuitBreakerRegistry.getState(providerId) || 'closed',
     };
 
-    if (result.success) {
+    if (result.outcome === 'limited' || result.authoritative === false) {
+      updated.status = 'unknown';
+      updated.errorMessage = result.message;
+      updated.consecutiveFailures = 0;
+      updated.consecutiveSuccesses = 0;
+    } else if (result.success) {
       updated.lastSuccess = result.timestamp;
       updated.consecutiveSuccesses++;
       updated.consecutiveFailures = 0;

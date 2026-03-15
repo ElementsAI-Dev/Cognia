@@ -7,7 +7,11 @@
 
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { getProviderModel, type ProviderName } from '../core/client';
+import type { ProviderName } from '../core/client';
+import {
+  createFeatureProviderModelFromRuntimeConfig,
+  createFeatureRoutePolicy,
+} from '@/lib/ai/provider-consumption';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.ai;
@@ -47,6 +51,24 @@ export interface SuggestionResult {
   error?: string;
 }
 
+function getSuggestionGeneratorModel(options: SuggestionGeneratorOptions) {
+  return createFeatureProviderModelFromRuntimeConfig(
+    createFeatureRoutePolicy('general-text', {
+      featureId: 'suggestion-generator',
+      selectionMode: 'explicit-provider',
+      providerId: options.provider,
+      model: options.model,
+      fallbackMode: 'none',
+    }),
+    {
+      providerId: options.provider,
+      model: options.model,
+      apiKey: options.apiKey,
+      baseURL: options.baseURL,
+    }
+  );
+}
+
 const SUGGESTION_SYSTEM_PROMPT = `You are a helpful assistant that generates follow-up suggestions based on a conversation.
 Given the conversation context, generate short, actionable follow-up prompts that the user might want to ask next.
 
@@ -76,7 +98,7 @@ export async function generateSuggestions(
   } = options;
 
   try {
-    const modelInstance = getProviderModel(provider, model, apiKey, baseURL);
+    const modelInstance = getSuggestionGeneratorModel(options);
 
     const conversationContext = context
       ? `Previous context: ${context}\n\n`

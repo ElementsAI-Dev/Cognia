@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/collapsible';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useMarketplace } from '@/hooks/plugin/use-marketplace';
+import { filterMarketplacePlugins } from '@/hooks/plugin/marketplace-filter';
 import { usePluginMarketplaceStore } from '@/stores/plugin/plugin-marketplace-store';
 import { cn } from '@/lib/utils';
 import { PluginDetailModal } from './plugin-detail-modal';
@@ -109,6 +110,8 @@ export function PluginMarketplace({
     sortBy: canonicalSortBy,
     categoryFilter: canonicalCategoryFilter,
     quickFilter: canonicalQuickFilter,
+    sourceFilter: canonicalSourceFilter = 'all',
+    compatibilityFilter: canonicalCompatibilityFilter = 'all',
     setQuery: setCanonicalQuery,
     setSortBy: setCanonicalSort,
     setCategoryFilter: setCanonicalCategory,
@@ -290,64 +293,23 @@ export function PluginMarketplace({
   }, [setQuickFilter, setSortBy]);
 
   const filteredPlugins = useMemo(() => {
-    let result = [...marketplacePlugins];
-
-    // Search filter (uses debounced value)
-    if (debouncedQuery) {
-      const query = debouncedQuery.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.name.toLowerCase().includes(query) ||
-          p.description.toLowerCase().includes(query) ||
-          p.tags.some((tag) => tag.toLowerCase().includes(query))
-      );
-    }
-
-    // Category filter
-    if (categoryFilter !== 'all') {
-      result = result.filter((p) => p.capabilities.includes(categoryFilter));
-    }
-
-    // Quick filter
-    switch (quickFilter) {
-      case 'verified':
-        result = result.filter((p) => p.verified);
-        break;
-      case 'free':
-        result = result.filter((p) => !p.price || p.price === 0);
-        break;
-      case 'new': {
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        result = result.filter((p) => new Date(p.lastUpdated) >= weekAgo);
-        break;
-      }
-      case 'popular':
-        result = result.filter((p) => p.downloadCount > 20000);
-        break;
-    }
-
-    // Sort
-    switch (sortBy) {
-      case 'popular':
-        result.sort((a, b) => b.downloadCount - a.downloadCount);
-        break;
-      case 'rating':
-        result.sort((a, b) => b.rating - a.rating);
-        break;
-      case 'recent':
-        result.sort(
-          (a, b) =>
-            new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime()
-        );
-        break;
-      case 'downloads':
-        result.sort((a, b) => b.downloadCount - a.downloadCount);
-        break;
-    }
-
-    return result;
-  }, [marketplacePlugins, debouncedQuery, categoryFilter, quickFilter, sortBy]);
+    return filterMarketplacePlugins(marketplacePlugins, {
+      query: debouncedQuery,
+      categoryFilter,
+      quickFilter,
+      sortBy,
+      sourceFilter: canonicalSourceFilter,
+      compatibilityFilter: canonicalCompatibilityFilter,
+    });
+  }, [
+    marketplacePlugins,
+    debouncedQuery,
+    categoryFilter,
+    quickFilter,
+    sortBy,
+    canonicalSourceFilter,
+    canonicalCompatibilityFilter,
+  ]);
 
   const visiblePlugins = useMemo(
     () => filteredPlugins.slice(0, visibleCount),

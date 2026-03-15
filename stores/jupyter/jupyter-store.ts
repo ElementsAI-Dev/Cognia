@@ -6,6 +6,10 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import {
+  MAX_NOTEBOOK_INLINE_SNAPSHOT_BYTES,
+  MAX_NOTEBOOK_WORKSPACE_SNAPSHOTS,
+} from '@/types/jupyter';
 import type {
   JupyterSession,
   KernelInfo,
@@ -15,7 +19,84 @@ import type {
   ExecutableCell,
   ExecutionHistoryEntry,
   SessionEnvMapping,
+  NotebookWorkspaceSnapshot,
+  NotebookWorkspaceSnapshotInput,
+  NotebookWorkspaceRecoveryStatus,
 } from '@/types/jupyter';
+
+function getContentSizeBytes(content: string | null | undefined): number {
+  if (!content) return 0;
+  if (typeof TextEncoder !== 'undefined') {
+    return new TextEncoder().encode(content).length;
+  }
+  return content.length;
+}
+
+function createWorkspaceSnapshot(
+  input: NotebookWorkspaceSnapshotInput,
+  existing?: NotebookWorkspaceSnapshot
+): NotebookWorkspaceSnapshot {
+  const now = input.updatedAt ?? new Date().toISOString();
+  const notebookContent = input.notebookContent ?? existing?.notebookContent ?? null;
+  const contentSizeBytes = getContentSizeBytes(notebookContent);
+  const hasInlineContent = contentSizeBytes <= MAX_NOTEBOOK_INLINE_SNAPSHOT_BYTES;
+
+  return {
+    surfaceId: input.surfaceId,
+    sessionId: input.sessionId ?? existing?.sessionId ?? null,
+    kernelId: input.kernelId ?? existing?.kernelId ?? null,
+    selectedEnvPath: input.selectedEnvPath ?? existing?.selectedEnvPath ?? null,
+    filePath: input.filePath ?? existing?.filePath ?? null,
+    notebookContent: hasInlineContent ? notebookContent : null,
+    isDirty: input.isDirty ?? existing?.isDirty ?? false,
+    recoveryStatus: input.recoveryStatus ?? existing?.recoveryStatus ?? 'ready',
+    recoveryError:
+      input.recoveryError !== undefined ? input.recoveryError : (existing?.recoveryError ?? null),
+    lastSavedAt:
+      input.lastSavedAt !== undefined ? input.lastSavedAt : (existing?.lastSavedAt ?? null),
+    lastExecutedAt:
+      input.lastExecutedAt !== undefined
+        ? input.lastExecutedAt
+        : (existing?.lastExecutedAt ?? null),
+    updatedAt: now,
+    createdAt: existing?.createdAt ?? input.createdAt ?? now,
+    hasInlineContent,
+    contentSizeBytes,
+    fileInfo: input.fileInfo !== undefined ? input.fileInfo : (existing?.fileInfo ?? null),
+  };
+}
+
+function pruneWorkspaceSnapshots(
+  workspaces: Record<string, NotebookWorkspaceSnapshot>
+): Record<string, NotebookWorkspaceSnapshot> {
+  const entries = Object.entries(workspaces);
+  if (entries.length <= MAX_NOTEBOOK_WORKSPACE_SNAPSHOTS) {
+    return workspaces;
+  }
+
+  return Object.fromEntries(
+    entries
+      .sort(
+        ([_leftKey, left], [_rightKey, right]) =>
+          new Date(left.updatedAt).getTime() - new Date(right.updatedAt).getTime()
+      )
+      .slice(entries.length - MAX_NOTEBOOK_WORKSPACE_SNAPSHOTS)
+  );
+}
+
+function markWorkspaceForReconnect(
+  workspace: NotebookWorkspaceSnapshot,
+  recoveryError: string | null = null
+): NotebookWorkspaceSnapshot {
+  return {
+    ...workspace,
+    sessionId: null,
+    kernelId: null,
+    recoveryStatus: 'needs_reconnect',
+    recoveryError,
+    updatedAt: new Date().toISOString(),
+  };
+}
 
 /** Jupyter store state */
 interface JupyterState {
@@ -38,6 +119,9 @@ interface JupyterState {
 
   // Session-environment mappings for chat integration
   sessionEnvMappings: SessionEnvMapping[];
+
+  // Recoverable notebook workspaces keyed by surface id
+  workspaces: Record<string, NotebookWorkspaceSnapshot>;
 
   // Cells for interactive notebooks
   cells: Map<string, ExecutableCell[]>;
@@ -81,6 +165,17 @@ interface JupyterActions {
   unmapChatSession: (chatSessionId: string) => void;
   getJupyterSessionForChat: (chatSessionId: string) => SessionEnvMapping | undefined;
 
+  // Workspace recovery
+  upsertWorkspace: (snapshot: NotebookWorkspaceSnapshotInput) => NotebookWorkspaceSnapshot;
+  removeWorkspace: (surfaceId: string) => void;
+  getWorkspace: (surfaceId: string) => NotebookWorkspaceSnapshot | null;
+  setWorkspaceRecoveryState: (
+    surfaceId: string,
+    recoveryStatus: NotebookWorkspaceRecoveryStatus,
+    recoveryError?: string | null
+  ) => void;
+  markWorkspacesForReconnectByKernelId: (kernelId: string, recoveryError?: string | null) => void;
+
   // Cells management
   setCells: (sessionId: string, cells: ExecutableCell[]) => void;
   updateCell: (sessionId: string, cellIndex: number, updates: Partial<ExecutableCell>) => void;
@@ -110,6 +205,7 @@ const initialState: JupyterState = {
   variablesLoading: false,
   executionHistory: [],
   sessionEnvMappings: [],
+  workspaces: {},
   cells: new Map(),
   error: null,
   isCreatingSession: false,
@@ -123,7 +219,27 @@ export const useJupyterStore = create<JupyterState & JupyterActions>()(
       ...initialState,
 
       // Session management
-      setSessions: (sessions) => set({ sessions }),
+      setSessions: (sessions) =>
+        set((state) => {
+          const sessionIds = new Set(sessions.map((session) => session.id));
+          const nextWorkspaces = Object.fromEntries(
+            Object.entries(state.workspaces).map(([surfaceId, workspace]) => {
+              if (!workspace.sessionId || sessionIds.has(workspace.sessionId)) {
+                return [surfaceId, workspace];
+              }
+              return [surfaceId, markWorkspaceForReconnect(workspace)];
+            })
+          );
+
+          return {
+            sessions,
+            activeSessionId:
+              state.activeSessionId && sessionIds.has(state.activeSessionId)
+                ? state.activeSessionId
+                : null,
+            workspaces: nextWorkspaces,
+          };
+        }),
 
       addSession: (session) =>
         set((state) => ({
@@ -131,14 +247,26 @@ export const useJupyterStore = create<JupyterState & JupyterActions>()(
         })),
 
       removeSession: (sessionId) =>
-        set((state) => ({
-          sessions: state.sessions.filter((s) => s.id !== sessionId),
-          activeSessionId: state.activeSessionId === sessionId ? null : state.activeSessionId,
-          // Also remove from mappings
-          sessionEnvMappings: state.sessionEnvMappings.filter(
-            (m) => m.jupyterSessionId !== sessionId
-          ),
-        })),
+        set((state) => {
+          const nextWorkspaces = Object.fromEntries(
+            Object.entries(state.workspaces).map(([surfaceId, workspace]) => {
+              if (workspace.sessionId !== sessionId) {
+                return [surfaceId, workspace];
+              }
+              return [surfaceId, markWorkspaceForReconnect(workspace)];
+            })
+          );
+
+          return {
+            sessions: state.sessions.filter((s) => s.id !== sessionId),
+            activeSessionId: state.activeSessionId === sessionId ? null : state.activeSessionId,
+            // Also remove from mappings
+            sessionEnvMappings: state.sessionEnvMappings.filter(
+              (m) => m.jupyterSessionId !== sessionId
+            ),
+            workspaces: nextWorkspaces,
+          };
+        }),
 
       updateSession: (sessionId, updates) =>
         set((state) => ({
@@ -215,6 +343,58 @@ export const useJupyterStore = create<JupyterState & JupyterActions>()(
         return get().sessionEnvMappings.find((m) => m.chatSessionId === chatSessionId);
       },
 
+      // Workspace recovery
+      upsertWorkspace: (snapshot) => {
+        const nextSnapshot = createWorkspaceSnapshot(snapshot, get().workspaces[snapshot.surfaceId]);
+        set((state) => ({
+          workspaces: pruneWorkspaceSnapshots({
+            ...state.workspaces,
+            [snapshot.surfaceId]: nextSnapshot,
+          }),
+        }));
+        return nextSnapshot;
+      },
+
+      removeWorkspace: (surfaceId) =>
+        set((state) => {
+          const nextWorkspaces = { ...state.workspaces };
+          delete nextWorkspaces[surfaceId];
+          return { workspaces: nextWorkspaces };
+        }),
+
+      getWorkspace: (surfaceId) => {
+        return get().workspaces[surfaceId] ?? null;
+      },
+
+      setWorkspaceRecoveryState: (surfaceId, recoveryStatus, recoveryError = null) =>
+        set((state) => {
+          const existing = state.workspaces[surfaceId];
+          if (!existing) return state;
+          return {
+            workspaces: {
+              ...state.workspaces,
+              [surfaceId]: {
+                ...existing,
+                recoveryStatus,
+                recoveryError,
+                updatedAt: new Date().toISOString(),
+              },
+            },
+          };
+        }),
+
+      markWorkspacesForReconnectByKernelId: (kernelId, recoveryError = null) =>
+        set((state) => ({
+          workspaces: Object.fromEntries(
+            Object.entries(state.workspaces).map(([surfaceId, workspace]) => {
+              if (workspace.kernelId !== kernelId) {
+                return [surfaceId, workspace];
+              }
+              return [surfaceId, markWorkspaceForReconnect(workspace, recoveryError)];
+            })
+          ),
+        })),
+
       // Cells management
       setCells: (sessionId, cells) =>
         set((state) => {
@@ -254,9 +434,10 @@ export const useJupyterStore = create<JupyterState & JupyterActions>()(
     {
       name: 'jupyter-store',
       partialize: (state) => ({
-        // Only persist mappings and history
+        // Only persist mappings, recovery workspaces, and trimmed history
         sessionEnvMappings: state.sessionEnvMappings,
         executionHistory: state.executionHistory.slice(0, 100), // Limit persisted history
+        workspaces: state.workspaces,
       }),
     }
   )

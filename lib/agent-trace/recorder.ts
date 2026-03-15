@@ -216,6 +216,9 @@ function syncRecordToLiveStore(record: AgentTraceRecord, sessionId?: string): vo
     costEstimate: record.costEstimate,
     responsePreview,
     modelId,
+    traceId: record.traceId,
+    spanId: record.spanId,
+    turnId: record.turnId,
   };
 
   const store = useAgentTraceStore.getState();

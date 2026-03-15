@@ -21,6 +21,7 @@ import type {
   GitOperationProgress,
   GitOperationStatus,
   ProjectGitConfig,
+  GitTrackedRepo,
 } from '@/types/system/git';
 
 export interface UseGitOptions {
@@ -49,6 +50,7 @@ export interface UseGitReturn {
   stashList: { index: number; message: string; branch?: string; date?: string }[];
   remotes: GitRemoteInfo[];
   tags: GitTagInfo[];
+  trackedRepos: GitTrackedRepo[];
 
   // Operation state
   operationStatus: GitOperationStatus;
@@ -70,6 +72,11 @@ export interface UseGitReturn {
     targetPath: string,
     options?: { branch?: string; depth?: number }
   ) => Promise<boolean>;
+  addTrackedRepo: (
+    path: string,
+    metadata?: Partial<Omit<GitTrackedRepo, 'path' | 'displayName' | 'lastOpenedAt'>>
+  ) => void;
+  removeTrackedRepo: (path: string) => void;
   setCurrentRepo: (path: string | null) => void;
   refreshStatus: () => Promise<void>;
 
@@ -165,6 +172,7 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     stashList,
     remotes,
     tags,
+    trackedRepos,
     operationStatus,
     lastError,
   } = useGitStore(
@@ -180,6 +188,7 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
       stashList: state.stashList,
       remotes: state.remotes,
       tags: state.tags,
+      trackedRepos: state.trackedRepos,
       operationStatus: state.operationStatus,
       lastError: state.lastError,
     }))
@@ -220,6 +229,8 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     setProjectConfig,
     enableGitForProject: enableGitForProjectAction,
     disableGitForProject: disableGitForProjectAction,
+    addTrackedRepo: addTrackedRepoAction,
+    removeTrackedRepo: removeTrackedRepoAction,
     clearError,
     loadRemotes: loadRemotesAction,
     addRemote: addRemoteAction,
@@ -270,6 +281,8 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
       setProjectConfig: state.setProjectConfig,
       enableGitForProject: state.enableGitForProject,
       disableGitForProject: state.disableGitForProject,
+      addTrackedRepo: state.addTrackedRepo,
+      removeTrackedRepo: state.removeTrackedRepo,
       clearError: state.clearError,
       loadRemotes: state.loadRemotes,
       addRemote: state.addRemote,
@@ -374,6 +387,23 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
       return success;
     },
     [cloneRepoAction, refreshStatus]
+  );
+
+  const addTrackedRepo = useCallback(
+    (
+      path: string,
+      metadata?: Partial<Omit<GitTrackedRepo, 'path' | 'displayName' | 'lastOpenedAt'>>
+    ) => {
+      addTrackedRepoAction(path, metadata);
+    },
+    [addTrackedRepoAction]
+  );
+
+  const removeTrackedRepo = useCallback(
+    (path: string) => {
+      removeTrackedRepoAction(path);
+    },
+    [removeTrackedRepoAction]
   );
 
   // Stage files
@@ -652,6 +682,7 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     stashList,
     remotes,
     tags,
+    trackedRepos,
 
     // Operation state
     operationStatus,
@@ -669,6 +700,8 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     // Repository actions
     initRepo,
     cloneRepo,
+    addTrackedRepo,
+    removeTrackedRepo,
     setCurrentRepo,
     refreshStatus,
 

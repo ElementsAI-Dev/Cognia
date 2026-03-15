@@ -23,6 +23,8 @@ import type {
   KernelServiceConfig,
   NormalizedKernelServiceConfig,
   NotebookFileInfo,
+  NotebookEnvironmentReadiness,
+  NotebookSessionRestoreResult,
 } from '@/types/jupyter';
 
 /** Check if kernel management is available */
@@ -321,6 +323,93 @@ export async function ensureKernel(envPath: string): Promise<boolean> {
   return invoke<boolean>('jupyter_ensure_kernel', { envPath });
 }
 
+/** Ensure a notebook environment is ready for session creation */
+export async function prepareNotebookEnvironment(
+  envPath: string
+): Promise<NotebookEnvironmentReadiness> {
+  if (!isTauri()) {
+    return {
+      ready: false,
+      installedKernel: false,
+      error: 'Jupyter kernel requires Tauri environment',
+    };
+  }
+
+  try {
+    const available = await checkKernelAvailable(envPath);
+    if (available) {
+      return {
+        ready: true,
+        installedKernel: false,
+        error: null,
+      };
+    }
+
+    const installedKernel = await ensureKernel(envPath);
+    return {
+      ready: installedKernel,
+      installedKernel,
+      error: installedKernel ? null : 'Kernel installation did not complete',
+    };
+  } catch (error) {
+    return {
+      ready: false,
+      installedKernel: false,
+      error: error instanceof Error ? error.message : 'Failed to prepare notebook environment',
+    };
+  }
+}
+
+/** Restore a notebook session if it still exists and has a live kernel */
+export async function restoreNotebookSession(
+  sessionId: string
+): Promise<NotebookSessionRestoreResult> {
+  if (!isTauri()) {
+    return {
+      status: 'unavailable',
+      session: null,
+      kernelAlive: false,
+      error: 'Jupyter kernel requires Tauri environment',
+    };
+  }
+
+  try {
+    const session = await getSessionById(sessionId);
+    if (!session?.kernelId) {
+      return {
+        status: 'needs_reconnect',
+        session: null,
+        kernelAlive: false,
+        error: 'Session not found',
+      };
+    }
+
+    const kernelAlive = await isKernelAlive(sessionId);
+    if (!kernelAlive) {
+      return {
+        status: 'needs_reconnect',
+        session: null,
+        kernelAlive: false,
+        error: 'Kernel is not alive',
+      };
+    }
+
+    return {
+      status: 'restored',
+      session,
+      kernelAlive: true,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      status: 'needs_reconnect',
+      session: null,
+      kernelAlive: false,
+      error: error instanceof Error ? error.message : 'Failed to restore notebook session',
+    };
+  }
+}
+
 /** Shutdown all kernels */
 export async function shutdownAll(): Promise<void> {
   if (!isTauri()) {
@@ -460,6 +549,8 @@ export const kernelService = {
   // Utility
   checkKernelAvailable,
   ensureKernel,
+  prepareNotebookEnvironment,
+  restoreNotebookSession,
   shutdownAll,
   cleanup,
   // Configuration

@@ -239,6 +239,8 @@ export {
   type MarketplaceConfig,
 } from './package/marketplace';
 
+export { buildExtensionCatalogEntry } from './package';
+
 export {
   DependencyResolver,
   getDependencyResolver,

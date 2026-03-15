@@ -2,7 +2,15 @@
  * Marketplace Types - Shared types for marketplace components
  */
 
-import type { PluginCapability, PluginType } from '@/types/plugin';
+import type {
+  ExtensionCompatibilityDiagnostic,
+  ExtensionCompatibilitySummary,
+  ExtensionDescriptor,
+  PluginCapability,
+  PluginSource,
+  PluginType,
+} from '@/types/plugin';
+import type { LucideIcon } from 'lucide-react';
 
 export interface MarketplacePlugin {
   id: string;
@@ -29,11 +37,16 @@ export interface MarketplacePlugin {
   verified?: boolean;
   price?: number;
   installed?: boolean;
+  enabled?: boolean;
+  source?: PluginSource | 'marketplace';
   latestVersion?: string;
   updateAvailable?: boolean;
   operationStage?: 'idle' | 'installing' | 'updating' | 'installed' | 'error';
   operationErrorCategory?: string;
   operationErrorMessage?: string;
+  compatibilityStatus?: ExtensionCompatibilitySummary['status'];
+  compatibilityDiagnostics?: ExtensionCompatibilityDiagnostic[];
+  descriptor?: ExtensionDescriptor;
   // Extended fields for detail view
   repository?: string;
   homepage?: string;
@@ -74,7 +87,7 @@ export interface PluginCollection {
   id: string;
   name: string;
   description: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   pluginIds: string[];
   gradient: string;
 }

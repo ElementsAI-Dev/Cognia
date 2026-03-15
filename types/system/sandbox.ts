@@ -37,6 +37,56 @@ export type SandboxDiagnosticsCategory =
   | 'resource_limit'
   | 'internal_failure';
 
+/** Product entrypoint identifier for sandbox consumption */
+export type SandboxEntrypointId =
+  | 'chat-code-block'
+  | 'ai-code-block'
+  | 'workflow-code-step'
+  | 'scheduler-script';
+
+/** Consumer execution mode */
+export type SandboxConsumptionMode = 'interactive' | 'background';
+
+/** How the entrypoint behaves when sandbox execution is not available */
+export type SandboxDegradedBehavior = 'disable' | 'blocked-result' | 'bypass';
+
+/** Which request fields an entrypoint is allowed to override */
+export interface SandboxEntrypointOverridePolicy {
+  timeout_secs?: boolean;
+  memory_limit_mb?: boolean;
+  network_enabled?: boolean;
+  runtime?: boolean;
+  env?: boolean;
+  args?: boolean;
+  files?: boolean;
+  stdin?: boolean;
+  policy_profile?: boolean;
+}
+
+/** Shared entrypoint policy used by sandbox consumers */
+export interface SandboxEntrypointPolicy {
+  entrypoint: SandboxEntrypointId;
+  mode: SandboxConsumptionMode;
+  requires_preflight: boolean;
+  allow_quick_run: boolean;
+  degraded_behavior: SandboxDegradedBehavior;
+  sandbox_optional?: boolean;
+  allowed_overrides: SandboxEntrypointOverridePolicy;
+}
+
+/** Shared metadata attached to sandbox consumption outcomes */
+export interface SandboxConsumptionMetadata {
+  entrypoint: SandboxEntrypointId;
+  mode: SandboxConsumptionMode;
+  degraded_behavior: SandboxDegradedBehavior;
+  requires_preflight: boolean;
+  sandbox_enabled: boolean;
+  blocked: boolean;
+  bypassed: boolean;
+  used_quick_run: boolean;
+  policy_profile?: string | null;
+}
+
 /** Structured diagnostics payload attached to execution outcomes */
 export interface SandboxExecutionDiagnostics {
   /** Diagnostics category */
@@ -300,6 +350,8 @@ export interface SandboxExecutionResult {
   diagnostics?: SandboxExecutionDiagnostics | null;
   /** Applied policy snapshot (if available) */
   policy_snapshot?: SandboxPolicySnapshot | null;
+  /** Shared product-entrypoint metadata (if available) */
+  consumption_metadata?: SandboxConsumptionMetadata | null;
 }
 
 /** Runtime status */
@@ -539,6 +591,8 @@ export interface SandboxExecutionRecord {
   diagnostics?: SandboxExecutionDiagnostics | null;
   /** Applied policy snapshot (if available) */
   policy_snapshot?: SandboxPolicySnapshot | null;
+  /** Shared product-entrypoint metadata (if available) */
+  consumption_metadata?: SandboxConsumptionMetadata | null;
   /** Created timestamp (ISO 8601) */
   created_at: string;
   /** Tags */

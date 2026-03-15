@@ -8,13 +8,19 @@ import type { WorkflowStepDefinition, StepExecutorConfig } from './types';
 import { generateText } from 'ai';
 import { withCircuitBreaker } from '@/lib/ai/infrastructure/circuit-breaker';
 import { withRetry } from '@/lib/utils/retry';
+import { createFeatureProviderModelFromRuntimeConfig } from '@/lib/ai/provider-consumption';
 
 jest.mock('ai', () => ({
   generateText: jest.fn(),
 }));
 
-jest.mock('@/lib/ai/core/client', () => ({
-  getProviderModel: jest.fn(() => ({})),
+jest.mock('@/lib/ai/provider-consumption', () => ({
+  createFeatureRoutePolicy: jest.fn((routeProfile, overrides) => ({
+    routeProfile,
+    selectionMode: 'default-provider',
+    ...overrides,
+  })),
+  createFeatureProviderModelFromRuntimeConfig: jest.fn(() => ({})),
 }));
 
 jest.mock('@/lib/ai/infrastructure/circuit-breaker', () => ({
@@ -44,6 +50,10 @@ jest.mock('@/lib/logger', () => ({
 const mockedGenerateText = generateText as jest.MockedFunction<typeof generateText>;
 const mockedWithCircuitBreaker = withCircuitBreaker as jest.MockedFunction<typeof withCircuitBreaker>;
 const mockedWithRetry = withRetry as jest.MockedFunction<typeof withRetry>;
+const mockedCreateFeatureProviderModelFromRuntimeConfig =
+  createFeatureProviderModelFromRuntimeConfig as jest.MockedFunction<
+    typeof createFeatureProviderModelFromRuntimeConfig
+  >;
 
 const createStep = (overrides: Partial<WorkflowStepDefinition>): WorkflowStepDefinition => ({
   id: 'test-ai-step',
@@ -90,6 +100,25 @@ describe('executeAIStep', () => {
       text: 'AI response',
       usage: { promptTokens: 10, completionTokens: 20, totalTokens: 30 },
     });
+  });
+
+  it('resolves the model through the shared routing contract', async () => {
+    const step = createStep({});
+    const config = createConfig();
+
+    await executeAIStep(step, {}, config);
+
+    expect(mockedCreateFeatureProviderModelFromRuntimeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeProfile: 'general-text',
+        featureId: 'workflow-ai-step',
+      }),
+      expect.objectContaining({
+        providerId: 'openai',
+        model: 'gpt-4',
+        apiKey: 'test-key',
+      })
+    );
   });
 
   it('should replace placeholders in prompt', async () => {

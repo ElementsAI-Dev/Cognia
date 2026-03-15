@@ -34,6 +34,7 @@ import { A2UILink } from './display/a2ui-link';
 import { A2UILoading } from './display/a2ui-loading';
 import { A2UIError } from './display/a2ui-error';
 import { A2UIEmpty } from './display/a2ui-empty';
+import { A2UIRichOutput } from './display/a2ui-rich-output';
 
 // Import form components
 import { A2UIButton } from './form/a2ui-button';
@@ -88,6 +89,7 @@ const builtInComponents = new Map<string, A2UIComponentType>([
   ['Loading', A2UILoading as A2UIComponentType],
   ['Error', A2UIError as unknown as A2UIComponentType],
   ['Empty', A2UIEmpty as A2UIComponentType],
+  ['RichOutput', A2UIRichOutput as A2UIComponentType],
   // Form components
   ['Button', A2UIButton as A2UIComponentType],
   ['TextField', A2UITextField as A2UIComponentType],

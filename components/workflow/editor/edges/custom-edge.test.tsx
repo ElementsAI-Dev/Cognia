@@ -9,11 +9,13 @@ import { Position } from '@xyflow/react';
 // Mock the workflow editor store
 const mockDeleteEdge = jest.fn();
 const mockUpdateEdge = jest.fn();
+const mockSetInsertionIntent = jest.fn();
 
 jest.mock('@/stores/workflow', () => ({
   useWorkflowEditorStore: () => ({
     deleteEdge: mockDeleteEdge,
     updateEdge: mockUpdateEdge,
+    setInsertionIntent: mockSetInsertionIntent,
   }),
 }));
 
@@ -66,6 +68,7 @@ jest.mock('lucide-react', () => ({
   Check: () => <span data-testid="check-icon">Check</span>,
   Zap: () => <span data-testid="zap-icon">Zap</span>,
   AlertTriangle: () => <span data-testid="alert-icon">Alert</span>,
+  Plus: () => <span data-testid="plus-icon">Plus</span>,
 }));
 
 // Mock @xyflow/react components
@@ -285,5 +288,25 @@ describe('CustomEdge', () => {
     
     // Edge should render (style is applied via strokeDasharray)
     expect(screen.getByTestId('edge-edge-1')).toBeInTheDocument();
+  });
+
+  it('opens insert-between quick-add from the edge midpoint control', () => {
+    render(
+      <svg>
+        <CustomEdge {...defaultProps} selected={true} />
+      </svg>
+    );
+
+    fireEvent.click(screen.getByLabelText('Add Node'));
+
+    expect(mockSetInsertionIntent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'insert-between',
+        origin: 'edge-gap',
+        edgeId: 'edge-1',
+        sourceNodeId: 'node-1',
+        targetNodeId: 'node-2',
+      })
+    );
   });
 });

@@ -72,7 +72,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `pnpm exec next dev -H 127.0.0.1 -p ${devPort}`,
+    command: `cross-env COGNIA_NEXT_DIST_DIR=.next-playwright pnpm exec next dev -H 127.0.0.1 -p ${devPort}`,
     url: webServerURL,
     reuseExistingServer: true,
     timeout: 180 * 1000,

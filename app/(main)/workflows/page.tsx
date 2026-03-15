@@ -42,10 +42,13 @@ import {
 import { workflowRepository } from '@/lib/db/repositories';
 import { useWorkflowEditor } from '@/hooks/designer/use-workflow-editor';
 import { useWorkflowExecutionWithKeyboard } from '@/hooks/designer/use-workflow-execution';
+import { useWorkflowEditorStore } from '@/stores/workflow';
 import { workflowEditorTemplates, getTemplateCategories } from '@/lib/workflow-editor/templates';
 import { definitionToVisual } from '@/lib/workflow-editor/converter';
 import {
-  getWorkflowLifecycleCapability,
+  getWorkflowExecutionControlsSummary,
+  getWorkflowLifecycleLabel,
+  getWorkflowValidationSummary,
   isWorkflowEditorFeatureEnabled,
 } from '@/lib/workflow-editor';
 import {
@@ -56,6 +59,7 @@ import { WorkflowScheduleDialog } from '@/components/scheduler';
 import { toast } from 'sonner';
 import type {
   VisualWorkflow,
+  ValidationError,
   WorkflowEditorTemplate,
   WorkflowErrorEnvelope,
 } from '@/types/workflow/workflow-editor';
@@ -97,6 +101,7 @@ export default function WorkflowsPage() {
   const [templateBrowserOpen, setTemplateBrowserOpen] = useState(false);
   const [actionError, setActionError] = useState<WorkflowErrorEnvelope | null>(null);
   const workflowEditorV2Enabled = isWorkflowEditorFeatureEnabled('workflow.editor.v2');
+  const validateWorkflowState = useWorkflowEditorStore((state) => state.validate);
 
   const {
     currentWorkflow,
@@ -132,39 +137,24 @@ export default function WorkflowsPage() {
     onError: (error: string) => toast.error(error),
   });
 
-  const hasErrors = useMemo(
-    () =>
-      validationErrors.some(
-        (error) => error.blocking ?? (error.severity !== 'warning' && error.severity !== 'info')
-      ),
+  const validationSummary = useMemo(
+    () => getWorkflowValidationSummary(validationErrors),
     [validationErrors]
   );
-  const lifecycleStatusLabel = useMemo(() => {
-    if (editorLifecycleState === 'saving') return 'Saving...';
-    if (editorLifecycleState === 'saveFailed') return 'Save failed';
-    if (editorLifecycleState === 'publishBlocked') return 'Publish blocked';
-    if (editorLifecycleState === 'readyToPublish') return 'Ready to publish';
-    if (editorLifecycleState === 'dirty') return 'Unsaved changes';
-    return 'Saved';
-  }, [editorLifecycleState]);
+  const hasErrors = validationSummary.hasBlockingErrors;
+  const lifecycleStatusLabel = useMemo(
+    () => getWorkflowLifecycleLabel(editorLifecycleState),
+    [editorLifecycleState]
+  );
   const executionControls = useMemo(
-    () => {
-      const capability = getWorkflowLifecycleCapability({
+    () =>
+      getWorkflowExecutionControlsSummary({
         hasWorkflow: Boolean(currentWorkflow),
         isExecuting,
         status: executionState?.status,
-        hasValidationErrors: hasErrors,
-      });
-      return {
-        canRun: capability.actions.run.allowed,
-        canPause: capability.actions.pause.allowed,
-        canResume: capability.actions.resume.allowed,
-        canCancel: capability.actions.cancel.allowed,
-        runReason: capability.actions.run.reason,
-        runRecoveryHint: capability.actions.run.recoveryHint,
-      };
-    },
-    [currentWorkflow, hasErrors, isExecuting, executionState?.status]
+        validationErrors,
+      }),
+    [currentWorkflow, executionState?.status, isExecuting, validationErrors]
   );
   const scheduleDefaultInput = useMemo<Record<string, unknown>>(() => {
     if (!currentWorkflow) return {};
@@ -404,7 +394,9 @@ export default function WorkflowsPage() {
   const handleExecuteWorkflow = async (inputOverride?: Record<string, unknown>) => {
     if (!currentWorkflow) return;
     setActionError(null);
-    if (!validate()) {
+    validate();
+    const currentValidationErrors = validateWorkflowState();
+    if (getWorkflowValidationSummary(currentValidationErrors).blockingCount > 0) {
       const envelope = createWorkflowErrorEnvelope({
         stage: 'validation',
         code: 'workflow.validation.failed',
@@ -469,12 +461,7 @@ export default function WorkflowsPage() {
             {hasErrors && (
               <Badge variant="destructive" className="text-xs">
                 <AlertTriangle className="h-3 w-3 mr-1" />
-                {
-                  validationErrors.filter(
-                    (error) =>
-                      error.blocking ?? (error.severity !== 'warning' && error.severity !== 'info')
-                  ).length
-                }
+                {validationSummary.blockingCount}
               </Badge>
             )}
           </div>
@@ -500,25 +487,7 @@ export default function WorkflowsPage() {
           )}
 
           {/* Execution controls */}
-          {executionControls.canRun ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                void handleExecuteWorkflow();
-              }}
-              disabled={!executionControls.canRun}
-              title={
-                executionControls.canRun
-                  ? undefined
-                  : `${executionControls.runReason || ''} ${executionControls.runRecoveryHint || ''}`.trim()
-              }
-              data-testid="workflow-page-run-button"
-            >
-              <Play className="h-4 w-4 mr-1" />
-              {t('run') || 'Run'}
-            </Button>
-          ) : (
+          {executionControls.canPause || executionControls.canResume || executionControls.canCancel ? (
             <div className="flex items-center gap-1">
               {executionControls.canPause && (
                 <Button
@@ -551,6 +520,24 @@ export default function WorkflowsPage() {
                 </Button>
               )}
             </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void handleExecuteWorkflow();
+              }}
+              disabled={!executionControls.canRun}
+              title={
+                executionControls.canRun
+                  ? undefined
+                  : `${executionControls.runReason || ''} ${executionControls.runRecoveryHint || ''}`.trim()
+              }
+              data-testid="workflow-page-run-button"
+            >
+              <Play className="h-4 w-4 mr-1" />
+              {t('run') || 'Run'}
+            </Button>
           )}
 
           <Button

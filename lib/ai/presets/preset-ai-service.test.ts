@@ -11,9 +11,19 @@ jest.mock('ai', () => ({
   generateText: (opts: unknown) => mockGenerateText(opts),
 }));
 
-// Mock the provider model
-jest.mock('../core/client', () => ({
-  getProviderModel: jest.fn(() => 'mock-model'),
+const mockCreateFeatureProviderModelFromRuntimeConfig = jest.fn(
+  (_policy: unknown, _runtimeConfig: unknown) => 'mock-model'
+);
+jest.mock('@/lib/ai/provider-consumption', () => ({
+  createFeatureRoutePolicy: jest.fn((routeProfile, overrides) => ({
+    routeProfile,
+    selectionMode: 'default-provider',
+    ...overrides,
+  })),
+  createFeatureProviderModelFromRuntimeConfig: (
+    policy: unknown,
+    runtimeConfig: unknown
+  ) => mockCreateFeatureProviderModelFromRuntimeConfig(policy, runtimeConfig),
 }));
 
 // Mock the prompt optimizer
@@ -219,6 +229,50 @@ describe('preset-ai-service', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
+    });
+
+    it('uses shared provider consumption for custom providers', async () => {
+      mockGenerateText.mockResolvedValueOnce({
+        text: JSON.stringify({
+          name: 'Custom',
+          description: 'Uses custom provider',
+          icon: '💬',
+          color: '#6366f1',
+          mode: 'chat',
+          systemPrompt: 'Test',
+          temperature: 0.7,
+          webSearchEnabled: false,
+          thinkingEnabled: false,
+        }),
+      });
+
+      const customConfig: PresetAIServiceConfig = {
+        provider: 'custom-openai',
+        model: 'custom-model',
+        apiKey: 'sk-custom',
+        baseURL: 'https://custom.example.com/v1',
+        protocol: 'openai',
+        isCustomProvider: true,
+        useProxy: true,
+      };
+
+      await generatePresetFromDescription('custom preset', customConfig);
+
+      expect(mockCreateFeatureProviderModelFromRuntimeConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          routeProfile: 'general-text',
+          featureId: 'preset-ai-service',
+        }),
+        expect.objectContaining({
+          providerId: 'custom-openai',
+          model: 'custom-model',
+          apiKey: 'sk-custom',
+          baseURL: 'https://custom.example.com/v1',
+          protocol: 'openai',
+          isCustomProvider: true,
+          useProxy: true,
+        })
+      );
     });
   });
 

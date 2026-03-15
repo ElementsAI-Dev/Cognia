@@ -42,6 +42,18 @@ const mockSetInstallStatus = jest.fn();
 const mockGetInstallStatus = jest.fn(() => 'not_installed');
 const mockAddServer = jest.fn();
 const mockHandleInstall = jest.fn();
+const mockInstallationState = {
+  isInstalling: false,
+  installError: null as string | null,
+  envValues: {},
+  envCheck: { supported: true, missingDeps: [] },
+  isCheckingEnv: false,
+  installConfig: null as Record<string, unknown> | null,
+  isCurrentlyInstalled: false,
+  setEnvValue: jest.fn(),
+  handleInstall: mockHandleInstall,
+  resetInstallation: jest.fn(),
+};
 
 jest.mock('@/stores/mcp', () => ({
   useMcpMarketplaceStore: () => ({
@@ -60,18 +72,7 @@ jest.mock('@/stores/mcp', () => ({
 
 // Mock useMcpInstallation hook
 jest.mock('@/hooks/mcp/use-mcp-installation', () => ({
-  useMcpInstallation: () => ({
-    isInstalling: false,
-    installError: null,
-    envValues: {},
-    envCheck: { supported: true, missingDeps: [] },
-    isCheckingEnv: false,
-    installConfig: null,
-    isCurrentlyInstalled: false,
-    setEnvValue: jest.fn(),
-    handleInstall: mockHandleInstall,
-    resetInstallation: jest.fn(),
-  }),
+  useMcpInstallation: () => mockInstallationState,
 }));
 
 // Mock marketplace utils
@@ -170,6 +171,10 @@ const mockItem: McpMarketplaceItem = {
 describe('McpMarketplaceDetailDialog', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockInstallationState.installError = null;
+    mockInstallationState.installConfig = null;
+    mockInstallationState.isInstalling = false;
+    mockInstallationState.isCurrentlyInstalled = false;
   });
 
   it('renders nothing when item is null', () => {
@@ -256,7 +261,7 @@ describe('McpMarketplaceDetailDialog', () => {
         isInstalled={false}
       />
     );
-    expect(mockFetchItemDetails).toHaveBeenCalledWith('test-mcp-server');
+    expect(mockFetchItemDetails).toHaveBeenCalledWith(mockItem);
   });
 
   it('shows favorite button when onToggleFavorite provided', () => {
@@ -342,5 +347,31 @@ describe('McpMarketplaceDetailDialog', () => {
     // requiresApiKey text should appear
     const elements = screen.getAllByText('requiresApiKey');
     expect(elements.length).toBeGreaterThan(0);
+  });
+
+  it('disables install button and shows validation error when install plan is invalid', () => {
+    mockInstallationState.installConfig = {
+      mode: 'manual',
+      validationStatus: 'invalid',
+      validationError: 'Unable to derive install plan from marketplace metadata.',
+      command: '',
+      args: [],
+      connectionType: 'stdio',
+      manualSteps: ['Review https://example.com for installation details.'],
+    };
+
+    render(
+      <McpMarketplaceDetailDialog
+        open={true}
+        onOpenChange={() => {}}
+        item={mockItem}
+        isInstalled={false}
+      />
+    );
+
+    expect(
+      screen.getAllByText('Unable to derive install plan from marketplace metadata.').length
+    ).toBeGreaterThan(0);
+    expect(screen.getByText('install')).toBeDisabled();
   });
 });

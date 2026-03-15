@@ -16,6 +16,15 @@ jest.mock('@/lib/i18n', () => ({
   getSystemTimezone: jest.fn(),
 }));
 
+jest.mock('@/lib/logger', () => ({
+  loggers: {
+    ui: {
+      warn: jest.fn(),
+    },
+  },
+  createLogRuntimeContext: jest.fn((value: Record<string, unknown>) => value),
+}));
+
 // Mock the settings store
 const mockSetLanguage = jest.fn();
 const mockSetLocaleDetectionResult = jest.fn();
@@ -27,6 +36,7 @@ jest.mock('@/stores', () => ({
 
 // Import after mocking
 import { useSettingsStore } from '@/stores';
+import { loggers } from '@/lib/logger';
 
 // Helper to create selector-based mock
 const createSettingsStoreMock = (overrides = {}) => {
@@ -119,5 +129,27 @@ describe('LocaleInitializer', () => {
 
     expect(i18n.getSystemTimezone).toHaveBeenCalledTimes(1);
     expect(mockSetDetectedTimezone).toHaveBeenCalledWith('Asia/Shanghai');
+  });
+
+  it('should route locale detection failures through the unified logger', async () => {
+    (useSettingsStore as unknown as jest.Mock).mockImplementation(
+      createSettingsStoreMock()
+    );
+    (i18n.autoDetectLocale as jest.Mock).mockRejectedValue(new Error('geo failed'));
+
+    render(<LocaleInitializer />);
+
+    await act(async () => {
+      jest.advanceTimersByTime(100);
+      await Promise.resolve();
+    });
+
+    expect(loggers.ui.warn).toHaveBeenCalledWith(
+      'Failed to auto-detect locale',
+      expect.objectContaining({
+        runtime: 'browser',
+        origin: 'frontend',
+      })
+    );
   });
 });

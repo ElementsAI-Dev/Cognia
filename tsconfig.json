@@ -8,7 +8,7 @@
     "module": "esnext",
     "jsx": "react-jsx",
     "incremental": false,
-    "types": ["node"],
+    "types": ["node", "d3", "three"],
     "plugins": [
       {
         "name": "next"
@@ -28,5 +28,16 @@
     ".next\\dev/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "plugin-sdk", "plugins", "src-tauri", "convex"]
+  "exclude": [
+    "node_modules",
+    "plugin-sdk",
+    "plugins",
+    "src-tauri",
+    "convex",
+    "playwright-report",
+    "test-results",
+    ".tmp",
+    "tmp",
+    "artifacts"
+  ]
 }

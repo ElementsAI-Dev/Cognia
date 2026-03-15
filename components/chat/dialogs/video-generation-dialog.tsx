@@ -52,6 +52,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSettingsStore } from '@/stores';
+import { createProviderSettingsSnapshot } from '@/lib/ai/provider-consumption';
+import { resolveVideoGenerationAccess } from '@/lib/ai/provider-consumption/capability-provider';
 import {
   generateVideo,
   checkVideoGenerationStatus,
@@ -121,15 +123,17 @@ export function VideoGenerationDialog({
 
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   
-  // Get API key based on provider
-  const getApiKey = useCallback(() => {
-    if (provider === 'google-veo') {
-      return providerSettings.google?.apiKey || '';
-    } else if (provider === 'openai-sora') {
-      return providerSettings.openai?.apiKey || '';
-    }
-    return '';
-  }, [provider, providerSettings]);
+  const getProviderAccess = useCallback(
+    (targetProvider: VideoProvider) =>
+      resolveVideoGenerationAccess(
+        targetProvider,
+        createProviderSettingsSnapshot({
+          defaultProvider: '',
+          providerSettings,
+        })
+      ),
+    [providerSettings]
+  );
 
   const availableModels = getAvailableVideoModelsForUI();
   const currentModelConfig = availableModels.find(m => m.id === model);
@@ -174,11 +178,11 @@ export function VideoGenerationDialog({
 
   // Poll for job status
   const pollJobStatus = useCallback(async (jobId: string, videoIndex: number) => {
-    const apiKey = getApiKey();
-    if (!apiKey) return;
+    const access = getProviderAccess(provider);
+    if (access.kind !== 'resolved') return;
 
     try {
-      const result = await checkVideoGenerationStatus(apiKey, jobId, provider);
+      const result = await checkVideoGenerationStatus(access.apiKey, jobId, provider);
       
       setGeneratedVideos(prev => prev.map((v, i) => {
         if (i !== videoIndex) return v;
@@ -220,15 +224,15 @@ export function VideoGenerationDialog({
     } catch (err) {
       console.error('Polling error:', err);
     }
-  }, [getApiKey, provider, onVideoGenerated]);
+  }, [getProviderAccess, provider, onVideoGenerated]);
 
   // Handle video generation
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim()) return;
     
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      setError(t('noApiKey'));
+    const access = getProviderAccess(provider);
+    if (access.kind !== 'resolved') {
+      setError(access.reason);
       return;
     }
 
@@ -242,7 +246,7 @@ export function VideoGenerationDialog({
         referenceImageBase64 = referenceImage.split(',')[1]; // Remove data URL prefix
       }
 
-      const result = await generateVideo(apiKey, {
+      const result = await generateVideo(access.apiKey, {
         prompt: prompt.trim(),
         provider,
         model,
@@ -300,7 +304,7 @@ export function VideoGenerationDialog({
   }, [
     prompt, negativePrompt, provider, model, resolution, aspectRatio,
     duration, style, fps, enhancePrompt, includeAudio, audioPrompt,
-    referenceImage, activeTab, getApiKey, t, pollJobStatus, onVideoGenerated,
+    referenceImage, activeTab, getProviderAccess, pollJobStatus, onVideoGenerated,
   ]);
 
   // Handle download

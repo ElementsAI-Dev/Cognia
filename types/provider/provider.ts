@@ -2,38 +2,11 @@
  * AI Provider type definitions
  */
 
+import type { BuiltInProviderId } from './built-in-provider-catalog';
+
 export type ProviderType = 'cloud' | 'local';
 
-export type ProviderName =
-  // Cloud providers
-  | 'openai'
-  | 'anthropic'
-  | 'google'
-  | 'deepseek'
-  | 'groq'
-  | 'mistral'
-  | 'xai'
-  | 'togetherai'
-  | 'openrouter'
-  | 'cohere'
-  | 'fireworks'
-  | 'cerebras'
-  | 'sambanova'
-  // Local providers
-  | 'ollama'
-  | 'lmstudio'
-  | 'llamacpp'
-  | 'llamafile'
-  | 'vllm'
-  | 'localai'
-  | 'jan'
-  | 'textgenwebui'
-  | 'koboldcpp'
-  | 'tabbyapi'
-  // Proxy/Aggregator providers
-  | 'cliproxyapi'
-  // Auto router
-  | 'auto';
+export type ProviderName = BuiltInProviderId | 'auto';
 
 export interface ModelConfig {
   id: string;
@@ -403,6 +376,122 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
         supportsVideo: false,
         supportsStreaming: true,
         pricing: { promptPer1M: 0.55, completionPer1M: 2.19 },
+      },
+    ],
+  },
+  zhipu: {
+    id: 'zhipu',
+    name: 'Zhipu AI (智谱清言)',
+    type: 'cloud',
+    apiKeyRequired: true,
+    baseURLRequired: false,
+    defaultModel: 'glm-4-flash',
+    category: 'specialized',
+    description: 'GLM models with strong Chinese and coding-oriented options',
+    website: 'https://open.bigmodel.cn',
+    docsUrl: 'https://open.bigmodel.cn/dev/howuse/introduction',
+    dashboardUrl: 'https://open.bigmodel.cn/usercenter/apikeys',
+    models: [
+      {
+        id: 'glm-4-flash',
+        name: 'GLM-4 Flash',
+        contextLength: 128000,
+        supportsTools: true,
+        supportsVision: false,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0, completionPer1M: 0 },
+      },
+      {
+        id: 'glm-4-air',
+        name: 'GLM-4 Air',
+        contextLength: 128000,
+        supportsTools: true,
+        supportsVision: false,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 1, completionPer1M: 6 },
+      },
+      {
+        id: 'glm-4-plus',
+        name: 'GLM-4 Plus',
+        contextLength: 128000,
+        supportsTools: true,
+        supportsVision: false,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 50, completionPer1M: 50 },
+      },
+      {
+        id: 'glm-4.6',
+        name: 'GLM-4.6',
+        contextLength: 128000,
+        supportsTools: true,
+        supportsVision: false,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 3.5, completionPer1M: 14 },
+      },
+    ],
+  },
+  minimax: {
+    id: 'minimax',
+    name: 'MiniMax',
+    type: 'cloud',
+    apiKeyRequired: true,
+    baseURLRequired: false,
+    defaultModel: 'abab6.5s-chat',
+    category: 'specialized',
+    description: 'MiniMax chat models with affordable coding-oriented options',
+    website: 'https://www.minimaxi.com',
+    docsUrl: 'https://api.minimax.chat/document',
+    dashboardUrl: 'https://api.minimax.chat/',
+    models: [
+      {
+        id: 'abab6.5s-chat',
+        name: 'abab6.5s-chat',
+        contextLength: 128000,
+        supportsTools: true,
+        supportsVision: false,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 1, completionPer1M: 1 },
+      },
+      {
+        id: 'abab6.5g-chat',
+        name: 'abab6.5g-chat',
+        contextLength: 128000,
+        supportsTools: true,
+        supportsVision: false,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+      },
+      {
+        id: 'abab5.5-chat',
+        name: 'abab5.5-chat',
+        contextLength: 64000,
+        supportsTools: true,
+        supportsVision: false,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+      },
+      {
+        id: 'minimax-m2',
+        name: 'MiniMax M2',
+        contextLength: 128000,
+        supportsTools: true,
+        supportsVision: false,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 2.1, completionPer1M: 8.4 },
       },
     ],
   },

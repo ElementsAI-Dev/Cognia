@@ -4,10 +4,14 @@
 
 import { resolvePPTAIConfig, createPPTModelInstance, type PPTAIConfig } from './ppt-ai-config';
 
-// Mock getProxyProviderModel
-const mockGetProxyProviderModel = jest.fn().mockReturnValue('mock-model-instance');
-jest.mock('@/lib/ai/core/proxy-client', () => ({
-  getProxyProviderModel: (...args: unknown[]) => mockGetProxyProviderModel(...args),
+// Mock shared provider client
+const mockCreateFeatureProviderClient = jest.fn(
+  (..._args: unknown[]) => jest.fn(() => 'mock-model-instance')
+);
+jest.mock('@/lib/ai/provider-consumption', () => ({
+  createFeatureProviderClient: (...args: unknown[]) =>
+    mockCreateFeatureProviderClient(...args),
+  resolveFeatureProvider: jest.requireActual('@/lib/ai/provider-consumption').resolveFeatureProvider,
 }));
 
 // Mock getNextApiKey
@@ -45,6 +49,8 @@ describe('resolvePPTAIConfig', () => {
       model: 'gpt-4o',
       apiKey: 'sk-test-key',
       baseURL: 'https://api.openai.com',
+      protocol: 'openai',
+      isCustomProvider: false,
     });
   });
 
@@ -74,6 +80,8 @@ describe('resolvePPTAIConfig', () => {
       model: 'gpt-4o',
       apiKey: '',
       baseURL: undefined,
+      protocol: 'openai',
+      isCustomProvider: false,
     });
   });
 
@@ -150,6 +158,36 @@ describe('resolvePPTAIConfig', () => {
       {}
     );
   });
+
+  it('should resolve configured custom providers through the shared resolver', () => {
+    const result = resolvePPTAIConfig(
+      'custom-ppt',
+      {
+        openai: {
+          apiKey: 'sk-test-key',
+          defaultModel: 'gpt-4o',
+        },
+      },
+      {
+        'custom-ppt': {
+          apiKey: 'sk-custom',
+          baseURL: 'https://custom.example.com/v1',
+          apiProtocol: 'openai',
+          defaultModel: 'custom-model',
+          enabled: true,
+        },
+      }
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        provider: 'custom-ppt',
+        model: 'custom-model',
+        apiKey: 'sk-custom',
+        baseURL: 'https://custom.example.com/v1',
+      })
+    );
+  });
 });
 
 describe('createPPTModelInstance', () => {
@@ -167,12 +205,13 @@ describe('createPPTModelInstance', () => {
 
     const result = createPPTModelInstance(config);
 
-    expect(mockGetProxyProviderModel).toHaveBeenCalledWith(
-      'openai',
-      'gpt-4o',
-      'sk-test',
-      'https://api.openai.com',
-      true
+    expect(mockCreateFeatureProviderClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerId: 'openai',
+        apiKey: 'sk-test',
+        baseURL: 'https://api.openai.com',
+        useProxy: true,
+      })
     );
     expect(result).toBe('mock-model-instance');
   });
@@ -186,12 +225,13 @@ describe('createPPTModelInstance', () => {
 
     createPPTModelInstance(config);
 
-    expect(mockGetProxyProviderModel).toHaveBeenCalledWith(
-      'anthropic',
-      'claude-3',
-      'sk-anthropic',
-      undefined,
-      true
+    expect(mockCreateFeatureProviderClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerId: 'anthropic',
+        apiKey: 'sk-anthropic',
+        baseURL: undefined,
+        useProxy: true,
+      })
     );
   });
 });

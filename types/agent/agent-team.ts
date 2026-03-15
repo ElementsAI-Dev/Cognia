@@ -63,6 +63,64 @@ export type TeamExecutionMode =
   | 'autonomous'    // Teammates self-claim tasks
   | 'delegate';     // Lead only delegates, never implements
 
+/**
+ * Higher-level execution pattern selected for a team run
+ */
+export type TeamExecutionPattern =
+  | 'manager_worker'
+  | 'parallel_specialists'
+  | 'background_handoff'
+  | 'external_handoff'
+  | 'single_agent_recommended';
+
+/**
+ * Routing assessment produced before a run starts
+ */
+export interface TeamRoutingAssessment {
+  recommendedPattern: TeamExecutionPattern;
+  confidence: number;
+  reason: string;
+  factors: {
+    taskComplexity: 'simple' | 'moderate' | 'complex';
+    specializationNeeded: boolean;
+    contextIsolationNeeded: boolean;
+    delegationCandidate: boolean;
+    budgetPressure: 'low' | 'medium' | 'high';
+  };
+  createdAt: Date;
+  overridePattern?: TeamExecutionPattern;
+  acceptedPattern?: TeamExecutionPattern;
+}
+
+/**
+ * Budget escalation behavior when usage crosses thresholds
+ */
+export type TeamBudgetEscalationAction =
+  | 'notify'
+  | 'pause_for_review'
+  | 'reduce_concurrency'
+  | 'handoff_to_background';
+
+/**
+ * Governance policy for approvals and budget escalation
+ */
+export interface TeamGovernancePolicy {
+  approval: {
+    requirePlanApproval: boolean;
+    requireDelegationApproval: boolean;
+  };
+  budget: {
+    tokenBudget: number;
+    warningThreshold: number;
+    criticalThreshold: number;
+    onCritical: TeamBudgetEscalationAction;
+  };
+  escalation: {
+    allowOperatorPatternOverride: boolean;
+    pauseOnHighRisk: boolean;
+  };
+}
+
 // ============================================================================
 // Team Configuration
 // ============================================================================
@@ -77,6 +135,8 @@ export interface AgentTeamConfig {
   maxConcurrentTeammates: number;
   /** Default execution mode */
   executionMode: TeamExecutionMode;
+  /** Preferred higher-level execution pattern derived from legacy execution mode or user override */
+  preferredExecutionPattern?: TeamExecutionPattern;
   /** Display mode for UI */
   displayMode: TeamDisplayMode;
   /** Default provider for teammates */
@@ -113,6 +173,8 @@ export interface AgentTeamConfig {
   enableTaskRetry?: boolean;
   /** Enable deadlock recovery (cancel/reorder blocked tasks) */
   enableDeadlockRecovery?: boolean;
+  /** Governance policy for approvals, budgets, and escalation */
+  governancePolicy?: TeamGovernancePolicy;
 }
 
 /**
@@ -122,6 +184,7 @@ export const DEFAULT_TEAM_CONFIG: AgentTeamConfig = {
   maxTeammates: 10,
   maxConcurrentTeammates: 5,
   executionMode: 'coordinated',
+  preferredExecutionPattern: 'manager_worker',
   displayMode: 'expanded',
   defaultTemperature: 0.7,
   defaultMaxSteps: 15,
@@ -134,6 +197,22 @@ export const DEFAULT_TEAM_CONFIG: AgentTeamConfig = {
   maxPlanRevisions: 3,
   enableTaskRetry: true,
   enableDeadlockRecovery: true,
+  governancePolicy: {
+    approval: {
+      requirePlanApproval: false,
+      requireDelegationApproval: false,
+    },
+    budget: {
+      tokenBudget: 0,
+      warningThreshold: 0.8,
+      criticalThreshold: 0.95,
+      onCritical: 'notify',
+    },
+    escalation: {
+      allowOperatorPatternOverride: true,
+      pauseOnHighRisk: false,
+    },
+  },
 };
 
 // ============================================================================
@@ -277,6 +356,8 @@ export interface AgentTeamTask {
   order: number;
   /** Number of retry attempts made */
   retryCount?: number;
+  /** First-class delegation / handoff lifecycle record */
+  delegationRecord?: TeamDelegationRecord;
   /** Custom metadata */
   metadata?: Record<string, unknown>;
 }
@@ -470,6 +551,38 @@ export interface CastVoteInput {
 export type AgentSystemType = 'sub_agent' | 'team' | 'background';
 
 /**
+ * Lifecycle status for a task handoff / delegation
+ */
+export type TeamDelegationStatus =
+  | 'pending'
+  | 'awaiting_approval'
+  | 'active'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'timeout';
+
+/**
+ * First-class delegation record attached to an originating task
+ */
+export interface TeamDelegationRecord {
+  id: string;
+  sourceTeamId: string;
+  sourceTaskId: string;
+  targetType: AgentSystemType;
+  targetId?: string;
+  status: TeamDelegationStatus;
+  reason: string;
+  manual: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
+  error?: string;
+  result?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
  * A delegation request between agent systems
  */
 export interface AgentDelegation {
@@ -519,6 +632,10 @@ export interface AgentTeam {
   status: TeamStatus;
   /** Team configuration */
   config: AgentTeamConfig;
+  /** Latest routing recommendation for the team */
+  routingAssessment?: TeamRoutingAssessment;
+  /** Operator-selected execution intent for the team */
+  selectedExecutionPattern?: TeamExecutionPattern;
   /** Lead teammate ID */
   leadId: string;
   /** All teammate IDs (including lead) */
@@ -555,6 +672,71 @@ export interface AgentTeam {
   delegationIds?: string[];
   /** Parent delegation ID if this team was spawned by another agent system */
   parentDelegationId?: string;
+  /** Unified execution report for the current or latest run */
+  executionReport?: TeamExecutionReport;
+}
+
+/**
+ * Execution report checkpoint type
+ */
+export type TeamExecutionCheckpointType =
+  | 'routing_assessed'
+  | 'pattern_selected'
+  | 'approval_requested'
+  | 'approval_resolved'
+  | 'delegation_started'
+  | 'delegation_completed'
+  | 'delegation_failed'
+  | 'task_retried'
+  | 'task_failed'
+  | 'task_completed'
+  | 'budget_escalated'
+  | 'consensus_recorded';
+
+/**
+ * Structured report checkpoint for a team run
+ */
+export interface TeamExecutionCheckpoint {
+  id: string;
+  type: TeamExecutionCheckpointType;
+  timestamp: Date;
+  summary: string;
+  taskId?: string;
+  teammateId?: string;
+  delegationId?: string;
+  data?: Record<string, unknown>;
+}
+
+/**
+ * Summary statistics for a team execution report
+ */
+export interface TeamExecutionReportSummary {
+  completedTasks: number;
+  failedTasks: number;
+  cancelledTasks: number;
+  blockedTasks: number;
+  delegatedTasks: number;
+  approvalsRequested: number;
+  retries: number;
+  totalTokens: number;
+  nextActions: string[];
+}
+
+/**
+ * Unified execution report for a team run
+ */
+export interface TeamExecutionReport {
+  id: string;
+  teamId: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  routingAssessment?: TeamRoutingAssessment;
+  activeExecutionPattern?: TeamExecutionPattern;
+  checkpoints: TeamExecutionCheckpoint[];
+  summary?: TeamExecutionReportSummary;
+  traceSessionId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
 }
 
 // ============================================================================
@@ -642,6 +824,12 @@ export type TeamEventType =
   | 'plan_submitted'
   | 'plan_approved'
   | 'plan_rejected'
+  | 'routing_assessed'
+  | 'pattern_selected'
+  | 'approval_requested'
+  | 'delegation_started'
+  | 'delegation_completed'
+  | 'delegation_failed'
   | 'progress_update'
   | 'task_retried'
   | 'deadlock_resolved'

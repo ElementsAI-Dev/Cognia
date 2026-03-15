@@ -29,12 +29,26 @@ interface TracesTabProps {
   traces: TraceData[];
   totalCount: number;
   isLoading: boolean;
+  focusFilters?: {
+    sessionId?: string;
+    outcome?: 'success' | 'error';
+    toolName?: string;
+    traceId?: string;
+    turnId?: string;
+  };
 }
 
-export function TracesTab({ traces, totalCount, isLoading }: TracesTabProps) {
+export function TracesTab({ traces, totalCount, isLoading, focusFilters }: TracesTabProps) {
   const t = useTranslations('observability.dashboard');
   const [selectedTrace, setSelectedTrace] = useState<TraceData | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'success' | 'error'>('all');
+  const focusEntries = useMemo(
+    () =>
+      Object.entries(focusFilters ?? {}).filter(([, value]) => Boolean(value)) as Array<
+        [string, string]
+      >,
+    [focusFilters]
+  );
 
   const filteredTraces = useMemo(() => {
     if (statusFilter === 'all') return traces;
@@ -82,6 +96,15 @@ export function TracesTab({ traces, totalCount, isLoading }: TracesTabProps) {
               <span className="text-xs text-muted-foreground">{filteredTraces.length}/{totalCount}</span>
             </div>
           </div>
+          {focusEntries.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-2">
+              {focusEntries.map(([key, value]) => (
+                <Badge key={key} variant="outline" className="text-[10px]">
+                  {key}: {value}
+                </Badge>
+              ))}
+            </div>
+          )}
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="max-h-[500px]">

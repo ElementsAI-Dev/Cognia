@@ -3,7 +3,11 @@
  */
 
 import { generateText } from 'ai';
-import { getProviderModel, type ProviderName } from '../core/client';
+import type { ProviderName } from '../core/client';
+import {
+  createFeatureProviderModelFromRuntimeConfig,
+  createFeatureRoutePolicy,
+} from '@/lib/ai/provider-consumption';
 import type {
   PromptOptimizationStyle,
   PromptOptimizationConfig,
@@ -21,6 +25,29 @@ export interface OptimizePromptResult {
   success: boolean;
   optimizedPrompt?: OptimizedPrompt;
   error?: string;
+}
+
+function getPromptOptimizerModel(
+  provider: ProviderName,
+  model: string,
+  apiKey: string,
+  baseURL?: string
+) {
+  return createFeatureProviderModelFromRuntimeConfig(
+    createFeatureRoutePolicy('general-text', {
+      featureId: 'prompt-optimizer',
+      selectionMode: 'explicit-provider',
+      providerId: provider,
+      model,
+      fallbackMode: 'none',
+    }),
+    {
+      providerId: provider,
+      model,
+      apiKey,
+      baseURL,
+    }
+  );
 }
 
 /**
@@ -81,7 +108,7 @@ export async function optimizePrompt(
   const model = targetModel || 'gpt-4o-mini';
 
   try {
-    const modelInstance = getProviderModel(provider, model, apiKey, baseURL);
+    const modelInstance = getPromptOptimizerModel(provider, model, apiKey, baseURL);
 
     // Build the system prompt
     let systemPrompt = style === 'custom' && customPrompt 

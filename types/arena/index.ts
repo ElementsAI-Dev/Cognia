@@ -387,6 +387,58 @@ export interface ArenaLaunchOptionsSnapshot {
 }
 
 /**
+ * Arena workflow entry point for shared context handoff
+ */
+export type ArenaWorkflowEntryPoint = 'chat' | 'workspace';
+
+/**
+ * Review metadata tracked separately from the raw battle record
+ */
+export interface ArenaBattleReview {
+  battleId: string;
+  reviewed: boolean;
+  bookmarked: boolean;
+  note?: string;
+  lastExportedAt?: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Shared filters used by review-oriented history surfaces
+ */
+export interface ArenaHistoryFilters {
+  searchQuery: string;
+  status: BattleFilterStatus;
+  model: string;
+  sortOrder: BattleSortOrder;
+}
+
+/**
+ * Stored matchup recommendation context for quick battle rotation
+ */
+export interface ArenaMatchupRecommendation {
+  pairKey: string;
+  models: ModelSelection[];
+  reason: string;
+  exhaustedCycle: boolean;
+  generatedAt: string;
+}
+
+/**
+ * Shared client-side workflow context between chat and workspace entry points
+ */
+export interface ArenaWorkflowContext {
+  draftPrompt: string;
+  entryPoint: ArenaWorkflowEntryPoint | null;
+  activeReviewBattleId: string | null;
+  lastActiveBattleId: string | null;
+  historyFilters: ArenaHistoryFilters;
+  selectedReviewBattleIds: string[];
+  recentMatchupPairKeys: string[];
+  currentRecommendation: ArenaMatchupRecommendation | null;
+}
+
+/**
  * Machine-readable launch preflight blocking codes
  */
 export type ArenaLaunchBlockReasonCode =

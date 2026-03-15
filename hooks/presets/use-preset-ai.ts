@@ -43,6 +43,8 @@ interface UsePresetAIReturn {
 export function usePresetAI(options: UsePresetAIOptions = {}): UsePresetAIReturn {
   const { onGenerateSuccess, onOptimizeSuccess, onGeneratePromptsSuccess, onError } = options;
   const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const customProviders = useSettingsStore((state) => state.customProviders);
+  const defaultProvider = useSettingsStore((state) => state.defaultProvider);
 
   const [isGeneratingPreset, setIsGeneratingPreset] = useState(false);
   const [isOptimizingPrompt, setIsOptimizingPrompt] = useState(false);
@@ -50,14 +52,17 @@ export function usePresetAI(options: UsePresetAIOptions = {}): UsePresetAIReturn
 
   const resolveConfig = useCallback(
     (preferredProvider?: string) => {
-      const config = getPresetAIConfig(providerSettings, preferredProvider);
+      const config = getPresetAIConfig(providerSettings, preferredProvider, {
+        customProviders,
+        defaultProvider,
+      });
       if (!config) {
         onError?.('noApiKey');
         return null;
       }
       return config;
     },
-    [providerSettings, onError],
+    [providerSettings, customProviders, defaultProvider, onError],
   );
 
   const handleGeneratePreset = useCallback(

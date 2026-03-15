@@ -20,12 +20,16 @@ describe('Office Parser', () => {
     it('detects Word documents', () => {
       expect(detectOfficeType('document.docx')).toBe('word');
       expect(detectOfficeType('document.doc')).toBe('word');
+      expect(detectOfficeType('template.docm')).toBe('word');
+      expect(detectOfficeType('notes.odt')).toBe('word');
       expect(detectOfficeType('DOCUMENT.DOCX')).toBe('word');
     });
 
     it('detects Excel files', () => {
       expect(detectOfficeType('spreadsheet.xlsx')).toBe('excel');
       expect(detectOfficeType('spreadsheet.xls')).toBe('excel');
+      expect(detectOfficeType('financials.xlsm')).toBe('excel');
+      expect(detectOfficeType('budget.ods')).toBe('excel');
       expect(detectOfficeType('SPREADSHEET.XLSX')).toBe('excel');
     });
 

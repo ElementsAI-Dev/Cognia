@@ -6,6 +6,23 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import GitPage from './page';
 
+const mockUseGit = {
+  trackedRepos: [
+    {
+      path: '/tracked/repo',
+      displayName: 'repo',
+      source: 'manual',
+      lastOpenedAt: '2026-03-14T00:00:00.000Z',
+      linkedProjectIds: [],
+    },
+  ],
+  currentRepo: null,
+  initRepo: jest.fn().mockResolvedValue(true),
+  cloneRepo: jest.fn().mockResolvedValue(true),
+  addTrackedRepo: jest.fn(),
+  removeTrackedRepo: jest.fn(),
+};
+
 // Mock the GitPanel component
 jest.mock('@/components/git', () => ({
   GitPanel: function MockGitPanel({ repoPath, className }: { repoPath?: string; className?: string }) {
@@ -24,9 +41,22 @@ jest.mock('next/link', () => {
   };
 });
 
+jest.mock('@/hooks/native/use-git', () => ({
+  useGit: () => mockUseGit,
+}));
+
 describe('GitPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseGit.trackedRepos = [
+      {
+        path: '/tracked/repo',
+        displayName: 'repo',
+        source: 'manual',
+        lastOpenedAt: '2026-03-14T00:00:00.000Z',
+        linkedProjectIds: [],
+      },
+    ];
   });
 
   it('should render Git page title', () => {
@@ -164,6 +194,31 @@ describe('GitPage', () => {
   it('should render welcome card when no repository is active', () => {
     render(<GitPage />);
     expect(screen.getByText('Repository')).toBeInTheDocument();
+  });
+
+  it('should render tracked repositories when available', () => {
+    render(<GitPage />);
+
+    expect(screen.getAllByText('repo').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('/tracked/repo').length).toBeGreaterThan(0);
+  });
+
+  it('should open a tracked repository when selected', async () => {
+    render(<GitPage />);
+
+    fireEvent.click(screen.getAllByText('/tracked/repo')[0]);
+
+    await waitFor(() => {
+      const gitPanel = screen.getByTestId('git-panel');
+      expect(gitPanel).toHaveAttribute('data-repo-path', '/tracked/repo');
+    });
+  });
+
+  it('should render initialize and clone actions in onboarding state', () => {
+    render(<GitPage />);
+
+    expect(screen.getAllByText('Initialize Repository').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Clone Repository').length).toBeGreaterThan(0);
   });
 
   it('should show quick tips when repository is active', async () => {

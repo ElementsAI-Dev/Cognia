@@ -14,6 +14,22 @@ The provider infrastructure consists of several interconnected modules:
 | **Availability Monitor** | Continuously monitors provider health |
 | **Provider Manager** | Unified service integrating all components |
 
+## Feature-Facing Routing Contract
+
+In addition to the infrastructure above, Cognia now uses a shared feature-facing routing contract for runtime model selection and capability-bound access:
+
+- `lib/ai/provider-consumption/index.ts`
+  - Normalizes provider settings snapshots
+  - Defines route profiles (`general-text`, `capability-bound`, `legacy-compat`)
+  - Resolves blocked guidance, fallback traces, and runtime model creation
+- `lib/ai/provider-consumption/capability-provider.ts`
+  - Maps feature capabilities such as subtitle transcription, video generation, image generation, and image-studio operations to the correct settings provider
+  - Returns deterministic unsupported-provider and missing-setup guidance
+- `lib/ai/provider-consumption/migration-guardrails.ts`
+  - Enforces that migrated feature entrypoints do not regress back to local `providerSettings` parsing or legacy `getProviderModel` usage
+
+This layer sits between settings readiness and feature execution, ensuring the same remediation metadata is available in settings UI, hooks, dialogs, and runtime feature flows.
+
 ## Architecture
 
 ```

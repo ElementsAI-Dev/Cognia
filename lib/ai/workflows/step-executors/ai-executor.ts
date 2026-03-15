@@ -5,7 +5,10 @@
  */
 
 import { generateText } from 'ai';
-import { getProviderModel } from '@/lib/ai/core/client';
+import {
+  createFeatureProviderModelFromRuntimeConfig,
+  createFeatureRoutePolicy,
+} from '@/lib/ai/provider-consumption';
 import { withRetry, AGENT_RETRY_CONFIG } from '@/lib/utils/retry';
 import { withCircuitBreaker } from '@/lib/ai/infrastructure/circuit-breaker';
 import { loggers } from '@/lib/logger';
@@ -18,11 +21,20 @@ export async function executeAIStep(
   input: Record<string, unknown>,
   config: StepExecutorConfig
 ): Promise<unknown> {
-  const modelInstance = getProviderModel(
-    config.provider,
-    config.model,
-    config.apiKey,
-    config.baseURL
+  const modelInstance = createFeatureProviderModelFromRuntimeConfig(
+    createFeatureRoutePolicy('general-text', {
+      featureId: 'workflow-ai-step',
+      selectionMode: 'explicit-provider',
+      providerId: config.provider,
+      model: config.model,
+      fallbackMode: 'none',
+    }),
+    {
+      providerId: config.provider,
+      model: config.model,
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
+    }
   );
 
   // Build prompt with input context

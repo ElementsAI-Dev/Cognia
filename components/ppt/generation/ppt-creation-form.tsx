@@ -49,6 +49,11 @@ import {
 } from '@/lib/ppt/material-ingestion';
 import { isPPTFeatureFlagEnabled } from '@/lib/ppt/feature-flags';
 import { parseGenerationBlueprint } from '@/components/ppt/types';
+import {
+  getDocumentAcceptString,
+  getDocumentFormatSummary,
+  getFilenameExtension,
+} from '@/lib/document';
 
 export type CreationMode = 'generate' | 'import' | 'paste';
 
@@ -82,6 +87,9 @@ export function PPTCreationForm({
 }: PPTCreationFormProps) {
   const t = useTranslations('pptGenerator');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pptMaterialAccept = useMemo(() => getDocumentAcceptString('ppt-material'), []);
+  const pptMaterialSummary = useMemo(() => getDocumentFormatSummary('ppt-material'), []);
+  const pptMaterialExtensions = useMemo(() => pptMaterialAccept.split(','), [pptMaterialAccept]);
 
   const [mode, setMode] = useState<CreationMode>(initialMode);
   const [topic, setTopic] = useState(initialTopic);
@@ -206,28 +214,19 @@ export function PPTCreationForm({
 
   // --- Import Mode: File ---
   const handleFileSelect = useCallback((file: File) => {
-    const validTypes = [
-      'application/pdf',
-      'text/plain',
-      'text/markdown',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    ];
-    const validExtensions = ['.pdf', '.txt', '.md', '.docx'];
-    const hasValidType = validTypes.includes(file.type);
-    const hasValidExt = validExtensions.some((ext) =>
-      file.name.toLowerCase().endsWith(ext)
-    );
+    const extension = getFilenameExtension(file.name);
+    const hasValidExt = pptMaterialExtensions.includes(`.${extension}`);
 
-    if (!hasValidType && !hasValidExt) {
+    if (!hasValidExt) {
       toast.error(t('supportedFormats'));
       return;
     }
     clearMaterialIssues();
     setImportedFile(file);
     if (!topic.trim()) {
-      setTopic(file.name.replace(/\.(pdf|txt|md|docx)$/i, ''));
+      setTopic(file.name.replace(/\.[^.]+$/, ''));
     }
-  }, [clearMaterialIssues, t, topic]);
+  }, [clearMaterialIssues, pptMaterialExtensions, t, topic]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -558,7 +557,7 @@ export function PPTCreationForm({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.txt,.md,.docx"
+              accept={pptMaterialAccept}
               className="hidden"
               onChange={handleFileInputChange}
             />
@@ -590,7 +589,7 @@ export function PPTCreationForm({
                   {t('clickToUpload')}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {t('supportedFormats')}
+                  {t('supportedFormats', { formats: pptMaterialSummary })}
                 </p>
               </>
             )}

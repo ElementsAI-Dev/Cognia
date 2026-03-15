@@ -57,13 +57,14 @@ import { cn } from '@/lib/utils';
 import { useArenaStore } from '@/stores/arena';
 import { exportPreferences, importPreferences } from '@/lib/ai/generation/preference-learner';
 import {
-  exportBattles,
   getExportStats,
   downloadExport,
   type ExportFormat,
 } from '@/lib/ai/arena/rlhf-export';
+import { prepareReviewedBattleExport } from '@/lib/ai/arena/review-export';
 import { useLeaderboardSyncSettings } from '@/hooks/arena';
 import { toast } from 'sonner';
+import { loggers } from '@/lib/logger';
 import type { ArenaPreference, ArenaModelRating } from '@/types/arena';
 
 export function ArenaSettings() {
@@ -83,11 +84,13 @@ export function ArenaSettings() {
   const resetSettings = useArenaStore((state) => state.resetSettings);
   const battles = useArenaStore((state) => state.battles);
   const modelRatings = useArenaStore((state) => state.modelRatings);
+  const reviewMetadata = useArenaStore((state) => state.reviewMetadata);
   const clearBattleHistory = useArenaStore((state) => state.clearBattleHistory);
   const resetModelRatings = useArenaStore((state) => state.resetModelRatings);
   const clearPreferences = useArenaStore((state) => state.clearPreferences);
   const cleanupOldBattles = useArenaStore((state) => state.cleanupOldBattles);
   const getStats = useArenaStore((state) => state.getStats);
+  const updateBattleReview = useArenaStore((state) => state.updateBattleReview);
 
   const {
     settings: syncSettings,
@@ -174,15 +177,38 @@ export function ArenaSettings() {
 
   // RLHF export
   const rlhfStats = getExportStats(battles);
+  const reviewedBattleExportPreview = prepareReviewedBattleExport({
+    battles,
+    reviewMetadata,
+    format: rlhfFormat,
+  }).preview;
 
   const handleRlhfExport = () => {
-    const data = exportBattles(battles, {
+    const result = prepareReviewedBattleExport({
+      battles,
+      reviewMetadata,
       format: rlhfFormat,
-      includeMetadata: true,
-      includeTies: false,
     });
+    if (!result.data) {
+      loggers.ui.warn('arena_settings_export_blocked', {
+        event: 'settings_export_blocked',
+        format: rlhfFormat,
+        selectedCount: result.preview.selectedCount,
+        blockedCount: result.preview.blockedCount,
+      });
+      return;
+    }
     const filename = `arena-rlhf-${rlhfFormat}-${new Date().toISOString().split('T')[0]}`;
-    downloadExport(data, filename, rlhfFormat);
+    downloadExport(result.data, filename, rlhfFormat);
+    result.preview.exportableBattleIds.forEach((battleId) => {
+      updateBattleReview(battleId, { lastExportedAt: new Date() });
+    });
+    loggers.ui.info('arena_settings_export_completed', {
+      event: 'settings_export_completed',
+      format: rlhfFormat,
+      exportableCount: result.preview.exportableCount,
+      blockedCount: result.preview.blockedCount,
+    });
   };
 
   // Clear all arena data
@@ -812,12 +838,24 @@ export function ArenaSettings() {
               </Select>
               <Button
                 onClick={handleRlhfExport}
-                disabled={rlhfStats.validPairs === 0}
+                disabled={reviewedBattleExportPreview.exportableCount === 0}
                 size="sm"
               >
                 <Download className="h-4 w-4 mr-2" />
                 {t('rlhfExportButton')}
               </Button>
+            </div>
+
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <Badge variant="outline">
+                {t('reviewExportSelected', { count: reviewedBattleExportPreview.selectedCount })}
+              </Badge>
+              <Badge variant="outline">
+                {t('reviewExportableCount', { count: reviewedBattleExportPreview.exportableCount })}
+              </Badge>
+              <Badge variant="outline">
+                {t('reviewBlockedCount', { count: reviewedBattleExportPreview.blockedCount })}
+              </Badge>
             </div>
           </div>
         </CollapsibleContent>

@@ -12,6 +12,7 @@ import {
   History,
   Trophy,
   Scale,
+  Download,
   Search,
   Filter,
   Calendar,
@@ -49,6 +50,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { formatBattleDate, formatBattleDuration } from '@/lib/arena';
+import { prepareReviewedBattleExport } from '@/lib/ai/arena/review-export';
+import { downloadExport, type ExportFormat } from '@/lib/ai/arena/rlhf-export';
+import { loggers } from '@/lib/logger';
 import { useArenaStore } from '@/stores/arena';
 import type { ArenaBattle, ArenaContestant, BattleFilterStatus, BattleSortOrder } from '@/types/arena';
 
@@ -61,15 +65,31 @@ interface ArenaHistoryProps {
 
 function BattleCard({
   battle,
+  review,
+  selected,
   onView,
   onRematch,
   onDelete,
+  onToggleSelected,
+  onToggleReviewed,
+  onToggleBookmarked,
+  onReviewNoteChange,
   locale,
 }: {
   battle: ArenaBattle;
+  review?: {
+    reviewed: boolean;
+    bookmarked: boolean;
+    note?: string;
+  };
+  selected: boolean;
   onView?: () => void;
   onRematch?: () => void;
   onDelete?: () => void;
+  onToggleSelected?: () => void;
+  onToggleReviewed?: () => void;
+  onToggleBookmarked?: () => void;
+  onReviewNoteChange?: (note: string) => void;
   locale?: string;
 }) {
   const t = useTranslations('arena');
@@ -121,7 +141,12 @@ function BattleCard({
             <p className="text-sm line-clamp-2">{battle.prompt}</p>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
+            {onToggleSelected && (
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onToggleSelected}>
+                {selected ? t('history.deselectForExport') : t('history.selectForExport')}
+              </Button>
+            )}
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="icon" className="h-7 w-7">
                 {isExpanded ? (
@@ -181,6 +206,38 @@ function BattleCard({
 
         {/* Expanded content */}
         <CollapsibleContent className="mt-3 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {onToggleReviewed && (
+              <Button variant="outline" size="sm" onClick={onToggleReviewed}>
+                {review?.reviewed ? t('history.markUnreviewed') : t('history.markReviewed')}
+              </Button>
+            )}
+            {onToggleBookmarked && (
+              <Button variant="outline" size="sm" onClick={onToggleBookmarked}>
+                {review?.bookmarked ? t('history.unbookmark') : t('history.bookmark')}
+              </Button>
+            )}
+            {review?.reviewed && (
+              <Badge variant="secondary" className="text-[10px]">
+                {t('history.reviewed')}
+              </Badge>
+            )}
+            {review?.bookmarked && (
+              <Badge variant="outline" className="text-[10px]">
+                {t('history.bookmarked')}
+              </Badge>
+            )}
+          </div>
+
+          {onReviewNoteChange && (
+            <Input
+              value={review?.note || ''}
+              onChange={(event) => onReviewNoteChange(event.target.value)}
+              placeholder={t('history.reviewNotePlaceholder')}
+              className="h-8"
+            />
+          )}
+
           {/* Contestants */}
           <div className="space-y-2">
             <div className="text-xs font-medium text-muted-foreground">
@@ -323,14 +380,16 @@ function BattleCard({
 function ArenaHistoryComponent({ className, onViewBattle, onRematch, maxItems = 50 }: ArenaHistoryProps) {
   const t = useTranslations('arena');
   const locale = useLocale();
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<BattleFilterStatus>('all');
-  const [modelFilter, setModelFilter] = useState<string>('all');
-  const [sortOrder, setSortOrder] = useState<BattleSortOrder>('newest');
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('rlhf');
 
   const battles = useArenaStore((state) => state.battles);
   const deleteBattle = useArenaStore((state) => state.deleteBattle);
+  const reviewMetadata = useArenaStore((state) => state.reviewMetadata);
+  const historyFilters = useArenaStore((state) => state.workflowContext.historyFilters);
+  const selectedReviewBattleIds = useArenaStore((state) => state.workflowContext.selectedReviewBattleIds);
+  const updateHistoryFilters = useArenaStore((state) => state.updateHistoryFilters);
+  const updateBattleReview = useArenaStore((state) => state.updateBattleReview);
+  const toggleBattleReviewSelection = useArenaStore((state) => state.toggleBattleReviewSelection);
 
   // Get unique models
   const models = useMemo(() => {
@@ -348,8 +407,8 @@ function ArenaHistoryComponent({ className, onViewBattle, onRematch, maxItems = 
     let filtered = [...battles];
 
     // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
+    if (historyFilters.searchQuery) {
+      const query = historyFilters.searchQuery.toLowerCase();
       filtered = filtered.filter(
         (b) =>
           b.prompt.toLowerCase().includes(query) ||
@@ -358,14 +417,14 @@ function ArenaHistoryComponent({ className, onViewBattle, onRematch, maxItems = 
     }
 
     // Status filter
-    if (statusFilter !== 'all') {
+    if (historyFilters.status !== 'all') {
       filtered = filtered.filter((b) => {
-        if (statusFilter === 'completed') return b.winnerId && !b.isTie;
-        if (statusFilter === 'tie') return b.isTie;
-        if (statusFilter === 'error') {
+        if (historyFilters.status === 'completed') return b.winnerId && !b.isTie;
+        if (historyFilters.status === 'tie') return b.isTie;
+        if (historyFilters.status === 'error') {
           return !b.winnerId && !b.isTie && b.contestants.every((c) => c.status === 'error');
         }
-        if (statusFilter === 'pending') {
+        if (historyFilters.status === 'pending') {
           return !b.winnerId && !b.isTie && b.contestants.some(
             (c) => c.status === 'streaming' || c.status === 'pending' || c.status === 'completed'
           );
@@ -375,9 +434,9 @@ function ArenaHistoryComponent({ className, onViewBattle, onRematch, maxItems = 
     }
 
     // Model filter
-    if (modelFilter !== 'all') {
+    if (historyFilters.model !== 'all') {
       filtered = filtered.filter((b) =>
-        b.contestants.some((c) => `${c.provider}:${c.model}` === modelFilter)
+        b.contestants.some((c) => `${c.provider}:${c.model}` === historyFilters.model)
       );
     }
 
@@ -385,12 +444,28 @@ function ArenaHistoryComponent({ className, onViewBattle, onRematch, maxItems = 
     filtered.sort((a, b) => {
       const dateA = new Date(a.createdAt).getTime();
       const dateB = new Date(b.createdAt).getTime();
-      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+      return historyFilters.sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
     });
 
     // Limit
     return filtered.slice(0, maxItems);
-  }, [battles, searchQuery, statusFilter, modelFilter, sortOrder, maxItems]);
+  }, [battles, historyFilters, maxItems]);
+
+  const exportPreview = useMemo(
+    () =>
+      prepareReviewedBattleExport({
+        battles,
+        reviewMetadata,
+        selectedBattleIds: selectedReviewBattleIds,
+        format: exportFormat,
+      }).preview,
+    [battles, exportFormat, reviewMetadata, selectedReviewBattleIds]
+  );
+
+  const hiddenSelectedCount = useMemo(() => {
+    const visibleBattleIds = new Set(filteredBattles.map((battle) => battle.id));
+    return selectedReviewBattleIds.filter((battleId) => !visibleBattleIds.has(battleId)).length;
+  }, [filteredBattles, selectedReviewBattleIds]);
 
   const handleDelete = useCallback(
     (battleId: string) => {
@@ -398,6 +473,83 @@ function ArenaHistoryComponent({ className, onViewBattle, onRematch, maxItems = 
     },
     [deleteBattle]
   );
+
+  const handleExportSelected = useCallback(() => {
+    const result = prepareReviewedBattleExport({
+      battles,
+      reviewMetadata,
+      selectedBattleIds: selectedReviewBattleIds,
+      format: exportFormat,
+    });
+
+    if (!result.data) {
+      loggers.ui.warn('arena_review_export_blocked', {
+        event: 'review_export_blocked',
+        selectedCount: result.preview.selectedCount,
+        blockedCount: result.preview.blockedCount,
+        format: exportFormat,
+      });
+      return;
+    }
+
+    const filename = `arena-reviewed-${exportFormat}-${new Date().toISOString().split('T')[0]}`;
+    downloadExport(result.data, filename, exportFormat);
+    result.preview.exportableBattleIds.forEach((battleId) => {
+      updateBattleReview(battleId, {
+        lastExportedAt: new Date(),
+      });
+    });
+    loggers.ui.info('arena_review_export_completed', {
+      event: 'review_export_completed',
+      format: exportFormat,
+      exportableCount: result.preview.exportableCount,
+      blockedCount: result.preview.blockedCount,
+    });
+  }, [battles, exportFormat, reviewMetadata, selectedReviewBattleIds, updateBattleReview]);
+
+  const handleToggleSelection = useCallback((battleId: string) => {
+    toggleBattleReviewSelection(battleId);
+    loggers.ui.info('arena_review_selection_toggled', {
+      event: 'review_selection_toggled',
+      battleId,
+      selected: !selectedReviewBattleIds.includes(battleId),
+    });
+  }, [selectedReviewBattleIds, toggleBattleReviewSelection]);
+
+  const handleToggleReviewed = useCallback((battleId: string) => {
+    const nextReviewed = !reviewMetadata[battleId]?.reviewed;
+    updateBattleReview(battleId, {
+      reviewed: nextReviewed,
+    });
+    loggers.ui.info('arena_review_marked', {
+      event: 'review_marked',
+      battleId,
+      reviewed: nextReviewed,
+    });
+  }, [reviewMetadata, updateBattleReview]);
+
+  const handleToggleBookmarked = useCallback((battleId: string) => {
+    const nextBookmarked = !reviewMetadata[battleId]?.bookmarked;
+    updateBattleReview(battleId, {
+      bookmarked: nextBookmarked,
+    });
+    loggers.ui.info('arena_review_bookmarked', {
+      event: 'review_bookmarked',
+      battleId,
+      bookmarked: nextBookmarked,
+    });
+  }, [reviewMetadata, updateBattleReview]);
+
+  const handleReviewNoteChange = useCallback((battleId: string, note: string) => {
+    updateBattleReview(battleId, {
+      note,
+    });
+    loggers.ui.info('arena_review_note_updated', {
+      event: 'review_note_updated',
+      battleId,
+      hasNote: note.trim().length > 0,
+    });
+  }, [updateBattleReview]);
 
   if (battles.length === 0) {
     return (
@@ -420,6 +572,39 @@ function ArenaHistoryComponent({ className, onViewBattle, onRematch, maxItems = 
             {t('battlesCount', { count: battles.length })}
           </Badge>
         </div>
+        <div className="flex items-center gap-2">
+          <Select value={exportFormat} onValueChange={(value) => setExportFormat(value as ExportFormat)}>
+            <SelectTrigger className="w-40 h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="rlhf">RLHF</SelectItem>
+              <SelectItem value="dpo">DPO</SelectItem>
+              <SelectItem value="openai-comparison">OpenAI Comparison</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={handleExportSelected}
+            disabled={exportPreview.exportableCount === 0}
+          >
+            <Download className="h-4 w-4" />
+            {t('history.exportSelected')}
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-lg border bg-card p-4 space-y-2">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <Badge variant="secondary">{t('history.selectedForExport', { count: exportPreview.selectedCount })}</Badge>
+          <Badge variant="outline">{t('history.exportableCount', { count: exportPreview.exportableCount })}</Badge>
+          <Badge variant="outline">{t('history.blockedCount', { count: exportPreview.blockedCount })}</Badge>
+          {hiddenSelectedCount > 0 && (
+            <Badge variant="outline">{t('history.hiddenSelected', { count: hiddenSelectedCount })}</Badge>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -429,14 +614,17 @@ function ArenaHistoryComponent({ className, onViewBattle, onRematch, maxItems = 
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t('history.searchPlaceholder')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={historyFilters.searchQuery}
+            onChange={(e) => updateHistoryFilters({ searchQuery: e.target.value })}
             className="pl-8 h-8"
           />
         </div>
 
         {/* Status filter */}
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as BattleFilterStatus)}>
+        <Select
+          value={historyFilters.status}
+          onValueChange={(v) => updateHistoryFilters({ status: v as BattleFilterStatus })}
+        >
           <SelectTrigger className="w-32 h-8">
             <Filter className="h-3 w-3 mr-1" />
             <SelectValue />
@@ -451,7 +639,7 @@ function ArenaHistoryComponent({ className, onViewBattle, onRematch, maxItems = 
         </Select>
 
         {/* Model filter */}
-        <Select value={modelFilter} onValueChange={setModelFilter}>
+        <Select value={historyFilters.model} onValueChange={(value) => updateHistoryFilters({ model: value })}>
           <SelectTrigger className="w-40 h-8">
             <SelectValue placeholder="Model" />
           </SelectTrigger>
@@ -465,7 +653,10 @@ function ArenaHistoryComponent({ className, onViewBattle, onRematch, maxItems = 
         </Select>
 
         {/* Sort */}
-        <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as BattleSortOrder)}>
+        <Select
+          value={historyFilters.sortOrder}
+          onValueChange={(v) => updateHistoryFilters({ sortOrder: v as BattleSortOrder })}
+        >
           <SelectTrigger className="w-28 h-8">
             <Calendar className="h-3 w-3 mr-1" />
             <SelectValue />
@@ -492,6 +683,8 @@ function ArenaHistoryComponent({ className, onViewBattle, onRematch, maxItems = 
               <BattleCard
                 key={battle.id}
                 battle={battle}
+                review={reviewMetadata[battle.id]}
+                selected={selectedReviewBattleIds.includes(battle.id)}
                 locale={locale}
                 onView={onViewBattle ? () => onViewBattle(battle.id) : undefined}
                 onRematch={
@@ -510,6 +703,10 @@ function ArenaHistoryComponent({ className, onViewBattle, onRematch, maxItems = 
                     : undefined
                 }
                 onDelete={() => handleDelete(battle.id)}
+                onToggleSelected={() => handleToggleSelection(battle.id)}
+                onToggleReviewed={() => handleToggleReviewed(battle.id)}
+                onToggleBookmarked={() => handleToggleBookmarked(battle.id)}
+                onReviewNoteChange={(note) => handleReviewNoteChange(battle.id, note)}
               />
             ))
           )}

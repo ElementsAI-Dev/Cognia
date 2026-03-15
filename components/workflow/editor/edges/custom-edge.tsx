@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { X, Edit2, Check, Zap, AlertTriangle } from 'lucide-react';
+import { X, Edit2, Check, Zap, AlertTriangle, Plus } from 'lucide-react';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 import { useShallow } from 'zustand/react/shallow';
 import { cn } from '@/lib/utils';
@@ -81,8 +81,10 @@ const EDGE_STYLES = {
 
 function CustomEdgeComponent({
   id,
+  source,
   sourceX,
   sourceY,
+  target,
   targetX,
   targetY,
   sourcePosition,
@@ -94,10 +96,11 @@ function CustomEdgeComponent({
 }: EdgeProps) {
   const t = useTranslations('workflowEditor');
   const edgeData = (data || {}) as CustomEdgeData;
-  const { deleteEdge, updateEdge } = useWorkflowEditorStore(
+  const { deleteEdge, updateEdge, setInsertionIntent } = useWorkflowEditorStore(
     useShallow((state) => ({
       deleteEdge: state.deleteEdge,
       updateEdge: state.updateEdge,
+      setInsertionIntent: state.setInsertionIntent,
     }))
   );
   const [isEditingLabel, setIsEditingLabel] = useState(false);
@@ -144,6 +147,18 @@ function CustomEdgeComponent({
   const handleAnimatedToggle = useCallback(() => {
     updateEdge(id, { animated: !edgeData.animated });
   }, [id, edgeData.animated, updateEdge]);
+
+  const handleQuickAdd = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setInsertionIntent({
+      mode: 'insert-between',
+      origin: 'edge-gap',
+      edgeId: id,
+      sourceNodeId: source,
+      targetNodeId: target,
+      openedAt: Date.now(),
+    });
+  }, [id, setInsertionIntent, source, target]);
 
   // Determine edge style
   const getEdgeStyle = () => {
@@ -353,6 +368,19 @@ function CustomEdgeComponent({
                 </div>
               </PopoverContent>
             </Popover>
+          )}
+
+          {(selected || edgeData.isSelectedEdge || edgeData.selectionState === 'connected') && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="ml-2 h-6 w-6 rounded-full"
+              onClick={handleQuickAdd}
+              title={t('addNode')}
+              aria-label={t('addNode')}
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
           )}
         </div>
       </EdgeLabelRenderer>

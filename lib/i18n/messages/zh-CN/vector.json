@@ -213,7 +213,7 @@
       "description": "上传文件到集合：{collection}",
       "dropHere": "将文件拖放到此处",
       "orClick": "或点击浏览",
-      "supportedFormats": "支持：.txt, .md, .json, .csv, .xml, .html",
+      "supportedFormats": "支持：{formats}",
       "chunkingStrategy": "分块策略",
       "strategy": {
         "fixed": "固定大小",

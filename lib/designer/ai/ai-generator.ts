@@ -6,7 +6,12 @@
 import { generateText, generateObject } from 'ai';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
-import { getProviderModel } from '@/lib/ai/core/client';
+import {
+  createFeatureProviderModel,
+  createFeatureRoutePolicy,
+  getFeatureProviderBlockedGuidance,
+  resolveFeatureProviderFromRuntimeConfig,
+} from '@/lib/ai/provider-consumption';
 import { cleanAICodeResponse, type DesignerAIConfig } from './ai';
 
 export type FrameworkType = 'react' | 'vue' | 'html';
@@ -71,6 +76,51 @@ Style Guidelines:
 - neomorphism: Soft shadows, subtle 3D effect, monochromatic
 - gradient: Vibrant color gradients, smooth transitions`;
 
+function validateAndGetGeneratorModel(
+  config: DesignerAIConfig
+): { success: true; model: ReturnType<typeof createFeatureProviderModel> } | { success: false; error: string } {
+  try {
+    const resolution = resolveFeatureProviderFromRuntimeConfig(
+      createFeatureRoutePolicy('general-text', {
+        featureId: 'designer-ai-generator',
+        selectionMode: 'explicit-provider',
+        providerId: config.provider,
+        model: config.model,
+        fallbackMode: 'none',
+        proxyMode:
+          config.useProxy === undefined
+            ? 'preferred'
+            : config.useProxy
+              ? 'required'
+              : 'disabled',
+      }),
+      {
+        providerId: config.provider,
+        model: config.model,
+        apiKey: config.apiKey || '',
+        baseURL: config.baseURL,
+        protocol: config.protocol,
+        isCustomProvider: config.isCustomProvider,
+        useProxy: config.useProxy,
+      }
+    );
+
+    if (resolution.kind !== 'resolved') {
+      return {
+        success: false,
+        error: getFeatureProviderBlockedGuidance(resolution).reason,
+      };
+    }
+
+    return { success: true, model: createFeatureProviderModel(resolution) };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create model instance',
+    };
+  }
+}
+
 /**
  * Generate a single component from description
  */
@@ -80,21 +130,12 @@ export async function generateComponent(
   framework: FrameworkType,
   config: DesignerAIConfig
 ): Promise<{ success: boolean; variant?: ComponentVariant; error?: string }> {
-  if (!config.apiKey && config.provider !== 'ollama') {
-    return {
-      success: false,
-      error: `No API key configured for ${config.provider}`,
-    };
+  const validation = validateAndGetGeneratorModel(config);
+  if (!validation.success) {
+    return validation;
   }
 
   try {
-    const model = getProviderModel(
-      config.provider,
-      config.model,
-      config.apiKey || '',
-      config.baseURL
-    );
-
     const prompt = `Create a React component based on this description:
 "${description}"
 
@@ -105,7 +146,7 @@ Return ONLY the complete component code, no explanations.
 Use Tailwind CSS and make it visually appealing.`;
 
     const result = await generateText({
-      model,
+      model: validation.model,
       system: GENERATION_SYSTEM_PROMPT,
       prompt,
       temperature: 0.8,
@@ -151,21 +192,12 @@ export async function generateComponentVariants(
     framework = 'react',
   } = request;
 
-  if (!config.apiKey && config.provider !== 'ollama') {
-    return {
-      success: false,
-      error: `No API key configured for ${config.provider}`,
-    };
+  const validation = validateAndGetGeneratorModel(config);
+  if (!validation.success) {
+    return validation;
   }
 
   try {
-    const model = getProviderModel(
-      config.provider,
-      config.model,
-      config.apiKey || '',
-      config.baseURL
-    );
-
     const stylesPrompt = styles.slice(0, variantCount).join(', ');
     const featuresPrompt = features.length > 0 ? `\nRequired features: ${features.join(', ')}` : '';
 
@@ -188,7 +220,7 @@ Each component must:
 - Be production-ready code`;
 
     const result = await generateObject({
-      model,
+      model: validation.model,
       schema: variantsResultSchema,
       system: GENERATION_SYSTEM_PROMPT,
       prompt,
@@ -222,21 +254,12 @@ export async function generateVariantFromCode(
   targetStyle: StyleType,
   config: DesignerAIConfig
 ): Promise<{ success: boolean; variant?: ComponentVariant; error?: string }> {
-  if (!config.apiKey && config.provider !== 'ollama') {
-    return {
-      success: false,
-      error: `No API key configured for ${config.provider}`,
-    };
+  const validation = validateAndGetGeneratorModel(config);
+  if (!validation.success) {
+    return validation;
   }
 
   try {
-    const model = getProviderModel(
-      config.provider,
-      config.model,
-      config.apiKey || '',
-      config.baseURL
-    );
-
     const prompt = `Transform this React component to use "${targetStyle}" style:
 
 ${baseCode}
@@ -245,7 +268,7 @@ Keep the same functionality but completely restyle it using the ${targetStyle} d
 Return ONLY the complete modified code.`;
 
     const result = await generateText({
-      model,
+      model: validation.model,
       system: GENERATION_SYSTEM_PROMPT,
       prompt,
       temperature: 0.7,
@@ -284,21 +307,12 @@ export async function generateComponentWithFeatures(
   features: string[],
   config: DesignerAIConfig
 ): Promise<{ success: boolean; variant?: ComponentVariant; error?: string }> {
-  if (!config.apiKey && config.provider !== 'ollama') {
-    return {
-      success: false,
-      error: `No API key configured for ${config.provider}`,
-    };
+  const validation = validateAndGetGeneratorModel(config);
+  if (!validation.success) {
+    return validation;
   }
 
   try {
-    const model = getProviderModel(
-      config.provider,
-      config.model,
-      config.apiKey || '',
-      config.baseURL
-    );
-
     const featuresList = features.map((f) => `- ${f}`).join('\n');
 
     const prompt = `Create a React component based on this description:
@@ -312,7 +326,7 @@ Return ONLY the complete component code.
 Use Tailwind CSS and make it visually modern.`;
 
     const result = await generateText({
-      model,
+      model: validation.model,
       system: GENERATION_SYSTEM_PROMPT,
       prompt,
       temperature: 0.7,

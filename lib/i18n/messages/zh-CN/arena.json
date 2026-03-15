@@ -116,7 +116,21 @@
     "deleteDescription": "确定要删除此对战吗？此操作无法撤销。",
     "cancel": "取消",
     "delete": "删除",
-    "rematch": "重新对战"
+    "rematch": "重新对战",
+    "selectForExport": "加入导出选择",
+    "deselectForExport": "移出导出选择",
+    "markReviewed": "标记已评审",
+    "markUnreviewed": "取消评审",
+    "bookmark": "收藏",
+    "unbookmark": "取消收藏",
+    "reviewed": "已评审",
+    "bookmarked": "已收藏",
+    "reviewNotePlaceholder": "添加评审备注...",
+    "exportSelected": "导出已评审对战",
+    "selectedForExport": "已选 {count} 条",
+    "exportableCount": "可导出 {count} 条",
+    "blockedCount": "被拦截 {count} 条",
+    "hiddenSelected": "筛选后隐藏了 {count} 条已选记录"
   },
   "stats": {
     "title": "统计",
@@ -197,6 +211,9 @@
     "rlhfAvgResponseLen": "平均响应长度",
     "rlhfByCategory": "按分类",
     "rlhfNoValidPairs": "没有可用的有效偏好对。完成并选择获胜者的对战才能生成 RLHF 数据。",
+    "reviewExportSelected": "已选 {count} 条",
+    "reviewExportableCount": "可导出 {count} 条",
+    "reviewBlockedCount": "被拦截 {count} 条",
     "importFailed": "导入失败",
     "importInvalidFormat": "无效的文件格式。需要包含 'preferences' 数组的 JSON 文件。",
     "importInvalidPreferences": "无效的偏好数据。每条记录必须包含 id、battleId、winner、loser 和 timestamp。",
@@ -322,7 +339,8 @@
     "selectedModels": "已选模型",
     "shuffle": "随机选择",
     "blindMode": "盲选模式",
-    "multiTurn": "多轮对话"
+    "multiTurn": "多轮对话",
+    "cyclingNotice": "推荐已经轮完一圈，正在重新循环可用对局。"
   },
   "launchReadiness": {
     "invalidPrompt": "开始对战前请先输入提示词。",

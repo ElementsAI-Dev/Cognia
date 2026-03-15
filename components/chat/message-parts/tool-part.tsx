@@ -32,6 +32,7 @@ import {
   ShieldAlert,
   Copy,
   Check,
+  type LucideIcon,
 } from 'lucide-react';
 import type { ToolInvocationPart, ToolState } from '@/types/core/message';
 import type { McpServerStatus } from '@/types/mcp';
@@ -93,7 +94,7 @@ function getRiskBadgeVariant(riskLevel?: 'low' | 'medium' | 'high'): 'default' |
 
 // State indicator component
 function StateIndicator({ state }: { state: ToolState }) {
-  const stateConfig: Record<ToolState, { icon: React.ElementType; color: string; animate: boolean }> = {
+  const stateConfig: Record<ToolState, { icon: LucideIcon; color: string; animate: boolean }> = {
     'input-streaming': { icon: Clock, color: 'text-blue-500', animate: true },
     'input-available': { icon: Clock, color: 'text-blue-500', animate: true },
     'approval-requested': { icon: ShieldAlert, color: 'text-yellow-500', animate: true },

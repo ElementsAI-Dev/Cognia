@@ -13,6 +13,7 @@ export { A2UIProgress } from './a2ui-progress';
 export { A2UILoading, type A2UILoadingComponent } from './a2ui-loading';
 export { A2UIError, type A2UIErrorComponent } from './a2ui-error';
 export { A2UIEmpty, type A2UIEmptyComponent } from './a2ui-empty';
+export { A2UIRichOutput } from './a2ui-rich-output';
 export { A2UIAnimation } from './a2ui-animation';
 export type { A2UIAnimationType, A2UIAnimationComponentDef } from '@/types/a2ui/animation';
 export { A2UIInteractiveGuide } from './a2ui-interactive-guide';

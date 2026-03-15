@@ -11,6 +11,7 @@
     "noMatchingVariables": "无匹配的变量",
     "selectEnvironment": "选择环境",
     "connect": "连接",
+    "sessionReconnectRequired": "当前笔记本会话需要重新连接后才能继续执行。",
     "runAll": "全部运行",
     "runAllFailed": "运行全部单元格失败",
     "syncOutputsFailed": "同步笔记本输出失败",

@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
+  buildExtensionCatalogEntry,
   getPluginMarketplace,
   type PluginSearchOptions,
   type PluginRegistryEntry,
@@ -19,6 +20,7 @@ import type { MarketplacePlugin, InstallProgressInfo } from '@/components/plugin
 import { MOCK_PLUGINS } from '@/components/plugin/marketplace/components/marketplace-constants';
 import { usePluginStore } from '@/stores/plugin';
 import { usePluginMarketplaceStore } from '@/stores/plugin/plugin-marketplace-store';
+import { toMarketplacePluginFromCatalogEntry } from './marketplace-catalog';
 
 // =============================================================================
 // Types
@@ -51,11 +53,15 @@ interface UseMarketplaceResult {
   sortBy: 'popular' | 'rating' | 'recent' | 'downloads';
   categoryFilter: string;
   quickFilter: 'all' | 'verified' | 'free' | 'new' | 'popular';
+  sourceFilter: 'all' | 'marketplace' | 'builtin' | 'local' | 'git' | 'dev';
+  compatibilityFilter: 'all' | 'compatible' | 'warning' | 'blocked';
   page: number;
   setQuery: (query: string) => void;
   setSortBy: (sortBy: 'popular' | 'rating' | 'recent' | 'downloads') => void;
   setCategoryFilter: (value: string) => void;
   setQuickFilter: (value: 'all' | 'verified' | 'free' | 'new' | 'popular') => void;
+  setSourceFilter: (value: 'all' | 'marketplace' | 'builtin' | 'local' | 'git' | 'dev') => void;
+  setCompatibilityFilter: (value: 'all' | 'compatible' | 'warning' | 'blocked') => void;
   setPage: (page: number) => void;
   resetDiscovery: () => void;
   search: (options: PluginSearchOptions) => Promise<void>;
@@ -108,36 +114,6 @@ function toDate(value: unknown): Date {
     }
   }
   return new Date();
-}
-
-function toMarketplacePlugin(entry: PluginRegistryEntry, installedVersion?: string): MarketplacePlugin {
-  const updatedAt = toDate(entry.updatedAt);
-  const latestVersion = entry.latestVersion || entry.version;
-  const currentInstalledVersion = installedVersion;
-  const updateAvailable = Boolean(currentInstalledVersion && currentInstalledVersion !== latestVersion);
-
-  return {
-    id: entry.id,
-    name: entry.name,
-    description: entry.description,
-    author: { name: entry.author, verified: entry.verified },
-    version: currentInstalledVersion || entry.version,
-    latestVersion,
-    updateAvailable,
-    type: entry.manifest.type,
-    capabilities: entry.manifest.capabilities,
-    rating: entry.rating,
-    reviewCount: entry.ratingCount,
-    downloadCount: entry.downloads,
-    lastUpdated: updatedAt.toISOString().split('T')[0],
-    tags: entry.tags,
-    featured: entry.featured,
-    verified: entry.verified,
-    trending: entry.downloads > 10000,
-    repository: entry.repository,
-    homepage: entry.homepage,
-    license: 'MIT',
-  };
 }
 
 function mapSortForApi(sortBy: 'popular' | 'rating' | 'recent' | 'downloads'): PluginSearchOptions['sortBy'] {
@@ -212,6 +188,8 @@ export function useMarketplace(options: UseMarketplaceOptions = {}): UseMarketpl
     setDiscoverySort,
     setDiscoveryCategoryFilter,
     setDiscoveryQuickFilter,
+    setDiscoverySourceFilter,
+    setDiscoveryCompatibilityFilter,
     setDiscoveryPage,
     setDiscoveryState,
     resetDiscoveryState,
@@ -237,29 +215,27 @@ export function useMarketplace(options: UseMarketplaceOptions = {}): UseMarketpl
     [installedPlugins]
   );
 
-  const installedPluginVersions = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const [id, plugin] of Object.entries(installedPlugins)) {
-      const version = plugin.manifest?.version;
-      if (typeof version === 'string' && version.length > 0) {
-        map.set(id, version);
-      }
-    }
-    return map;
-  }, [installedPlugins]);
+  const toCatalogPlugin = useCallback(
+    (entry: PluginRegistryEntry): MarketplacePlugin => {
+      const installedPlugin = installedPlugins[entry.id];
+      const catalogEntry = buildExtensionCatalogEntry({
+        registryEntry: {
+          ...entry,
+          updatedAt: toDate(entry.updatedAt),
+        },
+        installedPlugin,
+      });
+      return toMarketplacePluginFromCatalogEntry(catalogEntry, operationState[entry.id]);
+    },
+    [installedPlugins, operationState]
+  );
 
   const addInstalledStatus = useCallback(
-    (plugin: MarketplacePlugin): MarketplacePlugin => {
-      const op = operationState[plugin.id];
-      return {
-        ...plugin,
-        installed: installedPluginIds.has(plugin.id),
-        operationStage: op?.stage || 'idle',
-        operationErrorCategory: op?.lastErrorCategory,
-        operationErrorMessage: op?.lastErrorMessage,
-      };
-    },
-    [installedPluginIds, operationState]
+    (plugin: MarketplacePlugin): MarketplacePlugin => ({
+      ...plugin,
+      installed: Boolean(installedPlugins[plugin.id]),
+    }),
+    [installedPlugins]
   );
 
   const resolveSearchOptions = useCallback((): PluginSearchOptions => {
@@ -315,9 +291,7 @@ export function useMarketplace(options: UseMarketplaceOptions = {}): UseMarketpl
       try {
         const client = getPluginMarketplace();
         const result = await client.searchPluginsStrict(searchOptions);
-        const marketplacePlugins = result.plugins
-          .map((entry) => toMarketplacePlugin(entry, installedPluginVersions.get(entry.id)))
-          .map(addInstalledStatus);
+        const marketplacePlugins = result.plugins.map((entry) => toCatalogPlugin(entry));
         setPlugins(marketplacePlugins);
         setIsUsingMockData(false);
         setRemoteMode();
@@ -344,11 +318,10 @@ export function useMarketplace(options: UseMarketplaceOptions = {}): UseMarketpl
       resolveSearchOptions,
       addSearchHistory,
       useMockData,
-      addInstalledStatus,
       setRemoteMode,
       setFallbackMode,
       recordDiagnostic,
-      installedPluginVersions,
+      toCatalogPlugin,
     ]
   );
 
@@ -670,11 +643,15 @@ export function useMarketplace(options: UseMarketplaceOptions = {}): UseMarketpl
     sortBy: discoveryState.sortBy,
     categoryFilter: discoveryState.categoryFilter,
     quickFilter: discoveryState.quickFilter,
+    sourceFilter: discoveryState.sourceFilter,
+    compatibilityFilter: discoveryState.compatibilityFilter,
     page: discoveryState.page,
     setQuery: setDiscoveryQuery,
     setSortBy: setDiscoverySort,
     setCategoryFilter: (value) => setDiscoveryCategoryFilter(value as never),
     setQuickFilter: (value) => setDiscoveryQuickFilter(value),
+    setSourceFilter: (value) => setDiscoverySourceFilter(value),
+    setCompatibilityFilter: (value) => setDiscoveryCompatibilityFilter(value),
     setPage: setDiscoveryPage,
     resetDiscovery: resetDiscoveryState,
     search,

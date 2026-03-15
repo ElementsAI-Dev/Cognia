@@ -158,6 +158,19 @@ Or manually create `plugin.json`:
 - `cognia dev` now performs real filesystem watch/poll change detection and triggers reload events.
 - Manifest validation enforces python/hybrid `pythonMain` and validates `engines` field structure.
 - Packaging checks manifest contract before generating zip artifacts.
+- Manifest validation and packaging reject capabilities blocked by the current host capability matrix.
+
+### Source-Aware Dev Extensions
+
+- Prefer registering local Python plugins as dev extensions so the host can preserve source-path metadata and surface reload diagnostics.
+- `cognia dev` can emit structured `cognia-dev-extension-update` events with `reload-ready` / `reload-error` payloads for host-side dev extension controllers.
+
+### Capability Support Levels
+
+- `supported`: `tools`, `components`, `modes`, `commands`, `hooks`, `a2ui`, `python`, `scheduler`
+- `partial`: `themes`, `exporters`, `importers`
+- `experimental`: `processors`, `providers`
+- `blocked`: `skills`
 
 ## Project Structure
 

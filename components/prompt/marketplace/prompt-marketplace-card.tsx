@@ -274,11 +274,11 @@ export function PromptMarketplaceCard({
   return (
     <Card
       className={cn(
-        'group relative overflow-hidden transition-all duration-300 cursor-pointer',
+        'group relative min-w-0 h-full overflow-hidden transition-all duration-300 cursor-pointer',
         'border-border/50 bg-card/60 backdrop-blur-sm',
         'hover:bg-card hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5',
         'hover:-translate-y-1',
-        featured && 'md:col-span-2 lg:row-span-2',
+        featured && 'xl:col-span-2 2xl:row-span-2',
         isInstalled && 'ring-1 ring-primary/40 bg-primary/5'
       )}
       onClick={handleViewDetail}
@@ -330,7 +330,7 @@ export function PromptMarketplaceCard({
         </div>
       </div>
 
-      <CardContent className={cn('p-5 space-y-4 relative z-0', featured && 'p-6')}>
+      <CardContent className={cn('relative z-0 min-w-0 p-5 space-y-4', featured && 'p-6')}>
         {/* Header */}
         <div className="flex items-start gap-4">
           {/* Icon */}
@@ -424,7 +424,7 @@ export function PromptMarketplaceCard({
         </div>
       </CardContent>
 
-      <CardFooter className="grid grid-cols-[auto_1fr] gap-2 p-4 pt-0">
+      <CardFooter className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-2 p-4 pt-0">
         {/* Favorite Button */}
         <Button
           variant="outline"
@@ -445,7 +445,7 @@ export function PromptMarketplaceCard({
 
         {/* Action Button */}
         {isInstalled ? (
-          <div className="flex gap-2 w-full">
+          <div className="flex min-w-0 gap-2 w-full">
             {hasUpdate ? (
               <Button
                 size="sm"

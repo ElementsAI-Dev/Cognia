@@ -4,6 +4,7 @@ import type { McpPrompt } from '@/types/mcp';
 import {
   DEFAULT_PROMPT_TEMPLATE_CATEGORIES,
   DEFAULT_PROMPT_TEMPLATES,
+  NEW_PROMPT_TEMPLATE_DRAFT_SESSION_ID,
   type PromptTemplate,
 } from '@/types/content/prompt-template';
 import { usePromptTemplateStore } from './prompt-template-store';
@@ -19,6 +20,7 @@ describe('usePromptTemplateStore', () => {
       selectedTemplateId: null,
       isInitialized: false,
       operationStates: {},
+      draftSessions: {},
       feedback: {},
       abTests: {},
       optimizationHistory: {},
@@ -238,6 +240,165 @@ describe('usePromptTemplateStore', () => {
       expect(state.selectedTemplateId).toBe(template.id);
       expect(state.templates[0].usageCount).toBe(1);
       expect(state.templates[0].lastUsedAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('draft workflow', () => {
+    it('persists and restores recoverable draft sessions', () => {
+      const template = createTemplate({
+        name: 'Draftable',
+        content: 'Original content',
+      });
+
+      const store = usePromptTemplateStore.getState() as typeof usePromptTemplateStore.getState extends () => infer T
+        ? T & {
+            saveDraftSession?: (
+              id: string,
+              snapshot: Record<string, unknown>,
+              origin: string
+            ) => void;
+            getDraftSession?: (id: string) => {
+              snapshot: { content?: string };
+              dirty: boolean;
+              lastRecoveredAt?: Date;
+            } | undefined;
+            restoreDraftSession?: (id: string) => { lastRecoveredAt?: Date } | undefined;
+          }
+        : never;
+
+      store.saveDraftSession?.(
+        template.id,
+        {
+          name: template.name,
+          description: template.description,
+          content: 'Draft content',
+          category: template.category,
+          tags: template.tags,
+          variables: template.variables,
+          targets: template.targets,
+          source: template.source,
+          meta: template.meta,
+        },
+        'manager'
+      );
+
+      expect(store.getDraftSession?.(template.id)).toEqual(
+        expect.objectContaining({
+          dirty: true,
+          snapshot: expect.objectContaining({
+            content: 'Draft content',
+          }),
+        })
+      );
+
+      const restored = store.restoreDraftSession?.(template.id);
+      expect(restored?.lastRecoveredAt).toBeInstanceOf(Date);
+    });
+
+    it('clears saved drafts after updating a linked template and recomputes sync status', () => {
+      const template = createTemplate({
+        name: 'Linked template',
+        description: 'Linked template description',
+        content: 'Original linked content',
+        meta: {
+          marketplace: {
+            marketplaceId: 'market-1',
+            linkageType: 'installed',
+            installedVersion: '1.0.0',
+            latestVersion: '1.0.0',
+            baseline: {
+              version: '1.0.0',
+              name: 'Linked template',
+              description: 'Linked template description',
+              content: 'Original linked content',
+              category: 'custom',
+              tags: [],
+              variables: [],
+              targets: ['chat'],
+              capturedAt: '2026-03-14T00:00:00.000Z',
+            },
+          },
+        },
+      });
+
+      const store = usePromptTemplateStore.getState() as typeof usePromptTemplateStore.getState extends () => infer T
+        ? T & {
+            saveDraftSession?: (
+              id: string,
+              snapshot: Record<string, unknown>,
+              origin: string
+            ) => void;
+            getDraftSession?: (id: string) => unknown;
+          }
+        : never;
+
+      store.saveDraftSession?.(
+        template.id,
+        {
+          name: template.name,
+          description: template.description,
+          content: 'Draft before save',
+          category: template.category,
+          tags: template.tags,
+          variables: template.variables,
+          targets: template.targets,
+          source: template.source,
+          meta: template.meta,
+        },
+        'editor'
+      );
+
+      const result = usePromptTemplateStore.getState().updateTemplate(template.id, {
+        content: 'Locally edited after save',
+      });
+
+      expect(result.ok).toBe(true);
+      expect(store.getDraftSession?.(template.id)).toBeUndefined();
+      expect(usePromptTemplateStore.getState().getTemplate(template.id)?.meta?.marketplace?.syncStatus).toBe(
+        'dirty'
+      );
+    });
+
+    it('prunes stale and overflow draft sessions deterministically', () => {
+      const oldDate = new Date('2025-01-01T00:00:00.000Z');
+      const recentDate = new Date('2026-03-14T00:00:00.000Z');
+      usePromptTemplateStore.setState({
+        draftSessions: {
+          [NEW_PROMPT_TEMPLATE_DRAFT_SESSION_ID]: {
+            id: NEW_PROMPT_TEMPLATE_DRAFT_SESSION_ID,
+            templateId: NEW_PROMPT_TEMPLATE_DRAFT_SESSION_ID,
+            origin: 'manager',
+            snapshot: {
+              name: 'Old draft',
+              content: 'old',
+            },
+            dirty: true,
+            createdAt: oldDate,
+            updatedAt: oldDate,
+          },
+          'template-2': {
+            id: 'template-2',
+            templateId: 'template-2',
+            origin: 'editor',
+            snapshot: {
+              name: 'Recent draft',
+              content: 'recent',
+            },
+            dirty: true,
+            createdAt: recentDate,
+            updatedAt: recentDate,
+          },
+        },
+      });
+
+      const store = usePromptTemplateStore.getState() as typeof usePromptTemplateStore.getState extends () => infer T
+        ? T & { pruneDraftSessions?: (now?: Date) => void }
+        : never;
+
+      store.pruneDraftSessions?.(new Date('2026-03-14T00:00:00.000Z'));
+
+      expect(usePromptTemplateStore.getState().draftSessions[NEW_PROMPT_TEMPLATE_DRAFT_SESSION_ID]).toBeUndefined();
+      expect(usePromptTemplateStore.getState().draftSessions['template-2']).toBeDefined();
     });
   });
 

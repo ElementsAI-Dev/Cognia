@@ -19,8 +19,10 @@ import type {
 } from '@/types/content/prompt-marketplace';
 import {
   applyMarketplaceFilters,
+  buildTemplateInputFromMarketplacePrompt,
   buildMarketplaceFacets,
   buildPromptMarketplaceExchangePayload,
+  resolveMarketplaceUpdateAction,
   isPublishableMarketplaceCategory,
   normalizeMarketplacePrompt,
   normalizeTags,
@@ -214,11 +216,17 @@ function createInstallationRecord(
     id: nanoid(),
     marketplaceId,
     localTemplateId,
+    linkageType: 'installed',
+    sourcePromptId: marketplaceId,
     installedVersion: version,
     latestVersion: version,
     hasUpdate: false,
     autoUpdate: false,
     installedAt: new Date(),
+    syncStatus: 'clean',
+    conflict: {
+      state: 'none',
+    },
   };
 }
 
@@ -255,20 +263,7 @@ function nextDuplicatePromptId(baseId: string, prompts: Record<string, Marketpla
 
 function createTemplateFromMarketplacePrompt(prompt: MarketplacePrompt): string {
   const templateStore = usePromptTemplateStore.getState();
-  const result = templateStore.createTemplate({
-    name: prompt.name,
-    description: prompt.description,
-    content: prompt.content,
-    category: prompt.category,
-    tags: normalizeTags([...(prompt.tags || []), 'marketplace']),
-    variables: prompt.variables,
-    targets: prompt.targets,
-    source: 'imported',
-    meta: {
-      icon: prompt.icon,
-      color: prompt.color,
-    },
-  });
+  const result = templateStore.createTemplate(buildTemplateInputFromMarketplacePrompt(prompt));
 
   if (!result.ok || !result.data) {
     throw new Error(result.message || 'Failed to create local template from marketplace prompt');
@@ -761,18 +756,45 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
           }
 
           const templateStore = usePromptTemplateStore.getState();
-          const updateResult = templateStore.updateTemplate(installation.localTemplateId, {
-            name: latestPrompt.name,
-            description: latestPrompt.description,
-            content: latestPrompt.content,
-            category: latestPrompt.category,
-            tags: normalizeTags([...(latestPrompt.tags || []), 'marketplace']),
-            variables: latestPrompt.variables,
-            targets: latestPrompt.targets,
-            meta: {
-              icon: latestPrompt.icon,
-              color: latestPrompt.color,
+          const localTemplate = templateStore.getTemplate(installation.localTemplateId);
+          if (!localTemplate) {
+            throw new Error('Installed prompt template not found');
+          }
+
+          const updateResolution = resolveMarketplaceUpdateAction({
+            template: localTemplate,
+            installation: {
+              ...installation,
+              latestVersion: latestPrompt.version,
+              hasUpdate: latestPrompt.version !== installation.installedVersion,
             },
+          });
+          if (updateResolution.type === 'conflict') {
+            set((state) => ({
+              userActivity: {
+                ...state.userActivity,
+                installed: state.userActivity.installed.map((item) =>
+                  item.marketplaceId === marketplaceId
+                    ? {
+                        ...item,
+                        latestVersion: latestPrompt.version,
+                        hasUpdate: true,
+                        syncStatus: 'conflict',
+                        conflict: {
+                          state: 'requires-resolution',
+                          detectedAt: new Date().toISOString(),
+                        },
+                      }
+                    : item
+                ),
+              },
+            }));
+            throw new Error('Local changes must be resolved before applying upstream updates.');
+          }
+
+          const updateInput = buildTemplateInputFromMarketplacePrompt(latestPrompt);
+          const updateResult = templateStore.updateTemplate(installation.localTemplateId, {
+            ...updateInput,
           });
           if (!updateResult.ok) {
             throw new Error(updateResult.message || 'Failed to update installed prompt template');
@@ -786,16 +808,20 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
             userActivity: {
               ...state.userActivity,
               installed: state.userActivity.installed.map((item) =>
-                item.marketplaceId === marketplaceId
-                  ? {
-                      ...item,
-                      installedVersion: latestPrompt.version,
-                      latestVersion: latestPrompt.version,
-                      hasUpdate: false,
-                      lastSyncedAt: new Date(),
-                    }
-                  : item
-              ),
+                    item.marketplaceId === marketplaceId
+                      ? {
+                          ...item,
+                          installedVersion: latestPrompt.version,
+                          latestVersion: latestPrompt.version,
+                          hasUpdate: false,
+                          lastSyncedAt: new Date(),
+                          syncStatus: 'clean',
+                          conflict: {
+                            state: 'none',
+                          },
+                        }
+                      : item
+                  ),
             },
           }));
 
@@ -1107,6 +1133,29 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
             ...publishedPrompt,
             source: 'user',
           });
+          const marketplaceLink = buildTemplateInputFromMarketplacePrompt(normalizedPrompt).meta?.marketplace;
+
+          const templateUpdateResult = templateStore.updateTemplate(templateId, {
+            source: template.source,
+            meta: {
+              ...template.meta,
+              marketplace: {
+                ...marketplaceLink,
+                marketplaceId: normalizedPrompt.id,
+                sourcePromptId: normalizedPrompt.id,
+                linkageType: 'published',
+                installedVersion: normalizedPrompt.version,
+                latestVersion: normalizedPrompt.version,
+                publishedVersion: normalizedPrompt.version,
+                syncStatus: 'published',
+                canPublishUpdates: true,
+                lastPublishedAt: new Date().toISOString(),
+              },
+            },
+          });
+          if (!templateUpdateResult.ok) {
+            throw new Error(templateUpdateResult.message || 'Failed to persist published prompt linkage');
+          }
 
           set((state) => ({
             prompts: { ...state.prompts, [normalizedPrompt.id]: normalizedPrompt },

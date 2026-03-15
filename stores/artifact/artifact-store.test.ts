@@ -5,11 +5,23 @@
 import { act } from '@testing-library/react';
 import { useArtifactStore } from './artifact-store';
 
+const DEFAULT_ARTIFACT_WORKSPACE = {
+  scope: 'session' as const,
+  sessionId: null,
+  searchQuery: '',
+  typeFilter: 'all' as const,
+  runtimeFilter: 'all' as const,
+  recentArtifactIds: [],
+  returnContext: null,
+};
+
 describe('useArtifactStore', () => {
   beforeEach(() => {
+    localStorage.clear();
     useArtifactStore.setState({
       artifacts: {},
       activeArtifactId: null,
+      artifactWorkspace: DEFAULT_ARTIFACT_WORKSPACE,
       canvasDocuments: {},
       activeCanvasId: null,
       canvasOpen: false,
@@ -26,6 +38,37 @@ describe('useArtifactStore', () => {
       expect(state.activeArtifactId).toBeNull();
       expect(state.canvasDocuments).toEqual({});
       expect(state.panelOpen).toBe(false);
+    });
+
+    it('has centralized artifact workspace defaults and allows filter updates', () => {
+      const initialState = useArtifactStore.getState();
+
+      expect(initialState.artifactWorkspace).toEqual(
+        expect.objectContaining({
+          scope: 'session',
+          searchQuery: '',
+          typeFilter: 'all',
+          runtimeFilter: 'all',
+          recentArtifactIds: [],
+          returnContext: null,
+        })
+      );
+
+      act(() => {
+        useArtifactStore.getState().setArtifactWorkspaceFilters({
+          searchQuery: 'chart',
+          typeFilter: 'chart',
+          runtimeFilter: 'ready',
+        });
+      });
+
+      expect(useArtifactStore.getState().artifactWorkspace).toEqual(
+        expect.objectContaining({
+          searchQuery: 'chart',
+          typeFilter: 'chart',
+          runtimeFilter: 'ready',
+        })
+      );
     });
   });
 
@@ -48,6 +91,35 @@ describe('useArtifactStore', () => {
       expect(state.activeArtifactId).toBe(artifact!.id);
       expect(state.panelOpen).toBe(true);
       expect(artifact!.version).toBe(1);
+    });
+
+    it('should persist workspace and source metadata when creating an artifact', () => {
+      let artifact;
+      act(() => {
+        artifact = useArtifactStore.getState().createArtifact({
+          sessionId: 'session-1',
+          messageId: 'msg-1',
+          type: 'code',
+          title: 'Tracked Artifact',
+          content: 'console.log("tracked")',
+          language: 'javascript',
+          metadata: {
+            sourceOrigin: 'auto',
+            sourceFingerprint: 'fingerprint-1',
+            runtimeHealth: 'ready',
+            exportFormats: ['raw', 'html'],
+          },
+        });
+      });
+
+      expect(artifact!.metadata).toEqual(
+        expect.objectContaining({
+          sourceOrigin: 'auto',
+          sourceFingerprint: 'fingerprint-1',
+          runtimeHealth: 'ready',
+          exportFormats: ['raw', 'html'],
+        })
+      );
     });
 
     it('should update artifact', () => {
@@ -156,6 +228,47 @@ describe('useArtifactStore', () => {
       expect(useArtifactStore.getState().panelOpen).toBe(true);
       expect(useArtifactStore.getState().panelView).toBe('artifact');
     });
+
+    it('should dedupe auto-created artifacts for unchanged source content', async () => {
+      const messageContent = `\`\`\`typescript
+const line1 = 1;
+const line2 = 2;
+const line3 = 3;
+const line4 = 4;
+const line5 = 5;
+const line6 = 6;
+const line7 = 7;
+const line8 = 8;
+const line9 = 9;
+const line10 = 10;
+\`\`\``;
+
+      await act(async () => {
+        await useArtifactStore.getState().autoCreateFromContent({
+          sessionId: 'session-1',
+          messageId: 'msg-1',
+          content: messageContent,
+        });
+      });
+
+      await act(async () => {
+        await useArtifactStore.getState().autoCreateFromContent({
+          sessionId: 'session-1',
+          messageId: 'msg-1',
+          content: messageContent,
+        });
+      });
+
+      const state = useArtifactStore.getState();
+      expect(Object.keys(state.artifacts)).toHaveLength(1);
+      expect(state.artifacts[Object.keys(state.artifacts)[0]].metadata).toEqual(
+        expect.objectContaining({
+          sourceOrigin: 'auto',
+          sourceFingerprint: expect.any(String),
+          userInitiated: false,
+        })
+      );
+    });
   });
 
   describe('canvas management', () => {
@@ -174,6 +287,16 @@ describe('useArtifactStore', () => {
       expect(state.canvasDocuments[docId!]).toBeDefined();
       expect(state.activeCanvasId).toBe(docId);
       expect(state.canvasOpen).toBe(true);
+      expect(state.canvasDocuments[docId!].aiWorkbench).toEqual(
+        expect.objectContaining({
+          promptDraft: '',
+          selectedPresetAction: null,
+          attachments: [],
+          actionHistory: [],
+          pendingReview: null,
+          isInlineCommandOpen: false,
+        })
+      );
     });
 
     it('should update canvas document', () => {
@@ -297,6 +420,138 @@ describe('useArtifactStore', () => {
       });
 
       expect(useArtifactStore.getState().canvasDocuments[docId].updatedAt).toBe(originalUpdatedAt);
+    });
+
+    it('should merge ai workbench updates without dropping existing fields', () => {
+      let docId!: string;
+      act(() => {
+        docId = useArtifactStore.getState().createCanvasDocument({
+          title: 'Workbench Doc',
+          content: 'const value = 1;',
+          language: 'typescript',
+          type: 'code',
+        });
+      });
+
+      act(() => {
+        useArtifactStore.getState().updateCanvasDocument(docId, {
+          aiWorkbench: {
+            promptDraft: 'Improve this function',
+            selectedPresetAction: null,
+            attachments: [
+              {
+                id: 'attachment-1',
+                sourceType: 'artifact',
+                sourceId: 'artifact-1',
+                label: 'Shared helper',
+                snapshot: 'export const helper = () => true;',
+              },
+            ],
+            pendingReview: null,
+            actionHistory: [],
+            isInlineCommandOpen: true,
+          },
+        });
+      });
+
+      const createdAt = new Date('2026-03-14T08:00:00.000Z');
+
+      act(() => {
+        useArtifactStore.getState().updateCanvasDocument(docId, {
+          aiWorkbench: {
+            promptDraft: 'Improve this function',
+            selectedPresetAction: null,
+            attachments: [
+              {
+                id: 'attachment-1',
+                sourceType: 'artifact',
+                sourceId: 'artifact-1',
+                label: 'Shared helper',
+                snapshot: 'export const helper = () => true;',
+              },
+            ],
+            pendingReview: null,
+            actionHistory: [
+              {
+                id: 'history-1',
+                requestId: 'request-1',
+                actionType: 'custom',
+                prompt: 'Improve this function',
+                scope: 'document',
+                entryPoint: 'inline',
+                createdAt,
+                status: 'pending-review',
+                attachmentSummary: ['Shared helper'],
+              },
+            ],
+            isInlineCommandOpen: true,
+          },
+        });
+      });
+
+      expect(useArtifactStore.getState().canvasDocuments[docId].aiWorkbench).toEqual(
+        expect.objectContaining({
+          promptDraft: 'Improve this function',
+          isInlineCommandOpen: true,
+          attachments: [
+            expect.objectContaining({
+              id: 'attachment-1',
+              sourceType: 'artifact',
+              sourceId: 'artifact-1',
+            }),
+          ],
+          actionHistory: [
+            expect.objectContaining({
+              id: 'history-1',
+              createdAt,
+              status: 'pending-review',
+            }),
+          ],
+        })
+      );
+    });
+
+    it('should retain only the most recent AI workbench history entries', () => {
+      let docId!: string;
+      act(() => {
+        docId = useArtifactStore.getState().createCanvasDocument({
+          title: 'Retention Doc',
+          content: 'const value = 1;',
+          language: 'typescript',
+          type: 'code',
+        });
+      });
+
+      const entries = Array.from({ length: 30 }, (_, index) => ({
+        id: `history-${index + 1}`,
+        requestId: `request-${index + 1}`,
+        actionType: 'custom' as const,
+        prompt: `Prompt ${index + 1}`,
+        scope: 'document' as const,
+        entryPoint: 'inline' as const,
+        createdAt: new Date(`2026-03-14T08:${String(index).padStart(2, '0')}:00.000Z`),
+        status: 'completed' as const,
+        attachmentSummary: [],
+      }));
+
+      act(() => {
+        useArtifactStore.getState().updateCanvasDocument(docId, {
+          aiWorkbench: {
+            promptDraft: '',
+            selectedPresetAction: null,
+            attachments: [],
+            pendingReview: null,
+            actionHistory: entries,
+            isInlineCommandOpen: false,
+          },
+        });
+      });
+
+      const actionHistory =
+        useArtifactStore.getState().canvasDocuments[docId].aiWorkbench?.actionHistory;
+      expect(actionHistory).toHaveLength(20);
+      expect(actionHistory?.[0].id).toBe('history-11');
+      expect(actionHistory?.[19].id).toBe('history-30');
     });
   });
 
@@ -733,6 +988,60 @@ describe('useArtifactStore', () => {
       const results = useArtifactStore.getState().searchArtifacts('Searchable');
       expect(results[0].createdAt).toBeInstanceOf(Date);
       expect(results[0].updatedAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('persist rehydrate normalization', () => {
+    it('should backfill artifact workspace defaults for legacy persisted state', async () => {
+      localStorage.setItem(
+        'cognia-artifacts',
+        JSON.stringify({
+          state: {
+            artifacts: {
+              'artifact-legacy': {
+                id: 'artifact-legacy',
+                sessionId: 'session-1',
+                messageId: 'msg-1',
+                type: 'code',
+                title: 'Legacy Artifact',
+                content: 'const legacy = true;',
+                version: 1,
+                createdAt: '2026-03-14T00:00:00.000Z',
+                updatedAt: '2026-03-14T00:00:00.000Z',
+                metadata: {
+                  sourceOrigin: 'auto',
+                  lastAccessedAt: '2026-03-14T01:00:00.000Z',
+                },
+              },
+            },
+            artifactVersions: {},
+            canvasDocuments: {},
+            analysisResults: {},
+          },
+          version: 1,
+        })
+      );
+
+      await act(async () => {
+        await (
+          useArtifactStore as unknown as { persist: { rehydrate: () => Promise<void> } }
+        ).persist.rehydrate();
+      });
+
+      const state = useArtifactStore.getState();
+      expect(state.artifactWorkspace).toEqual(
+        expect.objectContaining({
+          scope: 'session',
+          searchQuery: '',
+          typeFilter: 'all',
+          runtimeFilter: 'all',
+          recentArtifactIds: [],
+          returnContext: null,
+        })
+      );
+
+      const artifact = state.getArtifact('artifact-legacy');
+      expect(artifact?.metadata?.lastAccessedAt).toBeInstanceOf(Date);
     });
   });
 });

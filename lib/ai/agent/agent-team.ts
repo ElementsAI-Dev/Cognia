@@ -21,7 +21,6 @@ import { generateText } from 'ai';
 import { getProviderModel, type ProviderName } from '../core/client';
 import { executeAgent, type AgentConfig, type AgentTool } from './agent-executor';
 import {
-  DEFAULT_TEAM_CONFIG,
   type AgentTeam,
   type AgentTeammate,
   type AgentTeamTask,
@@ -29,6 +28,8 @@ import {
   type AgentTeamConfig,
   type AgentTeamEvent,
   type AgentTeamTemplate,
+  type TeamExecutionPattern,
+  type TeamRoutingAssessment,
   type TeamTaskStatus,
   type TeamExecutionOptions,
   type CreateTeamInput,
@@ -46,6 +47,10 @@ import type { SubAgentTokenUsage } from '@/types/agent/sub-agent';
 import { getAgentBridge } from './agent-bridge';
 import type { SharedMemoryManager } from './agent-bridge';
 import { loggers } from '@/lib/logger';
+import {
+  normalizeAgentTeamConfig,
+  normalizeAgentTeamTask,
+} from './agent-team-compat';
 
 const log = loggers.agent;
 
@@ -155,10 +160,7 @@ export class AgentTeamManager {
    * Create a new team
    */
   createTeam(input: CreateTeamInput): AgentTeam {
-    const config: AgentTeamConfig = {
-      ...DEFAULT_TEAM_CONFIG,
-      ...input.config,
-    };
+    const config: AgentTeamConfig = normalizeAgentTeamConfig(input.config);
 
     const teamId = nanoid();
 
@@ -194,6 +196,7 @@ export class AgentTeamManager {
       task: input.task,
       status: 'idle',
       config,
+      selectedExecutionPattern: config.preferredExecutionPattern,
       leadId: lead.id,
       teammateIds: [lead.id],
       taskIds: [],
@@ -289,7 +292,7 @@ export class AgentTeamManager {
    */
   createTask(input: CreateTaskInput): AgentTeamTask {
     const team = this.teams.get(input.teamId);
-    const task: AgentTeamTask = {
+    const task: AgentTeamTask = normalizeAgentTeamTask({
       id: nanoid(),
       teamId: input.teamId,
       title: input.title,
@@ -304,7 +307,7 @@ export class AgentTeamManager {
       estimatedDuration: input.estimatedDuration,
       order: input.order ?? (team?.taskIds.length || 0),
       metadata: input.metadata,
-    };
+    });
 
     this.tasks.set(task.id, task);
     if (team) {
@@ -357,6 +360,7 @@ export class AgentTeamManager {
   updateTaskStatus(taskId: string, status: TeamTaskStatus, result?: string, error?: string): void {
     const task = this.tasks.get(taskId);
     if (!task) return;
+    const team = this.teams.get(task.teamId);
 
     task.status = status;
     if (result) task.result = result;
@@ -390,6 +394,21 @@ export class AgentTeamManager {
             tags: ['task_result', task.title],
           }
         );
+      }
+    }
+
+    if (team) {
+      if (status === 'completed') {
+        this.appendExecutionCheckpoint(team, 'task_completed', `Task completed: ${task.title}`, {
+          taskId: task.id,
+          status,
+        });
+      } else if (status === 'failed') {
+        this.appendExecutionCheckpoint(team, 'task_failed', `Task failed: ${task.title}`, {
+          taskId: task.id,
+          status,
+          error,
+        });
       }
     }
   }
@@ -495,6 +514,14 @@ export class AgentTeamManager {
 
     team.status = 'planning';
     team.startedAt = new Date();
+    const executionReport = this.ensureExecutionReport(team);
+    executionReport.status = 'running';
+    executionReport.updatedAt = new Date();
+    const routingAssessment = this.assessTeamRouting(teamId);
+    if (routingAssessment && !team.selectedExecutionPattern) {
+      team.selectedExecutionPattern = routingAssessment.recommendedPattern;
+    }
+    executionReport.activeExecutionPattern = team.selectedExecutionPattern;
     this.emitEvent(team, 'team_started', options);
 
     try {
@@ -526,6 +553,11 @@ export class AgentTeamManager {
 
       // Aggregate token usage
       this.aggregateTokenUsage(team);
+      this.refreshExecutionReportSummary(team);
+      executionReport.status = 'completed';
+      executionReport.completedAt = team.completedAt;
+      executionReport.updatedAt = team.completedAt;
+      executionReport.activeExecutionPattern = team.selectedExecutionPattern;
 
       this.emitEvent(team, 'team_completed', options);
       options.onProgress?.(100, 'Team completed');
@@ -538,6 +570,9 @@ export class AgentTeamManager {
 
       if (errorMessage === 'Team execution cancelled') {
         team.status = 'cancelled';
+      } else if (errorMessage === 'Team execution paused for budget review') {
+        team.status = 'paused';
+        team.error = errorMessage;
       } else {
         team.status = 'failed';
         team.error = errorMessage;
@@ -545,6 +580,17 @@ export class AgentTeamManager {
 
       team.completedAt = new Date();
       team.totalDuration = team.completedAt.getTime() - (team.startedAt?.getTime() || 0);
+      this.refreshExecutionReportSummary(team);
+      executionReport.status =
+        team.status === 'paused'
+          ? 'running'
+          : team.status === 'cancelled'
+            ? 'cancelled'
+            : 'failed';
+      executionReport.updatedAt = team.completedAt;
+      if (team.status !== 'paused') {
+        executionReport.completedAt = team.completedAt;
+      }
 
       this.emitEvent(team, team.status === 'cancelled' ? 'team_cancelled' : 'team_failed', options);
       options.onError?.(errorMessage);
@@ -555,7 +601,7 @@ export class AgentTeamManager {
       this.activeExecutions.delete(teamId);
 
       // Auto-shutdown teammates if configured
-      if (team.config.autoShutdown) {
+      if (team.config.autoShutdown && team.status !== 'paused') {
         this.shutdownAllTeammates(teamId);
       }
     }
@@ -685,7 +731,7 @@ export class AgentTeamManager {
     signal: AbortSignal
   ): Promise<void> {
     const teammateIds = team.teammateIds.filter(id => id !== team.leadId);
-    const maxConcurrent = team.config.maxConcurrentTeammates;
+    let maxConcurrent = team.config.maxConcurrentTeammates;
     const executionMode = team.config.executionMode;
 
     let completedCount = 0;
@@ -698,12 +744,32 @@ export class AgentTeamManager {
       if (team.config.tokenBudget && team.config.tokenBudget > 0) {
         this.aggregateTokenUsage(team);
         if (team.totalTokenUsage.totalTokens >= team.config.tokenBudget) {
+          const budgetAction = this.evaluateBudgetGovernance(team);
           log.warn('Token budget exceeded', {
             teamId: team.id,
             used: team.totalTokenUsage.totalTokens,
             budget: team.config.tokenBudget,
           });
           this.emitEvent(team, 'budget_exceeded', options);
+          this.appendExecutionCheckpoint(team, 'budget_escalated', 'Budget policy triggered', {
+            action: budgetAction,
+            used: team.totalTokenUsage.totalTokens,
+            budget: team.config.tokenBudget,
+          });
+
+          if (budgetAction === 'pause_for_review') {
+            throw new Error('Team execution paused for budget review');
+          }
+
+          if (budgetAction === 'reduce_concurrency') {
+            maxConcurrent = Math.min(maxConcurrent, 1);
+            continue;
+          }
+
+          if (budgetAction === 'handoff_to_background') {
+            team.selectedExecutionPattern = 'background_handoff';
+          }
+
           break;
         }
       }
@@ -881,6 +947,150 @@ export class AgentTeamManager {
 
     // Fallback: round-robin assignment
     return idleTeammates[fallbackIndex % idleTeammates.length];
+  }
+
+  private assessTaskComplexity(task: string): 'simple' | 'moderate' | 'complex' {
+    const wordCount = task.split(/\s+/).filter(Boolean).length;
+    const actionMatches =
+      task.match(/\b(research|analyze|compare|synthesize|build|review|implement|investigate)\b/gi)
+      || [];
+    const hasMultipleSteps = /\b(and then|after that|next|finally|first|second|third)\b/i.test(task);
+
+    if (wordCount > 80 || (hasMultipleSteps && actionMatches.length >= 3)) {
+      return 'complex';
+    }
+    if (wordCount > 30 || actionMatches.length >= 2) {
+      return 'moderate';
+    }
+    return 'simple';
+  }
+
+  private hasParallelizationPotential(task: string): boolean {
+    const parallelPatterns = [
+      /\b(multiple|several|different|various)\b/i,
+      /\b(compare|contrast)\b/i,
+      /\b(parallel|simultaneous|independent)\b/i,
+    ];
+
+    return parallelPatterns.some(pattern => pattern.test(task));
+  }
+
+  private needsContextIsolation(task: string): boolean {
+    const isolationPatterns = [
+      /\b(comprehensive|large|extensive)\b/i,
+      /\b(search|research|logs|records|history)\b/i,
+      /\b(multiple sources|many files|broad context)\b/i,
+    ];
+
+    return isolationPatterns.some(pattern => pattern.test(task));
+  }
+
+  private isDelegationCandidate(task: string, executionMode: AgentTeamConfig['executionMode']): boolean {
+    if (executionMode === 'delegate') {
+      return true;
+    }
+
+    return /\b(background|async|long-running|later|delegate)\b/i.test(task);
+  }
+
+  private getBudgetPressure(team: AgentTeam): 'low' | 'medium' | 'high' {
+    const budget = team.config.tokenBudget ?? 0;
+    if (budget <= 0) {
+      return 'low';
+    }
+
+    const used = team.totalTokenUsage.totalTokens;
+    const ratio = used / budget;
+    const warningThreshold = team.config.governancePolicy?.budget.warningThreshold ?? 0.8;
+    const criticalThreshold = team.config.governancePolicy?.budget.criticalThreshold ?? 0.95;
+
+    if (ratio >= criticalThreshold) return 'high';
+    if (ratio >= warningThreshold) return 'medium';
+    return 'low';
+  }
+
+  private evaluateBudgetGovernance(team: AgentTeam): 'notify' | 'pause_for_review' | 'reduce_concurrency' | 'handoff_to_background' {
+    if (this.getBudgetPressure(team) !== 'high') {
+      return 'notify';
+    }
+
+    return team.config.governancePolicy?.budget.onCritical ?? 'notify';
+  }
+
+  private ensureExecutionReport(team: AgentTeam): NonNullable<AgentTeam['executionReport']> {
+    if (!team.executionReport) {
+      team.executionReport = {
+        id: nanoid(),
+        teamId: team.id,
+        status: 'pending',
+        routingAssessment: team.routingAssessment,
+        activeExecutionPattern: team.selectedExecutionPattern,
+        checkpoints: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
+
+    team.executionReport.traceSessionId = team.sessionId;
+    return team.executionReport;
+  }
+
+  private appendExecutionCheckpoint(
+    team: AgentTeam,
+    type: NonNullable<AgentTeam['executionReport']>['checkpoints'][number]['type'],
+    summary: string,
+    data?: Record<string, unknown>
+  ): void {
+    const report = this.ensureExecutionReport(team);
+    const timestamp = new Date();
+
+    report.routingAssessment = team.routingAssessment;
+    report.activeExecutionPattern = team.selectedExecutionPattern;
+    report.checkpoints.push({
+      id: nanoid(),
+      type,
+      timestamp,
+      summary,
+      taskId: typeof data?.taskId === 'string' ? data.taskId : undefined,
+      teammateId: typeof data?.teammateId === 'string' ? data.teammateId : undefined,
+      delegationId: typeof data?.delegationId === 'string' ? data.delegationId : undefined,
+      data,
+    });
+    report.updatedAt = timestamp;
+    this.refreshExecutionReportSummary(team);
+  }
+
+  private refreshExecutionReportSummary(team: AgentTeam): void {
+    const report = this.ensureExecutionReport(team);
+    const tasks = team.taskIds
+      .map(id => this.tasks.get(id))
+      .filter((task): task is AgentTeamTask => task !== undefined);
+
+    const nextActions: string[] = [];
+    if (tasks.some(task => task.delegationRecord?.status === 'awaiting_approval')) {
+      nextActions.push('Approve background delegation');
+    }
+    if (team.status === 'paused' && team.error === 'Team execution paused for budget review') {
+      nextActions.push('Review budget policy before resuming execution');
+    }
+    if (tasks.some(task => task.status === 'failed')) {
+      nextActions.push('Review failed tasks and retry or reassign them');
+    }
+    if (tasks.some(task => task.status === 'blocked')) {
+      nextActions.push('Resolve blocked tasks or dependency issues');
+    }
+
+    report.summary = {
+      completedTasks: tasks.filter(task => task.status === 'completed').length,
+      failedTasks: tasks.filter(task => task.status === 'failed').length,
+      cancelledTasks: tasks.filter(task => task.status === 'cancelled').length,
+      blockedTasks: tasks.filter(task => task.status === 'blocked').length,
+      delegatedTasks: tasks.filter(task => task.delegationRecord !== undefined).length,
+      approvalsRequested: report.checkpoints.filter(checkpoint => checkpoint.type === 'approval_requested').length,
+      retries: tasks.filter(task => (task.retryCount ?? 0) > 0).length,
+      totalTokens: team.totalTokenUsage.totalTokens,
+      nextActions,
+    };
   }
 
   /**
@@ -1716,9 +1926,168 @@ Respond with a JSON object: {"optionIndex": <0-based index>, "reasoning": "<your
       .filter((r) => r.teamId === teamId);
   }
 
+  /**
+   * Produce a routing assessment for the team before execution starts
+   */
+  assessTeamRouting(teamId: string): TeamRoutingAssessment | null {
+    const team = this.teams.get(teamId);
+    if (!team) return null;
+
+    const specialistCount = team.teammateIds
+      .map(id => this.teammates.get(id))
+      .filter((teammate): teammate is AgentTeammate =>
+        teammate !== undefined &&
+        teammate.role !== 'lead' &&
+        Boolean(teammate.config.specialization || teammate.specialization)
+      ).length;
+
+    const taskComplexity = this.assessTaskComplexity(team.task);
+    const parallelizationBenefit = this.hasParallelizationPotential(team.task);
+    const contextIsolationNeeded = this.needsContextIsolation(team.task);
+    const specializationNeeded = specialistCount > 0 || team.teammateIds.length > 2;
+    const delegationCandidate = this.isDelegationCandidate(team.task, team.config.executionMode);
+    const budgetPressure = this.getBudgetPressure(team);
+
+    let recommendedPattern: TeamExecutionPattern = 'manager_worker';
+    if (delegationCandidate && budgetPressure === 'high') {
+      recommendedPattern = 'background_handoff';
+    } else if (taskComplexity === 'simple' && !parallelizationBenefit && !specializationNeeded) {
+      recommendedPattern = 'single_agent_recommended';
+    } else if (parallelizationBenefit || specializationNeeded) {
+      recommendedPattern = 'parallel_specialists';
+    }
+
+    const reasons: string[] = [];
+    if (taskComplexity === 'complex') reasons.push('task is complex');
+    if (parallelizationBenefit) reasons.push('work can be parallelized');
+    if (specializationNeeded) reasons.push('specialist teammates are available');
+    if (contextIsolationNeeded) reasons.push('context isolation is useful');
+    if (delegationCandidate) reasons.push('task can be delegated');
+    if (budgetPressure === 'high') reasons.push('budget pressure is high');
+
+    const score =
+      (taskComplexity === 'complex' ? 0.35 : taskComplexity === 'moderate' ? 0.2 : 0.05) +
+      (parallelizationBenefit ? 0.25 : 0) +
+      (specializationNeeded ? 0.2 : 0) +
+      (contextIsolationNeeded ? 0.1 : 0) +
+      (delegationCandidate ? 0.1 : 0);
+
+    const assessment: TeamRoutingAssessment = {
+      recommendedPattern,
+      confidence: Math.max(0.1, Math.min(0.95, score)),
+      reason: reasons.join('; ') || 'default manager-worker coordination is sufficient',
+      factors: {
+        taskComplexity,
+        specializationNeeded,
+        contextIsolationNeeded,
+        delegationCandidate,
+        budgetPressure,
+      },
+      createdAt: new Date(),
+    };
+
+    team.routingAssessment = assessment;
+    const report = this.ensureExecutionReport(team);
+    report.routingAssessment = assessment;
+    report.activeExecutionPattern = team.selectedExecutionPattern ?? assessment.recommendedPattern;
+    this.appendExecutionCheckpoint(team, 'routing_assessed', `Routing assessed: ${recommendedPattern}`, {
+      recommendedPattern,
+      confidence: assessment.confidence,
+    });
+    return assessment;
+  }
+
+  /**
+   * Persist an operator-selected execution pattern for the team
+   */
+  selectExecutionPattern(teamId: string, pattern: TeamExecutionPattern): AgentTeam | null {
+    const team = this.teams.get(teamId);
+    if (!team) return null;
+
+    const assessment = team.routingAssessment ?? this.assessTeamRouting(teamId);
+    if (assessment) {
+      if (assessment.recommendedPattern !== pattern) {
+        assessment.overridePattern = pattern;
+      }
+      assessment.acceptedPattern = pattern;
+    }
+
+    team.selectedExecutionPattern = pattern;
+    const report = this.ensureExecutionReport(team);
+    report.activeExecutionPattern = pattern;
+    this.appendExecutionCheckpoint(team, 'pattern_selected', `Execution pattern selected: ${pattern}`, {
+      pattern,
+      overridden: assessment?.recommendedPattern !== pattern,
+    });
+    return team;
+  }
+
   // ==========================================================================
   // Bridge Delegation
   // ==========================================================================
+
+  async resolveDelegationApproval(
+    teamId: string,
+    taskId: string,
+    approved: boolean,
+    options: {
+      priority?: number;
+      name?: string;
+      description?: string;
+    } = {}
+  ): Promise<string | null> {
+    const team = this.teams.get(teamId);
+    const task = this.tasks.get(taskId);
+    if (!team || !task?.delegationRecord) return null;
+
+    if (!approved) {
+      const completedAt = new Date();
+      task.delegationRecord.status = 'cancelled';
+      task.delegationRecord.error = 'Delegation approval denied';
+      task.delegationRecord.completedAt = completedAt;
+      task.delegationRecord.updatedAt = completedAt;
+      task.status = 'cancelled';
+      task.error = 'Delegation approval denied';
+      task.completedAt = completedAt;
+      task.metadata = {
+        ...task.metadata,
+        delegationStatus: 'cancelled',
+        delegationError: 'Delegation approval denied',
+      };
+      this.appendExecutionCheckpoint(team, 'delegation_failed', `Delegation denied for task: ${task.title}`, {
+        taskId,
+        delegationId: task.delegationRecord.id,
+        error: 'Delegation approval denied',
+      });
+      return task.delegationRecord.id;
+    }
+
+    task.delegationRecord.status = 'pending';
+    task.delegationRecord.updatedAt = new Date();
+    task.metadata = {
+      ...task.metadata,
+      delegationStatus: 'pending',
+    };
+
+    const requestMetadata = (task.delegationRecord.metadata || {}) as Record<string, unknown>;
+    return this.performBackgroundDelegation(team, task, {
+      priority:
+        options.priority ??
+        (typeof requestMetadata.requestedPriority === 'number'
+          ? requestMetadata.requestedPriority
+          : undefined),
+      name:
+        options.name ??
+        (typeof requestMetadata.requestedName === 'string'
+          ? requestMetadata.requestedName
+          : undefined),
+      description:
+        options.description ??
+        (typeof requestMetadata.requestedDescription === 'string'
+          ? requestMetadata.requestedDescription
+          : undefined),
+    });
+  }
 
   /**
    * Delegate a subtask to a BackgroundAgent via the bridge
@@ -1737,15 +2106,74 @@ Respond with a JSON object: {"optionIndex": <0-based index>, "reasoning": "<your
     const task = this.tasks.get(taskId);
     if (!team || !task) return null;
 
+    if (team.config.governancePolicy?.approval.requireDelegationApproval) {
+      const checkpointId = nanoid();
+      const checkpointTime = new Date();
+
+      task.delegationRecord = {
+        id: checkpointId,
+        sourceTeamId: teamId,
+        sourceTaskId: taskId,
+        targetType: 'background',
+        status: 'awaiting_approval',
+        reason: options.description || 'Delegation requires approval before execution',
+        manual: true,
+        createdAt: checkpointTime,
+        updatedAt: checkpointTime,
+        metadata: {
+          requestedName: options.name,
+          requestedPriority: options.priority,
+          requestedDescription: options.description,
+        },
+      };
+      task.metadata = {
+        ...task.metadata,
+        delegationId: checkpointId,
+        delegatedToBackground: true,
+        delegationStatus: 'awaiting_approval',
+        delegationReason: task.delegationRecord.reason,
+      };
+
+      if (team.status === 'executing') {
+        team.status = 'paused';
+      }
+
+      this.appendExecutionCheckpoint(team, 'approval_requested', 'Delegation approval requested', {
+        taskId,
+        delegationId: checkpointId,
+        targetType: 'background',
+      });
+
+      log.info('Task delegation awaiting approval', {
+        teamId,
+        taskId,
+        delegationId: checkpointId,
+      });
+
+      return checkpointId;
+    }
+
+    return this.performBackgroundDelegation(team, task, options);
+  }
+
+  private async performBackgroundDelegation(
+    team: AgentTeam,
+    task: AgentTeamTask,
+    options: {
+      priority?: number;
+      name?: string;
+      description?: string;
+    }
+  ): Promise<string | null> {
     const bridge = getAgentBridge();
-    this.updateTaskStatus(taskId, 'in_progress');
+    this.updateTaskStatus(task.id, 'in_progress');
 
     const delegation = await bridge.delegateToBackground({
       task: task.description,
       name: options.name || `Team task: ${task.title}`,
       description: options.description || `Delegated from team "${team.name}"`,
       sourceType: 'team',
-      sourceId: teamId,
+      sourceId: team.id,
       sessionId: team.sessionId,
       priority: options.priority,
       config: {
@@ -1755,12 +2183,28 @@ Respond with a JSON object: {"optionIndex": <0-based index>, "reasoning": "<your
     });
 
     // Update task metadata with delegation info
+    task.delegationRecord = {
+      id: delegation.id,
+      sourceTeamId: team.id,
+      sourceTaskId: task.id,
+      targetType: 'background',
+      targetId: delegation.targetId,
+      status: delegation.status === 'pending' ? 'active' : delegation.status,
+      reason: options.description || `Delegated from team "${team.name}"`,
+      manual: true,
+      createdAt: new Date(),
+      updatedAt: delegation.completedAt ?? new Date(),
+      completedAt: delegation.completedAt,
+      error: delegation.error,
+      result: delegation.result,
+    };
     task.metadata = {
       ...task.metadata,
       delegationId: delegation.id,
       delegatedToBackground: true,
       delegationStatus: delegation.status,
       delegatedBackgroundAgentId: delegation.targetId,
+      delegationReason: task.delegationRecord.reason,
       delegationError: delegation.error,
       delegationCompletedAt: delegation.completedAt?.toISOString(),
     };
@@ -1768,30 +2212,49 @@ Respond with a JSON object: {"optionIndex": <0-based index>, "reasoning": "<your
     // Track on team
     if (!team.delegationIds) team.delegationIds = [];
     team.delegationIds.push(delegation.id);
+    this.appendExecutionCheckpoint(team, 'delegation_started', `Delegation started for task: ${task.title}`, {
+      taskId: task.id,
+      delegationId: delegation.id,
+      targetId: delegation.targetId,
+    });
 
     log.info('Task delegated to background', {
-      teamId,
-      taskId,
+      teamId: team.id,
+      taskId: task.id,
       delegationId: delegation.id,
     });
 
     // Synchronize terminal delegation outcome with task lifecycle.
     if (delegation.status === 'completed') {
-      this.updateTaskStatus(taskId, 'completed', delegation.result);
+      this.updateTaskStatus(task.id, 'completed', delegation.result);
+      this.appendExecutionCheckpoint(team, 'delegation_completed', `Delegation completed for task: ${task.title}`, {
+        taskId: task.id,
+        delegationId: delegation.id,
+      });
     } else if (delegation.status === 'cancelled') {
       this.updateTaskStatus(
-        taskId,
+        task.id,
         'cancelled',
         undefined,
         delegation.error || 'Task delegation was cancelled'
       );
+      this.appendExecutionCheckpoint(team, 'delegation_failed', `Delegation cancelled for task: ${task.title}`, {
+        taskId: task.id,
+        delegationId: delegation.id,
+        error: delegation.error,
+      });
     } else if (delegation.status === 'failed') {
       this.updateTaskStatus(
-        taskId,
+        task.id,
         'failed',
         undefined,
         delegation.error || 'Task delegation failed'
       );
+      this.appendExecutionCheckpoint(team, 'delegation_failed', `Delegation failed for task: ${task.title}`, {
+        taskId: task.id,
+        delegationId: delegation.id,
+        error: delegation.error,
+      });
     }
 
     return delegation.id;

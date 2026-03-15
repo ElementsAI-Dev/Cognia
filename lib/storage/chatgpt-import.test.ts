@@ -432,6 +432,14 @@ describe('ChatGPT Import Utilities', () => {
 
       expect(result.messages[0].content).toContain('Check this image:');
       expect(result.messages[0].content).toContain('[Image]');
+      expect(result.messages[0].attachments).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'image',
+            name: 'ChatGPT image asset',
+          }),
+        ])
+      );
     });
 
     it('should use default title for untitled conversations', () => {

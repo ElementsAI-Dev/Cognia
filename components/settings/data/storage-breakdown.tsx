@@ -23,6 +23,7 @@ import {
   Cog,
   MoreHorizontal,
   Trash2,
+  type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -44,7 +45,7 @@ import type { StorageCategoryInfo, StorageCategory } from '@/lib/storage';
 /**
  * Icon mapping for categories
  */
-const CATEGORY_ICONS: Record<StorageCategory, React.ElementType> = {
+const CATEGORY_ICONS: Record<StorageCategory, LucideIcon> = {
   settings: Settings,
   session: MessageSquare,
   chat: MessageCircle,

@@ -3,13 +3,70 @@
  */
 
 import {
+  analyzeCodeWithAI,
   detectPatternsSimple,
   detectAccessibilityIssues,
   detectResponsiveIssues,
   analyzeCodeLocal,
 } from './ai-analyzer';
+import { generateObject } from 'ai';
+import { createFeatureProviderModelFromRuntimeConfig } from '@/lib/ai/provider-consumption';
+
+jest.mock('ai', () => ({
+  generateObject: jest.fn(),
+}));
+
+jest.mock('@/lib/ai/provider-consumption', () => ({
+  createFeatureRoutePolicy: jest.fn((routeProfile, overrides) => ({
+    routeProfile,
+    selectionMode: 'default-provider',
+    ...overrides,
+  })),
+  createFeatureProviderModelFromRuntimeConfig: jest.fn(() => ({ id: 'mock-model' })),
+}));
+
+const mockGenerateObject = generateObject as jest.Mock;
+const mockCreateFeatureProviderModelFromRuntimeConfig =
+  createFeatureProviderModelFromRuntimeConfig as jest.Mock;
 
 describe('AI Analyzer', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('analyzeCodeWithAI', () => {
+    it('uses the shared routing contract for AI analysis', async () => {
+      mockGenerateObject.mockResolvedValue({
+        object: {
+          patterns: [],
+          accessibility: [],
+          responsive: [],
+          suggestions: [],
+          summary: 'All good',
+        },
+      });
+
+      const result = await analyzeCodeWithAI('<div>Hello</div>', {
+        provider: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-key',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockCreateFeatureProviderModelFromRuntimeConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          routeProfile: 'general-text',
+          featureId: 'designer-ai-analyzer',
+        }),
+        expect.objectContaining({
+          providerId: 'openai',
+          model: 'gpt-4o',
+          apiKey: 'test-key',
+        })
+      );
+    });
+  });
+
   describe('detectPatternsSimple', () => {
     it('should detect form patterns', () => {
       const code = `

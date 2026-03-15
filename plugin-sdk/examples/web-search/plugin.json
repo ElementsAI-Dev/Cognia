@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "description": "Enhanced web search capabilities with multiple providers and result caching",
   "type": "frontend",
+  "engines": {
+    "cognia": ">=0.1.0"
+  },
   "capabilities": ["tools", "commands"],
   "author": {
     "name": "Cognia Team",
@@ -24,7 +27,7 @@
         "description": "Default search provider"
       },
       "maxResults": {
-        "type": "integer",
+        "type": "number",
         "default": 10,
         "minimum": 1,
         "maximum": 50,
@@ -36,7 +39,7 @@
         "description": "Cache search results to reduce API calls"
       },
       "cacheTTL": {
-        "type": "integer",
+        "type": "number",
         "default": 3600,
         "description": "Cache time-to-live in seconds"
       },

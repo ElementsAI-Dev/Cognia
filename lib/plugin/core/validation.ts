@@ -12,6 +12,10 @@ import type {
 } from '@/types/plugin';
 import { loggers } from './logger';
 import {
+  CANONICAL_PLUGIN_CAPABILITIES,
+  validatePluginCapabilities,
+} from '@/lib/plugin/contracts/plugin-capabilities';
+import {
   validateActivationEvent,
   type PluginPointGovernanceMode,
 } from '@/lib/plugin/contracts/plugin-points';
@@ -52,22 +56,7 @@ export interface ManifestValidationOptions {
 // Constants
 // =============================================================================
 
-const VALID_CAPABILITIES: PluginCapability[] = [
-  'tools',
-  'components',
-  'modes',
-  'skills',
-  'themes',
-  'commands',
-  'hooks',
-  'processors',
-  'providers',
-  'exporters',
-  'importers',
-  'a2ui',
-  'python',
-  'scheduler',
-];
+const VALID_CAPABILITIES: PluginCapability[] = [...CANONICAL_PLUGIN_CAPABILITIES];
 
 const VALID_PERMISSIONS: PluginPermission[] = [
   'filesystem:read',
@@ -175,13 +164,27 @@ export function validatePluginManifest(
   if (!m.capabilities || !Array.isArray(m.capabilities)) {
     pushError('capabilities', 'manifest.capabilities.missing', 'Missing or invalid "capabilities" field');
   } else {
+    const declaredCapabilities: string[] = [];
     for (const cap of m.capabilities) {
+      if (typeof cap === 'string') {
+        declaredCapabilities.push(cap);
+      }
       if (!VALID_CAPABILITIES.includes(cap as PluginCapability)) {
         pushError(
           'capabilities',
           'manifest.capabilities.invalid',
           `Invalid capability "${cap}". Must be one of: ${VALID_CAPABILITIES.join(', ')}`
         );
+      }
+    }
+
+    const capabilityOutcome = validatePluginCapabilities(declaredCapabilities, { governanceMode });
+    for (const diagnostic of capabilityOutcome.diagnostics) {
+      const code = `manifest.capabilities.${diagnostic.code}`;
+      if (diagnostic.severity === 'error') {
+        pushError('capabilities', code, diagnostic.message, diagnostic.hint);
+      } else {
+        pushWarning('capabilities', code, diagnostic.message, diagnostic.hint);
       }
     }
   }

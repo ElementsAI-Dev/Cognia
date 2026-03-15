@@ -24,6 +24,7 @@ import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { chunkDocument, type ChunkingStrategy } from '@/lib/ai/embedding/chunking';
 import { useDocumentProcessor } from '@/hooks/document';
+import { getDocumentAcceptString, getDocumentFormatSummary } from '@/lib/document';
 
 export interface DocumentFile {
   file: File;
@@ -48,10 +49,8 @@ export interface AddDocumentModalProps {
   chunkOverlap?: number;
 }
 
-const ACCEPTED_EXTENSIONS = [
-  '.txt', '.md', '.json', '.csv', '.xml', '.html', '.htm',
-  '.pdf', '.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt', '.rtf', '.epub',
-];
+const ACCEPTED_EXTENSIONS = getDocumentAcceptString('vector').split(',');
+const SUPPORTED_FORMATS_SUMMARY = getDocumentFormatSummary('vector');
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB (binary files can be larger)
 
 const CHUNKING_STRATEGIES: ChunkingStrategy[] = [
@@ -276,7 +275,7 @@ export function AddDocumentModal({
             <p className="text-sm font-medium">{t('addDocument.dropHere')}</p>
             <p className="text-xs text-muted-foreground">{t('addDocument.orClick')}</p>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              {t('addDocument.supportedFormats')}
+              {t('addDocument.supportedFormats', { formats: SUPPORTED_FORMATS_SUMMARY })}
             </p>
             <input
               ref={fileInputRef}

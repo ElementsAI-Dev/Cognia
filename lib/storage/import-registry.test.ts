@@ -225,6 +225,197 @@ describe('Import Registry', () => {
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].message).toContain('Cognia');
     });
+
+    it('should expose structured detection metadata for supported inputs', async () => {
+      const content = JSON.stringify(mockChatGPTData);
+      const result = await parseImport(content);
+
+      expect(result).toMatchObject({
+        format: 'chatgpt',
+        detection: {
+          format: 'chatgpt',
+          sourceType: 'official',
+          compatibility: 'official',
+        },
+        warningDetails: [],
+      });
+    });
+
+    it('should aggregate downgrade warnings emitted by platform importers', async () => {
+      const content = JSON.stringify([
+        {
+          id: 'conv-image',
+          title: 'Image Conversation',
+          create_time: 1704067200,
+          update_time: 1704070800,
+          current_node: 'node-2',
+          mapping: {
+            'node-1': {
+              id: 'node-1',
+              message: null,
+              parent: null,
+              children: ['node-2'],
+            },
+            'node-2': {
+              id: 'node-2',
+              message: {
+                id: 'msg-image',
+                author: { role: 'user' },
+                content: {
+                  content_type: 'multimodal_text',
+                  parts: [
+                    'Check this image',
+                    { content_type: 'image_asset_pointer', asset_pointer: 'file-abc123' },
+                  ],
+                },
+                create_time: 1704067200,
+              },
+              parent: 'node-1',
+              children: [],
+            },
+          },
+        },
+      ]);
+      const result = await parseImport(content);
+
+      expect(result.warningDetails).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'attachment_summary_only',
+          }),
+        ])
+      );
+    });
+
+    it('should continue importing valid ChatGPT conversations when one entry is malformed', async () => {
+      const content = JSON.stringify([
+        ...mockChatGPTData,
+        {
+          id: 'conv-bad',
+          title: 'Broken Conversation',
+          create_time: 1704067200,
+          update_time: 1704070800,
+          mapping: null,
+          current_node: 'missing-node',
+        },
+      ]);
+
+      const result = await parseImport(content);
+
+      expect(result.format).toBe('chatgpt');
+      expect(result.conversations).toHaveLength(1);
+      expect(result.conversations[0].session.title).toBe('Test Conversation');
+      expect(result.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            conversationId: 'conv-bad',
+          }),
+        ])
+      );
+    });
+
+    it('should parse markdown transcript exports as generic adapted conversations', async () => {
+      const content = `# Exported Conversation
+
+## User
+How are you?
+
+## Assistant
+Doing well.`;
+      const result = await parseImport(content);
+
+      expect(result).toMatchObject({
+        format: 'markdown-transcript',
+        detection: {
+          sourceType: 'generic',
+          compatibility: 'adapted',
+        },
+      });
+      expect(result.conversations).toHaveLength(1);
+      expect(result.conversations[0].messages).toHaveLength(2);
+      expect(result.conversations[0].messages[0].role).toBe('user');
+      expect(result.conversations[0].messages[1].role).toBe('assistant');
+    });
+
+    it('should parse csv transcript exports when required columns are present', async () => {
+      const content = `role,content,timestamp
+user,"Need a summary","2024-01-01T10:00:00Z"
+assistant,"Here is the summary","2024-01-01T10:00:05Z"`;
+      const result = await parseImport(content);
+
+      expect(result).toMatchObject({
+        format: 'csv-transcript',
+        detection: {
+          sourceType: 'generic',
+          compatibility: 'adapted',
+        },
+      });
+      expect(result.conversations).toHaveLength(1);
+      expect(result.conversations[0].messages).toHaveLength(2);
+    });
+
+    it('should parse lightweight json transcript exports when no official importer matches', async () => {
+      const content = JSON.stringify({
+        title: 'Portable Transcript',
+        provider: 'perplexity',
+        messages: [
+          { role: 'user', content: 'Hello', timestamp: '2024-01-01T10:00:00Z' },
+          { role: 'assistant', content: 'Hi there', timestamp: '2024-01-01T10:00:10Z' },
+        ],
+      });
+      const result = await parseImport(content);
+
+      expect(result).toMatchObject({
+        format: 'json-transcript',
+        detection: {
+          sourceType: 'generic',
+          compatibility: 'adapted',
+        },
+      });
+      expect(result.conversations).toHaveLength(1);
+      expect(result.conversations[0].session.title).toBe('Portable Transcript');
+    });
+
+    it('should parse canonical portable archives as round-trip compatible imports', async () => {
+      const content = JSON.stringify({
+        version: '1.0',
+        exportedAt: '2024-01-15T12:00:00.000Z',
+        source: {
+          app: 'cognia',
+          format: 'portable',
+        },
+        conversations: [
+          {
+            id: 'portable-1',
+            title: 'Portable Export',
+            sourceFormat: 'portable',
+            sourceType: 'portable',
+            compatibility: 'official',
+            createdAt: '2024-01-15T10:00:00.000Z',
+            updatedAt: '2024-01-15T10:00:10.000Z',
+            messages: [
+              {
+                id: 'portable-msg-1',
+                role: 'user',
+                content: 'Hello from portable export',
+                createdAt: '2024-01-15T10:00:00.000Z',
+              },
+            ],
+          },
+        ],
+      });
+      const result = await parseImport(content);
+
+      expect(result).toMatchObject({
+        format: 'portable',
+        detection: {
+          sourceType: 'portable',
+          compatibility: 'official',
+        },
+      });
+      expect(result.conversations).toHaveLength(1);
+      expect(result.conversations[0].session.title).toBe('Portable Export');
+    });
   });
 
   describe('previewImport', () => {
@@ -254,6 +445,21 @@ describe('Import Registry', () => {
       expect(result.format).toBe('unknown');
       expect(result.errors).toHaveLength(1);
       expect(result.totalMessages).toBe(0);
+    });
+
+    it('should expose detection and compatibility details in preview results', async () => {
+      const content = JSON.stringify(mockClaudeData);
+      const result = await previewImport(content);
+
+      expect(result).toMatchObject({
+        format: 'claude',
+        detection: {
+          format: 'claude',
+          sourceType: 'official',
+          compatibility: 'official',
+        },
+        warningDetails: [],
+      });
     });
   });
 });

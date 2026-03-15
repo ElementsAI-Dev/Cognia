@@ -17,4 +17,5 @@ export { validatePluginManifest, validatePluginConfig, parseManifest } from './v
 export type { ValidationError, ValidationResult, ConfigValidationResult } from './validation';
 export { evaluatePluginCompatibility } from './compatibility';
 export type { CompatibilityRuntime, CompatibilityDiagnostic, CompatibilityEvaluation } from './compatibility';
+export { buildExtensionDescriptor, derivePluginInstallRootKind } from './descriptor';
 export { createPluginSystemLogger, pluginLogger, loggers, type PluginSystemLogger } from './logger';

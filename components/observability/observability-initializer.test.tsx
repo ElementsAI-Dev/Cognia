@@ -98,7 +98,7 @@ describe('ObservabilityInitializer', () => {
     });
   });
 
-  it('should handle missing optional settings', async () => {
+  it('should skip initialization when no remote integration is effectively active', async () => {
     mockUseSettingsStore.mockImplementation((selector) => {
       const state = {
         observabilitySettings: {
@@ -112,21 +112,9 @@ describe('ObservabilityInitializer', () => {
 
     render(<ObservabilityInitializer />);
 
-    await waitFor(() => {
-      expect(mockInitializeObservability).toHaveBeenCalledWith({
-        langfuse: {
-          publicKey: undefined,
-          secretKey: undefined,
-          host: undefined,
-          enabled: false,
-        },
-        openTelemetry: {
-          serviceName: 'cognia-ai',
-          traceEndpoint: undefined,
-          tracingEnabled: false,
-        },
-      });
-    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(mockInitializeObservability).not.toHaveBeenCalled();
   });
 
   it('should handle initialization error gracefully', async () => {
@@ -137,6 +125,9 @@ describe('ObservabilityInitializer', () => {
         observabilitySettings: {
           enabled: true,
           langfuseEnabled: true,
+          langfusePublicKey: 'pk-test',
+          langfuseSecretKey: 'sk-test',
+          langfuseHost: 'https://langfuse.com',
         },
       };
       return selector(state);
@@ -158,6 +149,9 @@ describe('ObservabilityInitializer', () => {
         observabilitySettings: {
           enabled: true,
           langfuseEnabled: true,
+          langfusePublicKey: 'pk-test',
+          langfuseSecretKey: 'sk-test',
+          langfuseHost: 'https://langfuse.com',
         },
       };
       return selector(state);

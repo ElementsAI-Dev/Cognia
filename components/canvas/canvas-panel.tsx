@@ -48,8 +48,14 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useArtifactStore, useSettingsStore } from '@/stores';
-import type { CanvasEditorContext, CanvasSuggestion } from '@/types';
+import { useArtifactStore, useChatStore, useSessionStore, useSettingsStore } from '@/stores';
+import type {
+  ArtifactLanguage,
+  CanvasAIWorkbenchState,
+  CanvasActionAttachment,
+  CanvasEditorContext,
+  CanvasSuggestion,
+} from '@/types';
 import { cn } from '@/lib/utils';
 import { loggers } from '@/lib/logger';
 import { TRANSLATE_LANGUAGES, CANVAS_ACTIONS, FORMAT_ACTION_MAP } from '@/lib/canvas/constants';
@@ -119,6 +125,7 @@ import {
   type MonacoContextBinding,
 } from '@/lib/editor-workbench/monaco-context-binding';
 import { isEditorFeatureFlagEnabled } from '@/lib/editor-workbench/feature-flags';
+import { isCanvasFeatureFlagEnabled } from '@/lib/canvas/feature-flags';
 
 // Dynamically import Monaco to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -156,6 +163,29 @@ const actionIcons: Record<string, React.ReactNode> = {
   run: <Play className="h-4 w-4" />,
 };
 
+const EMPTY_CANVAS_AI_WORKBENCH: CanvasAIWorkbenchState = {
+  promptDraft: '',
+  selectedPresetAction: null,
+  attachments: [],
+  pendingReview: null,
+  actionHistory: [],
+  isInlineCommandOpen: false,
+};
+
+function createAttachmentSnapshot(content: string, maxLength = 320) {
+  if (content.length <= maxLength) {
+    return {
+      snapshot: content,
+      isTruncated: false,
+    };
+  }
+
+  return {
+    snapshot: `${content.slice(0, maxLength)}...`,
+    isTruncated: true,
+  };
+}
+
 function CanvasPanelContent() {
   const t = useTranslations('canvas');
   const panelOpen = useArtifactStore((state) => state.panelOpen);
@@ -163,12 +193,17 @@ function CanvasPanelContent() {
   const closePanel = useArtifactStore((state) => state.closePanel);
   const activeCanvasId = useArtifactStore((state) => state.activeCanvasId);
   const canvasDocuments = useArtifactStore((state) => state.canvasDocuments);
+  const artifacts = useArtifactStore((state) => state.artifacts);
   const updateCanvasDocument = useArtifactStore((state) => state.updateCanvasDocument);
   const saveCanvasVersion = useArtifactStore((state) => state.saveCanvasVersion);
   const theme = useSettingsStore((state) => state.theme);
   const globalEditorSettings = useSettingsStore((state) => state.editorSettings);
+  const activeChatSession = useSessionStore((state) => state.getActiveSession());
+  const chatMessages = useChatStore((state) => state.messages);
+  const isCanvasAIWorkbenchEnabled = isCanvasFeatureFlagEnabled('canvas.aiWorkbench.v1');
 
   const activeDocument = activeCanvasId ? canvasDocuments[activeCanvasId] : null;
+  const activeWorkbench = activeDocument?.aiWorkbench || EMPTY_CANVAS_AI_WORKBENCH;
   const [selection, setSelection] = useState<string>('');
   const [designerOpen, setDesignerOpen] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
@@ -261,6 +296,39 @@ function CanvasPanelContent() {
     [activeCanvasId, updateCanvasDocument, setLocalContent]
   );
 
+  const updateActiveWorkbench = useCallback(
+    (updates: Partial<CanvasAIWorkbenchState>) => {
+      if (!activeCanvasId) {
+        return;
+      }
+
+      const baselineWorkbench: CanvasAIWorkbenchState = activeWorkbench || {
+        promptDraft: '',
+        selectedPresetAction: null,
+        attachments: [],
+        pendingReview: null,
+        actionHistory: [],
+        isInlineCommandOpen: false,
+      };
+
+      updateCanvasDocument(activeCanvasId, {
+        aiWorkbench: {
+          ...baselineWorkbench,
+          ...updates,
+          attachments: updates.attachments ?? baselineWorkbench.attachments,
+          pendingReview:
+            updates.pendingReview === undefined
+              ? baselineWorkbench.pendingReview
+              : updates.pendingReview,
+          actionHistory: updates.actionHistory ?? baselineWorkbench.actionHistory,
+          isInlineCommandOpen:
+            updates.isInlineCommandOpen ?? baselineWorkbench.isInlineCommandOpen,
+        },
+      });
+    },
+    [activeCanvasId, activeWorkbench, updateCanvasDocument]
+  );
+
   const {
     isProcessing,
     isStreaming,
@@ -269,17 +337,25 @@ function CanvasPanelContent() {
     actionError,
     actionResult,
     diffPreview,
+    pendingReview,
     handleAction,
+    submitActionRequest,
     acceptDiffChanges,
     rejectDiffChanges,
+    acceptReviewItem,
+    rejectReviewItem,
+    applyAcceptedReviewItems,
+    retryAction,
     setActionResult,
   } = useCanvasActions({
     content: localContent,
-    language: activeDocument?.language || 'plaintext',
+    language: (activeDocument?.language || 'markdown') as ArtifactLanguage,
     selection,
     activeCanvasId,
     onContentChange: handleActionContentChange,
-    onGenerateSuggestions: generateSuggestions as (context: CanvasSuggestionContext, options?: CanvasGenerateSuggestionsOptions) => Promise<unknown>,
+    onGenerateSuggestions: generateSuggestions,
+    workbenchState: activeWorkbench,
+    onWorkbenchChange: updateActiveWorkbench,
   });
 
   // Canvas Monaco setup - integrates snippets, symbols, themes, plugins
@@ -388,6 +464,127 @@ function CanvasPanelContent() {
     [deferredLocalContent, localContent, performanceProfile.mode]
   );
 
+  const sessionAttachmentCandidate = useMemo(() => {
+    if (!activeChatSession || chatMessages.length === 0) {
+      return null;
+    }
+
+    const recentConversation = chatMessages
+      .slice(-3)
+      .map((message) => `${message.role}: ${message.content}`)
+      .join('\n\n');
+    const snapshot = createAttachmentSnapshot(recentConversation);
+
+    return {
+      id: `session-${activeChatSession.id}`,
+      sourceType: 'session-message' as const,
+      sourceId: activeChatSession.id,
+      label: activeChatSession.title || t('currentSessionContext'),
+      snapshot: snapshot.snapshot,
+      isTruncated: snapshot.isTruncated,
+    };
+  }, [activeChatSession, chatMessages, t]);
+
+  const relatedCanvasAttachments = useMemo(() => {
+    return allDocuments
+      .filter((document) => document.id !== activeDocument?.id)
+      .slice(0, 5)
+      .map((document) => {
+        const snapshot = createAttachmentSnapshot(document.content);
+        return {
+          id: `canvas-${document.id}`,
+          sourceType: 'canvas-document' as const,
+          sourceId: document.id,
+          label: document.title,
+          snapshot: snapshot.snapshot,
+          isTruncated: snapshot.isTruncated,
+        };
+      });
+  }, [activeDocument?.id, allDocuments]);
+
+  const relatedArtifactAttachments = useMemo(() => {
+    if (!activeDocument) {
+      return [];
+    }
+
+    return Object.values(artifacts)
+      .filter((artifact) => artifact.sessionId === activeDocument.sessionId)
+      .slice(0, 5)
+      .map((artifact) => {
+        const snapshot = createAttachmentSnapshot(artifact.content);
+        return {
+          id: `artifact-${artifact.id}`,
+          sourceType: 'artifact' as const,
+          sourceId: artifact.id,
+          label: artifact.title,
+          snapshot: snapshot.snapshot,
+          isTruncated: snapshot.isTruncated,
+        };
+      });
+  }, [activeDocument, artifacts]);
+
+  const reviewQueue = pendingReview || activeWorkbench.pendingReview;
+  const reviewItems = reviewQueue?.items || [];
+  const canApplyAcceptedChanges = reviewItems.some((item) => item.status === 'accepted');
+
+  const toggleInlineCommand = useCallback(
+    (open: boolean) => {
+      updateActiveWorkbench({
+        isInlineCommandOpen: open,
+      });
+    },
+    [updateActiveWorkbench]
+  );
+
+  const updatePromptDraft = useCallback(
+    (promptDraft: string) => {
+      updateActiveWorkbench({
+        promptDraft,
+      });
+    },
+    [updateActiveWorkbench]
+  );
+
+  const addAttachment = useCallback(
+    (attachment: CanvasActionAttachment) => {
+      if (activeWorkbench.attachments.some((current) => current.id === attachment.id)) {
+        return;
+      }
+
+      updateActiveWorkbench({
+        attachments: [...activeWorkbench.attachments, attachment],
+      });
+    },
+    [activeWorkbench.attachments, updateActiveWorkbench]
+  );
+
+  const removeAttachment = useCallback(
+    (attachmentId: string) => {
+      updateActiveWorkbench({
+        attachments: activeWorkbench.attachments.filter(
+          (attachment) => attachment.id !== attachmentId
+        ),
+      });
+    },
+    [activeWorkbench.attachments, updateActiveWorkbench]
+  );
+
+  const handleInlineCommandSubmit = useCallback(async () => {
+    await submitActionRequest({
+      actionType: activeWorkbench.selectedPresetAction || 'custom',
+      prompt: activeWorkbench.promptDraft,
+      entryPoint: 'inline',
+      scope: selection && selection.trim() ? 'selection' : 'document',
+      attachments: activeWorkbench.attachments,
+    });
+  }, [
+    activeWorkbench.attachments,
+    activeWorkbench.promptDraft,
+    activeWorkbench.selectedPresetAction,
+    selection,
+    submitActionRequest,
+  ]);
+
   const effectiveLocation = activeLocation || activeDocument?.editorContext?.location || null;
   const structureLocation = effectiveLocation?.path?.length
     ? effectiveLocation.path.join(' / ')
@@ -483,6 +680,18 @@ function CanvasPanelContent() {
     hasActiveDocument: !!activeDocument,
   };
   useCanvasKeyboardShortcuts(keyboardShortcutOptions);
+
+  useEffect(() => {
+    const handleInlineCommandEvent = () => {
+      if (!isCanvasAIWorkbenchEnabled) {
+        return;
+      }
+      toggleInlineCommand(true);
+    };
+
+    window.addEventListener('canvas-inline-command', handleInlineCommandEvent);
+    return () => window.removeEventListener('canvas-inline-command', handleInlineCommandEvent);
+  }, [isCanvasAIWorkbenchEnabled, toggleInlineCommand]);
 
   // Get Monaco theme from theme registry
   const monacoTheme = useMemo(() => {
@@ -662,7 +871,14 @@ function CanvasPanelContent() {
                         size="sm"
                         className="gap-2"
                         data-testid={`canvas-action-${action.type}`}
-                        onClick={() => handleAction(action)}
+                        onClick={() => {
+                          if (isCanvasAIWorkbenchEnabled) {
+                            updateActiveWorkbench({
+                              selectedPresetAction: action.type,
+                            });
+                          }
+                          void handleAction(action);
+                        }}
                         disabled={isProcessing}
                       >
                         {actionIcons[action.type]}
@@ -690,7 +906,14 @@ function CanvasPanelContent() {
                     {CANVAS_ACTIONS.slice(5).map((action) => (
                       <DropdownMenuItem
                         key={action.type}
-                        onClick={() => handleAction(action)}
+                        onClick={() => {
+                          if (isCanvasAIWorkbenchEnabled) {
+                            updateActiveWorkbench({
+                              selectedPresetAction: action.type,
+                            });
+                          }
+                          void handleAction(action);
+                        }}
                         disabled={isProcessing}
                       >
                         {actionIcons[action.type] || <Wand2 className="h-4 w-4" />}
@@ -727,6 +950,143 @@ function CanvasPanelContent() {
                 )}
               </TooltipProvider>
             </div>
+
+            {isCanvasAIWorkbenchEnabled && (
+              <div className="border-b px-4 py-3 bg-muted/10">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    data-testid="canvas-inline-command-trigger"
+                    onClick={() => toggleInlineCommand(!activeWorkbench.isInlineCommandOpen)}
+                  >
+                    <Wand2 className="h-4 w-4 mr-2" />
+                    {t('inlineCommand')}
+                  </Button>
+                  {activeWorkbench.selectedPresetAction && (
+                    <Badge variant="secondary" className="text-[10px]">
+                      {activeWorkbench.selectedPresetAction}
+                    </Badge>
+                  )}
+                  <span className="text-xs text-muted-foreground">
+                    {selection && selection.trim() ? t('scopeSelection') : t('scopeDocument')}
+                  </span>
+                </div>
+
+                {activeWorkbench.isInlineCommandOpen && (
+                  <div
+                    data-testid="canvas-inline-command-panel"
+                    className="mt-3 space-y-3"
+                  >
+                    <textarea
+                      data-testid="canvas-inline-command-input"
+                      value={activeWorkbench.promptDraft}
+                      onChange={(event) => updatePromptDraft(event.target.value)}
+                      placeholder={t('inlineCommandPlaceholder')}
+                      className="min-h-20 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    />
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {t('selectedContext')}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {t('attachContext')}
+                        </span>
+                      </div>
+                      <div
+                        data-testid="canvas-inline-attachment-summary"
+                        className="flex flex-wrap gap-2"
+                      >
+                        {activeWorkbench.attachments.length === 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            {t('attachContext')}
+                          </span>
+                        )}
+                        {activeWorkbench.attachments.map((attachment) => (
+                          <Badge
+                            key={attachment.id}
+                            variant="outline"
+                            className="gap-1 text-[10px]"
+                          >
+                            {attachment.label}
+                            <button
+                              type="button"
+                              data-testid={`canvas-inline-attachment-remove-${attachment.id}`}
+                              onClick={() => removeAttachment(attachment.id)}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {relatedCanvasAttachments.map((attachment) => (
+                          <Button
+                            key={attachment.id}
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            data-testid={`canvas-inline-attach-canvas-${attachment.sourceId}`}
+                            onClick={() => addAttachment(attachment)}
+                          >
+                            {attachment.label}
+                          </Button>
+                        ))}
+                        {relatedArtifactAttachments.map((attachment) => (
+                          <Button
+                            key={attachment.id}
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            data-testid={`canvas-inline-attach-artifact-${attachment.sourceId}`}
+                            onClick={() => addAttachment(attachment)}
+                          >
+                            {attachment.label}
+                          </Button>
+                        ))}
+                        {sessionAttachmentCandidate && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            data-testid="canvas-inline-attach-session"
+                            onClick={() => addAttachment(sessionAttachmentCandidate)}
+                          >
+                            {sessionAttachmentCandidate.label}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleInlineCommand(false)}
+                      >
+                        {t('cancel')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        data-testid="canvas-inline-command-submit"
+                        disabled={
+                          isProcessing ||
+                          (!activeWorkbench.promptDraft.trim() &&
+                            !activeWorkbench.selectedPresetAction)
+                        }
+                        onClick={() => {
+                          void handleInlineCommandSubmit();
+                        }}
+                      >
+                        {t('runInlineCommand')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="border-b px-4 py-2 bg-muted/20">
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -842,7 +1202,14 @@ function CanvasPanelContent() {
                   variant="ghost"
                   size="sm"
                   className="h-6 px-2 text-xs"
-                  onClick={() => handleAction({ type: 'explain', labelKey: 'actionExplain' })}
+                  onClick={() => {
+                    if (isCanvasAIWorkbenchEnabled) {
+                      updateActiveWorkbench({
+                        selectedPresetAction: 'explain',
+                      });
+                    }
+                    void handleAction({ type: 'explain', labelKey: 'actionExplain' });
+                  }}
                 >
                   <HelpCircle className="h-3 w-3 mr-1" />
                   {t('actionExplain')}
@@ -851,7 +1218,14 @@ function CanvasPanelContent() {
                   variant="ghost"
                   size="sm"
                   className="h-6 px-2 text-xs"
-                  onClick={() => handleAction({ type: 'fix', labelKey: 'actionFix' })}
+                  onClick={() => {
+                    if (isCanvasAIWorkbenchEnabled) {
+                      updateActiveWorkbench({
+                        selectedPresetAction: 'fix',
+                      });
+                    }
+                    void handleAction({ type: 'fix', labelKey: 'actionFix' });
+                  }}
                 >
                   <Bug className="h-3 w-3 mr-1" />
                   {t('actionFix')}
@@ -860,7 +1234,14 @@ function CanvasPanelContent() {
                   variant="ghost"
                   size="sm"
                   className="h-6 px-2 text-xs"
-                  onClick={() => handleAction({ type: 'improve', labelKey: 'actionImprove' })}
+                  onClick={() => {
+                    if (isCanvasAIWorkbenchEnabled) {
+                      updateActiveWorkbench({
+                        selectedPresetAction: 'improve',
+                      });
+                    }
+                    void handleAction({ type: 'improve', labelKey: 'actionImprove' });
+                  }}
                 >
                   <Sparkles className="h-3 w-3 mr-1" />
                   {t('actionImprove')}
@@ -898,12 +1279,27 @@ function CanvasPanelContent() {
               </div>
             )}
 
-            {/* Diff preview panel */}
+            {/* Review queue / diff preview panel */}
             {diffPreview && diffPreview.length > 0 && (
-              <div className="border-b max-h-48 overflow-auto bg-muted/10">
+              <div
+                className="border-b max-h-72 overflow-auto bg-muted/10"
+                data-testid={reviewQueue ? 'canvas-review-queue' : undefined}
+              >
                 <div className="flex items-center justify-between px-4 py-1.5 bg-muted/30 border-b">
                   <span className="text-xs font-medium">{t('diffPreview')}</span>
                   <div className="flex items-center gap-1">
+                    {reviewQueue && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        data-testid="canvas-review-apply-selected"
+                        disabled={!canApplyAcceptedChanges}
+                        onClick={applyAcceptedReviewItems}
+                      >
+                        {t('applyAcceptedChanges')}
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -926,24 +1322,92 @@ function CanvasPanelContent() {
                     </Button>
                   </div>
                 </div>
-                <pre className="text-xs font-mono px-4 py-2">
-                  {diffPreview.map((line, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        'px-2 py-0.5',
-                        line.type === 'added' && 'bg-green-500/10 text-green-700 dark:text-green-400',
-                        line.type === 'removed' && 'bg-red-500/10 text-red-700 dark:text-red-400 line-through',
-                        line.type === 'unchanged' && 'text-muted-foreground'
-                      )}
-                    >
-                      <span className="select-none mr-2 opacity-50">
-                        {line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '}
-                      </span>
-                      {line.content}
-                    </div>
-                  ))}
-                </pre>
+
+                {reviewQueue && reviewItems.length > 0 ? (
+                  <div className="space-y-3 px-4 py-2">
+                    {reviewItems.map((item, index) => (
+                      <div
+                        key={item.id}
+                        data-testid={`canvas-review-item-${index}`}
+                        className="rounded-md border bg-background/80"
+                      >
+                        <div className="flex items-center justify-between border-b px-3 py-2">
+                          <div className="text-xs text-muted-foreground">
+                            {item.changeType} · {item.range.startLine}
+                            {item.range.endLine >= item.range.startLine
+                              ? `-${item.range.endLine}`
+                              : ''}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              data-testid={`canvas-review-item-accept-${index}`}
+                              onClick={() => acceptReviewItem(item.id)}
+                            >
+                              {t('acceptItem')}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              data-testid={`canvas-review-item-reject-${index}`}
+                              onClick={() => rejectReviewItem(item.id)}
+                            >
+                              {t('rejectItem')}
+                            </Button>
+                          </div>
+                        </div>
+                        <pre className="text-xs font-mono px-3 py-2">
+                          {item.diffLines.map((line, lineIndex) => (
+                            <div
+                              key={`${item.id}-${lineIndex}`}
+                              className={cn(
+                                'px-2 py-0.5',
+                                line.type === 'added' &&
+                                  'bg-green-500/10 text-green-700 dark:text-green-400',
+                                line.type === 'removed' &&
+                                  'bg-red-500/10 text-red-700 dark:text-red-400 line-through',
+                                line.type === 'unchanged' && 'text-muted-foreground'
+                              )}
+                            >
+                              <span className="select-none mr-2 opacity-50">
+                                {line.type === 'added'
+                                  ? '+'
+                                  : line.type === 'removed'
+                                    ? '-'
+                                    : ' '}
+                              </span>
+                              {line.content}
+                            </div>
+                          ))}
+                        </pre>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <pre className="text-xs font-mono px-4 py-2">
+                    {diffPreview.map((line, i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          'px-2 py-0.5',
+                          line.type === 'added' &&
+                            'bg-green-500/10 text-green-700 dark:text-green-400',
+                          line.type === 'removed' &&
+                            'bg-red-500/10 text-red-700 dark:text-red-400 line-through',
+                          line.type === 'unchanged' && 'text-muted-foreground'
+                        )}
+                      >
+                        <span className="select-none mr-2 opacity-50">
+                          {line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '}
+                        </span>
+                        {line.content}
+                      </div>
+                    ))}
+                  </pre>
+                )}
               </div>
             )}
 
@@ -1218,6 +1682,44 @@ function CanvasPanelContent() {
                 <ScrollArea className="p-4">
                   <pre className="text-sm whitespace-pre-wrap">{actionResult}</pre>
                 </ScrollArea>
+              </div>
+            )}
+
+            {isCanvasAIWorkbenchEnabled && activeWorkbench.actionHistory.length > 0 && (
+              <div className="border-t px-4 py-3" data-testid="canvas-ai-history">
+                <div className="mb-2 text-xs font-medium text-muted-foreground">
+                  {t('recentAiActions')}
+                </div>
+                <div className="space-y-2">
+                  {activeWorkbench.actionHistory
+                    .slice(-3)
+                    .reverse()
+                    .map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="flex items-center justify-between rounded-md border px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate text-sm">
+                            {entry.prompt || entry.actionType}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {entry.entryPoint} · {entry.scope}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          data-testid={`canvas-ai-history-retry-${entry.id}`}
+                          onClick={() => {
+                            void retryAction(entry.id);
+                          }}
+                        >
+                          {t('retryAction')}
+                        </Button>
+                      </div>
+                    ))}
+                </div>
               </div>
             )}
 

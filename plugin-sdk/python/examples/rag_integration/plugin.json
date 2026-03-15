@@ -4,6 +4,10 @@
   "version": "1.0.0",
   "description": "Semantic search and RAG capabilities for enhanced knowledge retrieval",
   "type": "python",
+  "engines": {
+    "cognia": ">=0.1.0",
+    "python": ">=3.10.0"
+  },
   "capabilities": ["tools", "hooks"],
   "pythonMain": "main.py",
   "permissions": ["vector:read", "vector:write", "session:read"],
@@ -17,7 +21,7 @@
         "default": false
       },
       "defaultTopK": {
-        "type": "integer",
+        "type": "number",
         "title": "Default Results",
         "description": "Default number of search results",
         "default": 5,

@@ -3,7 +3,7 @@
  */
 
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { useGitStore } from './git-store';
+import { normalizeTrackedRepos, useGitStore } from './git-store';
 
 // Mock the git service
 jest.mock('@/lib/native/git', () => ({
@@ -414,18 +414,36 @@ describe('useGitStore', () => {
         result.current.addTrackedRepo('/test/repo');
       });
 
-      expect(result.current.trackedRepos).toContain('/test/repo');
+      expect(result.current.trackedRepos).toEqual([
+        expect.objectContaining({
+          path: '/test/repo',
+          displayName: 'repo',
+          source: 'manual',
+        }),
+      ]);
     });
 
-    it('should not add duplicate tracked repository', () => {
+    it('should merge metadata for duplicate tracked repository paths', () => {
       const { result } = renderHook(() => useGitStore());
 
       act(() => {
-        result.current.addTrackedRepo('/test/repo');
-        result.current.addTrackedRepo('/test/repo');
+        result.current.addTrackedRepo('/test/repo', {
+          source: 'manual',
+        });
+        result.current.addTrackedRepo('/test/repo', {
+          source: 'clone',
+          remoteUrl: 'https://github.com/test/repo.git',
+        });
       });
 
-      expect(result.current.trackedRepos.filter((r) => r === '/test/repo').length).toBe(1);
+      expect(result.current.trackedRepos).toHaveLength(1);
+      expect(result.current.trackedRepos[0]).toEqual(
+        expect.objectContaining({
+          path: '/test/repo',
+          source: 'clone',
+          remoteUrl: 'https://github.com/test/repo.git',
+        })
+      );
     });
 
     it('should remove tracked repository', () => {
@@ -436,7 +454,24 @@ describe('useGitStore', () => {
         result.current.removeTrackedRepo('/test/repo');
       });
 
-      expect(result.current.trackedRepos).not.toContain('/test/repo');
+      expect(result.current.trackedRepos).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ path: '/test/repo' })])
+      );
+    });
+
+    it('should normalize legacy tracked repo entries', () => {
+      expect(normalizeTrackedRepos(['/legacy/repo', '/another/repo'])).toEqual([
+        expect.objectContaining({
+          path: '/legacy/repo',
+          displayName: 'repo',
+          source: 'manual',
+        }),
+        expect.objectContaining({
+          path: '/another/repo',
+          displayName: 'repo',
+          source: 'manual',
+        }),
+      ]);
     });
   });
 
@@ -477,6 +512,26 @@ describe('useGitStore', () => {
       expect(result.current.lastError).toBeNull();
       expect(result.current.trackedRepos).toEqual([]);
       expect(result.current.autoCommitConfig.enabled).toBe(false);
+    });
+  });
+
+  describe('project repo tracking', () => {
+    it('should link tracked repo metadata when enabling Git for a project', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      let success = false;
+      await act(async () => {
+        success = await result.current.enableGitForProject('project-1', '/test/repo');
+      });
+
+      expect(success).toBe(true);
+      expect(result.current.trackedRepos).toEqual([
+        expect.objectContaining({
+          path: '/test/repo',
+          source: 'project',
+          linkedProjectIds: ['project-1'],
+        }),
+      ]);
     });
   });
 

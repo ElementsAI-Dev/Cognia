@@ -147,7 +147,7 @@
     "uploadFile": "Upload File",
     "dragDropHere": "Drag & drop a file here",
     "clickToUpload": "or click to select a file",
-    "supportedFormats": "Supported: PDF, DOCX, TXT, MD",
+    "supportedFormats": "Supported: {formats}",
     "enterUrl": "Enter a URL to import content from",
     "urlPlaceholder": "https://example.com/article",
     "importUrl": "Import URL",

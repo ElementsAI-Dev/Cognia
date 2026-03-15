@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { FileText, RefreshCw, Trash2, Download, Power, RotateCcw, Clock } from 'lucide-react';
@@ -48,10 +49,12 @@ import { cn } from '@/lib/utils';
 import { useAgentTrace } from '@/hooks/agent-trace/use-agent-trace';
 import { useAgentTraceAnalytics } from '@/hooks/agent-trace/use-agent-trace-analytics';
 import { useSettingsStore } from '@/stores';
+import { buildObservabilitySettingsProjection } from '@/lib/observability';
 import { agentTraceRepository } from '@/lib/db/repositories/agent-trace-repository';
+import { deriveObservationFromDbTrace } from '@/lib/agent-trace/observation';
 import { AgentTraceTimeline } from './agent-trace-timeline';
 import { AgentTraceStatsOverview, AgentTraceSessionSummary } from './agent-trace-stats';
-import type { AgentTraceEventType } from '@/types/agent-trace';
+import type { AgentTraceEventType, AgentTraceObservationOutcome } from '@/types/agent-trace';
 
 type DisplayTrace = {
   id: string;
@@ -60,20 +63,10 @@ type DisplayTrace = {
   vcs?: string;
   files: string[];
   json: string;
+  summary: string;
+  outcome: AgentTraceObservationOutcome;
+  parseStatus: 'ok' | 'degraded';
 };
-
-function parseRecordFiles(json: string): string[] {
-  try {
-    const record = JSON.parse(json) as { files?: Array<{ path?: unknown }> };
-    const files = record.files ?? [];
-    return files
-      .map((f) => (typeof f.path === 'string' ? f.path : null))
-      .filter((p): p is string => Boolean(p));
-  } catch (error) {
-    console.error('Failed to parse agent trace record JSON:', error);
-    return [];
-  }
-}
 
 function formatVcs(row: DBAgentTrace): string | null {
   if (!row.vcsType && !row.vcsRevision) return null;
@@ -98,14 +91,16 @@ export function AgentTraceSettings() {
   const [filePath, setFilePath] = useState('');
   const [vcsRevision, setVcsRevision] = useState('');
   const [eventType, setEventType] = useState<'all' | AgentTraceEventType>('all');
+  const [outcome, setOutcome] = useState<'all' | AgentTraceObservationOutcome>('all');
+  const [toolName, setToolName] = useState('');
   const [selected, setSelected] = useState<DisplayTrace | null>(null);
   const [copied, setCopied] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'timeline'>('list');
   const [selectedSessionForSummary, setSelectedSessionForSummary] = useState('');
 
-  // Settings
   const agentTraceSettings = useSettingsStore((state) => state.agentTraceSettings);
+  const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
   const setAgentTraceEnabled = useSettingsStore((state) => state.setAgentTraceEnabled);
   const setAgentTraceMaxRecords = useSettingsStore((state) => state.setAgentTraceMaxRecords);
   const setAgentTraceAutoCleanupDays = useSettingsStore((state) => state.setAgentTraceAutoCleanupDays);
@@ -113,20 +108,35 @@ export function AgentTraceSettings() {
   const setAgentTraceCodeEdits = useSettingsStore((state) => state.setAgentTraceCodeEdits);
   const setAgentTraceFailedCalls = useSettingsStore((state) => state.setAgentTraceFailedCalls);
   const resetAgentTraceSettings = useSettingsStore((state) => state.resetAgentTraceSettings);
+  const observabilityProjection = useMemo(
+    () =>
+      buildObservabilitySettingsProjection({
+        observabilitySettings,
+        agentTraceSettings,
+      }),
+    [agentTraceSettings, observabilitySettings]
+  );
 
   const trimmedSessionId = sessionId.trim();
   const trimmedFilePath = filePath.trim();
   const trimmedVcsRevision = vcsRevision.trim();
+  const trimmedToolName = toolName.trim();
 
-  const { traces: rows, refresh } = useAgentTrace({
+  const {
+    traces: rows,
+    observations,
+    refresh,
+    exportObservationBundle,
+  } = useAgentTrace({
     sessionId: trimmedSessionId,
     filePath: trimmedFilePath,
     vcsRevision: trimmedVcsRevision,
     eventType: eventType === 'all' ? undefined : eventType,
+    outcome: outcome === 'all' ? undefined : outcome,
+    toolName: trimmedToolName || undefined,
     limit: 200,
   });
 
-  // Analytics
   const {
     stats,
     sessionSummary,
@@ -137,21 +147,19 @@ export function AgentTraceSettings() {
     autoLoad: true,
   });
 
-  // Unique session IDs from current traces for the session summary selector
   const uniqueSessionIds = useMemo(() => {
     const ids = new Set<string>();
-    for (const row of rows ?? []) {
-      if (row.sessionId) ids.add(row.sessionId);
+    for (const observation of observations ?? []) {
+      if (observation.sessionId) ids.add(observation.sessionId);
     }
     return Array.from(ids);
-  }, [rows]);
+  }, [observations]);
 
   const handleRefreshAll = useCallback(() => {
     refresh();
     void refreshAnalytics();
   }, [refresh, refreshAnalytics]);
 
-  // Delete single trace
   const handleDeleteTrace = useCallback(async (id: string) => {
     try {
       setIsDeleting(true);
@@ -165,7 +173,6 @@ export function AgentTraceSettings() {
     }
   }, [refresh]);
 
-  // Clear all traces
   const handleClearAll = useCallback(async () => {
     try {
       setIsDeleting(true);
@@ -179,13 +186,12 @@ export function AgentTraceSettings() {
     }
   }, [refresh]);
 
-  // Export as JSON
   const handleExportJson = useCallback((tracesToExport: DisplayTrace[]) => {
-    const records = tracesToExport.map((tr) => {
+    const records = tracesToExport.map((trace) => {
       try {
-        return JSON.parse(tr.json);
+        return JSON.parse(trace.json);
       } catch {
-        return { id: tr.id, error: 'Failed to parse' };
+        return { id: trace.id, error: 'Failed to parse' };
       }
     });
     const blob = new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' });
@@ -197,13 +203,12 @@ export function AgentTraceSettings() {
     URL.revokeObjectURL(url);
   }, []);
 
-  // Export as JSONL
   const handleExportJsonl = useCallback((tracesToExport: DisplayTrace[]) => {
-    const lines = tracesToExport.map((tr) => {
+    const lines = tracesToExport.map((trace) => {
       try {
-        return JSON.stringify(JSON.parse(tr.json));
+        return JSON.stringify(JSON.parse(trace.json));
       } catch {
-        return JSON.stringify({ id: tr.id, error: 'Failed to parse' });
+        return JSON.stringify({ id: trace.id, error: 'Failed to parse' });
       }
     });
     const blob = new Blob([lines.join('\n')], { type: 'application/x-ndjson' });
@@ -215,22 +220,41 @@ export function AgentTraceSettings() {
     URL.revokeObjectURL(url);
   }, []);
 
+  const handleExportBundle = useCallback(async () => {
+    const bundle = await exportObservationBundle();
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `agent-trace-bundle-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [exportObservationBundle]);
+
   const traces = useMemo<DisplayTrace[]>(() => {
-    const list = (rows ?? []).map((row) => {
-      const files = parseRecordFiles(row.record);
+    const observationMap = new Map(
+      (observations && observations.length > 0
+        ? observations
+        : (rows ?? []).map((row) => deriveObservationFromDbTrace(row))
+      ).map((observation) => [observation.id, observation])
+    );
+
+    return (rows ?? []).map((row) => {
+      const observation = observationMap.get(row.id) ?? deriveObservationFromDbTrace(row);
       const vcs = formatVcs(row);
       return {
         id: row.id,
         timestamp: row.timestamp,
         sessionId: row.sessionId,
         vcs: vcs ?? undefined,
-        files,
+        files: observation.filePaths,
         json: row.record,
+        summary: observation.summary,
+        outcome: observation.outcome,
+        parseStatus: observation.parseStatus,
       };
     });
-
-    return list;
-  }, [rows]);
+  }, [observations, rows]);
 
   return (
     <div className="space-y-4">
@@ -266,11 +290,39 @@ export function AgentTraceSettings() {
               <Download className="h-4 w-4" />
               JSONL
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void handleExportBundle();
+              }}
+              disabled={traces.length === 0}
+            >
+              <Download className="h-4 w-4" />
+              {t('exportBundle')}
+            </Button>
           </div>
         }
       />
 
-      {/* Enable/Disable Toggle */}
+      <SettingsCard
+        title={t('observabilityOverviewTitle')}
+        description={t('observabilityOverviewDescription')}
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm font-medium">
+            {observabilityProjection.runtimeCaptureEnabled
+              ? t('observabilityOverviewReady')
+              : observabilityProjection.captureEnabled
+                ? t('observabilityOverviewNeedsSetup')
+                : t('observabilityOverviewDisabled')}
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/settings?section=observability">{t('observabilityOverviewManage')}</Link>
+          </Button>
+        </div>
+      </SettingsCard>
+
       <SettingsCard title={t('recording.title')} description={t('recording.description')}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -287,10 +339,8 @@ export function AgentTraceSettings() {
         </div>
       </SettingsCard>
 
-      {/* Configuration Options */}
       <SettingsCard title={t('config.title')} description={t('config.description')}>
         <div className="space-y-4">
-          {/* Max Records */}
           <SettingsRow
             label={t('config.maxRecords')}
             description={t('config.maxRecordsDescription')}
@@ -310,7 +360,6 @@ export function AgentTraceSettings() {
             </div>
           </SettingsRow>
 
-          {/* Auto Cleanup Days */}
           <SettingsRow
             label={t('config.autoCleanup')}
             description={t('config.autoCleanupDescription')}
@@ -332,7 +381,6 @@ export function AgentTraceSettings() {
             </div>
           </SettingsRow>
 
-          {/* Trace Shell Commands */}
           <SettingsRow
             label={t('config.traceShellCommands')}
             description={t('config.traceShellCommandsDescription')}
@@ -344,7 +392,6 @@ export function AgentTraceSettings() {
             />
           </SettingsRow>
 
-          {/* Trace Code Edits */}
           <SettingsRow
             label={t('config.traceCodeEdits')}
             description={t('config.traceCodeEditsDescription')}
@@ -356,7 +403,6 @@ export function AgentTraceSettings() {
             />
           </SettingsRow>
 
-          {/* Trace Failed Calls */}
           <SettingsRow
             label={t('config.traceFailedCalls')}
             description={t('config.traceFailedCallsDescription')}
@@ -368,7 +414,6 @@ export function AgentTraceSettings() {
             />
           </SettingsRow>
 
-          {/* Reset to Defaults */}
           <div className="flex justify-end pt-2">
             <Button
               variant="outline"
@@ -414,24 +459,48 @@ export function AgentTraceSettings() {
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={t('eventTypePlaceholder')} />
               </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('eventTypeAll')}</SelectItem>
-                  <SelectItem value="session_start">{t('eventTypeSessionStart')}</SelectItem>
-                  <SelectItem value="session_end">{t('eventTypeSessionEnd')}</SelectItem>
-                  <SelectItem value="permission_request">{t('eventTypePermissionRequest')}</SelectItem>
-                  <SelectItem value="permission_response">{t('eventTypePermissionResponse')}</SelectItem>
-                  <SelectItem value="tool_call_request">{t('eventTypeToolCallRequest')}</SelectItem>
-                  <SelectItem value="tool_call_result">{t('eventTypeToolCallResult')}</SelectItem>
-                  <SelectItem value="step_start">{t('eventTypeStepStart')}</SelectItem>
-                  <SelectItem value="step_finish">{t('eventTypeStepFinish')}</SelectItem>
-                  <SelectItem value="planning">{t('eventTypePlanning')}</SelectItem>
-                  <SelectItem value="response">{t('eventTypeResponse')}</SelectItem>
-                  <SelectItem value="checkpoint_create">{t('eventTypeCheckpointCreate')}</SelectItem>
-                  <SelectItem value="checkpoint_restore">{t('eventTypeCheckpointRestore')}</SelectItem>
-                  <SelectItem value="error">{t('eventTypeError')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <SelectContent>
+                <SelectItem value="all">{t('eventTypeAll')}</SelectItem>
+                <SelectItem value="session_start">{t('eventTypeSessionStart')}</SelectItem>
+                <SelectItem value="session_end">{t('eventTypeSessionEnd')}</SelectItem>
+                <SelectItem value="permission_request">{t('eventTypePermissionRequest')}</SelectItem>
+                <SelectItem value="permission_response">{t('eventTypePermissionResponse')}</SelectItem>
+                <SelectItem value="tool_call_request">{t('eventTypeToolCallRequest')}</SelectItem>
+                <SelectItem value="tool_call_result">{t('eventTypeToolCallResult')}</SelectItem>
+                <SelectItem value="step_start">{t('eventTypeStepStart')}</SelectItem>
+                <SelectItem value="step_finish">{t('eventTypeStepFinish')}</SelectItem>
+                <SelectItem value="planning">{t('eventTypePlanning')}</SelectItem>
+                <SelectItem value="response">{t('eventTypeResponse')}</SelectItem>
+                <SelectItem value="checkpoint_create">{t('eventTypeCheckpointCreate')}</SelectItem>
+                <SelectItem value="checkpoint_restore">{t('eventTypeCheckpointRestore')}</SelectItem>
+                <SelectItem value="error">{t('eventTypeError')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <div className="text-xs font-medium">{t('outcome')}</div>
+            <Select
+              value={outcome}
+              onValueChange={(value) => setOutcome(value as 'all' | AgentTraceObservationOutcome)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t('outcomePlaceholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('outcomeAll')}</SelectItem>
+                <SelectItem value="success">{t('outcomeSuccess')}</SelectItem>
+                <SelectItem value="error">{t('outcomeError')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <div className="text-xs font-medium">{t('toolName')}</div>
+            <Input
+              value={toolName}
+              onChange={(e) => setToolName(e.target.value)}
+              placeholder={t('toolNamePlaceholder')}
+            />
+          </div>
         </SettingsGrid>
 
         <div className="flex items-center justify-between">
@@ -447,6 +516,8 @@ export function AgentTraceSettings() {
                 setFilePath('');
                 setVcsRevision('');
                 setEventType('all');
+                setOutcome('all');
+                setToolName('');
               }}
             >
               {t('clearFilters')}
@@ -481,10 +552,8 @@ export function AgentTraceSettings() {
         </div>
       </SettingsCard>
 
-      {/* Stats Overview */}
       <AgentTraceStatsOverview stats={stats} />
 
-      {/* Session Summary */}
       {uniqueSessionIds.length > 0 && (
         <SettingsCard title={t('sessionSummary.title')} description={t('sessionSummary.description')}>
           <div className="space-y-3">
@@ -524,8 +593,7 @@ export function AgentTraceSettings() {
         />
       ) : (
         <SettingsCard title={t('listTitle')} description={t('listDescription')}>
-          {/* View mode tabs */}
-          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'list' | 'timeline')}>
+          <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'list' | 'timeline')}>
             <TabsList className="mb-3">
               <TabsTrigger value="list" className="gap-1.5">
                 <FileText className="h-3.5 w-3.5" />
@@ -571,10 +639,19 @@ export function AgentTraceSettings() {
                                 {trace.sessionId}
                               </Badge>
                             )}
+                            <Badge variant="secondary" className="text-[10px]">
+                              {trace.outcome}
+                            </Badge>
+                            {trace.parseStatus === 'degraded' && (
+                              <Badge variant="destructive" className="text-[10px]">
+                                {t('degradedRowLabel')}
+                              </Badge>
+                            )}
                           </div>
                           <div className="text-xs text-muted-foreground mt-0.5">
                             {trace.timestamp.toLocaleString()}
                           </div>
+                          <div className="text-xs mt-1">{trace.summary}</div>
                           <div className="text-xs mt-1 text-muted-foreground break-all">
                             {(trace.files[0] ?? '').slice(0, 200)}
                             {trace.files.length > 1 ? ` (+${trace.files.length - 1})` : ''}

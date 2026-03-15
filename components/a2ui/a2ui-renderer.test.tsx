@@ -152,6 +152,14 @@ jest.mock('./display/a2ui-empty', () => ({
   A2UIEmpty: () => <div data-testid="a2ui-empty" />,
 }));
 
+jest.mock('./display/a2ui-rich-output', () => ({
+  A2UIRichOutput: ({ component }: A2UIComponentProps) => (
+    <div data-testid="a2ui-rich-output" data-component-id={component.id}>
+      Rich Output
+    </div>
+  ),
+}));
+
 // Mock form components
 jest.mock('./form/a2ui-button', () => ({
   A2UIButton: ({ component }: A2UIComponentProps) => (
@@ -238,6 +246,12 @@ describe('A2UIRenderer', () => {
     const component = { id: 'btn1', component: 'Button', props: { label: 'Click' } };
     render(<A2UIRenderer component={component} />);
     expect(screen.getByTestId('a2ui-button')).toBeInTheDocument();
+  });
+
+  it('should render built-in RichOutput component', () => {
+    const component = { id: 'rich1', component: 'RichOutput', profileId: 'quick-factual-answer' };
+    render(<A2UIRenderer component={component} />);
+    expect(screen.getByTestId('a2ui-rich-output')).toBeInTheDocument();
   });
 
   it('should render fallback for unknown component type', () => {
@@ -386,6 +400,7 @@ describe('getRegisteredComponentTypes', () => {
     expect(types).toContain('Card');
     expect(types).toContain('Chart');
     expect(types).toContain('Table');
+    expect(types).toContain('RichOutput');
   });
 
   it('should return an array', () => {

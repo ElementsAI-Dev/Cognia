@@ -58,11 +58,13 @@ type TabValue = 'browse' | 'collections' | 'installed' | 'favorites' | 'recent';
 interface PromptMarketplaceBrowserProps {
   defaultTab?: TabValue;
   onInstall?: (prompt: MarketplacePrompt) => void;
+  onContinueEditing?: (templateId: string) => void;
 }
 
 export function PromptMarketplaceBrowser({
   defaultTab = 'browse',
   onInstall,
+  onContinueEditing,
 }: PromptMarketplaceBrowserProps) {
   const t = useTranslations('promptMarketplace');
 
@@ -160,7 +162,7 @@ export function PromptMarketplaceBrowser({
   // Local state
   const [activeTab, setActiveTab] = useState<TabValue>(defaultTab);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [hasPersistentInspector, setHasPersistentInspector] = useState(false);
   const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
   const [promptsWithUpdates, setPromptsWithUpdates] = useState<string[]>([]);
   const [installedSearchQuery, setInstalledSearchQuery] = useState('');
@@ -192,14 +194,14 @@ export function PromptMarketplaceBrowser({
   }, [promptsMap, fetchFeatured, fetchTrending]);
 
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 1023px)');
+    const inspectorMedia = window.matchMedia('(min-width: 1536px)');
     const handleChange = () => {
-      setIsMobileViewport(media.matches);
+      setHasPersistentInspector(inspectorMedia.matches);
     };
     handleChange();
-    media.addEventListener('change', handleChange);
+    inspectorMedia.addEventListener('change', handleChange);
     return () => {
-      media.removeEventListener('change', handleChange);
+      inspectorMedia.removeEventListener('change', handleChange);
     };
   }, []);
 
@@ -356,10 +358,10 @@ export function PromptMarketplaceBrowser({
   const handleViewDetail = useCallback((prompt: MarketplacePrompt) => {
     setSelectedPrompt(prompt.id);
     setBrowseScrollOffset(contentContainerRef.current?.scrollTop || 0);
-    if (isMobileViewport) {
+    if (!hasPersistentInspector) {
       setDetailOpen(true);
     }
-  }, [isMobileViewport, setBrowseScrollOffset, setDetailOpen, setSelectedPrompt]);
+  }, [hasPersistentInspector, setBrowseScrollOffset, setDetailOpen, setSelectedPrompt]);
 
   const clearFilters = useCallback(() => {
     clearBrowseFilters();
@@ -393,9 +395,10 @@ export function PromptMarketplaceBrowser({
   }, [prompts]);
 
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const showPersistentInspector = hasPersistentInspector && !!selectedPrompt;
 
   const gridClasses = viewMode === 'grid'
-    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4'
+    ? 'prompt-marketplace-card-grid grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]'
     : 'flex flex-col gap-3';
 
   const activeFilterCount =
@@ -415,7 +418,7 @@ export function PromptMarketplaceBrowser({
   }, [browseViewState.selectedPromptId, displayPrompts, setDetailOpen, setSelectedPrompt]);
 
   useEffect(() => {
-    if (activeTab !== 'browse' || browseViewState.detailOpen || !isMobileViewport) {
+    if (activeTab !== 'browse' || browseViewState.detailOpen || hasPersistentInspector) {
       return;
     }
     const container = contentContainerRef.current;
@@ -427,8 +430,10 @@ export function PromptMarketplaceBrowser({
     activeTab,
     browseViewState.detailOpen,
     browseViewState.scrollOffset,
-    isMobileViewport,
+    hasPersistentInspector,
   ]);
+
+  const usesDialogDetail = !hasPersistentInspector;
 
   const listErrorMessageKey = getPromptMarketplaceErrorMessageKey(listError?.category);
 
@@ -491,7 +496,7 @@ export function PromptMarketplaceBrowser({
                     variant="outline"
                     size="sm"
                     className={cn(
-                      'gap-1.5 h-8 lg:hidden',
+                      'gap-1.5 h-8 xl:hidden',
                       hasActiveFilters && 'border-primary/50 bg-primary/5'
                     )}
                   >
@@ -726,7 +731,13 @@ export function PromptMarketplaceBrowser({
       >
         <div className="p-3 lg:p-4 space-y-5">
           {activeTab === 'browse' && (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)_360px]">
+            <div
+              data-testid="prompt-marketplace-browse-layout"
+              className={cn(
+                'grid grid-cols-1 gap-4 xl:grid-cols-[260px_minmax(0,1fr)]',
+                showPersistentInspector && '2xl:grid-cols-[260px_minmax(0,1fr)_320px]'
+              )}
+            >
               <PromptMarketplaceSidebar
                 selectedCategory={browseViewState.category}
                 onSelectCategory={setBrowseCategory}
@@ -735,32 +746,58 @@ export function PromptMarketplaceBrowser({
                 minRating={browseViewState.minRating}
                 onMinRatingChange={setBrowseMinRating}
                 categoryCounts={categoryCounts}
-                className="hidden lg:flex lg:sticky lg:top-0 lg:max-h-[calc(100vh-13.5rem)]"
+                className="hidden xl:flex xl:sticky xl:top-0 xl:self-start xl:max-h-[calc(100vh-13.5rem)]"
               />
 
-              <BrowseTab
-                featuredPrompts={featuredPrompts}
-                trendingPrompts={trendingPrompts}
-                displayPrompts={displayPrompts}
-                paginatedPrompts={paginatedPrompts}
-                hasActiveFilters={!!hasActiveFilters}
-                hasMorePrompts={hasMorePrompts}
-                isLoading={isLoading}
-                gridClasses={gridClasses}
-                viewMode={viewMode}
-                onViewDetail={handleViewDetail}
-                onInstall={onInstall}
-                onLoadMore={loadMorePrompts}
-                onClearFilters={clearFilters}
-              />
+              <div data-testid="prompt-marketplace-browse-region" className="min-w-0 space-y-4">
+                {selectedPrompt && usesDialogDetail && (
+                  <div
+                    data-testid="prompt-marketplace-selected-summary"
+                    className="flex items-center justify-between gap-3 rounded-2xl border bg-muted/20 px-4 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {t('inspector.title')}
+                      </p>
+                      <p className="truncate text-sm font-semibold">{selectedPrompt.name}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="shrink-0 gap-2"
+                      onClick={() => setDetailOpen(true)}
+                    >
+                      <Search className="h-3.5 w-3.5" />
+                      {t('inspector.openDetail')}
+                    </Button>
+                  </div>
+                )}
 
-              <PromptMarketplaceInspector
-                prompt={selectedPrompt}
-                retryContext={selectedPrompt ? installRetryContexts[selectedPrompt.id] : undefined}
-                className="hidden lg:block lg:sticky lg:top-0 lg:max-h-[calc(100vh-13.5rem)]"
-                onOpenDetail={() => setDetailOpen(true)}
-                onViewAuthor={handleViewAuthor}
-              />
+                <BrowseTab
+                  featuredPrompts={featuredPrompts}
+                  trendingPrompts={trendingPrompts}
+                  displayPrompts={displayPrompts}
+                  paginatedPrompts={paginatedPrompts}
+                  hasActiveFilters={!!hasActiveFilters}
+                  hasMorePrompts={hasMorePrompts}
+                  isLoading={isLoading}
+                  gridClasses={gridClasses}
+                  viewMode={viewMode}
+                  onViewDetail={handleViewDetail}
+                  onInstall={onInstall}
+                  onLoadMore={loadMorePrompts}
+                  onClearFilters={clearFilters}
+                />
+              </div>
+
+              {showPersistentInspector && (
+                <PromptMarketplaceInspector
+                  prompt={selectedPrompt}
+                  retryContext={selectedPrompt ? installRetryContexts[selectedPrompt.id] : undefined}
+                  className="hidden 2xl:block 2xl:sticky 2xl:top-0 2xl:self-start 2xl:max-h-[calc(100vh-13.5rem)]"
+                  onOpenDetail={() => setDetailOpen(true)}
+                  onViewAuthor={handleViewAuthor}
+                />
+              )}
             </div>
           )}
 
@@ -825,6 +862,7 @@ export function PromptMarketplaceBrowser({
         open={browseViewState.detailOpen && !!selectedPrompt}
         onOpenChange={setDetailOpen}
         onViewAuthor={handleViewAuthor}
+        onContinueEditing={onContinueEditing}
       />
 
       {/* Author Profile Dialog */}

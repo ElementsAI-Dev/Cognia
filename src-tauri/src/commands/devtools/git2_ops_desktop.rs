@@ -133,6 +133,21 @@ pub fn get_status(repo_path: &str) -> Git2Result<GitRepoInfo> {
         has_uncommitted_changes,
         has_untracked_files,
         last_commit,
+        sync_state: Some(if remote_url.is_none() {
+            "local-only".to_string()
+        } else if ahead > 0 && behind > 0 {
+            "diverged".to_string()
+        } else if ahead > 0 {
+            "ahead".to_string()
+        } else if behind > 0 {
+            "behind".to_string()
+        } else {
+            "up-to-date".to_string()
+        }),
+        has_conflicts: false,
+        in_progress_operation: None,
+        can_abort_operation: false,
+        recommended_recovery_action: None,
     })
 }
 

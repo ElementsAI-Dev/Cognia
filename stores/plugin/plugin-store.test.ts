@@ -118,6 +118,34 @@ describe('usePluginStore', () => {
         'Updated description'
       );
     });
+
+    it('should honor backend source metadata when scanning plugins', async () => {
+      const manifest = createMockManifest('dev-plugin');
+
+      (invoke as jest.Mock).mockResolvedValue([
+        {
+          manifest,
+          path: '/test/plugins/dev-plugin',
+          source: 'dev',
+          installRootKind: 'dev',
+        },
+      ]);
+
+      const { result } = renderHook(() => usePluginStore());
+
+      await act(async () => {
+        await result.current.initialize('/test/plugins');
+        await result.current.scanPlugins();
+      });
+
+      expect(result.current.plugins['dev-plugin'].source).toBe('dev');
+      expect(result.current.plugins['dev-plugin'].descriptor).toEqual(
+        expect.objectContaining({
+          source: 'dev',
+          installRoot: expect.objectContaining({ kind: 'dev' }),
+        })
+      );
+    });
   });
 
   describe('plugin management', () => {
@@ -131,6 +159,14 @@ describe('usePluginStore', () => {
 
       expect(result.current.plugins['test-plugin']).toBeDefined();
       expect(result.current.plugins['test-plugin'].manifest.name).toBe('Test Plugin test-plugin');
+      expect(result.current.plugins['test-plugin'].descriptor).toEqual(
+        expect.objectContaining({
+          id: 'test-plugin',
+          source: 'local',
+          resolvedPath: '/path/to/plugin',
+          installRoot: expect.objectContaining({ kind: 'installed' }),
+        })
+      );
     });
 
     it('should update plugin status', () => {

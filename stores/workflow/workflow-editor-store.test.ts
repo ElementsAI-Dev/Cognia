@@ -36,6 +36,7 @@ jest.mock('@/lib/workflow-editor', () => ({
   resumeVisualWorkflow: jest.fn(),
   cancelVisualWorkflow: jest.fn(),
   validateVisualWorkflow: jest.fn(() => []),
+  planWorkflowInsertion: jest.requireActual('@/lib/workflow-editor').planWorkflowInsertion,
 }));
 
 jest.mock('@/lib/workflow-editor/layout', () => ({
@@ -115,6 +116,8 @@ import { useWorkflowEditorStore } from './workflow-editor-store';
 
 describe('useWorkflowEditorStore', () => {
   beforeEach(() => {
+    jest.spyOn(window, 'confirm').mockReturnValue(true);
+
     // Reset store state before each test
     const store = useWorkflowEditorStore.getState();
     if (store.reset) {
@@ -122,6 +125,10 @@ describe('useWorkflowEditorStore', () => {
         store.reset();
       });
     }
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('initialization', () => {
@@ -265,6 +272,45 @@ describe('useWorkflowEditorStore', () => {
         fields: ['description'],
       });
     });
+
+    it('inserts a node from insertion intent and rewires edges once', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.loadWorkflow({
+          id: 'workflow-insert',
+          name: 'Insert Test',
+          nodes: [
+            { id: 'start-1', type: 'start', position: { x: 100, y: 100 }, data: { label: 'Start', nodeType: 'start' } },
+            { id: 'end-1', type: 'end', position: { x: 100, y: 400 }, data: { label: 'End', nodeType: 'end' } },
+          ],
+          edges: [
+            { id: 'edge-1', source: 'start-1', target: 'end-1', type: 'default', data: {} },
+          ],
+          settings: {},
+        } as never);
+        result.current.setInsertionIntent({
+          mode: 'insert-between',
+          origin: 'edge-gap',
+          edgeId: 'edge-1',
+          sourceNodeId: 'start-1',
+          targetNodeId: 'end-1',
+          openedAt: 123,
+        });
+      });
+
+      let insertedId = '';
+      act(() => {
+        insertedId = result.current.insertNodeFromIntent('ai' as never) || '';
+      });
+
+      expect(insertedId).toContain('ai-');
+      expect(result.current.currentWorkflow?.edges).toHaveLength(2);
+      expect(result.current.currentWorkflow?.edges.some((edge) => edge.id === 'edge-1')).toBe(false);
+      expect(result.current.selectedNodes).toEqual([insertedId]);
+      expect(result.current.insertionIntent).toBeNull();
+      expect(result.current.activeInspectorSection).toBe('config');
+    });
   });
 
   describe('selection', () => {
@@ -333,6 +379,58 @@ describe('useWorkflowEditorStore', () => {
       });
 
       expect(result.current.showMinimap).toBe(!initial);
+    });
+
+    it('tracks contextual insertion intent for quick-add flows', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.setInsertionIntent({
+          mode: 'insert-between',
+          origin: 'edge-gap',
+          edgeId: 'edge-1',
+          sourceNodeId: 'node-1',
+          targetNodeId: 'node-2',
+          openedAt: 123,
+        });
+      });
+
+      expect(result.current.insertionIntent).toMatchObject({
+        mode: 'insert-between',
+        origin: 'edge-gap',
+        edgeId: 'edge-1',
+      });
+
+      act(() => {
+        result.current.clearInsertionIntent();
+      });
+
+      expect(result.current.insertionIntent).toBeNull();
+    });
+
+    it('tracks the active inspector section and execution focus', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.setActiveInspectorSection('execution');
+        result.current.setExecutionFocus({
+          nodeId: 'node-99',
+          source: 'execution',
+          openedAt: 456,
+        });
+      });
+
+      expect(result.current.activeInspectorSection).toBe('execution');
+      expect(result.current.executionFocus).toMatchObject({
+        nodeId: 'node-99',
+        source: 'execution',
+      });
+
+      act(() => {
+        result.current.clearExecutionFocus();
+      });
+
+      expect(result.current.executionFocus).toBeNull();
     });
   });
 

@@ -6,6 +6,10 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ObservabilityButton } from './observability-button';
 
+const mockUseAgentTrace = jest.fn((_options?: unknown) => ({
+  totalCount: 0,
+}));
+
 // Mock dependencies
 jest.mock('@/stores', () => ({
   useSettingsStore: jest.fn((selector) => {
@@ -15,9 +19,22 @@ jest.mock('@/stores', () => ({
         langfuseEnabled: true,
         openTelemetryEnabled: true,
       },
+      agentTraceSettings: {
+        enabled: false,
+      },
     };
     return selector(state);
   }),
+  useUsageStore: jest.fn((selector) => {
+    const state = {
+      records: [],
+    };
+    return selector(state);
+  }),
+}));
+
+jest.mock('@/hooks/agent-trace', () => ({
+  useAgentTrace: (options?: unknown) => mockUseAgentTrace(options),
 }));
 
 jest.mock('./observability-dashboard', () => ({
@@ -55,6 +72,9 @@ jest.mock('@/components/ui/tooltip', () => ({
 describe('ObservabilityButton', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseAgentTrace.mockReturnValue({
+      totalCount: 0,
+    });
   });
 
   it('should render button with Activity icon', () => {
@@ -120,6 +140,16 @@ describe('ObservabilityButton when disabled', () => {
       const state = {
         observabilitySettings: {
           enabled: false,
+          langfuseEnabled: false,
+          langfusePublicKey: '',
+          langfuseSecretKey: '',
+          langfuseHost: 'https://cloud.langfuse.com',
+          openTelemetryEnabled: false,
+          openTelemetryEndpoint: 'http://localhost:4318/v1/traces',
+          serviceName: 'cognia-ai',
+        },
+        agentTraceSettings: {
+          enabled: false,
         },
       };
       return selector(state);
@@ -130,5 +160,19 @@ describe('ObservabilityButton when disabled', () => {
     render(<ObservabilityButton />);
 
     expect(screen.getByText(/enable in settings/i)).toBeInTheDocument();
+  });
+
+  it('should show history-aware tooltip copy when local history exists', () => {
+    const stores = jest.requireMock('@/stores');
+    stores.useUsageStore.mockImplementation((selector: (state: unknown) => unknown) => {
+      const state = {
+        records: [{ id: 'usage-1' }],
+      };
+      return selector(state);
+    });
+
+    render(<ObservabilityButton />);
+
+    expect(screen.getByText(/history is still available/i)).toBeInTheDocument();
   });
 });

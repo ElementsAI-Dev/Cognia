@@ -12,7 +12,11 @@
 
 import { generateText, stepCountIs } from 'ai';
 import { z } from 'zod';
-import { getProviderModel, type ProviderName } from '../core/client';
+import type { ProviderName } from '../core/client';
+import {
+  createFeatureProviderModelFromRuntimeConfig,
+  createFeatureRoutePolicy,
+} from '@/lib/ai/provider-consumption';
 import { isMcpTool, extractMcpServerInfo } from '../tools/mcp-tools';
 import { globalToolCache, type ToolCacheConfig } from '../tools/tool-cache';
 import { globalMetricsCollector } from './performance-metrics';
@@ -723,7 +727,21 @@ export async function executeAgent(
     observabilityManager.startAgentExecution();
   }
 
-  const modelInstance = getProviderModel(provider, model, apiKey, baseURL);
+  const modelInstance = createFeatureProviderModelFromRuntimeConfig(
+    createFeatureRoutePolicy('general-text', {
+      featureId: 'agent-executor',
+      selectionMode: 'explicit-provider',
+      providerId: provider,
+      model,
+      fallbackMode: 'none',
+    }),
+    {
+      providerId: provider,
+      model,
+      apiKey,
+      baseURL,
+    }
+  );
   const startTime = new Date();
   const steps: AgentStep[] = [];
   const toolCallTracker = new Map<string, ToolCall>();

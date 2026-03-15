@@ -30,6 +30,7 @@ describe('GitBranchManager', () => {
   const mockOnCreateBranch = jest.fn().mockResolvedValue(true);
   const mockOnDeleteBranch = jest.fn().mockResolvedValue(true);
   const mockOnMergeBranch = jest.fn().mockResolvedValue(true);
+  const mockOnRenameBranch = jest.fn().mockResolvedValue(true);
   const mockOnRefresh = jest.fn().mockResolvedValue(undefined);
 
   beforeEach(() => {
@@ -44,6 +45,7 @@ describe('GitBranchManager', () => {
         onCheckout={mockOnCheckout}
         onCreateBranch={mockOnCreateBranch}
         onDeleteBranch={mockOnDeleteBranch}
+        onRenameBranch={mockOnRenameBranch}
         onRefresh={mockOnRefresh}
       />
     );
@@ -59,6 +61,7 @@ describe('GitBranchManager', () => {
         onCheckout={mockOnCheckout}
         onCreateBranch={mockOnCreateBranch}
         onDeleteBranch={mockOnDeleteBranch}
+        onRenameBranch={mockOnRenameBranch}
         onRefresh={mockOnRefresh}
       />
     );
@@ -76,6 +79,7 @@ describe('GitBranchManager', () => {
         onCheckout={mockOnCheckout}
         onCreateBranch={mockOnCreateBranch}
         onDeleteBranch={mockOnDeleteBranch}
+        onRenameBranch={mockOnRenameBranch}
         onRefresh={mockOnRefresh}
       />
     );
@@ -91,6 +95,7 @@ describe('GitBranchManager', () => {
         onCheckout={mockOnCheckout}
         onCreateBranch={mockOnCreateBranch}
         onDeleteBranch={mockOnDeleteBranch}
+        onRenameBranch={mockOnRenameBranch}
         onRefresh={mockOnRefresh}
       />
     );
@@ -112,6 +117,7 @@ describe('GitBranchManager', () => {
         onCheckout={mockOnCheckout}
         onCreateBranch={mockOnCreateBranch}
         onDeleteBranch={mockOnDeleteBranch}
+        onRenameBranch={mockOnRenameBranch}
         onRefresh={mockOnRefresh}
       />
     );
@@ -145,6 +151,7 @@ describe('GitBranchManager', () => {
         onCheckout={mockOnCheckout}
         onCreateBranch={mockOnCreateBranch}
         onDeleteBranch={mockOnDeleteBranch}
+        onRenameBranch={mockOnRenameBranch}
         onRefresh={mockOnRefresh}
       />
     );
@@ -161,6 +168,7 @@ describe('GitBranchManager', () => {
         onCheckout={mockOnCheckout}
         onCreateBranch={mockOnCreateBranch}
         onDeleteBranch={mockOnDeleteBranch}
+        onRenameBranch={mockOnRenameBranch}
         onRefresh={mockOnRefresh}
       />
     );
@@ -220,6 +228,7 @@ describe('GitBranchManager', () => {
         onCreateBranch={mockOnCreateBranch}
         onDeleteBranch={mockOnDeleteBranch}
         onMergeBranch={mockOnMergeBranch}
+        onRenameBranch={mockOnRenameBranch}
         onRefresh={mockOnRefresh}
       />
     );
@@ -239,6 +248,7 @@ describe('GitBranchManager', () => {
         onCheckout={mockOnCheckout}
         onCreateBranch={mockOnCreateBranch}
         onDeleteBranch={mockOnDeleteBranch}
+        onRenameBranch={mockOnRenameBranch}
         onRefresh={mockOnRefresh}
       />
     );
@@ -257,6 +267,7 @@ describe('GitBranchManager', () => {
         onCheckout={mockOnCheckout}
         onCreateBranch={mockOnCreateBranch}
         onDeleteBranch={mockOnDeleteBranch}
+        onRenameBranch={mockOnRenameBranch}
         onRefresh={mockOnRefresh}
       />
     );
@@ -272,6 +283,7 @@ describe('GitBranchManager', () => {
         onCheckout={mockOnCheckout}
         onCreateBranch={mockOnCreateBranch}
         onDeleteBranch={mockOnDeleteBranch}
+        onRenameBranch={mockOnRenameBranch}
         onRefresh={mockOnRefresh}
       />
     );
@@ -289,10 +301,30 @@ describe('GitBranchManager', () => {
         onCheckout={mockOnCheckout}
         onCreateBranch={mockOnCreateBranch}
         onDeleteBranch={mockOnDeleteBranch}
+        onRenameBranch={mockOnRenameBranch}
         onRefresh={mockOnRefresh}
       />
     );
 
     expect(screen.getByText('noBranch')).toBeInTheDocument();
+  });
+
+  it('should show rename button when onRenameBranch is provided', () => {
+    render(
+      <GitBranchManager
+        branches={mockBranches}
+        currentBranch="main"
+        onCheckout={mockOnCheckout}
+        onCreateBranch={mockOnCreateBranch}
+        onDeleteBranch={mockOnDeleteBranch}
+        onRenameBranch={mockOnRenameBranch}
+        onRefresh={mockOnRefresh}
+      />
+    );
+
+    const renameButtons = screen
+      .getAllByRole('button')
+      .filter((btn) => btn.querySelector('svg.lucide-pencil'));
+    expect(renameButtons.length).toBeGreaterThan(0);
   });
 });

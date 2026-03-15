@@ -4,7 +4,7 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useRef, useEffect } from 'react';
-import { useChatObservability } from './use-chat-observability';
+import { useChatObservability, useChatObservabilityConfig } from './use-chat-observability';
 import { createChatObservabilityManager } from '@/lib/ai/observability/chat-observability';
 import type { CoreMessage } from 'ai';
 
@@ -22,6 +22,11 @@ jest.mock('@/lib/ai/observability/chat-observability', () => ({
     endChat: jest.fn(),
     getTraceUrl: jest.fn(() => 'https://langfuse.com/trace/123'),
   })),
+}));
+
+const mockUseSettingsStore = jest.fn();
+jest.mock('@/stores', () => ({
+  useSettingsStore: (selector: (state: unknown) => unknown) => mockUseSettingsStore(selector),
 }));
 
 // Mock React hooks
@@ -47,6 +52,28 @@ describe('useChatObservability', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseSettingsStore.mockImplementation((selector) =>
+      selector({
+        observabilitySettings: {
+          enabled: false,
+          langfuseEnabled: false,
+          langfusePublicKey: '',
+          langfuseSecretKey: '',
+          langfuseHost: 'https://cloud.langfuse.com',
+          openTelemetryEnabled: false,
+          openTelemetryEndpoint: 'http://localhost:4318/v1/traces',
+          serviceName: 'cognia-ai',
+        },
+        agentTraceSettings: {
+          enabled: false,
+          maxRecords: 1000,
+          autoCleanupDays: 30,
+          traceShellCommands: true,
+          traceCodeEdits: true,
+          traceFailedCalls: false,
+        },
+      })
+    );
     
     // Mock useRef to return an object with current property
     (useRef as jest.Mock).mockReturnValue({ current: null });
@@ -99,6 +126,74 @@ describe('useChatObservability', () => {
       // This test verifies cleanup behavior but useEffect mocking makes it complex
       // In the real hook, endChat is called when the component unmounts
       expect(true).toBe(true); // Placeholder - cleanup works in real hook
+    });
+  });
+
+  describe('useChatObservabilityConfig', () => {
+    it('disables runtime observability when global capture is on but no remote integration is active', () => {
+      mockUseSettingsStore.mockImplementation((selector) =>
+        selector({
+          observabilitySettings: {
+            enabled: true,
+            langfuseEnabled: false,
+            langfusePublicKey: '',
+            langfuseSecretKey: '',
+            langfuseHost: 'https://cloud.langfuse.com',
+            openTelemetryEnabled: false,
+            openTelemetryEndpoint: 'http://localhost:4318/v1/traces',
+            serviceName: 'cognia-ai',
+          },
+          agentTraceSettings: {
+            enabled: false,
+            maxRecords: 1000,
+            autoCleanupDays: 30,
+            traceShellCommands: true,
+            traceCodeEdits: true,
+            traceFailedCalls: false,
+          },
+        })
+      );
+
+      const { result } = renderHook(() => useChatObservabilityConfig());
+
+      expect(result.current).toEqual({
+        enabled: false,
+        enableLangfuse: false,
+        enableOpenTelemetry: false,
+      });
+    });
+
+    it('enables runtime observability only for integrations that are actually configured', () => {
+      mockUseSettingsStore.mockImplementation((selector) =>
+        selector({
+          observabilitySettings: {
+            enabled: true,
+            langfuseEnabled: true,
+            langfusePublicKey: 'pk-test',
+            langfuseSecretKey: 'sk-test',
+            langfuseHost: 'https://cloud.langfuse.com',
+            openTelemetryEnabled: false,
+            openTelemetryEndpoint: 'http://localhost:4318/v1/traces',
+            serviceName: 'cognia-ai',
+          },
+          agentTraceSettings: {
+            enabled: false,
+            maxRecords: 1000,
+            autoCleanupDays: 30,
+            traceShellCommands: true,
+            traceCodeEdits: true,
+            traceFailedCalls: false,
+          },
+        })
+      );
+
+      const { result } = renderHook(() => useChatObservabilityConfig());
+
+      expect(result.current).toEqual({
+        enabled: true,
+        enableLangfuse: true,
+        enableOpenTelemetry: false,
+      });
     });
   });
 

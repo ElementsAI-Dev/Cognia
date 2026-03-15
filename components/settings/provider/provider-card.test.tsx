@@ -5,6 +5,8 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ProviderCard } from './provider-card';
 
+const mockProviderIcon = jest.fn((_props?: unknown) => <div data-testid="provider-icon" />);
+
 // Mock UI components
 jest.mock('@/components/ui/card', () => ({
   Card: ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -76,7 +78,7 @@ jest.mock('@/components/ui/separator', () => ({
 }));
 
 jest.mock('@/components/providers/ai/provider-icon', () => ({
-  ProviderIcon: () => <div data-testid="provider-icon" />,
+  ProviderIcon: (props: unknown) => mockProviderIcon(props),
 }));
 
 jest.mock('@/lib/ai/infrastructure/api-key-rotation', () => ({
@@ -97,6 +99,19 @@ const mockProvider = {
   docsUrl: 'https://platform.openai.com/docs',
 };
 
+const mockCodingProvider = {
+  id: 'zhipu',
+  name: 'Zhipu AI (智谱清言)',
+  description: 'GLM models with strong Chinese and coding-oriented options',
+  models: [
+    { id: 'glm-4-flash', name: 'GLM-4 Flash', contextLength: 128000 },
+    { id: 'glm-4.6', name: 'GLM-4.6', contextLength: 128000 },
+  ],
+  defaultModel: 'glm-4-flash',
+  dashboardUrl: 'https://open.bigmodel.cn/usercenter/apikeys',
+  docsUrl: 'https://open.bigmodel.cn/dev/howuse/introduction',
+};
+
 const mockSettings = {
   enabled: true,
   apiKey: 'sk-test-key',
@@ -113,6 +128,7 @@ describe('ProviderCard', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockProviderIcon.mockImplementation(() => <div data-testid="provider-icon" />);
   });
 
   it('renders provider name', () => {
@@ -255,5 +271,44 @@ describe('ProviderCard', () => {
     );
     // The component should show validation warning for short API keys
     expect(screen.getByTestId('collapsible-content')).toBeInTheDocument();
+  });
+
+  it('passes providerId to ProviderIcon for catalog-backed icon resolution', () => {
+    render(
+      <ProviderCard
+        provider={mockCodingProvider as unknown as Parameters<typeof ProviderCard>[0]['provider']}
+        settings={mockSettings as unknown as Parameters<typeof ProviderCard>[0]['settings']}
+        isExpanded={false}
+        onToggleExpanded={mockOnToggleExpanded}
+        onToggleEnabled={mockOnToggleEnabled}
+        onApiKeyChange={mockOnApiKeyChange}
+        onBaseURLChange={mockOnBaseURLChange}
+        onDefaultModelChange={mockOnDefaultModelChange}
+        onTestConnection={mockOnTestConnection}
+      />
+    );
+
+    expect(mockProviderIcon).toHaveBeenCalledWith(
+      expect.objectContaining({ providerId: 'zhipu', size: 24 }),
+    );
+  });
+
+  it('shows coding package guidance for providers with catalog coding recommendations', () => {
+    render(
+      <ProviderCard
+        provider={mockCodingProvider as unknown as Parameters<typeof ProviderCard>[0]['provider']}
+        settings={mockSettings as unknown as Parameters<typeof ProviderCard>[0]['settings']}
+        isExpanded={true}
+        onToggleExpanded={mockOnToggleExpanded}
+        onToggleEnabled={mockOnToggleEnabled}
+        onApiKeyChange={mockOnApiKeyChange}
+        onBaseURLChange={mockOnBaseURLChange}
+        onDefaultModelChange={mockOnDefaultModelChange}
+        onTestConnection={mockOnTestConnection}
+      />
+    );
+
+    expect(screen.getByText('Coding')).toBeInTheDocument();
+    expect(screen.getByText(/glm-4\.6/)).toBeInTheDocument();
   });
 });

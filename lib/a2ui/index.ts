@@ -179,3 +179,28 @@ export {
   createReadingListSurface,
   type AcademicTemplateType,
 } from './academic-templates';
+
+// Rich output profiles
+export {
+  RICH_OUTPUT_PROFILES,
+  listRichOutputProfiles,
+  getRichOutputProfile,
+  routeRichOutputProfile,
+  type RichOutputRequestCategory,
+  type RichOutputType,
+  type RichOutputTechnology,
+  type RichOutputHostStrategy,
+  type RichOutputRolloutTier,
+  type RichOutputProfile,
+  type RichOutputFeatureFlags,
+  type RichOutputRoutingOptions,
+  type RichOutputRoutingReason,
+  type RichOutputRoutingResult,
+} from './output-profiles';
+
+export {
+  richOutputFixtures,
+  getRichOutputFixture,
+  type RichOutputFixture,
+  type RichOutputFixtureKey,
+} from './rich-output-fixtures';

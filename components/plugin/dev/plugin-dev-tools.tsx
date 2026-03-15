@@ -138,6 +138,9 @@ export function PluginDevTools({ className }: PluginDevToolsProps) {
                     <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
                       {plugin.manifest.type}
                     </Badge>
+                    <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 capitalize">
+                      {plugin.source}
+                    </Badge>
                   </div>
                 </SelectItem>
               ))}
@@ -336,8 +339,10 @@ export function PluginDevTools({ className }: PluginDevToolsProps) {
                           {
                             id: selectedPlugin.manifest.id,
                             status: selectedPlugin.status,
+                            source: selectedPlugin.source,
                             type: selectedPlugin.manifest.type,
                             capabilities: selectedPlugin.manifest.capabilities,
+                            compatibility: selectedPlugin.descriptor?.compatibility?.status || 'compatible',
                             path: selectedPlugin.path,
                             config: selectedPlugin.config,
                             toolCount: selectedPlugin.tools?.length || 0,

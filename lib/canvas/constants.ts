@@ -145,7 +145,12 @@ export const KEYBINDING_CATEGORIES: Record<string, string[]> = {
     'navigation.nextDocument',
     'navigation.prevDocument',
   ],
-  view: ['view.toggleHistory', 'view.toggleSuggestions', 'view.toggleExecution'],
+  view: [
+    'view.toggleHistory',
+    'view.toggleSuggestions',
+    'view.toggleInlineCommand',
+    'view.toggleExecution',
+  ],
   edit: ['edit.selectAll', 'edit.copy', 'edit.cut', 'edit.paste', 'edit.duplicate', 'edit.comment'],
   fold: ['fold.foldAll', 'fold.unfoldAll', 'fold.foldLevel1', 'fold.foldLevel2'],
 };

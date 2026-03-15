@@ -132,7 +132,11 @@ export function ArtifactPanel() {
       open={panelOpen && panelView === 'artifact'}
       onOpenChange={(open) => !open && closePanel()}
     >
-      <SheetContent side="right" className={`${panelWidth} p-0 transition-all duration-200`}>
+      <SheetContent
+        side="right"
+        className={`${panelWidth} p-0 transition-all duration-200`}
+        data-testid="artifact-panel"
+      >
         <SheetTitle className="sr-only">{t('sheetTitle')}</SheetTitle>
         {activeArtifact ? (
           <Artifact className="h-full border-0 rounded-none">
@@ -181,11 +185,11 @@ export function ArtifactPanel() {
                       onValueChange={(v) => setViewMode(v as 'code' | 'preview')}
                     >
                       <TabsList className="h-8">
-                        <TabsTrigger value="code" className="text-xs px-2">
+                        <TabsTrigger data-testid="artifact-tab-code" value="code" className="text-xs px-2">
                           {t('code')}
                         </TabsTrigger>
                         {isPreviewable && (
-                          <TabsTrigger value="preview" className="text-xs px-2">
+                          <TabsTrigger data-testid="artifact-tab-preview" value="preview" className="text-xs px-2">
                             {t('preview')}
                           </TabsTrigger>
                         )}
@@ -214,6 +218,7 @@ export function ArtifactPanel() {
                       />
                     )}
                     <ArtifactAction
+                      data-testid="artifact-open-in-canvas"
                       tooltip={t('editInCanvas')}
                       icon={FileCode}
                       onClick={handleOpenInCanvas}

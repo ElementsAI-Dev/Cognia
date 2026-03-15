@@ -54,6 +54,7 @@ const standardCatalogDefinition: Omit<A2UIComponentCatalog, 'components'> & {
     'Alert',
     'Link',
     'Icon',
+    'RichOutput',
   ],
 };
 
@@ -251,7 +252,7 @@ export function getStandardComponentTypes(): A2UIComponentType[] {
  * Component type categories for organization
  */
 export const componentCategories = {
-  display: ['Text', 'Image', 'Icon', 'Badge', 'Alert', 'Progress', 'Divider', 'Spacer'] as A2UIComponentType[],
+  display: ['Text', 'Image', 'Icon', 'Badge', 'Alert', 'Progress', 'Divider', 'Spacer', 'RichOutput'] as A2UIComponentType[],
   input: ['TextField', 'TextArea', 'Select', 'Checkbox', 'Radio', 'RadioGroup', 'Slider', 'DatePicker', 'TimePicker', 'DateTimePicker'] as A2UIComponentType[],
   action: ['Button', 'Link'] as A2UIComponentType[],
   layout: ['Row', 'Column', 'Card', 'List', 'Dialog'] as A2UIComponentType[],

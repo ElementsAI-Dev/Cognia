@@ -4,27 +4,33 @@
 
 import { optimizePrompt, quickOptimize, batchOptimize, detectPromptLanguage } from './prompt-optimizer';
 import type { PromptOptimizationStyle, PromptOptimizationConfig } from '@/types/content/prompt';
+import { createFeatureProviderModelFromRuntimeConfig } from '@/lib/ai/provider-consumption';
 
 // Mock the AI SDK
 jest.mock('ai', () => ({
   generateText: jest.fn(),
 }));
 
-// Mock the client module
-jest.mock('../core/client', () => ({
-  getProviderModel: jest.fn(() => 'mock-model'),
+// Mock the shared routing contract
+jest.mock('@/lib/ai/provider-consumption', () => ({
+  createFeatureRoutePolicy: jest.fn((routeProfile, overrides) => ({
+    routeProfile,
+    selectionMode: 'default-provider',
+    ...overrides,
+  })),
+  createFeatureProviderModelFromRuntimeConfig: jest.fn(() => 'mock-model'),
 }));
 
 import { generateText } from 'ai';
-import { getProviderModel } from '../core/client';
 
 const mockGenerateText = generateText as jest.Mock;
-const mockGetProviderModel = getProviderModel as jest.Mock;
+const mockCreateFeatureProviderModelFromRuntimeConfig =
+  createFeatureProviderModelFromRuntimeConfig as jest.Mock;
 
 describe('optimizePrompt', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetProviderModel.mockReturnValue('mock-model');
+    mockCreateFeatureProviderModelFromRuntimeConfig.mockReturnValue('mock-model');
   });
 
   it('optimizes prompt successfully', async () => {
@@ -213,7 +219,17 @@ describe('optimizePrompt', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(mockGetProviderModel).toHaveBeenCalledWith('openai', 'gpt-4o-mini', 'test-api-key', undefined);
+    expect(mockCreateFeatureProviderModelFromRuntimeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeProfile: 'general-text',
+        featureId: 'prompt-optimizer',
+      }),
+      expect.objectContaining({
+        providerId: 'openai',
+        model: 'gpt-4o-mini',
+        apiKey: 'test-api-key',
+      })
+    );
   });
 
   it('passes baseURL to provider model', async () => {
@@ -235,14 +251,25 @@ describe('optimizePrompt', () => {
       baseURL: 'https://custom.api.com',
     });
 
-    expect(mockGetProviderModel).toHaveBeenCalledWith('openai', 'gpt-4o', 'test-api-key', 'https://custom.api.com');
+    expect(mockCreateFeatureProviderModelFromRuntimeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeProfile: 'general-text',
+        featureId: 'prompt-optimizer',
+      }),
+      expect.objectContaining({
+        providerId: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-api-key',
+        baseURL: 'https://custom.api.com',
+      })
+    );
   });
 });
 
 describe('quickOptimize', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetProviderModel.mockReturnValue('mock-model');
+    mockCreateFeatureProviderModelFromRuntimeConfig.mockReturnValue('mock-model');
   });
 
   it('uses quick optimize with preset config', async () => {
@@ -292,11 +319,17 @@ describe('quickOptimize', () => {
       'https://custom.api.com'
     );
 
-    expect(mockGetProviderModel).toHaveBeenCalledWith(
-      'openai',
-      'gpt-4o',
-      'test-api-key',
-      'https://custom.api.com'
+    expect(mockCreateFeatureProviderModelFromRuntimeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeProfile: 'general-text',
+        featureId: 'prompt-optimizer',
+      }),
+      expect.objectContaining({
+        providerId: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-api-key',
+        baseURL: 'https://custom.api.com',
+      })
     );
   });
 });
@@ -304,7 +337,7 @@ describe('quickOptimize', () => {
 describe('batchOptimize', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetProviderModel.mockReturnValue('mock-model');
+    mockCreateFeatureProviderModelFromRuntimeConfig.mockReturnValue('mock-model');
   });
 
   it('optimizes multiple prompts', async () => {
@@ -431,11 +464,17 @@ describe('batchOptimize', () => {
       'https://custom.api.com'
     );
 
-    expect(mockGetProviderModel).toHaveBeenCalledWith(
-      'openai',
-      'gpt-4o',
-      'test-api-key',
-      'https://custom.api.com'
+    expect(mockCreateFeatureProviderModelFromRuntimeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeProfile: 'general-text',
+        featureId: 'prompt-optimizer',
+      }),
+      expect.objectContaining({
+        providerId: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-api-key',
+        baseURL: 'https://custom.api.com',
+      })
     );
   });
 });

@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { GitSettings } from './git-settings';
 import type { GitConfig } from '@/types/system/git';
 import type { GitState, GitActions } from '@/stores/git/git-store';
@@ -54,7 +54,15 @@ jest.mock('@/stores/git', () => ({
         intervalMinutes: 15,
       },
       setAutoCommitConfig: mockSetAutoCommitConfig,
-      trackedRepos: ['/path/to/repo'],
+      trackedRepos: [
+        {
+          path: '/path/to/repo',
+          displayName: 'repo',
+          source: 'manual',
+          lastOpenedAt: '2026-03-14T00:00:00.000Z',
+          linkedProjectIds: [],
+        },
+      ],
     } as unknown as GitState & GitActions),
 }));
 
@@ -157,6 +165,12 @@ jest.mock('@/components/ui/select', () => ({
 }));
 
 describe('GitSettings', () => {
+  const renderGitSettings = async () => {
+    await act(async () => {
+      render(<GitSettings />);
+    });
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockIsInstalled = true;
@@ -168,7 +182,7 @@ describe('GitSettings', () => {
   });
 
   it('renders installation status when installed', async () => {
-    render(<GitSettings />);
+    await renderGitSettings();
 
     expect(screen.getByText('installation.title')).toBeInTheDocument();
     expect(screen.getByText('installation.installed')).toBeInTheDocument();
@@ -188,8 +202,8 @@ describe('GitSettings', () => {
     expect(screen.getByText('installation.install')).toBeInTheDocument();
   });
 
-  it('calls checkGitInstalled when refresh button clicked', () => {
-    render(<GitSettings />);
+  it('calls checkGitInstalled when refresh button clicked', async () => {
+    await renderGitSettings();
     // The refresh button is the first button in the first card header
     const buttons = screen.getAllByTestId('button');
     fireEvent.click(buttons[0]);
@@ -197,7 +211,7 @@ describe('GitSettings', () => {
   });
 
   it('config section loads and displays user info', async () => {
-    render(<GitSettings />);
+    await renderGitSettings();
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('Test User')).toBeInTheDocument();
@@ -206,7 +220,7 @@ describe('GitSettings', () => {
   });
 
   it('updates config when save button clicked', async () => {
-    render(<GitSettings />);
+    await renderGitSettings();
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('Test User')).toBeInTheDocument();
@@ -227,8 +241,8 @@ describe('GitSettings', () => {
     });
   });
 
-  it('handles auto-commit toggle', () => {
-    render(<GitSettings />);
+  it('handles auto-commit toggle', async () => {
+    await renderGitSettings();
 
     expect(screen.getByText('autoCommit.title')).toBeInTheDocument();
 
@@ -240,8 +254,8 @@ describe('GitSettings', () => {
     expect(mockSetAutoCommitConfig).toHaveBeenCalledWith({ enabled: false });
   });
 
-  it('renders tracked repos list', () => {
-    render(<GitSettings />);
+  it('renders tracked repos list', async () => {
+    await renderGitSettings();
     expect(screen.getByText('trackedRepos.title')).toBeInTheDocument();
     expect(screen.getByText('/path/to/repo')).toBeInTheDocument();
   });

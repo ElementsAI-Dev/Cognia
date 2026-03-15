@@ -22,6 +22,10 @@ import {
   logProxyStatus,
 } from './proxy-client';
 import { loggers } from '@/lib/logger';
+import {
+  getLegacyProviderFacadeDiagnostics,
+  resetLegacyProviderFacadeDiagnostics,
+} from '@/lib/ai/provider-consumption';
 
 // Mock proxy-fetch module
 jest.mock('@/lib/network/proxy-fetch', () => ({
@@ -59,6 +63,7 @@ jest.mock('@ai-sdk/mistral', () => ({
 describe('proxy-client', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    resetLegacyProviderFacadeDiagnostics();
   });
 
   describe('createProxyOpenAIClient', () => {
@@ -225,6 +230,22 @@ describe('proxy-client', () => {
   });
 
   describe('getProxyProviderModel', () => {
+    it('records migration diagnostics for proxy model lookups', () => {
+      getProxyProviderModel('openai', 'gpt-4o', 'test-key');
+
+      expect(getLegacyProviderFacadeDiagnostics()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            facadeId: 'core/proxy-client',
+            helperName: 'getProxyProviderModel',
+            providerId: 'openai',
+            routeProfile: 'legacy-compat',
+            count: 1,
+          }),
+        ])
+      );
+    });
+
     it('should get OpenAI model with proxy', () => {
       const model = getProxyProviderModel('openai', 'gpt-4o', 'test-key');
 

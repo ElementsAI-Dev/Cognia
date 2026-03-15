@@ -137,6 +137,27 @@ def hello():
       expect(result.current[0].language).toBe('javascript');
       expect(result.current[1].language).toBe('python');
     });
+
+    it('should detect standalone math artifacts through the shared detector pipeline', () => {
+      const content = `
+Here is a derivation:
+
+$$
+\\frac{1}{2}
++
+\\frac{1}{3}
+$$
+`;
+      const { result } = renderHook(() => useArtifactDetection(content, { minCodeLength: 10 }));
+      expect(result.current).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'math',
+            title: 'Math Expression',
+          }),
+        ])
+      );
+    });
   });
 
   describe('minCodeLength option', () => {

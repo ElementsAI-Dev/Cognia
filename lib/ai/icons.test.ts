@@ -54,6 +54,13 @@ describe('getProviderIconPath', () => {
     expect(getProviderIconPath('anthropic')).toBe('/icons/providers/anthropic.svg');
   });
 
+  it('prefers local assets for zhipu and minimax', () => {
+    expect(hasLocalProviderIcon('zhipu')).toBe(true);
+    expect(hasLocalProviderIcon('minimax')).toBe(true);
+    expect(getProviderIconPath('zhipu')).toBe('/icons/providers/zhipu.png');
+    expect(getProviderIconPath('minimax')).toBe('/icons/providers/minimax.png');
+  });
+
   it('returns CDN URL for unknown providers', () => {
     const path = getProviderIconPath('some-new-provider');
     expect(path).toContain('https://models.dev/logos/');

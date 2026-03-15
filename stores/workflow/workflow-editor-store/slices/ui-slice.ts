@@ -11,9 +11,12 @@ export const uiSliceInitialState: UISliceState = {
   showExecutionPanel: false,
   showMinimap: true,
   activeConfigTab: 'properties',
+  activeInspectorSection: 'config',
   searchQuery: '',
   recentNodes: [],
   favoriteNodes: [],
+  insertionIntent: null,
+  executionFocus: null,
 };
 
 export const createUISlice: SliceCreator<UISliceActions> = (set) => {
@@ -38,6 +41,10 @@ export const createUISlice: SliceCreator<UISliceActions> = (set) => {
       set({ activeConfigTab: tab });
     },
 
+    setActiveInspectorSection: (section) => {
+      set({ activeInspectorSection: section });
+    },
+
     setSearchQuery: (query) => {
       set({ searchQuery: query });
     },
@@ -54,6 +61,22 @@ export const createUISlice: SliceCreator<UISliceActions> = (set) => {
           ? state.favoriteNodes.filter((t) => t !== type)
           : [...state.favoriteNodes, type],
       }));
+    },
+
+    setInsertionIntent: (intent) => {
+      set({ insertionIntent: intent });
+    },
+
+    clearInsertionIntent: () => {
+      set({ insertionIntent: null });
+    },
+
+    setExecutionFocus: (focus) => {
+      set({ executionFocus: focus });
+    },
+
+    clearExecutionFocus: () => {
+      set({ executionFocus: null });
     },
   };
 };

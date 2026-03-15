@@ -77,6 +77,7 @@ import type {
   ProviderConfig,
   UserProviderSettings,
 } from '@/types/provider';
+import { getBuiltInProviderCodingPackage } from '@/types/provider/built-in-provider-catalog';
 import { maskApiKey, isValidApiKeyFormat } from '@/lib/ai/infrastructure/api-key-rotation';
 import { ModelListDialog } from './model-list-dialog';
 import { ModelSettingsDialog } from './model-settings-dialog';
@@ -86,6 +87,8 @@ interface TestResult {
   success: boolean;
   message: string;
   latency?: number;
+  outcome?: 'verified' | 'failed' | 'limited';
+  authoritative?: boolean;
 }
 
 // Sortable API Key Item for drag-and-drop reordering
@@ -272,6 +275,7 @@ export const ProviderCard = React.memo(function ProviderCard({
 
   const modelsCount = provider.models?.length || 0;
   const defaultModel = settings.defaultModel || provider.defaultModel;
+  const codingPackage = getBuiltInProviderCodingPackage(provider.id);
 
   // DnD sensors for API key reordering (must be at top level)
   const sensors = useSensors(
@@ -319,7 +323,15 @@ export const ProviderCard = React.memo(function ProviderCard({
         </Badge>
       );
     }
-    if (testResult?.success) {
+    if (testResult?.outcome === 'limited') {
+      return (
+        <Badge variant="outline" className="h-6 text-xs gap-1 text-amber-600 border-amber-400">
+          <AlertCircle className="h-3 w-3" />
+          {t('verificationLimitedShort') || 'Limited'}
+        </Badge>
+      );
+    }
+    if (testResult?.success && testResult.authoritative !== false) {
       return (
         <Badge variant="default" className="h-6 text-xs gap-1 bg-green-600">
           <Check className="h-3 w-3" />
@@ -369,7 +381,7 @@ export const ProviderCard = React.memo(function ProviderCard({
                 {/* Provider Icon */}
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
                   <ProviderIcon
-                    icon={`/icons/providers/${provider.id}.svg`}
+                    providerId={provider.id}
                     size={24}
                   />
                 </div>
@@ -381,11 +393,21 @@ export const ProviderCard = React.memo(function ProviderCard({
                     <Badge variant="secondary" className="text-[10px] h-5">
                       {modelsCount} {t('models') || 'models'}
                     </Badge>
+                    {codingPackage && (
+                      <Badge variant="outline" className="text-[10px] h-5">
+                        {codingPackage.label}
+                      </Badge>
+                    )}
                     {getStatusBadge()}
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-1">
                     {provider.description || t(`${provider.id}Description`) || 'AI provider'}
                   </p>
+                  {codingPackage && (
+                    <p className="text-xs text-muted-foreground">
+                      {codingPackage.label}: {codingPackage.defaultModel}
+                    </p>
+                  )}
                   {!settings.enabled && enableToggleDisabled && enableToggleDisabledReason && (
                     <p className="text-xs text-amber-600 mt-1">{enableToggleDisabledReason}</p>
                   )}

@@ -5,12 +5,21 @@
 import {
   artifactTools,
   artifactCreateTool,
+  artifactCreateInputSchema,
   artifactDeleteTool,
   executeArtifactCreate,
   executeArtifactRead,
   executeArtifactSearch,
   executeArtifactDelete,
 } from './artifact-tool';
+
+const mockCreateArtifact = jest.fn((params: Record<string, unknown>) => ({
+  id: 'new-artifact-id',
+  ...params,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  version: 1,
+}));
 
 const mockArtifacts = {
   'test-artifact-1': {
@@ -37,13 +46,7 @@ jest.mock('@/stores', () => ({
   useArtifactStore: {
     getState: jest.fn(() => ({
       artifacts: mockArtifacts,
-      createArtifact: jest.fn((params: Record<string, unknown>) => ({
-        id: 'new-artifact-id',
-        ...params,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        version: 1,
-      })),
+      createArtifact: mockCreateArtifact,
       updateArtifact: jest.fn(),
       deleteArtifact: jest.fn(),
       setActiveArtifact: jest.fn(),
@@ -107,6 +110,55 @@ describe('Artifact Tools', () => {
         message: expect.stringContaining('Created code artifact'),
         artifactId: 'new-artifact-id',
       });
+    });
+
+    it('accepts output-profile metadata and forwards it to artifact creation', async () => {
+      const parsed = artifactCreateInputSchema.safeParse({
+        title: 'Trend Chart',
+        content: '{"labels":["Jan"],"datasets":[{"label":"Users","data":[10]}]}',
+        type: 'chart',
+        outputProfileId: 'trends-over-time',
+        technology: 'chartjs',
+        hostStrategy: 'lazy-runtime',
+        autoRender: false,
+      });
+
+      expect(parsed.success).toBe(true);
+      if (!parsed.success) {
+        throw new Error('Expected artifact create input to parse successfully');
+      }
+
+      await executeArtifactCreate(parsed.data);
+
+      expect(mockCreateArtifact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            outputProfileId: 'trends-over-time',
+            technology: 'chartjs',
+            hostStrategy: 'lazy-runtime',
+          }),
+        })
+      );
+    });
+
+    it('adds deterministic source metadata for tool-created artifacts', async () => {
+      await executeArtifactCreate({
+        title: 'Tool Artifact',
+        content: 'const value = 1;',
+        type: 'code',
+        language: 'typescript',
+        autoRender: false,
+      });
+
+      expect(mockCreateArtifact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            sourceOrigin: 'tool',
+            userInitiated: true,
+            sourceFingerprint: expect.any(String),
+          }),
+        })
+      );
     });
   });
 
@@ -211,6 +263,22 @@ describe('Artifact Tools', () => {
 
     it('should require approval', () => {
       expect(artifactDeleteTool.requiresApproval).toBe(true);
+    });
+  });
+
+  describe('executeArtifactExport', () => {
+    it('reports unsupported export formats explicitly', async () => {
+      const result = await import('./artifact-tool').then(({ executeArtifactExport }) =>
+        executeArtifactExport({
+          artifactId: 'test-artifact-1',
+          format: 'pdf',
+        })
+      );
+
+      expect(result).toMatchObject({
+        success: false,
+        message: expect.stringContaining('not supported'),
+      });
     });
   });
 });

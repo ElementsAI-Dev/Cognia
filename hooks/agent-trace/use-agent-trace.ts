@@ -9,10 +9,22 @@ import { useState, useCallback, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import Dexie from 'dexie';
 import { db, type DBAgentTrace } from '@/lib/db';
-import { agentTraceRepository } from '@/lib/db/repositories/agent-trace-repository';
+import {
+  agentTraceRepository,
+  type AgentTraceObservationBundle,
+} from '@/lib/db/repositories/agent-trace-repository';
 import type { LineAttribution } from '@/lib/db/repositories/agent-trace-repository';
 import { useSettingsStore } from '@/stores/settings';
-import type { AgentTraceEventType, AgentTraceRecord } from '@/types/agent-trace';
+import type {
+  AgentTraceEventType,
+  AgentTraceObservationOutcome,
+  AgentTraceObservationRow,
+  AgentTraceRecord,
+} from '@/types/agent-trace';
+import {
+  deriveObservationFromDbTrace,
+  matchesObservationFilters,
+} from '@/lib/agent-trace/observation';
 
 export interface UseAgentTraceOptions {
   /** Filter by session ID */
@@ -23,6 +35,14 @@ export interface UseAgentTraceOptions {
   vcsRevision?: string;
   /** Filter by event type */
   eventType?: AgentTraceEventType;
+  /** Filter by derived outcome */
+  outcome?: AgentTraceObservationOutcome;
+  /** Filter by tool name */
+  toolName?: string;
+  /** Filter by trace correlation */
+  traceId?: string;
+  /** Filter by turn correlation */
+  turnId?: string;
   /** Maximum number of records to return */
   limit?: number;
   /** Enable auto-refresh */
@@ -35,6 +55,8 @@ export type { LineAttribution };
 export interface UseAgentTraceReturn {
   /** List of trace records */
   traces: DBAgentTrace[];
+  /** Parse-safe observation rows for UI/workspace consumption */
+  observations: AgentTraceObservationRow[];
   /** Loading state */
   isLoading: boolean;
   /** Error state */
@@ -68,10 +90,12 @@ export interface UseAgentTraceReturn {
   }>;
   /** Export as spec-compliant merged record */
   exportAsSpecRecord: () => Promise<AgentTraceRecord | null>;
+  /** Export enriched observation bundle */
+  exportObservationBundle: () => Promise<AgentTraceObservationBundle>;
 }
 
 export function useAgentTrace(options: UseAgentTraceOptions = {}): UseAgentTraceReturn {
-  const { sessionId, filePath, vcsRevision, eventType, limit = 200 } = options;
+  const { sessionId, filePath, vcsRevision, eventType, outcome, toolName, traceId, turnId, limit = 200 } = options;
 
   const [refreshTick, setRefreshTick] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -115,46 +139,41 @@ export function useAgentTrace(options: UseAgentTraceOptions = {}): UseAgentTrace
   );
 
   // Filter by file path if provided
+  const observations = useMemo(() => {
+    return queryResult
+      .map((trace) => deriveObservationFromDbTrace(trace))
+      .filter((row) =>
+        matchesObservationFilters(row, {
+          sessionId: trimmedSessionId || undefined,
+          filePath: trimmedFilePath || undefined,
+          vcsRevision: trimmedVcsRevision || undefined,
+          eventType,
+          outcome,
+          toolName,
+          traceId,
+          turnId,
+        })
+      );
+  }, [
+    eventType,
+    outcome,
+    queryResult,
+    toolName,
+    traceId,
+    trimmedFilePath,
+    trimmedSessionId,
+    trimmedVcsRevision,
+    turnId,
+  ]);
+
   const traces = useMemo(() => {
-    if (!trimmedFilePath && !eventType && !trimmedVcsRevision) return queryResult;
+    if (observations.length === queryResult.length) {
+      return queryResult;
+    }
 
-    return queryResult.filter((trace) => {
-      let parsed: AgentTraceRecord | null = null;
-      const getRecord = () => {
-        if (parsed) return parsed;
-        try {
-          parsed = JSON.parse(trace.record) as AgentTraceRecord;
-          return parsed;
-        } catch {
-          return null;
-        }
-      };
-
-      if (trimmedVcsRevision) {
-        const revision = trace.vcsRevision || getRecord()?.vcs?.revision;
-        if (revision !== trimmedVcsRevision) return false;
-      }
-
-      if (trimmedFilePath) {
-        const filePaths = trace.filePaths ?? [];
-        const matchesIndexed = filePaths.some((path) => path.toLowerCase().includes(trimmedFilePath));
-        if (!matchesIndexed) {
-          const record = getRecord();
-          const recordPaths = record?.files?.map((file) => file.path?.toLowerCase() || '') ?? [];
-          if (!recordPaths.some((path) => path.includes(trimmedFilePath))) {
-            return false;
-          }
-        }
-      }
-
-      if (eventType) {
-        const record = getRecord();
-        if (!record || record.eventType !== eventType) return false;
-      }
-
-      return true;
-    });
-  }, [queryResult, trimmedFilePath, eventType, trimmedVcsRevision]);
+    const matchingIds = new Set(observations.map((row) => row.id));
+    return queryResult.filter((trace) => matchingIds.has(trace.id));
+  }, [observations, queryResult]);
 
   // Get total count
   const totalCount = useLiveQuery(
@@ -304,6 +323,37 @@ export function useAgentTrace(options: UseAgentTraceOptions = {}): UseAgentTrace
     }
   }, [trimmedSessionId, setError]);
 
+  const exportObservationBundle = useCallback(async (): Promise<AgentTraceObservationBundle> => {
+    try {
+      return await agentTraceRepository.exportObservationBundle({
+        sessionId: trimmedSessionId || undefined,
+        filePath: trimmedFilePath || undefined,
+        vcsRevision: trimmedVcsRevision || undefined,
+        eventType,
+        outcome,
+        toolName,
+        traceId,
+        turnId,
+        limit,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to export observation bundle';
+      setError(message);
+      throw err;
+    }
+  }, [
+    eventType,
+    limit,
+    outcome,
+    setError,
+    toolName,
+    traceId,
+    trimmedFilePath,
+    trimmedSessionId,
+    trimmedVcsRevision,
+    turnId,
+  ]);
+
   // Find attribution using git blame + agent trace (per spec section 6.5)
   const findLineAttributionWithBlame = useCallback(
     async (filePathToFind: string, lineNumber: number) => {
@@ -320,6 +370,7 @@ export function useAgentTrace(options: UseAgentTraceOptions = {}): UseAgentTrace
 
   return {
     traces,
+    observations,
     isLoading: queryResult === undefined,
     error,
     totalCount: totalCount ?? 0,
@@ -335,6 +386,7 @@ export function useAgentTrace(options: UseAgentTraceOptions = {}): UseAgentTrace
     findLineAttribution,
     findLineAttributionWithBlame,
     exportAsSpecRecord,
+    exportObservationBundle,
   };
 }
 

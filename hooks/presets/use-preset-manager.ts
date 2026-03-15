@@ -5,7 +5,7 @@
  * business logic from UI rendering.
  */
 
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { usePresetStore, useSettingsStore } from '@/stores';
 import { toast } from '@/components/ui/sonner';
 import { loggers } from '@/lib/logger';
@@ -21,11 +21,18 @@ import type { Preset, PresetCategory } from '@/types/content/preset';
 
 interface UsePresetManagerOptions {
   onSelectPreset?: (preset: Preset) => void;
+  initialEditPresetId?: string | null;
+  openCreateOnMount?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   t: (key: string, values?: any) => string;
 }
 
-export function usePresetManager({ onSelectPreset, t }: UsePresetManagerOptions) {
+export function usePresetManager({
+  onSelectPreset,
+  initialEditPresetId,
+  openCreateOnMount = false,
+  t,
+}: UsePresetManagerOptions) {
   const [search, setSearch] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editPreset, setEditPreset] = useState<Preset | null>(null);
@@ -35,6 +42,7 @@ export function usePresetManager({ onSelectPreset, t }: UsePresetManagerOptions)
   const [isGenerating, setIsGenerating] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<PresetCategory | 'all'>('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const initialActionRef = useRef<string | null>(null);
 
   // Store
   const presets = usePresetStore((state) => state.presets);
@@ -55,6 +63,32 @@ export function usePresetManager({ onSelectPreset, t }: UsePresetManagerOptions)
     if (categoryFilter === 'all') return base;
     return base.filter((p) => p.category === categoryFilter);
   }, [search, searchPresets, presets, categoryFilter]);
+
+  useEffect(() => {
+    const actionKey = initialEditPresetId
+      ? `edit:${initialEditPresetId}`
+      : openCreateOnMount
+        ? 'create'
+        : null;
+
+    if (!actionKey || initialActionRef.current === actionKey) {
+      return;
+    }
+
+    if (initialEditPresetId) {
+      const preset = presets.find((item) => item.id === initialEditPresetId) ?? null;
+      if (preset) {
+        setEditPreset(preset);
+        setCreateDialogOpen(true);
+        initialActionRef.current = actionKey;
+      }
+      return;
+    }
+
+    setEditPreset(null);
+    setCreateDialogOpen(true);
+    initialActionRef.current = actionKey;
+  }, [initialEditPresetId, openCreateOnMount, presets]);
 
   // Actions
   const handleSelect = useCallback(

@@ -304,25 +304,26 @@ describe('useImageGeneration', () => {
   });
 
   describe('missing API key', () => {
-    beforeEach(() => {
-      jest.resetModules();
-    });
+    it('should return shared blocked guidance when API key is missing', async () => {
+      const stores = jest.requireMock('@/stores');
+      stores.useSettingsStore.mockImplementation((selector: (state: unknown) => unknown) => {
+        const state = {
+          providerSettings: {
+            openai: { apiKey: '' },
+          },
+        };
+        return selector(state);
+      });
 
-    it('should return error when API key is missing', async () => {
-      // Re-mock with empty API key
-      jest.doMock('@/stores', () => ({
-        useSettingsStore: jest.fn((selector) => {
-          const state = {
-            providerSettings: {
-              openai: { apiKey: '' },
-            },
-          };
-          return selector(state);
-        }),
-      }));
+      const { result } = renderHook(() => useImageGeneration());
 
-      // This test verifies the hook handles missing API key
-      // The actual behavior depends on the store mock setup
+      let generatedImages;
+      await act(async () => {
+        generatedImages = await result.current.generate('Test image');
+      });
+
+      expect(generatedImages).toBeNull();
+      expect(result.current.error).toBe('Add an API key before using this provider at runtime.');
     });
   });
 });

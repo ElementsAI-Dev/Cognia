@@ -86,4 +86,68 @@ describe('PromptTemplateEditor', () => {
 
     expect(screen.getByText('Template save failed')).toBeInTheDocument();
   });
+
+  it('saves a draft on cancel and shows workflow hints for linked templates', async () => {
+    const onSubmit = jest.fn();
+    const onSaveDraft = jest.fn();
+    const onCancel = jest.fn();
+    const user = userEvent.setup();
+
+    const template: PromptTemplate = {
+      id: 'linked-1',
+      name: 'Linked Prompt',
+      description: '',
+      content: 'Hello {{name}}',
+      category: 'chat',
+      tags: ['marketplace'],
+      variables: [{ name: 'name', required: true, type: 'text' }],
+      targets: ['chat'],
+      source: 'imported',
+      meta: {
+        marketplace: {
+          marketplaceId: 'market-1',
+          linkageType: 'installed',
+          installedVersion: '1.0.0',
+          latestVersion: '2.0.0',
+          baseline: {
+            version: '1.0.0',
+            name: 'Linked Prompt',
+            description: '',
+            content: 'Original content',
+            category: 'chat',
+            tags: ['marketplace'],
+            variables: [{ name: 'name', required: true, type: 'text' }],
+            targets: ['chat'],
+            capturedAt: '2026-03-14T00:00:00.000Z',
+          },
+        },
+      },
+      usageCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    render(
+      <PromptTemplateEditor
+        template={template}
+        categories={categories}
+        onSubmit={onSubmit}
+        onSaveDraft={onSaveDraft}
+        onCancel={onCancel}
+      />
+    );
+
+    await user.type(screen.getByLabelText('Content'), ' updated');
+    expect(screen.getByText('Publish blocked')).toBeInTheDocument();
+    expect(screen.getByText(/restricted-update/i)).toBeInTheDocument();
+
+    await user.click(screen.getByText('Cancel'));
+
+    expect(onSaveDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringContaining('updated'),
+      })
+    );
+    expect(onCancel).toHaveBeenCalled();
+  });
 });

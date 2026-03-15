@@ -571,4 +571,145 @@ describe('agentTraceRepository', () => {
       expect(stats.totalTokens).toBe(800);
     });
   });
+
+  describe('observation rows', () => {
+    it('derives parse-safe observation rows with correlation metadata', async () => {
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'obs-1',
+          timestamp: new Date('2026-03-14T08:00:00.000Z').toISOString(),
+          eventType: 'tool_call_result',
+          traceId: 'trace-1',
+          turnId: 'turn-1',
+          files: [{ path: '/src/file.ts', conversations: [] }],
+          metadata: {
+            sessionId: 'session-obs',
+            toolName: 'file_write',
+            success: false,
+            error: 'write failed',
+            responsePreview: 'denied',
+            agentId: 'agent-1',
+            agentName: 'Agent One',
+            acpSessionId: 'acp-1',
+          },
+        },
+        sessionId: 'session-obs',
+      });
+
+      await db.agentTraces.add({
+        id: 'obs-malformed',
+        sessionId: 'session-obs',
+        timestamp: new Date('2026-03-14T08:01:00.000Z'),
+        record: '{"version":"0.1.0","id":"broken"',
+        createdAt: new Date('2026-03-14T08:01:00.000Z'),
+      });
+
+      const rows = await agentTraceRepository.getObservationRows({ sessionId: 'session-obs' });
+
+      expect(rows).toHaveLength(2);
+      expect(rows[0]).toMatchObject({
+        id: 'obs-malformed',
+        parseStatus: 'degraded',
+        eventType: 'parse_error',
+        outcome: 'error',
+        sessionId: 'session-obs',
+      });
+      expect(rows[1]).toMatchObject({
+        id: 'obs-1',
+        parseStatus: 'ok',
+        eventType: 'tool_call_result',
+        outcome: 'error',
+        toolName: 'file_write',
+        error: 'write failed',
+        responsePreview: 'denied',
+        correlation: {
+          traceId: 'trace-1',
+          turnId: 'turn-1',
+          agentId: 'agent-1',
+          agentName: 'Agent One',
+          externalSessionId: 'acp-1',
+        },
+      });
+    });
+
+    it('filters observation rows by outcome, tool name, and correlation fields', async () => {
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'obs-success',
+          timestamp: new Date('2026-03-14T09:00:00.000Z').toISOString(),
+          eventType: 'tool_call_result',
+          traceId: 'trace-success',
+          turnId: 'turn-success',
+          files: [],
+          metadata: {
+            sessionId: 'session-filter',
+            toolName: 'file_write',
+            success: true,
+          },
+        },
+        sessionId: 'session-filter',
+      });
+
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'obs-error',
+          timestamp: new Date('2026-03-14T09:01:00.000Z').toISOString(),
+          eventType: 'tool_call_result',
+          traceId: 'trace-error',
+          turnId: 'turn-error',
+          files: [],
+          metadata: {
+            sessionId: 'session-filter',
+            toolName: 'code_edit',
+            success: false,
+            error: 'edit failed',
+          },
+        },
+        sessionId: 'session-filter',
+      });
+
+      const rows = await agentTraceRepository.getObservationRows({
+        outcome: 'error',
+        toolName: 'code',
+        traceId: 'trace-error',
+        turnId: 'turn-error',
+      });
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].id).toBe('obs-error');
+    });
+
+    it('exports enriched observation bundle with filters and session summaries', async () => {
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'bundle-1',
+          timestamp: new Date('2026-03-14T10:00:00.000Z').toISOString(),
+          eventType: 'response',
+          files: [],
+          metadata: {
+            sessionId: 'session-bundle',
+            success: true,
+            responsePreview: 'completed',
+            tokenUsage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+          },
+        },
+        sessionId: 'session-bundle',
+      });
+
+      const bundle = await agentTraceRepository.exportObservationBundle({
+        sessionId: 'session-bundle',
+      });
+
+      expect(bundle.filters).toMatchObject({ sessionId: 'session-bundle' });
+      expect(bundle.rows).toHaveLength(1);
+      expect(bundle.rows[0].id).toBe('bundle-1');
+      expect(bundle.sessionSummaries).toHaveLength(1);
+      expect(bundle.sessionSummaries[0].sessionId).toBe('session-bundle');
+      expect(bundle.parseFailureCount).toBe(0);
+    });
+  });
 });

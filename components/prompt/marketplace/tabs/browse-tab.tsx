@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from '@/components/ui/empty';
+import { cn } from '@/lib/utils';
 import type { MarketplacePrompt } from '@/types/content/prompt-marketplace';
 import { PromptMarketplaceCard } from '../prompt-marketplace-card';
 
@@ -46,12 +47,13 @@ export function BrowseTab({
   onClearFilters,
 }: BrowseTabProps) {
   const t = useTranslations('promptMarketplace');
+  const browseGridClasses = cn('prompt-marketplace-card-grid min-w-0', gridClasses);
 
   return (
-    <>
+    <div data-testid="prompt-marketplace-browse-tab-root" className="flex min-w-0 flex-col gap-6">
       {/* Featured Section (only when no filters) */}
       {!hasActiveFilters && featuredPrompts.length > 0 && (
-        <section className="space-y-4">
+        <section data-testid="prompt-marketplace-section-featured" className="space-y-4 min-w-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-gradient-to-br from-yellow-500/20 to-amber-500/20 text-yellow-600 dark:text-yellow-500 shadow-sm">
@@ -68,7 +70,7 @@ export function BrowseTab({
               {featuredPrompts.length} {t('common.prompts')}
             </Badge>
           </div>
-          <div className={gridClasses}>
+          <div data-testid="prompt-marketplace-featured-grid" className={browseGridClasses}>
             {featuredPrompts.map((prompt, index) => (
               <PromptMarketplaceCard
                 key={prompt.id}
@@ -85,7 +87,7 @@ export function BrowseTab({
 
       {/* Trending Section (only when no filters) */}
       {!hasActiveFilters && trendingPrompts.length > 0 && (
-        <section className="space-y-4">
+        <section data-testid="prompt-marketplace-section-trending" className="space-y-4 min-w-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20 text-orange-600 dark:text-orange-500 shadow-sm">
@@ -102,7 +104,7 @@ export function BrowseTab({
               {t('common.thisWeek')}
             </Badge>
           </div>
-          <div className={gridClasses}>
+          <div data-testid="prompt-marketplace-trending-grid" className={browseGridClasses}>
             {trendingPrompts.slice(0, 8).map((prompt) => (
               <PromptMarketplaceCard
                 key={prompt.id}
@@ -117,7 +119,7 @@ export function BrowseTab({
       )}
 
       {/* All/Filtered Prompts */}
-      <section className="space-y-4">
+      <section data-testid="prompt-marketplace-section-results" className="space-y-4 min-w-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 text-blue-600 dark:text-blue-500 shadow-sm">
@@ -152,7 +154,7 @@ export function BrowseTab({
         </div>
 
         {isLoading ? (
-          <div className={gridClasses}>
+          <div data-testid="prompt-marketplace-results-grid" className={browseGridClasses}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
               <div key={i} className="space-y-3">
                 <Skeleton className="h-[200px] rounded-xl" />
@@ -165,7 +167,7 @@ export function BrowseTab({
           </div>
         ) : displayPrompts.length > 0 ? (
           <div className="space-y-6">
-            <div className={gridClasses}>
+            <div data-testid="prompt-marketplace-results-grid" className={browseGridClasses}>
               {paginatedPrompts.map((prompt) => (
                 <PromptMarketplaceCard
                   key={prompt.id}
@@ -209,6 +211,6 @@ export function BrowseTab({
           </Empty>
         )}
       </section>
-    </>
+    </div>
   );
 }

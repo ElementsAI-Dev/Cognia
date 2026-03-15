@@ -32,6 +32,8 @@ jest.mock('@/stores', () => ({
     const state = {
       templates: [],
       categories: [],
+      isInitialized: true,
+      draftSessions: {},
       operationStates: {},
       createTemplate: jest.fn(),
       updateTemplate: jest.fn(),
@@ -50,6 +52,8 @@ jest.mock('@/stores', () => ({
       }),
       exportTemplates: jest.fn().mockReturnValue({ ok: true, code: 'OK', data: { json: '[]', count: 0 } }),
       initializeDefaults: jest.fn(),
+      saveDraftSession: jest.fn(),
+      restoreDraftSession: jest.fn(),
     };
     return selector(state);
   },

@@ -3,3 +3,4 @@
  */
 
 export * from './rich-markdown';
+export * from './portable-chat-archive';

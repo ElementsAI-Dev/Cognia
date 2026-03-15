@@ -42,6 +42,11 @@ export function useCanvasKeyboardShortcuts({
 
       // Check keybinding store first
       const boundAction = getActionByKeybinding(keyCombo);
+      if (boundAction === 'view.toggleInlineCommand') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('canvas-inline-command'));
+        return;
+      }
       if (boundAction && boundAction.startsWith('action.')) {
         const actionType = boundAction.replace('action.', '');
         const action = CANVAS_ACTIONS.find((a) => a.type === actionType);
@@ -54,6 +59,12 @@ export function useCanvasKeyboardShortcuts({
       }
 
       // Fallback to default key mapping
+      if (keyCombo === 'Ctrl+K') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('canvas-inline-command'));
+        return;
+      }
+
       const actionType = DEFAULT_KEY_ACTION_MAP[e.key.toLowerCase()];
       if (actionType) {
         const action = CANVAS_ACTIONS.find((a) => a.type === actionType);

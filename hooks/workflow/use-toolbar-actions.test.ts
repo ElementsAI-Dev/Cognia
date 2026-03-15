@@ -169,6 +169,7 @@ describe('useToolbarActions', () => {
 
     it('should compute canStop correctly', () => {
       mockStore.isExecuting = true;
+      mockStore.executionState = { status: 'running' };
 
       const { result } = renderHook(() => useToolbarActions());
 

@@ -6,16 +6,20 @@
  * - hooks/designer/use-ppt-ai.ts
  */
 
-import { getProxyProviderModel } from '@/lib/ai/core/proxy-client';
-import { getNextApiKey } from '@/lib/ai/infrastructure/api-key-rotation';
-import type { ProviderName, ApiKeyRotationStrategy, ApiKeyUsageStats } from '@/types/provider';
+import {
+  createFeatureProviderClient,
+  resolveFeatureProvider,
+} from '@/lib/ai/provider-consumption';
+import type { ApiProtocol, ApiKeyRotationStrategy, ApiKeyUsageStats } from '@/types/provider';
 import type { LanguageModel } from 'ai';
 
 export interface PPTAIConfig {
-  provider: ProviderName;
+  provider: string;
   model: string;
   apiKey: string;
   baseURL?: string;
+  protocol?: ApiProtocol;
+  isCustomProvider?: boolean;
 }
 
 /**
@@ -26,45 +30,74 @@ export interface PPTAIConfig {
  * @returns Resolved config with rotated API key
  */
 export function resolvePPTAIConfig(
-  defaultProvider: ProviderName,
+  defaultProvider: string,
   providerSettings: Record<string, { apiKey?: string; apiKeys?: string[]; apiKeyRotationEnabled?: boolean; apiKeyRotationStrategy?: ApiKeyRotationStrategy; currentKeyIndex?: number; apiKeyUsageStats?: Record<string, ApiKeyUsageStats>; defaultModel?: string; baseURL?: string } | undefined>,
+  customProviders: Record<
+    string,
+    {
+      apiKey?: string;
+      baseURL?: string;
+      apiProtocol?: ApiProtocol;
+      defaultModel?: string;
+      enabled?: boolean;
+    } | undefined
+  > = {},
 ): PPTAIConfig {
-  const settings = providerSettings[defaultProvider];
-  const model = settings?.defaultModel || 'gpt-4o';
-  let apiKey = settings?.apiKey || '';
-  const baseURL = settings?.baseURL;
+  const resolution = resolveFeatureProvider(
+    {
+      featureId: 'ppt-ai',
+      selectionMode: 'default-provider',
+      fallbackMode: 'first-eligible',
+      proxyMode: 'required',
+      rotateApiKey: true,
+    },
+    {
+      defaultProvider,
+      providerSettings,
+      customProviders,
+    }
+  );
 
-  // Support API key rotation
-  if (settings?.apiKeys && settings.apiKeys.length > 0 && settings.apiKeyRotationEnabled) {
-    const usageStats: Record<string, ApiKeyUsageStats> = settings.apiKeyUsageStats || {};
-    const rotationResult = getNextApiKey(
-      settings.apiKeys,
-      settings.apiKeyRotationStrategy || 'round-robin',
-      settings.currentKeyIndex || 0,
-      usageStats
-    );
-    apiKey = rotationResult.apiKey;
-
-    // Lazy import to avoid circular deps when called from hooks
-    import('@/stores').then(({ useSettingsStore }) => {
-      useSettingsStore.getState().updateProviderSettings(defaultProvider, {
-        currentKeyIndex: rotationResult.index,
+  if (resolution.kind === 'resolved') {
+    if (typeof resolution.nextKeyIndex === 'number' && resolution.providerId === defaultProvider) {
+      import('@/stores').then(({ useSettingsStore }) => {
+        useSettingsStore.getState().updateProviderSettings(defaultProvider, {
+          currentKeyIndex: resolution.nextKeyIndex,
+        });
       });
-    });
+    }
+
+    return {
+      provider: resolution.providerId,
+      model: resolution.model,
+      apiKey: resolution.apiKey,
+      baseURL: resolution.baseURL,
+      protocol: resolution.protocol,
+      isCustomProvider: resolution.isCustomProvider,
+    };
   }
 
-  return { provider: defaultProvider, model, apiKey, baseURL };
+  const fallbackSettings = providerSettings[defaultProvider];
+  return {
+    provider: defaultProvider,
+    model: fallbackSettings?.defaultModel || 'gpt-4o',
+    apiKey: fallbackSettings?.apiKey || '',
+    baseURL: fallbackSettings?.baseURL,
+    protocol: 'openai',
+    isCustomProvider: false,
+  };
 }
 
 /**
  * Create a model instance from resolved config.
  */
 export function createPPTModelInstance(config: PPTAIConfig): LanguageModel {
-  return getProxyProviderModel(
-    config.provider,
-    config.model,
-    config.apiKey,
-    config.baseURL,
-    true,
-  );
+  return createFeatureProviderClient({
+    providerId: config.provider,
+    apiKey: config.apiKey,
+    baseURL: config.baseURL,
+    protocol: config.protocol,
+    isCustomProvider: config.isCustomProvider,
+    useProxy: true,
+  })(config.model) as LanguageModel;
 }

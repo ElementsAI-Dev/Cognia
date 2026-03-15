@@ -118,6 +118,7 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
         executionState: failedState,
         showExecutionPanel: true,
       });
+      get().setActiveInspectorSection('execution');
 
       return;
     }
@@ -147,6 +148,7 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
       executionState: initialExecutionState,
       showExecutionPanel: true,
     });
+    get().setActiveInspectorSection('execution');
 
     try {
       const appendExecutionLog = (entry: WorkflowExecutionState['logs'][number]): void => {
@@ -692,6 +694,7 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
       };
 
       set({ isExecuting: true, executionState: singleExecState, showExecutionPanel: true });
+      get().setActiveInspectorSection('execution');
 
       try {
         const result = await workflowOrchestrator.run({
@@ -802,6 +805,7 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
       };
 
       set({ isExecuting: true, executionState: retryState, showExecutionPanel: true });
+      get().setActiveInspectorSection('execution');
 
       try {
         const result = await workflowOrchestrator.run({

@@ -103,6 +103,17 @@ const mockPlugin: Plugin = {
   status: 'enabled',
   source: 'local',
   path: '/plugins/test-plugin',
+  descriptor: {
+    id: 'test-plugin',
+    version: '1.0.0',
+    source: 'local',
+    resolvedPath: '/plugins/test-plugin',
+    installRoot: { kind: 'installed', path: '/plugins' },
+    entrypoints: { main: 'index.ts' },
+    declaredCapabilities: ['tools', 'commands'],
+    compatibility: { status: 'compatible', diagnostics: [] },
+    availableOperations: ['enable', 'disable', 'configure', 'uninstall'],
+  },
   config: {},
 };
 
@@ -200,6 +211,38 @@ describe('PluginCard', () => {
     render(<PluginCard {...defaultProps} />);
     
     expect(screen.getByText(/frontend/i)).toBeInTheDocument();
+  });
+
+  it('should render source badge for plugin origin', () => {
+    render(<PluginCard {...defaultProps} plugin={{ ...mockPlugin, source: 'dev' }} />);
+
+    expect(screen.getByText('dev')).toBeInTheDocument();
+  });
+
+  it('should render compatibility badge when descriptor is not fully compatible', () => {
+    render(
+      <PluginCard
+        {...defaultProps}
+        plugin={{
+          ...mockPlugin,
+          descriptor: {
+            ...mockPlugin.descriptor!,
+            compatibility: {
+              status: 'warning',
+              diagnostics: [
+                {
+                  code: 'compat.cognia_engine_missing',
+                  severity: 'warning',
+                  message: 'Missing host compatibility declaration',
+                },
+              ],
+            },
+          },
+        }}
+      />
+    );
+
+    expect(screen.getByText('warning')).toBeInTheDocument();
   });
 
   it('should handle plugins with empty description', () => {

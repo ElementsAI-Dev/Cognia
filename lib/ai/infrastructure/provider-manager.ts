@@ -226,6 +226,8 @@ export class ProviderManager {
     // Register with availability monitor
     this.availabilityMonitor.registerProvider(providerId, {
       apiKey: credentials.apiKey,
+      apiKeys: credentials.apiKeys,
+      currentKeyIndex: credentials.currentKeyIndex,
       baseURL: credentials.baseURL,
     });
 
@@ -241,7 +243,14 @@ export class ProviderManager {
   updateCredentials(providerId: string, credentials: Partial<ProviderCredentials>): void {
     const current = this.providers.get(providerId);
     if (current) {
-      this.providers.set(providerId, { ...current, ...credentials });
+      const next = { ...current, ...credentials };
+      this.providers.set(providerId, next);
+      this.availabilityMonitor.registerProvider(providerId, {
+        apiKey: next.apiKey,
+        apiKeys: next.apiKeys,
+        currentKeyIndex: next.currentKeyIndex,
+        baseURL: next.baseURL,
+      });
     }
   }
 

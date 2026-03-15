@@ -322,7 +322,11 @@ pub struct PluginCommandDef {
 pub struct PluginState {
     pub manifest: PluginManifest,
     pub status: PluginStatus,
+    #[serde(default = "default_plugin_source")]
+    pub source: String,
     pub path: String,
+    #[serde(rename = "installRootKind", default = "default_install_root_kind")]
+    pub install_root_kind: String,
     pub config: serde_json::Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
@@ -345,7 +349,11 @@ pub struct PluginRuntimeSnapshotEntry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginScanResult {
     pub manifest: PluginManifest,
+    #[serde(default = "default_plugin_source")]
+    pub source: String,
     pub path: String,
+    #[serde(rename = "installRootKind", default = "default_install_root_kind")]
+    pub install_root_kind: String,
 }
 
 /// Python tool registration
@@ -377,6 +385,16 @@ pub struct PluginInstallOptions {
     pub install_type: String,
     #[serde(rename = "pluginDir")]
     pub plugin_dir: String,
+    #[serde(rename = "installRootKind", default)]
+    pub install_root_kind: Option<String>,
+}
+
+fn default_plugin_source() -> String {
+    "local".to_string()
+}
+
+fn default_install_root_kind() -> String {
+    "installed".to_string()
 }
 
 /// Plugin error

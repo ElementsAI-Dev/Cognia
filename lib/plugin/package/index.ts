@@ -3,6 +3,10 @@
  */
 
 export {
+  buildExtensionCatalogEntry,
+} from './catalog-entry';
+
+export {
   PluginMarketplace,
   getPluginMarketplace,
   resetPluginMarketplace,

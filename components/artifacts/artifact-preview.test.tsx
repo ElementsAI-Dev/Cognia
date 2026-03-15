@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import type { Artifact } from '@/types';
 
 jest.mock('recharts', () => {
@@ -142,12 +142,12 @@ describe('ArtifactPreview', () => {
     expect(container!.firstChild).toHaveClass('custom-class');
   });
 
-  it('sets sandbox attribute on iframe', async () => {
+  it('uses a capability-specific sandbox attribute for html previews', async () => {
     await act(async () => {
       render(<ArtifactPreview artifact={mockHtmlArtifact} />);
     });
     const iframe = screen.getByTitle(`Preview: ${mockHtmlArtifact.title}`);
-    expect(iframe).toHaveAttribute('sandbox', 'allow-scripts');
+    expect(iframe).toHaveAttribute('sandbox', 'allow-same-origin');
   });
 
   it('renders SVG artifact', async () => {
@@ -171,11 +171,46 @@ describe('ArtifactPreview', () => {
     expect(screen.getByTestId('artifact-renderer-code')).toBeInTheDocument();
   });
 
+  it('shows a runtime health badge for rendered artifacts', async () => {
+    await act(async () => {
+      render(<ArtifactPreview artifact={mockCodeArtifact} />);
+    });
+    expect(screen.getByTestId('runtime-health-badge')).toHaveAttribute('data-state', 'ready');
+  });
+
   it('does not show error initially', async () => {
     await act(async () => {
       render(<ArtifactPreview artifact={mockHtmlArtifact} />);
     });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows a runtime error fallback when the preview runtime reports an error', async () => {
+    await act(async () => {
+      render(<ArtifactPreview artifact={mockHtmlArtifact} />);
+    });
+
+    const iframe = screen.getByTitle(`Preview: ${mockHtmlArtifact.title}`);
+    Object.defineProperty(iframe, 'contentWindow', {
+      value: window,
+      configurable: true,
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          source: window,
+          data: {
+            type: 'artifact-preview-error',
+            message: 'Failed to load preview iframe',
+          },
+        })
+      );
+    });
+
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByText('Failed to load preview iframe')).toBeInTheDocument();
+    expect(screen.getByTestId('runtime-health-badge')).toHaveAttribute('data-state', 'error');
   });
 
   it('renders loading spinner while iframe loads', async () => {

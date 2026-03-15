@@ -12,40 +12,58 @@ describe('getPresetAIConfig', () => {
     deepseek: undefined,
   };
 
+  function expectResolvedConfig(result: PresetAIConfig | null, expected: Partial<PresetAIConfig>) {
+    expect(result).toEqual(
+      expect.objectContaining({
+        isCustomProvider: false,
+        useProxy: true,
+        ...expected,
+      })
+    );
+  }
+
   describe('preferred provider', () => {
     it('returns preferred provider when it has an API key', () => {
       const result = getPresetAIConfig(providerSettings, 'anthropic');
-      expect(result).toEqual<PresetAIConfig>({
+      expectResolvedConfig(result, {
         provider: 'anthropic',
+        model: 'claude-sonnet-4-20250514',
         apiKey: 'sk-anthropic-key',
         baseURL: 'https://api.anthropic.com',
+        protocol: 'anthropic',
       });
     });
 
     it('resolves "auto" to "openai"', () => {
       const result = getPresetAIConfig(providerSettings, 'auto');
-      expect(result).toEqual<PresetAIConfig>({
+      expectResolvedConfig(result, {
         provider: 'openai',
+        model: 'gpt-4o',
         apiKey: 'sk-openai-key',
         baseURL: 'https://api.openai.com',
+        protocol: 'openai',
       });
     });
 
     it('falls back to openai when preferred provider has no key', () => {
       const result = getPresetAIConfig(providerSettings, 'google');
-      expect(result).toEqual<PresetAIConfig>({
+      expectResolvedConfig(result, {
         provider: 'openai',
+        model: 'gpt-4o',
         apiKey: 'sk-openai-key',
         baseURL: 'https://api.openai.com',
+        protocol: 'openai',
       });
     });
 
     it('falls back to openai when preferred provider is undefined', () => {
       const result = getPresetAIConfig(providerSettings, 'deepseek');
-      expect(result).toEqual<PresetAIConfig>({
+      expectResolvedConfig(result, {
         provider: 'openai',
+        model: 'gpt-4o',
         apiKey: 'sk-openai-key',
         baseURL: 'https://api.openai.com',
+        protocol: 'openai',
       });
     });
   });
@@ -53,19 +71,23 @@ describe('getPresetAIConfig', () => {
   describe('no preferred provider', () => {
     it('falls back to openai when no preferred provider given', () => {
       const result = getPresetAIConfig(providerSettings);
-      expect(result).toEqual<PresetAIConfig>({
+      expectResolvedConfig(result, {
         provider: 'openai',
+        model: 'gpt-4o',
         apiKey: 'sk-openai-key',
         baseURL: 'https://api.openai.com',
+        protocol: 'openai',
       });
     });
 
     it('falls back to openai with undefined preferredProvider', () => {
       const result = getPresetAIConfig(providerSettings, undefined);
-      expect(result).toEqual<PresetAIConfig>({
+      expectResolvedConfig(result, {
         provider: 'openai',
+        model: 'gpt-4o',
         apiKey: 'sk-openai-key',
         baseURL: 'https://api.openai.com',
+        protocol: 'openai',
       });
     });
   });
@@ -77,10 +99,12 @@ describe('getPresetAIConfig', () => {
         anthropic: { apiKey: 'sk-anthropic-key', baseURL: 'https://api.anthropic.com' },
       };
       const result = getPresetAIConfig(settings);
-      expect(result).toEqual<PresetAIConfig>({
+      expectResolvedConfig(result, {
         provider: 'anthropic',
+        model: 'claude-sonnet-4-20250514',
         apiKey: 'sk-anthropic-key',
         baseURL: 'https://api.anthropic.com',
+        protocol: 'anthropic',
       });
     });
 
@@ -91,10 +115,12 @@ describe('getPresetAIConfig', () => {
         deepseek: { apiKey: 'sk-deepseek-key', baseURL: 'https://api.deepseek.com' },
       };
       const result = getPresetAIConfig(settings, 'google');
-      expect(result).toEqual<PresetAIConfig>({
+      expectResolvedConfig(result, {
         provider: 'deepseek',
+        model: 'deepseek-chat',
         apiKey: 'sk-deepseek-key',
         baseURL: 'https://api.deepseek.com',
+        protocol: 'openai',
       });
     });
   });
@@ -128,10 +154,12 @@ describe('getPresetAIConfig', () => {
     it('handles baseURL being undefined', () => {
       const settings = { openai: { apiKey: 'sk-key' } };
       const result = getPresetAIConfig(settings);
-      expect(result).toEqual<PresetAIConfig>({
+      expectResolvedConfig(result, {
         provider: 'openai',
+        model: 'gpt-4o',
         apiKey: 'sk-key',
         baseURL: undefined,
+        protocol: 'openai',
       });
     });
 
@@ -145,6 +173,54 @@ describe('getPresetAIConfig', () => {
       const result = getPresetAIConfig(providerSettings, '');
       // Empty string is falsy, should fall back to openai
       expect(result?.provider).toBe('openai');
+    });
+
+    it('uses the configured default provider when provided through the shared snapshot', () => {
+      const result = getPresetAIConfig(
+        providerSettings,
+        undefined,
+        {
+          defaultProvider: 'anthropic',
+        }
+      );
+
+      expect(result).toEqual<PresetAIConfig>({
+        provider: 'anthropic',
+        model: 'claude-sonnet-4-20250514',
+        apiKey: 'sk-anthropic-key',
+        baseURL: 'https://api.anthropic.com',
+        protocol: 'anthropic',
+        isCustomProvider: false,
+        useProxy: true,
+      });
+    });
+
+    it('supports configured custom providers through the shared resolver', () => {
+      const result = getPresetAIConfig(
+        providerSettings,
+        'custom-openai',
+        {
+          customProviders: {
+            'custom-openai': {
+              baseURL: 'https://custom.example.com/v1',
+              apiKey: 'sk-custom',
+              apiProtocol: 'openai',
+              defaultModel: 'custom-model',
+              enabled: true,
+            },
+          },
+        }
+      );
+
+      expect(result).toEqual<PresetAIConfig>({
+        provider: 'custom-openai',
+        model: 'custom-model',
+        apiKey: 'sk-custom',
+        baseURL: 'https://custom.example.com/v1',
+        protocol: 'openai',
+        isCustomProvider: true,
+        useProxy: true,
+      });
     });
   });
 });

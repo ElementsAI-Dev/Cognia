@@ -6,14 +6,27 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import { getPluginEventHooks } from '@/lib/plugin';
+import {
+  buildArtifactSourceMetadata,
+  isDuplicateArtifactSource,
+} from '@/lib/artifacts/source-metadata';
 import type {
   Artifact,
   ArtifactType,
   ArtifactLanguage,
+  ArtifactRuntimeHealth,
+  ArtifactMetadata,
+  ArtifactWorkspaceScope,
+  ArtifactWorkspaceState,
+  ArtifactWorkspaceReturnContext,
   ArtifactVersion,
+  CanvasAIWorkbenchState,
+  CanvasActionAttachment,
+  CanvasActionHistoryEntry,
   CanvasEditorContext,
   CanvasDocument,
   CanvasDocumentVersion,
+  CanvasPendingReview,
   CanvasSuggestion,
   AnalysisResult,
   ArtifactDetectionConfig,
@@ -26,6 +39,8 @@ const MAX_PERSISTED_CONTENT_SIZE = 100 * 1024;
 const MAX_PERSISTED_ARTIFACTS = 200;
 /** Maximum number of auto-save canvas versions retained per document */
 const MAX_CANVAS_AUTOSAVE_VERSIONS = 30;
+/** Maximum number of AI workbench history entries retained per document */
+const MAX_CANVAS_WORKBENCH_HISTORY = 20;
 
 /**
  * Helper to ensure Date objects are properly parsed from storage
@@ -42,6 +57,18 @@ function rehydrateArtifact(artifact: Artifact): Artifact {
     ...artifact,
     createdAt: ensureDate(artifact.createdAt),
     updatedAt: ensureDate(artifact.updatedAt),
+    metadata: rehydrateArtifactMetadata(artifact.metadata),
+  };
+}
+
+function rehydrateArtifactMetadata(
+  metadata?: ArtifactMetadata
+): ArtifactMetadata | undefined {
+  if (!metadata) return undefined;
+
+  return {
+    ...metadata,
+    lastAccessedAt: metadata.lastAccessedAt ? ensureDate(metadata.lastAccessedAt) : undefined,
   };
 }
 
@@ -54,6 +81,7 @@ function rehydrateCanvasDocument(doc: CanvasDocument): CanvasDocument {
     createdAt: ensureDate(doc.createdAt),
     updatedAt: ensureDate(doc.updatedAt),
     editorContext: rehydrateCanvasEditorContext(doc.editorContext),
+    aiWorkbench: rehydrateCanvasAIWorkbench(doc.aiWorkbench),
     versions: doc.versions?.map((v) => ({
       ...v,
       createdAt: ensureDate(v.createdAt),
@@ -109,6 +137,113 @@ function mergeCanvasEditorContext(
   return rehydrateCanvasEditorContext(merged);
 }
 
+function createInitialCanvasAIWorkbenchState(): CanvasAIWorkbenchState {
+  return {
+    promptDraft: '',
+    selectedPresetAction: null,
+    attachments: [],
+    pendingReview: null,
+    actionHistory: [],
+    isInlineCommandOpen: false,
+  };
+}
+
+function normalizeCanvasAttachments(
+  attachments?: CanvasActionAttachment[]
+): CanvasActionAttachment[] {
+  return (attachments || []).map((attachment) => ({
+    ...attachment,
+  }));
+}
+
+function rehydrateCanvasPendingReview(
+  pendingReview?: CanvasPendingReview | null
+): CanvasPendingReview | null {
+  if (!pendingReview) return null;
+
+  return {
+    ...pendingReview,
+    createdAt: ensureDate(pendingReview.createdAt),
+    items: pendingReview.items.map((item) => ({
+      ...item,
+      diffLines: item.diffLines.map((line) => ({ ...line })),
+    })),
+  };
+}
+
+function rehydrateCanvasActionHistory(
+  actionHistory?: CanvasActionHistoryEntry[]
+): CanvasActionHistoryEntry[] {
+  return (actionHistory || []).map((entry) => ({
+    ...entry,
+    createdAt: ensureDate(entry.createdAt),
+    attachments: normalizeCanvasAttachments(entry.attachments),
+  }));
+}
+
+function rehydrateCanvasAIWorkbench(
+  aiWorkbench?: CanvasAIWorkbenchState
+): CanvasAIWorkbenchState {
+  const baseline = createInitialCanvasAIWorkbenchState();
+  if (!aiWorkbench) {
+    return baseline;
+  }
+
+  return {
+    ...baseline,
+    ...aiWorkbench,
+    attachments: normalizeCanvasAttachments(aiWorkbench.attachments),
+    pendingReview: rehydrateCanvasPendingReview(aiWorkbench.pendingReview),
+    actionHistory: rehydrateCanvasActionHistory(aiWorkbench.actionHistory),
+    isInlineCommandOpen: Boolean(aiWorkbench.isInlineCommandOpen),
+  };
+}
+
+function applyCanvasWorkbenchHistoryRetention(
+  actionHistory: CanvasActionHistoryEntry[],
+  limit = MAX_CANVAS_WORKBENCH_HISTORY
+): CanvasActionHistoryEntry[] {
+  if (actionHistory.length <= limit) {
+    return actionHistory;
+  }
+
+  return actionHistory.slice(actionHistory.length - limit);
+}
+
+function mergeCanvasAIWorkbench(
+  current?: CanvasAIWorkbenchState,
+  updates?: Partial<CanvasAIWorkbenchState>
+): CanvasAIWorkbenchState {
+  const baseline = rehydrateCanvasAIWorkbench(current);
+
+  if (!updates) {
+    return baseline;
+  }
+
+  return rehydrateCanvasAIWorkbench({
+    ...baseline,
+    ...updates,
+    attachments:
+      'attachments' in updates
+        ? normalizeCanvasAttachments(updates.attachments)
+        : baseline.attachments,
+    pendingReview:
+      'pendingReview' in updates
+        ? rehydrateCanvasPendingReview(updates.pendingReview)
+        : baseline.pendingReview,
+    actionHistory:
+      'actionHistory' in updates
+        ? applyCanvasWorkbenchHistoryRetention(
+            rehydrateCanvasActionHistory(updates.actionHistory)
+          )
+        : baseline.actionHistory,
+    isInlineCommandOpen:
+      'isInlineCommandOpen' in updates
+        ? Boolean(updates.isInlineCommandOpen)
+        : baseline.isInlineCommandOpen,
+  });
+}
+
 /**
  * Rehydrate analysis result dates from storage
  */
@@ -143,11 +278,67 @@ function applyCanvasVersionRetention(
   return versions.filter((v) => !removeIds.has(v.id));
 }
 
+const INITIAL_ARTIFACT_WORKSPACE: ArtifactWorkspaceState = {
+  scope: 'session',
+  sessionId: null,
+  searchQuery: '',
+  typeFilter: 'all',
+  runtimeFilter: 'all',
+  recentArtifactIds: [],
+  returnContext: null,
+};
+
+function applyArtifactWorkspaceFilters(
+  artifacts: Artifact[],
+  workspace: ArtifactWorkspaceState,
+  sessionId?: string | null
+): Artifact[] {
+  const activeSessionId =
+    workspace.scope === 'session' ? sessionId ?? workspace.sessionId ?? null : null;
+  const lowerQuery = workspace.searchQuery.trim().toLowerCase();
+
+  return artifacts.filter((artifact) => {
+    if (activeSessionId && artifact.sessionId !== activeSessionId) {
+      return false;
+    }
+
+    if (workspace.typeFilter !== 'all' && artifact.type !== workspace.typeFilter) {
+      return false;
+    }
+
+    if (
+      workspace.runtimeFilter !== 'all' &&
+      (artifact.metadata?.runtimeHealth ?? 'ready') !== workspace.runtimeFilter
+    ) {
+      return false;
+    }
+
+    if (!lowerQuery) {
+      return true;
+    }
+
+    return (
+      artifact.title.toLowerCase().includes(lowerQuery) ||
+      artifact.type.toLowerCase().includes(lowerQuery) ||
+      (artifact.language && artifact.language.toLowerCase().includes(lowerQuery))
+    );
+  });
+}
+
+function updateRecentArtifactIds(
+  recentArtifactIds: string[],
+  artifactId: string,
+  limit = 20
+): string[] {
+  return [artifactId, ...recentArtifactIds.filter((id) => id !== artifactId)].slice(0, limit);
+}
+
 interface ArtifactState {
   // Artifacts
   artifacts: Record<string, Artifact>;
   activeArtifactId: string | null;
   artifactVersions: Record<string, ArtifactVersion[]>;
+  artifactWorkspace: ArtifactWorkspaceState;
 
   // Canvas
   canvasDocuments: Record<string, CanvasDocument>;
@@ -171,12 +362,26 @@ interface ArtifactActions {
     title: string;
     content: string;
     language?: ArtifactLanguage;
+    metadata?: ArtifactMetadata;
   }) => Artifact;
   updateArtifact: (id: string, updates: Partial<Artifact>) => void;
   deleteArtifact: (id: string) => void;
   getArtifact: (id: string) => Artifact | undefined;
   getSessionArtifacts: (sessionId: string) => Artifact[];
   setActiveArtifact: (id: string | null) => void;
+  setArtifactWorkspaceFilters: (filters: {
+    searchQuery?: string;
+    typeFilter?: ArtifactType | 'all';
+    runtimeFilter?: ArtifactRuntimeHealth | 'all';
+  }) => void;
+  setArtifactWorkspaceScope: (
+    scope: ArtifactWorkspaceScope,
+    sessionId?: string | null
+  ) => void;
+  setArtifactWorkspaceReturnContext: (
+    context: ArtifactWorkspaceReturnContext | null
+  ) => void;
+  getArtifactsForWorkspace: (options?: { sessionId?: string | null; limit?: number }) => Artifact[];
 
   // Auto-detection and creation
   autoCreateFromContent: (params: {
@@ -256,6 +461,7 @@ const initialState: ArtifactState = {
   artifacts: {},
   activeArtifactId: null,
   artifactVersions: {},
+  artifactWorkspace: INITIAL_ARTIFACT_WORKSPACE,
   canvasDocuments: {},
   activeCanvasId: null,
   canvasOpen: false,
@@ -270,7 +476,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
       ...initialState,
 
       // Artifact actions
-      createArtifact: ({ sessionId, messageId, type, title, content, language }) => {
+      createArtifact: ({ sessionId, messageId, type, title, content, language, metadata }) => {
         const artifact: Artifact = {
           id: nanoid(),
           sessionId,
@@ -279,6 +485,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
           title,
           content,
           language,
+          metadata,
           version: 1,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -287,6 +494,14 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
         set((state) => ({
           artifacts: { ...state.artifacts, [artifact.id]: artifact },
           activeArtifactId: artifact.id,
+          artifactWorkspace: {
+            ...state.artifactWorkspace,
+            sessionId,
+            recentArtifactIds: updateRecentArtifactIds(
+              state.artifactWorkspace.recentArtifactIds,
+              artifact.id
+            ),
+          },
           panelOpen: true,
           panelView: 'artifact',
         }));
@@ -340,13 +555,90 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
 
       setActiveArtifact: (id) => {
         const previousId = get().activeArtifactId;
-        set({ activeArtifactId: id });
+        set((state) => {
+          if (!id) {
+            return { activeArtifactId: null };
+          }
+
+          const artifact = state.artifacts[id];
+          if (!artifact) {
+            return { activeArtifactId: id };
+          }
+
+          return {
+            activeArtifactId: id,
+            artifacts: {
+              ...state.artifacts,
+              [id]: {
+                ...artifact,
+                metadata: {
+                  ...artifact.metadata,
+                  lastAccessedAt: new Date(),
+                },
+              },
+            },
+            artifactWorkspace: {
+              ...state.artifactWorkspace,
+              sessionId: artifact.sessionId,
+              recentArtifactIds: updateRecentArtifactIds(
+                state.artifactWorkspace.recentArtifactIds,
+                id
+              ),
+            },
+          };
+        });
         if (id) {
           set({ panelOpen: true, panelView: 'artifact' });
           getPluginEventHooks().dispatchArtifactOpen(id);
         } else if (previousId) {
           getPluginEventHooks().dispatchArtifactClose();
         }
+      },
+
+      setArtifactWorkspaceFilters: (filters) => {
+        set((state) => ({
+          artifactWorkspace: {
+            ...state.artifactWorkspace,
+            ...filters,
+          },
+        }));
+      },
+
+      setArtifactWorkspaceScope: (scope, sessionId = null) => {
+        set((state) => ({
+          artifactWorkspace: {
+            ...state.artifactWorkspace,
+            scope,
+            sessionId,
+          },
+        }));
+      },
+
+      setArtifactWorkspaceReturnContext: (context) => {
+        set((state) => ({
+          artifactWorkspace: {
+            ...state.artifactWorkspace,
+            returnContext: context,
+          },
+        }));
+      },
+
+      getArtifactsForWorkspace: ({ sessionId = null, limit } = {}) => {
+        const state = get();
+        const sorted = Object.values(state.artifacts)
+          .map(rehydrateArtifact)
+          .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+
+        let scoped =
+          state.artifactWorkspace.scope === 'recent'
+            ? sorted.filter((artifact) =>
+                state.artifactWorkspace.recentArtifactIds.includes(artifact.id)
+              )
+            : sorted;
+
+        scoped = applyArtifactWorkspaceFilters(scoped, state.artifactWorkspace, sessionId);
+
+        return typeof limit === 'number' ? scoped.slice(0, limit) : scoped;
       },
 
       // Auto-detection and creation
@@ -360,6 +652,32 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
         const createdArtifacts: Artifact[] = [];
 
         for (const item of detected) {
+          const metadata = buildArtifactSourceMetadata({
+            sessionId,
+            messageId,
+            type: item.type,
+            content: item.content,
+            language: item.language,
+            sourceOrigin: 'auto',
+            userInitiated: false,
+            sourceRange: {
+              startIndex: item.startIndex,
+              endIndex: item.endIndex,
+            },
+          });
+
+          if (
+            isDuplicateArtifactSource({
+              artifacts: get().artifacts,
+              sessionId,
+              messageId,
+              type: item.type,
+              sourceFingerprint: metadata.sourceFingerprint || '',
+            })
+          ) {
+            continue;
+          }
+
           const artifact: Artifact = {
             id: nanoid(),
             sessionId,
@@ -368,6 +686,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
             title: item.title,
             content: item.content,
             language: item.language,
+            metadata,
             version: 1,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -384,6 +703,14 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
         if (createdArtifacts.length > 0) {
           set({
             activeArtifactId: createdArtifacts[0].id,
+            artifactWorkspace: {
+              ...get().artifactWorkspace,
+              sessionId,
+              recentArtifactIds: updateRecentArtifactIds(
+                get().artifactWorkspace.recentArtifactIds,
+                createdArtifacts[0].id
+              ),
+            },
             panelOpen: true,
             panelView: 'artifact',
           });
@@ -478,6 +805,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
           editorContext: {
             saveState: 'saved',
           },
+          aiWorkbench: createInitialCanvasAIWorkbenchState(),
           aiSuggestions: [],
         };
 
@@ -500,11 +828,17 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
 
           const contentChanged =
             'content' in updates && updates.content !== undefined && updates.content !== doc.content;
-          const nonContextUpdateKeys = Object.keys(updates).filter((key) => key !== 'editorContext');
+          const nonContextUpdateKeys = Object.keys(updates).filter(
+            (key) => key !== 'editorContext' && key !== 'aiWorkbench'
+          );
           const mergedEditorContext =
             'editorContext' in updates
               ? mergeCanvasEditorContext(doc.editorContext, updates.editorContext)
               : doc.editorContext;
+          const mergedAIWorkbench =
+            'aiWorkbench' in updates
+              ? mergeCanvasAIWorkbench(doc.aiWorkbench, updates.aiWorkbench)
+              : rehydrateCanvasAIWorkbench(doc.aiWorkbench);
 
           const updated = {
             ...doc,
@@ -512,6 +846,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
             editorContext: contentChanged
               ? mergeCanvasEditorContext(mergedEditorContext, { saveState: 'dirty' })
               : mergedEditorContext,
+            aiWorkbench: mergedAIWorkbench,
             updatedAt: nonContextUpdateKeys.length === 0 ? doc.updatedAt : new Date(),
           };
 
@@ -805,6 +1140,12 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
           return {
             artifacts,
             artifactVersions,
+            artifactWorkspace: {
+              ...state.artifactWorkspace,
+              recentArtifactIds: state.artifactWorkspace.recentArtifactIds.filter(
+                (artifactId) => !ids.includes(artifactId)
+              ),
+            },
             activeArtifactId: ids.includes(state.activeArtifactId || '')
               ? null
               : state.activeArtifactId,
@@ -829,6 +1170,14 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
         set((state) => ({
           artifacts: { ...state.artifacts, [duplicated.id]: duplicated },
           activeArtifactId: duplicated.id,
+          artifactWorkspace: {
+            ...state.artifactWorkspace,
+            sessionId: duplicated.sessionId,
+            recentArtifactIds: updateRecentArtifactIds(
+              state.artifactWorkspace.recentArtifactIds,
+              duplicated.id
+            ),
+          },
           panelOpen: true,
           panelView: 'artifact',
         }));
@@ -888,6 +1237,16 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
           return {
             artifacts,
             artifactVersions,
+            artifactWorkspace: {
+              ...state.artifactWorkspace,
+              recentArtifactIds: state.artifactWorkspace.recentArtifactIds.filter(
+                (artifactId) => artifacts[artifactId]
+              ),
+              sessionId:
+                state.artifactWorkspace.sessionId === sessionId
+                  ? null
+                  : state.artifactWorkspace.sessionId,
+            },
             canvasDocuments,
             analysisResults,
             activeArtifactId:
@@ -904,7 +1263,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
     }),
     {
       name: 'cognia-artifacts',
-      version: 1,
+      version: 2,
       migrate: (persistedState: unknown, version: number) => {
         const state = persistedState as Record<string, unknown>;
         if (version === 0) {
@@ -918,6 +1277,14 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
           if (!state.analysisResults || typeof state.analysisResults !== 'object') {
             state.analysisResults = {};
           }
+        }
+        if (!state.artifactWorkspace || typeof state.artifactWorkspace !== 'object') {
+          state.artifactWorkspace = INITIAL_ARTIFACT_WORKSPACE;
+        } else {
+          state.artifactWorkspace = {
+            ...INITIAL_ARTIFACT_WORKSPACE,
+            ...(state.artifactWorkspace as Record<string, unknown>),
+          };
         }
         return state;
       },
@@ -950,6 +1317,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
         return {
           artifacts,
           artifactVersions,
+          artifactWorkspace: state.artifactWorkspace,
           canvasDocuments: state.canvasDocuments,
           analysisResults: state.analysisResults,
         };

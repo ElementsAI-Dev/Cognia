@@ -110,6 +110,8 @@ interface SettingsLike {
   verificationFingerprint?: string;
 }
 
+const PROVIDER_VERIFICATION_CONTRACT = 'provider-connectivity-v2';
+
 const ALLOWED: ProviderGuardResult = { allowed: true };
 
 const BLOCKED = {
@@ -216,6 +218,7 @@ export function isValidHttpUrl(value?: string): boolean {
 
 export function buildProviderVerificationFingerprint(settings?: SettingsLike): string {
   return JSON.stringify({
+    verificationContract: PROVIDER_VERIFICATION_CONTRACT,
     apiKey: settings?.apiKey?.trim() || '',
     apiKeys: Array.isArray(settings?.apiKeys)
       ? settings!.apiKeys!.map((key) => key.trim())
@@ -228,13 +231,21 @@ export function buildProviderVerificationFingerprint(settings?: SettingsLike): s
 
 function resolveVerificationStatus(
   settings: SettingsLike | undefined,
-  latestTestResult?: { success?: boolean } | null
+  latestTestResult?: {
+    success?: boolean;
+    authoritative?: boolean;
+    outcome?: 'verified' | 'failed' | 'limited';
+  } | null
 ): { status: ProviderVerificationStatus; fingerprint: string } {
   const fingerprint = buildProviderVerificationFingerprint(settings);
   const persistedStatus = settings?.verificationStatus ?? 'unverified';
   const persistedFingerprint = settings?.verificationFingerprint;
 
-  if (latestTestResult?.success === true) {
+  if (
+    latestTestResult?.success === true &&
+    latestTestResult.authoritative !== false &&
+    latestTestResult.outcome !== 'limited'
+  ) {
     return { status: 'verified', fingerprint };
   }
 
@@ -249,6 +260,16 @@ function resolveVerificationStatus(
 
   return { status: persistedStatus, fingerprint };
 }
+
+export type LatestConnectivityResult =
+  | {
+      success?: boolean;
+      message?: string;
+      authoritative?: boolean;
+      outcome?: 'verified' | 'failed' | 'limited';
+    }
+  | null
+  | undefined;
 
 export function getProviderRequirements(providerId: string): ProviderRequirements {
   const provider = PROVIDERS[providerId];
@@ -394,7 +415,7 @@ function createSetupChecklist(params: {
 export function evaluateBuiltInProviderCompleteness(
   providerId: string,
   settings?: Partial<UserProviderSettings>,
-  latestTestResult?: { success?: boolean } | null
+  latestTestResult?: LatestConnectivityResult
 ): BuiltInProviderCompleteness {
   const requirements = getProviderRequirements(providerId);
   const configState = hasRequiredConfiguration(requirements, settings);
@@ -437,7 +458,7 @@ export function evaluateBuiltInProviderCompleteness(
 
 export function evaluateCustomProviderCompleteness(
   provider: Partial<CustomProviderSettings> | undefined,
-  latestTestResult?: { success?: boolean } | null
+  latestTestResult?: LatestConnectivityResult
 ): CustomProviderCompleteness {
   const hasCredential = hasText(provider?.apiKey);
   const hasBaseUrl = hasText(provider?.baseURL);

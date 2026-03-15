@@ -121,7 +121,7 @@ export function McpMarketplaceDetailDialog({
   // Fetch details when dialog opens
   useEffect(() => {
     if (open && item) {
-      fetchItemDetails(item.mcpId);
+      fetchItemDetails(item);
     }
   }, [open, item, fetchItemDetails]);
 
@@ -521,6 +521,13 @@ export function McpMarketplaceDetailDialog({
             </Alert>
           )}
 
+          {installConfig?.validationStatus === 'invalid' && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{installConfig.validationError}</AlertDescription>
+            </Alert>
+          )}
+
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               {tCommon('close')}
@@ -531,6 +538,7 @@ export function McpMarketplaceDetailDialog({
                 isCurrentlyInstalled ||
                 isInstalling ||
                 isLoadingDetails ||
+                installConfig?.validationStatus === 'invalid' ||
                 (!item?.remote && !isCheckingEnv && envCheck !== null && envCheck.supported === false)
               }
             >

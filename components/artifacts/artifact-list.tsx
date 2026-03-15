@@ -61,12 +61,14 @@ export function ArtifactList({
     activeArtifactId,
     searchQuery,
     typeFilter,
+    runtimeFilter,
     selectedIds,
     batchMode,
     pendingDelete,
     sessionArtifacts,
     setSearchQuery,
     setTypeFilter,
+    setRuntimeFilter,
     setPendingDelete,
     toggleBatchMode,
     handleArtifactClick,
@@ -88,7 +90,7 @@ export function ArtifactList({
   }
 
   return (
-    <div className={className} style={{ maxHeight }}>
+    <div data-testid="artifact-list" className={className} style={{ maxHeight }}>
       {/* Search and Filter Bar */}
       <div className="flex items-center gap-2 p-2 border-b" role="search" aria-label={tArtifacts('search')}>
         <div className="relative flex-1">
@@ -101,7 +103,7 @@ export function ArtifactList({
             aria-label={tArtifacts('search')}
           />
         </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
+        <Select data-testid="type-filter-select" value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="h-8 w-[120px] text-xs">
             <Filter className="h-3 w-3 mr-1" />
             <SelectValue />
@@ -113,6 +115,23 @@ export function ArtifactList({
                 {t(`types.${TYPE_LABEL_KEYS[type]}`)}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        <Select
+          data-testid="runtime-filter-select"
+          value={runtimeFilter}
+          onValueChange={setRuntimeFilter}
+        >
+          <SelectTrigger className="h-8 w-[140px] text-xs">
+            <Eye className="h-3 w-3 mr-1" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{tArtifacts('allRuntimeStates')}</SelectItem>
+            <SelectItem value="ready">{tArtifacts('runtimeStates.ready')}</SelectItem>
+            <SelectItem value="loading">{tArtifacts('runtimeStates.loading')}</SelectItem>
+            <SelectItem value="error">{tArtifacts('runtimeStates.error')}</SelectItem>
+            <SelectItem value="unsupported">{tArtifacts('runtimeStates.unsupported')}</SelectItem>
           </SelectContent>
         </Select>
         <Button
@@ -149,6 +168,7 @@ export function ArtifactList({
             <ContextMenu key={artifact.id}>
               <ContextMenuTrigger>
                 <Button
+                  data-testid={`artifact-list-item-${artifact.id}`}
                   variant={activeArtifactId === artifact.id ? 'secondary' : 'ghost'}
                   className={cn(
                     'w-full justify-start gap-2 h-auto py-2 px-3',

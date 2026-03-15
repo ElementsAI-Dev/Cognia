@@ -19,6 +19,7 @@ import {
   Zap,
   Heart,
   AlertCircle,
+  type LucideIcon,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -62,7 +63,7 @@ function StatCard({
   title: string;
   value: string | number;
   description?: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   trend?: 'up' | 'down' | 'neutral';
 }) {
   return (

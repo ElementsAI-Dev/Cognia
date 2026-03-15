@@ -4,10 +4,11 @@
  * Provides plugin discovery, installation, update, and dependency management.
  */
 
-import type { PluginManifest } from '@/types/plugin';
+import type { ExtensionDescriptor, PluginManifest } from '@/types/plugin';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { isTauri } from '@/lib/native/utils';
 import { loggers } from '../core/logger';
+import { buildExtensionDescriptor } from '../core/descriptor';
 import { satisfiesConstraint } from './dependency-resolver';
 
 // =============================================================================
@@ -125,6 +126,7 @@ export interface MarketplaceOperationError {
 
 export interface PluginInstallResult {
   success: boolean;
+  descriptor?: ExtensionDescriptor;
   error?: string;
   errorCategory?: MarketplaceErrorCategory;
   retryable?: boolean;
@@ -675,6 +677,7 @@ export class PluginMarketplace {
       }
 
       const { invoke } = await import('@tauri-apps/api/core');
+      const pluginDir = await invoke<string>('plugin_get_directory');
 
       this.emitProgress({
         pluginId,
@@ -713,13 +716,19 @@ export class PluginMarketplace {
           };
         }
       } else {
-        const pluginDir = await invoke<string>('plugin_get_directory');
         await invoke('plugin_install', {
           source: pluginId,
           installType: 'marketplace',
           pluginDir,
         });
       }
+      const descriptor = buildExtensionDescriptor({
+        manifest: plugin.manifest,
+        source: 'marketplace',
+        path: `${pluginDir}/${pluginId}`,
+        pluginDirectory: pluginDir,
+        installRootKind: 'installed',
+      });
 
       this.emitProgress({
         pluginId,
@@ -735,7 +744,7 @@ export class PluginMarketplace {
         message: operation === 'update' ? 'Update complete!' : 'Installation complete!',
       });
 
-      return { success: true };
+      return { success: true, descriptor };
     } catch (error) {
       const normalized = normalizeOperationError(error, 'Installation failed');
       this.emitProgress({

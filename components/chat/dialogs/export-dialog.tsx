@@ -43,6 +43,7 @@ import {
   exportToPlainText,
   exportToRichMarkdown,
   exportToRichJSON,
+  exportToPortableChatArchive,
   exportToAnimatedHTML,
   downloadFile,
   generateFilename,
@@ -55,7 +56,7 @@ interface ExportDialogProps {
   trigger?: React.ReactNode;
 }
 
-type ExportFormat = 'markdown' | 'json' | 'html' | 'animated-html' | 'pdf' | 'text';
+type ExportFormat = 'markdown' | 'json' | 'portable' | 'html' | 'animated-html' | 'pdf' | 'text';
 
 const FORMAT_OPTIONS: { value: ExportFormat; labelKey: string; descKey: string; icon: React.ReactNode; badgeKey?: string }[] = [
   {
@@ -75,6 +76,12 @@ const FORMAT_OPTIONS: { value: ExportFormat; labelKey: string; descKey: string; 
     value: 'json',
     labelKey: 'json',
     descKey: 'jsonDesc',
+    icon: <FileJson className="h-5 w-5" />,
+  },
+  {
+    value: 'portable',
+    labelKey: 'portableArchive',
+    descKey: 'portableArchiveDesc',
     icon: <FileJson className="h-5 w-5" />,
   },
   {
@@ -165,6 +172,17 @@ export function ExportDialog({ session, trigger }: ExportDialogProps) {
             exportedAt,
           });
           extension = 'json';
+          mimeType = 'application/json';
+          break;
+        case 'portable':
+          content = exportToPortableChatArchive({
+            session,
+            messages,
+            exportedAt,
+            includeMetadata,
+            includeAttachments: true,
+          });
+          extension = 'portable.json';
           mimeType = 'application/json';
           break;
         case 'html':

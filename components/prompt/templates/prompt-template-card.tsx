@@ -30,10 +30,12 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { PromptTemplate } from '@/types/content/prompt-template';
+import type { PromptWorkflowState } from '@/lib/prompts/marketplace-utils';
 import { PromptFeedbackCollector } from './prompt-feedback-collector';
 
 interface PromptTemplateCardProps {
   template: PromptTemplate;
+  workflowState?: PromptWorkflowState;
   onEdit: (template: PromptTemplate) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
@@ -43,6 +45,7 @@ interface PromptTemplateCardProps {
 
 export function PromptTemplateCard({
   template,
+  workflowState,
   onEdit,
   onDuplicate,
   onDelete,
@@ -96,6 +99,26 @@ export function PromptTemplateCard({
                     className="text-[10px] px-1.5 py-0 h-5 font-medium border-blue-200 bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:border-blue-900 dark:text-blue-400"
                   >
                     {t('builtIn')}
+                  </Badge>
+                )}
+                {workflowState?.relation && workflowState.relation !== 'local' && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-medium">
+                    {workflowState.relation}
+                  </Badge>
+                )}
+                {workflowState?.syncStatus && workflowState.syncStatus !== 'local' && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-medium">
+                    {workflowState.syncStatus}
+                  </Badge>
+                )}
+                {workflowState?.hasDraftSession && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-medium">
+                    Resume draft
+                  </Badge>
+                )}
+                {workflowState && (
+                  <Badge variant={workflowState.publishReadiness.isReady ? 'secondary' : 'outline'} className="text-[10px] px-1.5 py-0 h-5 font-medium">
+                    {workflowState.publishReadiness.isReady ? 'Publish ready' : 'Publish blocked'}
                   </Badge>
                 )}
               </div>

@@ -22,6 +22,15 @@ jest.mock('next-intl', () => ({
       refresh: 'Refresh',
       filtersTitle: 'Filters',
       filtersDescription: 'Filter traces by session, file path, VCS revision, or event type',
+      outcome: 'Outcome',
+      outcomePlaceholder: 'Select outcome',
+      outcomeAll: 'All outcomes',
+      outcomeSuccess: 'Success',
+      outcomeError: 'Error',
+      toolName: 'Tool Name',
+      toolNamePlaceholder: 'Enter tool name...',
+      exportBundle: 'Bundle',
+      degradedRowLabel: 'Degraded',
       sessionId: 'Session ID',
       sessionIdPlaceholder: 'Enter session ID...',
       filePath: 'File Path',
@@ -83,6 +92,12 @@ jest.mock('next-intl', () => ({
       'sessionSummary.title': 'Session Analytics',
       'sessionSummary.description': 'Select a session to view analytics.',
       'sessionSummary.selectSession': 'Select a session...',
+      observabilityOverviewTitle: 'Observability Overview',
+      observabilityOverviewDescription: 'Remote observability capture status from the main settings workflow.',
+      observabilityOverviewReady: 'Remote observability capture is active',
+      observabilityOverviewNeedsSetup: 'Remote observability capture still needs setup',
+      observabilityOverviewDisabled: 'Remote observability capture is off',
+      observabilityOverviewManage: 'Manage Observability',
       // View modes
       'viewModes.list': 'List',
       'viewModes.timeline': 'Timeline',
@@ -100,7 +115,16 @@ jest.mock('next-intl', () => ({
 jest.mock('@/hooks/agent-trace/use-agent-trace', () => ({
   useAgentTrace: jest.fn(() => ({
     traces: [],
+    observations: [],
     refresh: jest.fn(),
+    exportObservationBundle: jest.fn().mockResolvedValue({
+      exportedAt: '2026-03-14T00:00:00.000Z',
+      filters: {},
+      rows: [],
+      sessionSummaries: [],
+      totalRows: 0,
+      parseFailureCount: 0,
+    }),
   })),
 }));
 
@@ -158,11 +182,22 @@ const mockSetAgentTraceShellCommands = jest.fn();
 const mockSetAgentTraceCodeEdits = jest.fn();
 const mockSetAgentTraceFailedCalls = jest.fn();
 const mockResetAgentTraceSettings = jest.fn();
+const mockObservabilitySettings = {
+  enabled: false,
+  langfuseEnabled: false,
+  langfusePublicKey: '',
+  langfuseSecretKey: '',
+  langfuseHost: 'https://cloud.langfuse.com',
+  openTelemetryEnabled: false,
+  openTelemetryEndpoint: 'http://localhost:4318/v1/traces',
+  serviceName: 'cognia-ai',
+};
 
 jest.mock('@/stores', () => ({
   useSettingsStore: (selector: (state: unknown) => unknown) => {
     const state = {
       agentTraceSettings: mockAgentTraceSettings,
+      observabilitySettings: mockObservabilitySettings,
       setAgentTraceEnabled: mockSetAgentTraceEnabled,
       setAgentTraceMaxRecords: mockSetAgentTraceMaxRecords,
       setAgentTraceAutoCleanupDays: mockSetAgentTraceAutoCleanupDays,
@@ -388,6 +423,13 @@ describe('AgentTraceSettings', () => {
       expect(screen.getByText('Agent Trace Recording')).toBeInTheDocument();
     });
 
+    it('displays observability overview guidance card', () => {
+      render(<AgentTraceSettings />);
+      expect(screen.getByText('Observability Overview')).toBeInTheDocument();
+      expect(screen.getByText('Remote observability capture is off')).toBeInTheDocument();
+      expect(screen.getByText('Manage Observability')).toBeInTheDocument();
+    });
+
     it('displays enable/disable toggle', () => {
       render(<AgentTraceSettings />);
       expect(screen.getByTestId('agent-trace-enabled')).toBeInTheDocument();
@@ -571,7 +613,43 @@ describe('AgentTraceSettings with traces', () => {
     const { useAgentTrace } = jest.requireMock('@/hooks/agent-trace/use-agent-trace');
     useAgentTrace.mockReturnValue({
       traces: mockTraces,
+      observations: [
+        {
+          id: 'trace-1',
+          sessionId: 'session-1',
+          timestamp: '2024-01-15T10:00:00.000Z',
+          eventType: 'response',
+          outcome: 'success',
+          parseStatus: 'ok',
+          summary: 'completed',
+          filePaths: ['/src/components/test.tsx', '/src/lib/utils.ts'],
+          tags: [],
+          correlation: {},
+          rawRecord: mockTraces[0].record,
+        },
+        {
+          id: 'trace-2',
+          sessionId: 'session-2',
+          timestamp: '2024-01-14T09:00:00.000Z',
+          eventType: 'parse_error',
+          outcome: 'error',
+          parseStatus: 'degraded',
+          summary: 'Failed to parse trace record',
+          filePaths: ['/src/app/page.tsx'],
+          tags: [],
+          correlation: {},
+          rawRecord: mockTraces[1].record,
+        },
+      ],
       refresh: jest.fn(),
+      exportObservationBundle: jest.fn().mockResolvedValue({
+        exportedAt: '2026-03-14T00:00:00.000Z',
+        filters: {},
+        rows: [],
+        sessionSummaries: [],
+        totalRows: 0,
+        parseFailureCount: 1,
+      }),
     });
     
     URL.createObjectURL = jest.fn(() => 'blob:mock-url');
@@ -689,6 +767,38 @@ describe('AgentTraceSettings with traces', () => {
       expect(URL.createObjectURL).toHaveBeenCalled();
       expect(URL.revokeObjectURL).toHaveBeenCalled();
     }
+  });
+
+  it('shows degraded observation metadata when a trace row is parse-degraded', () => {
+    render(<AgentTraceSettings />);
+    expect(screen.getByText('Degraded')).toBeInTheDocument();
+    expect(screen.getByText('Failed to parse trace record')).toBeInTheDocument();
+  });
+
+  it('exports observation bundle when Bundle button clicked', async () => {
+    const { useAgentTrace } = jest.requireMock('@/hooks/agent-trace/use-agent-trace');
+    const exportObservationBundle = jest.fn().mockResolvedValue({
+      exportedAt: '2026-03-14T00:00:00.000Z',
+      filters: {},
+      rows: [],
+      sessionSummaries: [],
+      totalRows: 0,
+      parseFailureCount: 0,
+    });
+    useAgentTrace.mockReturnValue({
+      traces: mockTraces,
+      observations: [],
+      refresh: jest.fn(),
+      exportObservationBundle,
+    });
+
+    render(<AgentTraceSettings />);
+    fireEvent.click(screen.getByText('Bundle'));
+
+    await waitFor(() => {
+      expect(exportObservationBundle).toHaveBeenCalled();
+      expect(URL.createObjectURL).toHaveBeenCalled();
+    });
   });
 });
 

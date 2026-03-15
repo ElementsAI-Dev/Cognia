@@ -11,6 +11,8 @@ export { LOG_LEVEL_PRIORITY, DEFAULT_LOGGER_CONFIG } from '@/types/system/logger
  * Extended log levels with trace support
  */
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+export type LogRuntime = 'browser' | 'server' | 'tauri' | 'mcp' | 'plugin' | 'internal' | 'unknown';
+export type LogOrigin = 'frontend' | 'web-runtime' | 'tauri' | 'mcp' | 'plugin' | 'diagnostic' | 'unknown';
 
 /**
  * Log level priority mapping (higher = more severe)
@@ -53,7 +55,9 @@ export interface StructuredLogEntry {
   /** Machine-readable status/event code */
   code?: string;
   /** Runtime source (browser/tauri/native/etc) */
-  runtime?: string;
+  runtime?: LogRuntime;
+  /** Normalized origin classification for UI triage */
+  origin?: LogOrigin;
   /** Session ID */
   sessionId?: string;
   /** Additional structured data */

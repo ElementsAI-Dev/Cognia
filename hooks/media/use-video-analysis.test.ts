@@ -338,7 +338,7 @@ describe('useVideoAnalysis', () => {
       });
 
       expect(transcription).toBe(null);
-      expect(result.current.error).toBe('OpenAI API key required for transcription');
+      expect(result.current.error).toBe('Add an API key before using this provider at runtime.');
       expect(result.current.isTranscribing).toBe(false);
     });
 
@@ -379,6 +379,24 @@ describe('useVideoAnalysis', () => {
   });
 
   describe('analyzeVideo', () => {
+    it('returns shared blocked guidance when analysis provider is not configured', async () => {
+      mockUseSettingsStore.mockReturnValue({
+        openai: { enabled: true, apiKey: '' },
+      } as Record<string, unknown>);
+
+      const { result } = renderHook(() => useVideoAnalysis());
+
+      let analysis: VideoAnalysisResult | null = null;
+
+      await act(async () => {
+        analysis = await result.current.analyzeVideo(mockVideoPath);
+      });
+
+      expect(analysis).toBe(null);
+      expect(result.current.error).toBe('Add an API key before using this provider at runtime.');
+      expect(result.current.isAnalyzing).toBe(false);
+    });
+
     it('should analyze video successfully with default type', async () => {
       mockAnalyzeVideoContent.mockResolvedValue(mockAnalysisResult);
 

@@ -5,10 +5,6 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { LiveTracePanel } from './live-trace-panel';
 
-jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-}));
-
 jest.mock('@/lib/utils', () => ({
   cn: (...args: (string | boolean | undefined | null)[]) => args.filter(Boolean).join(' '),
 }));
@@ -17,22 +13,56 @@ jest.mock('@/lib/agent-trace/cost-estimator', () => ({
   formatCost: (cost: number) => `$${cost.toFixed(4)}`,
 }));
 
-const mockEvents: Array<{ id: string; type: string; timestamp: number; data: Record<string, unknown> }> = [];
+jest.mock('@/lib/agent', () => ({
+  LIVE_TRACE_EVENT_ICONS: {},
+  LIVE_TRACE_EVENT_COLORS: {},
+  formatDuration: (value: number) => `${value}ms`,
+  formatTokens: (value: number) => `${value}`,
+}));
+
 const mockStore = {
-  activeSessions: {} as Record<string, { events: typeof mockEvents; startTime: number; totalTokens: number; totalCost: number; toolCalls: number; steps: number }>,
-  getSessionEvents: jest.fn(() => mockEvents),
-  getSessionStats: jest.fn(() => ({
-    totalTokens: 0,
-    totalCost: 0,
-    toolCalls: 0,
-    steps: 0,
-    duration: 0,
-  })),
+  activeSessions: {
+    'session-1': {
+      sessionId: 'session-1',
+      startedAt: Date.UTC(2026, 2, 14, 13, 0, 0),
+      currentStep: 2,
+      status: 'error' as const,
+      events: [
+        {
+          id: 'evt-1',
+          sessionId: 'session-1',
+          eventType: 'tool_call_result' as const,
+          timestamp: Date.UTC(2026, 2, 14, 13, 1, 0),
+          toolName: 'code_edit',
+          success: false,
+          error: 'edit failed',
+          responsePreview: 'preview text',
+        },
+      ],
+      tokenUsage: {
+        promptTokens: 10,
+        completionTokens: 5,
+        totalTokens: 15,
+      },
+      totalCost: 0.25,
+      files: new Set<string>(),
+      toolCalls: 1,
+      toolSuccesses: 0,
+      toolFailures: 1,
+      lastEventAt: Date.UTC(2026, 2, 14, 13, 1, 0),
+      lastEventType: 'tool_call_result' as const,
+      lastError: 'edit failed',
+      lastResponsePreview: 'preview text',
+      correlation: {
+        traceId: 'trace-1',
+        turnId: 'turn-1',
+      },
+    },
+  },
 };
 
 jest.mock('@/stores/agent-trace', () => ({
-  useAgentTraceStore: (selector: (s: typeof mockStore) => unknown) => selector(mockStore),
-  AgentTraceEvent: {},
+  useAgentTraceStore: (selector: (state: typeof mockStore) => unknown) => selector(mockStore),
 }));
 
 jest.mock('@/components/ui/card', () => ({
@@ -41,7 +71,7 @@ jest.mock('@/components/ui/card', () => ({
   ),
   CardHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   CardTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
-  CardContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  CardContent: ({ children, className }: { children: React.ReactNode; className?: string }) => <div className={className}>{children}</div>,
 }));
 
 jest.mock('@/components/ui/badge', () => ({
@@ -62,29 +92,29 @@ jest.mock('lucide-react', () => {
   const icon = (props: React.SVGProps<SVGSVGElement>) => <svg {...props} />;
   return {
     Activity: icon, Zap: icon, Clock: icon, Coins: icon, Wrench: icon,
-    CheckCircle2: icon, XCircle: icon, Play: icon, Pause: icon,
-    AlertTriangle: icon, MessageSquare: icon, Brain: icon, ArrowRight: icon,
   };
 });
 
 describe('LiveTracePanel', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('renders with session id', () => {
-    render(<LiveTracePanel sessionId="test-session" />);
+  it('renders session details', () => {
+    render(<LiveTracePanel sessionId="session-1" />);
     expect(screen.getByTestId('card')).toBeInTheDocument();
+    expect(screen.getByText('Live Trace')).toBeInTheDocument();
+    expect(screen.getByText('error')).toBeInTheDocument();
   });
 
-  it('shows empty state when no events', () => {
-    mockStore.getSessionEvents.mockReturnValue([]);
-    render(<LiveTracePanel sessionId="test-session" />);
-    expect(screen.getByTestId('card')).toBeInTheDocument();
+  it('shows latest outcome diagnostics and correlation identifiers', () => {
+    render(<LiveTracePanel sessionId="session-1" />);
+
+    expect(screen.getByText(/Latest outcome/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/edit failed/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/preview text/i)).toBeInTheDocument();
+    expect(screen.getByText(/trace-1/i)).toBeInTheDocument();
+    expect(screen.getByText(/turn-1/i)).toBeInTheDocument();
   });
 
-  it('applies custom className', () => {
-    render(<LiveTracePanel sessionId="test-session" className="custom" />);
-    expect(screen.getByTestId('card')).toHaveClass('custom');
+  it('shows empty state for unknown session', () => {
+    render(<LiveTracePanel sessionId="missing-session" />);
+    expect(screen.getByText('No active session')).toBeInTheDocument();
   });
 });

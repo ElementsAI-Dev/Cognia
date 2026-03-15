@@ -22,6 +22,7 @@ import {
   enhancedDetectArtifactType,
   mapToArtifactLanguage,
 } from '@/lib/artifacts';
+import { buildArtifactSourceMetadata } from '@/lib/artifacts/source-metadata';
 import {
   detectArtifactType as detectType,
 } from '@/hooks/chat/use-artifact-detection';
@@ -67,14 +68,24 @@ export function ArtifactCreateButton({
     const detectedType = type || detectArtifactType(language, content);
     const artifactTitle = title || generateArtifactTitle(content, detectedType, language);
     const artifactLanguage = mapToArtifactLanguage(language);
+    const resolvedMessageId = messageId || '';
 
     createArtifact({
       sessionId: session.id,
-      messageId: messageId || '',
+      messageId: resolvedMessageId,
       type: detectedType,
       title: artifactTitle,
       content,
       language: artifactLanguage,
+      metadata: buildArtifactSourceMetadata({
+        sessionId: session.id,
+        messageId: resolvedMessageId,
+        type: detectedType,
+        content,
+        language: artifactLanguage,
+        sourceOrigin: 'manual',
+        userInitiated: true,
+      }),
     });
 
     setCreated(true);

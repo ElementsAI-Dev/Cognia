@@ -5,6 +5,7 @@
 
 import { z } from 'zod';
 import type {
+  InstalledMarketplacePrompt,
   MarketplaceCategory,
   MarketplacePrompt,
   MarketplaceSearchFilters,
@@ -12,6 +13,16 @@ import type {
   PromptQualityTier,
 } from '@/types/content/prompt-marketplace';
 import { MARKETPLACE_CATEGORIES } from '@/types/content/prompt-marketplace';
+import type {
+  CreatePromptTemplateInput,
+  PromptTemplate,
+  PromptTemplateMarketplaceBaseline,
+  PromptTemplateMarketplaceLinkage,
+  PromptTemplateMarketplaceSyncStatus,
+  PromptTemplatePublishReadiness,
+  PromptTemplateDraftSession,
+  TemplateVariable,
+} from '@/types/content/prompt-template';
 import { SAMPLE_MARKETPLACE_COLLECTIONS, SAMPLE_MARKETPLACE_PROMPTS } from '@/lib/prompts/marketplace-samples';
 
 export type PromptMarketplaceDataSource = 'remote' | 'fallback';
@@ -91,6 +102,20 @@ export interface PromptMarketplaceExchangeParseResult {
   ok: boolean;
   payload?: PromptMarketplaceExchangePayload;
   errors: string[];
+}
+
+export interface PromptWorkflowState {
+  relation: PromptTemplateMarketplaceLinkage | 'local';
+  syncStatus: PromptTemplateMarketplaceSyncStatus;
+  hasDraftSession: boolean;
+  continueEditingTemplateId?: string;
+  publishReadiness: PromptTemplatePublishReadiness;
+  saveBehavior: 'direct-update' | 'fork-on-save' | 'restricted-update';
+}
+
+export interface PromptUpdateResolution {
+  type: 'none' | 'apply-update' | 'conflict';
+  allowedActions: Array<'apply-update' | 'overwrite-local' | 'keep-local-draft' | 'fork-and-reinstall'>;
 }
 
 const VALID_CATEGORY_IDS = new Set(MARKETPLACE_CATEGORIES.map((category) => category.id));
@@ -189,6 +214,70 @@ function makeStableSampleId(name: string, index: number): string {
   return `sample-${index + 1}-${slug}`;
 }
 
+function normalizeTemplateVariables(variables: TemplateVariable[] | undefined): TemplateVariable[] {
+  return (variables ?? []).map((variable) => ({
+    ...variable,
+    options: variable.options ? [...variable.options] : undefined,
+  }));
+}
+
+function normalizeTargets(targets: PromptTemplate['targets'] | undefined): PromptTemplate['targets'] {
+  return (targets && targets.length > 0 ? [...targets] : ['chat']) as PromptTemplate['targets'];
+}
+
+function buildTemplateBaseline(
+  input: Pick<PromptTemplate, 'name' | 'description' | 'content' | 'category' | 'tags' | 'variables' | 'targets'>,
+  version: string
+): PromptTemplateMarketplaceBaseline {
+  return {
+    version,
+    name: input.name,
+    description: input.description,
+    content: input.content,
+    category: input.category,
+    tags: normalizeTags(input.tags),
+    variables: normalizeTemplateVariables(input.variables),
+    targets: normalizeTargets(input.targets) ?? ['chat'],
+    capturedAt: new Date().toISOString(),
+  };
+}
+
+function buildComparableTemplateSnapshot(
+  input: Pick<PromptTemplate, 'name' | 'description' | 'content' | 'category' | 'tags' | 'variables' | 'targets'>
+): string {
+  return JSON.stringify({
+    name: input.name.trim(),
+    description: input.description?.trim() || '',
+    content: input.content,
+    category: input.category || '',
+    tags: normalizeTags(input.tags),
+    variables: normalizeTemplateVariables(input.variables),
+    targets: normalizeTargets(input.targets) ?? ['chat'],
+  });
+}
+
+function buildBaselineComparableSnapshot(baseline: PromptTemplateMarketplaceBaseline): string {
+  return JSON.stringify({
+    name: baseline.name.trim(),
+    description: baseline.description?.trim() || '',
+    content: baseline.content,
+    category: baseline.category || '',
+    tags: normalizeTags(baseline.tags),
+    variables: normalizeTemplateVariables(baseline.variables),
+    targets: normalizeTargets(baseline.targets) ?? ['chat'],
+  });
+}
+
+function deriveTemplateSaveBehavior(template: PromptTemplate): PromptWorkflowState['saveBehavior'] {
+  if (template.meta?.marketplace?.marketplaceId) {
+    return 'restricted-update';
+  }
+  if (template.source === 'builtin' || template.source === 'mcp') {
+    return 'fork-on-save';
+  }
+  return 'direct-update';
+}
+
 export function normalizeTags(tags: string[] | undefined): string[] {
   if (!tags || tags.length === 0) {
     return [];
@@ -203,6 +292,46 @@ export function normalizeTags(tags: string[] | undefined): string[] {
   }
 
   return Array.from(unique);
+}
+
+export function buildTemplateInputFromMarketplacePrompt(
+  prompt: MarketplacePrompt
+): CreatePromptTemplateInput {
+  return {
+    name: prompt.name,
+    description: prompt.description,
+    content: prompt.content,
+    category: prompt.category,
+    tags: normalizeTags([...(prompt.tags || []), 'marketplace']),
+    variables: normalizeTemplateVariables(prompt.variables),
+    targets: normalizeTargets(prompt.targets),
+    source: 'imported',
+    meta: {
+      icon: prompt.icon,
+      color: prompt.color,
+      marketplace: {
+        marketplaceId: prompt.id,
+        sourcePromptId: prompt.id,
+        linkageType: 'installed',
+        installedVersion: prompt.version,
+        latestVersion: prompt.version,
+        syncStatus: 'clean',
+        baseline: buildTemplateBaseline(
+          {
+            name: prompt.name,
+            description: prompt.description,
+            content: prompt.content,
+            category: prompt.category,
+            tags: normalizeTags([...(prompt.tags || []), 'marketplace']),
+            variables: prompt.variables,
+            targets: prompt.targets,
+          },
+          prompt.version
+        ),
+        lastSyncedAt: new Date().toISOString(),
+      },
+    },
+  };
 }
 
 export function normalizeMarketplacePrompt(
@@ -261,6 +390,130 @@ export function normalizeMarketplacePrompt(
     createdAt: asDate(prompt.createdAt, now),
     updatedAt: asDate(prompt.updatedAt, now),
     publishedAt: prompt.publishedAt ? asDate(prompt.publishedAt, now) : undefined,
+  };
+}
+
+export function derivePromptPublishReadiness(input: {
+  template: PromptTemplate;
+  workflow?: Pick<PromptWorkflowState, 'syncStatus'>;
+}): PromptTemplatePublishReadiness {
+  const { template, workflow } = input;
+  const reasons: PromptTemplatePublishReadiness['reasons'] = [];
+
+  if (!template.name.trim()) {
+    reasons.push('missing-name');
+  }
+  if (!template.description?.trim()) {
+    reasons.push('missing-description');
+  }
+  if (!template.content.trim()) {
+    reasons.push('missing-content');
+  }
+  if (!template.category?.trim()) {
+    reasons.push('missing-category');
+  } else if (!isPublishableMarketplaceCategory(template.category as MarketplaceCategory)) {
+    reasons.push('invalid-category');
+  }
+
+  if (template.source === 'builtin' || template.source === 'mcp') {
+    reasons.push('restricted-source');
+  }
+
+  if (workflow?.syncStatus === 'conflict') {
+    reasons.push('unresolved-conflict');
+  }
+
+  if (reasons.length > 0) {
+    return {
+      isReady: false,
+      mode: 'blocked',
+      reasons,
+    };
+  }
+
+  const linkage = template.meta?.marketplace;
+  return {
+    isReady: true,
+    mode:
+      linkage?.linkageType === 'published' && linkage.marketplaceId
+        ? 'update'
+        : 'create',
+    reasons: [],
+  };
+}
+
+export function derivePromptWorkflowState(input: {
+  template: PromptTemplate;
+  installation?: InstalledMarketplacePrompt;
+  draftSession?: PromptTemplateDraftSession | null;
+}): PromptWorkflowState {
+  const { template, installation, draftSession } = input;
+  const marketplaceMeta = template.meta?.marketplace;
+  const relation: PromptWorkflowState['relation'] = marketplaceMeta?.linkageType || 'local';
+  const baseline = marketplaceMeta?.baseline;
+  const installedVersion = installation?.installedVersion || marketplaceMeta?.installedVersion;
+  const latestVersion = installation?.latestVersion || marketplaceMeta?.latestVersion || installedVersion;
+  const hasUpstreamUpdate = Boolean(latestVersion && installedVersion && latestVersion !== installedVersion);
+  const hasBaselineDivergence = baseline
+    ? buildComparableTemplateSnapshot(template) !== buildBaselineComparableSnapshot(baseline)
+    : false;
+
+  let syncStatus: PromptTemplateMarketplaceSyncStatus = 'local';
+  if (relation !== 'local') {
+    if (hasUpstreamUpdate && hasBaselineDivergence) {
+      syncStatus = 'conflict';
+    } else if (hasUpstreamUpdate) {
+      syncStatus = 'update-available';
+    } else if (hasBaselineDivergence) {
+      syncStatus = 'dirty';
+    } else if (relation === 'published') {
+      syncStatus = 'published';
+    } else {
+      syncStatus = 'clean';
+    }
+  }
+
+  const publishReadiness = derivePromptPublishReadiness({
+    template,
+    workflow: { syncStatus },
+  });
+
+  return {
+    relation,
+    syncStatus,
+    hasDraftSession: Boolean(draftSession?.dirty),
+    continueEditingTemplateId: template.id,
+    publishReadiness,
+    saveBehavior: deriveTemplateSaveBehavior(template),
+  };
+}
+
+export function resolveMarketplaceUpdateAction(input: {
+  template: PromptTemplate;
+  installation: InstalledMarketplacePrompt;
+}): PromptUpdateResolution {
+  const workflow = derivePromptWorkflowState({
+    template: input.template,
+    installation: input.installation,
+  });
+
+  if (workflow.syncStatus === 'conflict') {
+    return {
+      type: 'conflict',
+      allowedActions: ['overwrite-local', 'keep-local-draft', 'fork-and-reinstall'],
+    };
+  }
+
+  if (workflow.syncStatus === 'update-available') {
+    return {
+      type: 'apply-update',
+      allowedActions: ['apply-update'],
+    };
+  }
+
+  return {
+    type: 'none',
+    allowedActions: [],
   };
 }
 

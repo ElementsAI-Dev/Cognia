@@ -48,6 +48,12 @@ jest.mock('next-intl', () => ({
       'panel.logsPerMin': 'logs/min',
       'panel.closeDetails': 'Close details',
       'panel.traceView': 'Trace View',
+      'panel.allSources': 'All Sources',
+      'panel.sources.frontend': 'Frontend',
+      'panel.sources.tauri': 'Tauri',
+      'panel.sources.mcp': 'MCP',
+      'panel.sources.plugin': 'Plugin',
+      'panel.sources.internal': 'Internal',
       'panel.agentTraceModule': 'Agent Trace',
       'panel.noTraceEvents': 'No agent trace events',
       'panel.presets': 'Presets',
@@ -56,6 +62,15 @@ jest.mock('next-intl', () => ({
       'panel.deletePreset': 'Delete preset',
       'panel.highSeverityOnly': 'High severity only',
       'panel.focusTrace': 'Focus trace',
+      'panel.focusSession': 'Focus session',
+      'panel.clearSessionFocus': 'Clear session focus',
+      'panel.sessionPlaceholder': 'Filter by session...',
+      'panel.transportDetails': 'Transport details',
+      'panel.transportRetries': 'Retries',
+      'panel.transportDropped': 'Dropped',
+      'panel.transportLastFailure': 'Last failure',
+      'panel.viewDiagnostics': 'View diagnostics',
+      'panel.closeTransportDetails': 'Close transport details',
       'panel.clearTraceFocus': 'Clear trace focus',
       'levels.trace': 'Trace',
       'levels.debug': 'Debug',
@@ -121,6 +136,7 @@ jest.mock('@tanstack/react-virtual', () => ({
 // Mock URL.createObjectURL
 global.URL.createObjectURL = jest.fn(() => 'mock-url');
 global.URL.revokeObjectURL = jest.fn();
+HTMLAnchorElement.prototype.click = jest.fn();
 
 const mockUseLogStream = useLogStream as jest.Mock;
 const mockUseLogModules = useLogModules as jest.Mock;
@@ -250,6 +266,38 @@ describe('LogPanel', () => {
   });
 
   describe('Filtering', () => {
+    it('filters logs to the allowed sources prop', () => {
+      const logs = [
+        createMockLog({
+          id: 'frontend-log',
+          origin: 'frontend',
+          runtime: 'browser',
+          message: 'Frontend log',
+        }),
+        createMockLog({
+          id: 'tauri-log',
+          origin: 'tauri',
+          runtime: 'tauri',
+          message: 'Tauri log',
+        }),
+      ];
+
+      mockUseLogStream.mockReturnValue({
+        ...defaultMockHookReturn,
+        logs,
+        stats: {
+          total: 2,
+          byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 2 },
+          byModule: {},
+        },
+      });
+
+      render(<LogPanel sources={['tauri']} />);
+
+      expect(screen.getByText('Tauri log')).toBeInTheDocument();
+      expect(screen.queryByText('Frontend log')).not.toBeInTheDocument();
+    });
+
     it('calls useLogStream with search query when typing', async () => {
       const user = userEvent.setup();
       render(<LogPanel />);
@@ -335,6 +383,36 @@ describe('LogPanel', () => {
       expect(screen.getAllByText('Trace one B').length).toBeGreaterThan(0);
       expect(screen.queryByText('Trace two A')).not.toBeInTheDocument();
     });
+
+    it('focuses logs to the selected session from session drill-down action', async () => {
+      const user = userEvent.setup();
+      const logs = [
+        createMockLog({ id: 'session-1-a', sessionId: 'session-1', message: 'Session one A' }),
+        createMockLog({ id: 'session-1-b', sessionId: 'session-1', message: 'Session one B' }),
+        createMockLog({ id: 'session-2-a', sessionId: 'session-2', message: 'Session two A' }),
+      ];
+
+      mockUseLogStream.mockReturnValue({
+        ...defaultMockHookReturn,
+        logs,
+        stats: {
+          total: 3,
+          byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 3 },
+          byModule: {},
+        },
+      });
+
+      render(<LogPanel />);
+
+      const focusButtons = screen.getAllByRole('button', { name: 'Focus session' });
+      expect(focusButtons.length).toBeGreaterThan(0);
+
+      await user.click(focusButtons[0]);
+
+      expect(screen.getByText('Session one A')).toBeInTheDocument();
+      expect(screen.getByText('Session one B')).toBeInTheDocument();
+      expect(screen.queryByText('Session two A')).not.toBeInTheDocument();
+    });
   });
 
   describe('Actions', () => {
@@ -381,6 +459,108 @@ describe('LogPanel', () => {
 
       const stored = window.localStorage.getItem('cognia-log-filter-presets');
       expect(stored).toContain('Preset 1');
+    });
+
+    it('exports enriched incident bundles as JSON', async () => {
+      const user = userEvent.setup();
+      const logs = [
+        createMockLog({ id: 'export-log', sessionId: 'session-7', message: 'Export log' }),
+      ];
+
+      mockUseLogStream.mockReturnValue({
+        ...defaultMockHookReturn,
+        logs,
+        stats: {
+          total: 1,
+          byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 1 },
+          byModule: {},
+        },
+      });
+      mockUseTransportHealth.mockReturnValue({
+        healthByTransport: {
+          remote: {
+            transport: 'remote',
+            status: 'degraded',
+            queueDepth: 4,
+            retryCount: 2,
+            droppedEntries: 1,
+            updatedAt: new Date().toISOString(),
+          },
+        },
+        isLoading: false,
+        error: null,
+        refresh: jest.fn(),
+      });
+
+      render(<LogPanel />);
+
+      const exportButton = screen
+        .getAllByRole('button')
+        .find((button) => button.querySelector('.lucide-download'));
+      expect(exportButton).toBeDefined();
+
+      await user.click(exportButton!);
+      await user.click(screen.getByText('JSON'));
+
+      const blob = (global.URL.createObjectURL as jest.Mock).mock.calls[0][0] as Blob;
+      const content = await blob.text();
+
+      expect(content).toContain('"filters"');
+      expect(content).toContain('"transportHealth"');
+      expect(content).toContain('"logs"');
+    });
+  });
+
+  describe('Transport Health', () => {
+    it('shows transport health details and pivots to related diagnostics', async () => {
+      const user = userEvent.setup();
+      const logs = [
+        createMockLog({ id: 'normal-log', message: 'Regular log' }),
+        createMockLog({
+          id: 'diagnostic-log',
+          module: 'logger.internal',
+          message: 'Remote transport failed',
+          data: { sourceTransport: 'remote' },
+        }),
+      ];
+
+      mockUseLogStream.mockReturnValue({
+        ...defaultMockHookReturn,
+        logs,
+        stats: {
+          total: 2,
+          byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 1, error: 1 },
+          byModule: { 'logger.internal': 1 },
+        },
+      });
+      mockUseTransportHealth.mockReturnValue({
+        healthByTransport: {
+          remote: {
+            transport: 'remote',
+            status: 'degraded',
+            queueDepth: 4,
+            retryCount: 2,
+            droppedEntries: 1,
+            lastFailureAt: '2026-03-14T00:00:00.000Z',
+            updatedAt: '2026-03-14T00:00:00.000Z',
+          },
+        },
+        isLoading: false,
+        error: null,
+        refresh: jest.fn(),
+      });
+
+      render(<LogPanel />);
+
+      await user.click(screen.getByRole('button', { name: /remote:degraded q=4/i }));
+
+      expect(screen.getByText('Transport details')).toBeInTheDocument();
+      expect(screen.getByText(/Retries/)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'View diagnostics' }));
+
+      expect(screen.getByText('Remote transport failed')).toBeInTheDocument();
+      expect(screen.queryByText('Regular log')).not.toBeInTheDocument();
     });
   });
 

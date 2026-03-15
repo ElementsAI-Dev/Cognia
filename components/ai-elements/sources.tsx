@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Star,
   Clock,
+  type LucideIcon,
 } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import Image from 'next/image';
@@ -25,7 +26,7 @@ export type SourceType = 'web' | 'document' | 'video' | 'image' | 'link' | 'book
 
 const sourceTypeConfig: Record<
   SourceType,
-  { icon: React.ElementType; color: string; label: string }
+  { icon: LucideIcon; color: string; label: string }
 > = {
   web: { icon: Globe, color: 'text-blue-500 bg-blue-500/10', label: 'Web' },
   document: { icon: FileText, color: 'text-orange-500 bg-orange-500/10', label: 'Document' },

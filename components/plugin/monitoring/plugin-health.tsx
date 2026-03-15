@@ -236,6 +236,17 @@ export function PluginHealth({
                             >
                               {status.status}
                             </Badge>
+                            {plugin?.source && (
+                              <Badge variant="outline" className="text-[10px] capitalize">
+                                {plugin.source}
+                              </Badge>
+                            )}
+                            {plugin?.descriptor?.compatibility?.status &&
+                              plugin.descriptor.compatibility.status !== 'compatible' && (
+                                <Badge variant="secondary" className="text-[10px] capitalize">
+                                  {plugin.descriptor.compatibility.status}
+                                </Badge>
+                              )}
                           </div>
 
                           {status.issues.length > 0 && (

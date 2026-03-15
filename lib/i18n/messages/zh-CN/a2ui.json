@@ -173,5 +173,11 @@
   "tableShowing": "显示 {start}-{end}，共 {total} 条",
   "tablePrevious": "上一页",
   "tableNext": "下一页",
-  "tablePage": "第 {current} 页，共 {total} 页"
+  "tablePage": "第 {current} 页，共 {total} 页",
+  "richOutput": {
+    "previous": "上一步",
+    "next": "下一步",
+    "richOutputFallback": "已降级展示",
+    "richOutputUnavailable": "当前运行环境暂不支持此富输出，已切换为兜底展示。"
+  }
 }

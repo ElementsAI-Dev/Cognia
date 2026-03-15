@@ -33,6 +33,7 @@ export const DEFAULT_KEYBINDINGS: Record<string, string> = {
   'navigation.prevDocument': 'Ctrl+Shift+Tab',
   'view.toggleHistory': 'Ctrl+Shift+H',
   'view.toggleSuggestions': 'Ctrl+.',
+  'view.toggleInlineCommand': 'Ctrl+K',
   'view.toggleExecution': 'Ctrl+`',
   'edit.selectAll': 'Ctrl+A',
   'edit.copy': 'Ctrl+C',

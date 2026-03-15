@@ -18,6 +18,14 @@ jest.mock('@/stores/jupyter', () => ({
   useJupyterStore: jest.fn(),
 }));
 
+jest.mock('@/lib/logger', () => ({
+  loggers: {
+    ai: {
+      debug: jest.fn(),
+    },
+  },
+}));
+
 // Mock child components
 jest.mock('./kernel-status', () => ({
   KernelStatus: ({
@@ -86,6 +94,11 @@ import { InteractiveNotebook } from './interactive-notebook';
 const mockUseJupyterKernel = useJupyterKernel as jest.Mock;
 const mockUseVirtualEnv = useVirtualEnv as jest.Mock;
 const mockUseJupyterStore = useJupyterStore as unknown as jest.Mock;
+let mockNotebookStoreState = {
+  cells: new Map<string, unknown>(),
+  workspaces: {} as Record<string, { sessionId: string | null }>,
+  upsertWorkspace: jest.fn(),
+};
 
 // Messages for testing
 const messages = {
@@ -160,11 +173,16 @@ const createMockVirtualEnvHook = (overrides = {}): unknown => ({
 describe('InteractiveNotebook', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockNotebookStoreState = {
+      cells: new Map<string, unknown>(),
+      workspaces: {},
+      upsertWorkspace: jest.fn(),
+    };
     mockUseJupyterKernel.mockReturnValue(createMockKernelHook());
     mockUseVirtualEnv.mockReturnValue(createMockVirtualEnvHook());
     mockUseJupyterStore.mockImplementation(
-      (selector: (state: { cells: Map<string, unknown> }) => unknown) => {
-        return selector({ cells: new Map() });
+      (selector: (state: typeof mockNotebookStoreState) => unknown) => {
+        return selector(mockNotebookStoreState);
       }
     );
   });
@@ -472,6 +490,28 @@ describe('InteractiveNotebook', () => {
 
       expect(setActiveSession).not.toHaveBeenCalled();
     });
+
+    it('should restore a persisted workspace session when chat mapping is missing', async () => {
+      const restoreSession = jest.fn().mockResolvedValue(null);
+      const getSessionForChat = jest.fn().mockReturnValue(null);
+      mockNotebookStoreState.workspaces = {
+        'chat:chat-123': {
+          sessionId: 'restorable-session',
+        },
+      };
+
+      mockUseJupyterKernel.mockReturnValue(
+        createMockKernelHook({ restoreSession, getSessionForChat })
+      );
+
+      renderWithIntl(
+        <InteractiveNotebook content={sampleNotebook} chatSessionId="chat-123" autoConnect={true} />
+      );
+
+      await waitFor(() => {
+        expect(restoreSession).toHaveBeenCalledWith('restorable-session', 'chat:chat-123');
+      });
+    });
   });
 
   describe('kernel controls', () => {
@@ -588,7 +628,7 @@ describe('InteractiveNotebook', () => {
       mockUseJupyterKernel.mockReturnValue(createMockKernelHook(activeSessionMock));
 
       mockUseJupyterStore.mockImplementation(
-        (selector: (state: { cells: Map<string, unknown> }) => unknown) => {
+        (selector: (state: typeof mockNotebookStoreState) => unknown) => {
           const cells = new Map<string, unknown>();
           cells.set('session-1', [
             {
@@ -601,7 +641,10 @@ describe('InteractiveNotebook', () => {
               metadata: {},
             },
           ]);
-          return selector({ cells });
+          return selector({
+            ...mockNotebookStoreState,
+            cells,
+          });
         }
       );
 

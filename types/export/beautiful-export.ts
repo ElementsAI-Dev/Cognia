@@ -6,6 +6,7 @@ import type { Session } from '@/types/core';
 import type { PageLayoutSettings } from '@/components/document/page-layout-dialog';
 import type { SyntaxThemeName } from '@/lib/export/html/syntax-themes';
 import type { ThemeOption } from './common';
+import type { LucideIcon } from 'lucide-react';
 
 export type BeautifulExportFormat =
   | 'beautiful-html'
@@ -32,7 +33,7 @@ export interface BeautifulExportOptions {
 }
 
 export interface FormatConfigItem {
-  icon: React.ElementType;
+  icon: LucideIcon;
   label: string;
   description: string;
   extension: string;

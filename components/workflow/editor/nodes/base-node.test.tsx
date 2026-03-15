@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { BaseNode } from './base-node';
 import type { WorkflowNodeData } from '@/types/workflow/workflow-editor';
 import { Position } from '@xyflow/react';
@@ -54,12 +54,14 @@ jest.mock('../utils/node-quick-config', () => ({
 
 const mockExecuteSingleNode = jest.fn();
 const mockUpdateNode = jest.fn();
+const mockSetInsertionIntent = jest.fn();
 
 jest.mock('@/stores/workflow', () => ({
   useWorkflowEditorStore: (selector: (state: Record<string, unknown>) => unknown) =>
     selector({
       executeSingleNode: mockExecuteSingleNode,
       updateNode: mockUpdateNode,
+      setInsertionIntent: mockSetInsertionIntent,
       isExecuting: false,
     }),
 }));
@@ -96,6 +98,7 @@ jest.mock('lucide-react', () => ({
   StickyNote: () => <svg data-testid="sticky-note-icon" />,
   Power: ({ className }: { className?: string }) => <svg data-testid="power-icon" className={className} />,
   Database: () => <svg data-testid="database-icon" />,
+  Plus: () => <svg data-testid="plus-icon" />,
 }));
 
 const mockData: WorkflowNodeData = {
@@ -455,5 +458,19 @@ describe('BaseNode integration tests', () => {
 
     expect(screen.getByTestId('handle-source-true')).toBeInTheDocument();
     expect(screen.getByTestId('handle-source-false')).toBeInTheDocument();
+  });
+
+  it('opens quick-add insertion intent from the node action bar', () => {
+    render(<BaseNode {...baseProps} data={mockData} selected={true} />);
+
+    fireEvent.click(screen.getByLabelText('addNode'));
+
+    expect(mockSetInsertionIntent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'append',
+        origin: 'node-exit',
+        sourceNodeId: 'node-1',
+      })
+    );
   });
 });

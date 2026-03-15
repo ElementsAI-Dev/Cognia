@@ -19,6 +19,12 @@ export const selectDefaultConfig = (state: AgentTeamState) => state.defaultConfi
 export const selectTeamCount = (state: AgentTeamState) => Object.keys(state.teams).length;
 export const selectActiveTeam = (state: AgentTeamState) =>
   state.activeTeamId ? state.teams[state.activeTeamId] : undefined;
+export const selectActiveTeamRoutingAssessment = (state: AgentTeamState) =>
+  selectActiveTeam(state)?.routingAssessment;
+export const selectActiveTeamSelectedExecutionPattern = (state: AgentTeamState) =>
+  selectActiveTeam(state)?.selectedExecutionPattern;
+export const selectActiveTeamExecutionReport = (state: AgentTeamState) =>
+  selectActiveTeam(state)?.executionReport;
 export const selectActiveTeammates = (state: AgentTeamState) => {
   const team = state.activeTeamId ? state.teams[state.activeTeamId] : undefined;
   if (!team) return [];

@@ -160,6 +160,42 @@ describe('Plugin Validation', () => {
       expect(result.errors.some(e => e.includes('capability'))).toBe(true);
     });
 
+    it('should surface partial capability diagnostics in warn mode', () => {
+      const manifest = createValidManifest();
+      manifest.capabilities = ['themes'];
+
+      const result = validatePluginManifest(manifest, { governanceMode: 'warn' });
+
+      expect(result.valid).toBe(true);
+      expect(result.diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            severity: 'warning',
+            field: 'capabilities',
+            code: 'manifest.capabilities.plugin.capability.partial',
+          }),
+        ])
+      );
+    });
+
+    it('should fail validation for blocked capabilities in block mode', () => {
+      const manifest = createValidManifest();
+      manifest.capabilities = ['skills'];
+
+      const result = validatePluginManifest(manifest, { governanceMode: 'block' });
+
+      expect(result.valid).toBe(false);
+      expect(result.diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            severity: 'error',
+            field: 'capabilities',
+            code: 'manifest.capabilities.plugin.capability.blocked',
+          }),
+        ])
+      );
+    });
+
     it('should require main for frontend plugins', () => {
       const manifest = createValidManifest();
       manifest.type = 'frontend';

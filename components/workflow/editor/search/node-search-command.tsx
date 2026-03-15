@@ -18,22 +18,20 @@ import {
   CommandSeparator,
 } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { useWorkflowEditorStore } from '@/stores/workflow';
+import {
+  queryWorkflowNodeCatalog,
+  type WorkflowNodeCatalogQueryResult,
+} from '@/lib/workflow-editor';
+import { NODE_ICONS } from '@/lib/workflow-editor/constants';
+import {
+  selectWorkflowEditorShellState,
+  selectWorkflowNodeCatalogState,
+  useWorkflowEditorStore,
+} from '@/stores/workflow';
 import {
   Play,
   Square,
-  Sparkles,
-  Wrench,
-  GitBranch,
-  GitFork,
-  User,
   Workflow,
-  Repeat,
-  Clock,
-  Globe,
-  Code,
-  Shuffle,
-  GitMerge,
   Save,
   Undo2,
   Redo2,
@@ -44,57 +42,10 @@ import {
   FolderOpen,
   Target,
   MousePointer,
-  StickyNote,
-  BarChart2,
-  LineChart,
-  PieChart,
-  AreaChart,
-  ScatterChart,
-  Radar,
-  BookOpen,
-  ListChecks,
-  Combine,
-  MessageSquare,
-  FileCode,
-  PenLine,
-  MessageSquareText,
+  Bookmark,
 } from 'lucide-react';
 import { NODE_TYPE_COLORS, type WorkflowNodeType } from '@/types/workflow/workflow-editor';
 import { Kbd } from '@/components/ui/kbd';
-
-const NODE_ICONS: Record<WorkflowNodeType, React.ComponentType<{ className?: string }>> = {
-  start: Play,
-  end: Square,
-  ai: Sparkles,
-  tool: Wrench,
-  conditional: GitBranch,
-  parallel: GitFork,
-  human: User,
-  subworkflow: Workflow,
-  loop: Repeat,
-  delay: Clock,
-  webhook: Globe,
-  code: Code,
-  transform: Shuffle,
-  merge: GitMerge,
-  group: FolderOpen,
-  annotation: StickyNote,
-  knowledgeRetrieval: BookOpen,
-  parameterExtractor: ListChecks,
-  variableAggregator: Combine,
-  questionClassifier: MessageSquare,
-  templateTransform: FileCode,
-  chart: BarChart2,
-  lineChart: LineChart,
-  barChart: BarChart2,
-  pieChart: PieChart,
-  areaChart: AreaChart,
-  scatterChart: ScatterChart,
-  radarChart: Radar,
-  httpRequest: Globe,
-  variableAssigner: PenLine,
-  answer: MessageSquareText,
-};
 
 interface Command {
   id: string;
@@ -118,6 +69,15 @@ export function NodeSearchCommand() {
     undo,
     redo,
     deleteNodes,
+    addNode,
+    insertNodeFromIntent,
+    addRecentNode,
+    addNodeFromTemplate,
+    nodeTemplates,
+    recentNodes,
+    favoriteNodes,
+    insertionIntent,
+    clearInsertionIntent,
     selectedNodes,
     autoLayout,
     toggleNodePalette,
@@ -127,7 +87,30 @@ export function NodeSearchCommand() {
     cancelExecution,
     isExecuting,
     createWorkflow,
-  } = useWorkflowEditorStore();
+  } = useWorkflowEditorStore((state) => ({
+    ...selectWorkflowNodeCatalogState(state),
+    ...selectWorkflowEditorShellState(state),
+    currentWorkflow: state.currentWorkflow,
+    selectNodes: state.selectNodes,
+    saveWorkflow: state.saveWorkflow,
+    undo: state.undo,
+    redo: state.redo,
+    deleteNodes: state.deleteNodes,
+    addNode: state.addNode,
+    insertNodeFromIntent: state.insertNodeFromIntent,
+    addRecentNode: state.addRecentNode,
+    addNodeFromTemplate: state.addNodeFromTemplate,
+    clearInsertionIntent: state.clearInsertionIntent,
+    selectedNodes: state.selectedNodes,
+    autoLayout: state.autoLayout,
+    toggleNodePalette: state.toggleNodePalette,
+    toggleConfigPanel: state.toggleConfigPanel,
+    toggleMinimap: state.toggleMinimap,
+    startExecution: state.startExecution,
+    cancelExecution: state.cancelExecution,
+    isExecuting: state.isExecuting,
+    createWorkflow: state.createWorkflow,
+  }));
 
   // Listen for keyboard shortcut
   useEffect(() => {
@@ -255,6 +238,21 @@ export function NodeSearchCommand() {
     );
   }, [commands, search]);
 
+  const filteredCatalogEntries = useMemo(
+    () =>
+      search.trim()
+        ? queryWorkflowNodeCatalog({
+            searchQuery: search,
+            nodeTemplates,
+            recentNodes,
+            favoriteNodes,
+            includeTemplates: !insertionIntent,
+            limit: 12,
+          })
+        : [],
+    [favoriteNodes, insertionIntent, nodeTemplates, recentNodes, search]
+  );
+
   const { setCenter, getNode } = useReactFlow();
 
   const handleSelectNode = useCallback((nodeId: string) => {
@@ -277,6 +275,39 @@ export function NodeSearchCommand() {
     }
   }, [selectNodes, setCenter, getNode]);
 
+  const handleAddCatalogEntry = useCallback(
+    (entry: WorkflowNodeCatalogQueryResult) => {
+      if (insertionIntent && entry.kind === 'node') {
+        insertNodeFromIntent(entry.type);
+        addRecentNode(entry.type);
+        setOpen(false);
+        return;
+      }
+
+      if (entry.kind === 'template') {
+        addNodeFromTemplate(entry.templateId, { x: 250, y: 250 });
+        addRecentNode(entry.nodeType);
+        clearInsertionIntent();
+        setOpen(false);
+        return;
+      }
+
+      addNode(entry.type, { x: 250, y: 250 });
+      addRecentNode(entry.type);
+      setOpen(false);
+    },
+    [
+      addNode,
+      addNodeFromTemplate,
+      addRecentNode,
+      clearInsertionIntent,
+      insertionIntent,
+      insertNodeFromIntent,
+    ]
+  );
+
+  const dialogOpen = open || Boolean(insertionIntent);
+
   const renderShortcut = (shortcut: string[]) => (
     <div className="flex items-center gap-0.5 ml-auto">
       {shortcut.map((key, i) => (
@@ -291,7 +322,15 @@ export function NodeSearchCommand() {
   );
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
+      <CommandDialog
+      open={dialogOpen}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen && insertionIntent) {
+          clearInsertionIntent();
+        }
+      }}
+    >
       <CommandInput
         placeholder={t('searchNodesCommands')}
         value={search}
@@ -346,6 +385,49 @@ export function NodeSearchCommand() {
 
         {filteredNodes.length > 0 && filteredCommands.length > 0 && (
           <CommandSeparator />
+        )}
+
+        {filteredCatalogEntries.length > 0 && (
+          <>
+            <CommandGroup heading={t('add') || 'Add'}>
+              {filteredCatalogEntries.map((entry) => {
+                const entryType = entry.kind === 'template' ? entry.nodeType : entry.type;
+                const Icon = NODE_ICONS[entryType] || Workflow;
+                const color = NODE_TYPE_COLORS[entryType];
+                return (
+                  <CommandItem
+                    key={entry.id}
+                    value={entry.id}
+                    onSelect={() => handleAddCatalogEntry(entry)}
+                  >
+                    <div
+                      className="mr-2 rounded p-1"
+                      style={{ backgroundColor: `${color}20`, color }}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="flex flex-col items-start">
+                      <span>{entry.name}</span>
+                      {entry.description && (
+                        <span className="text-xs text-muted-foreground">{entry.description}</span>
+                      )}
+                    </div>
+                    {entry.kind === 'template' ? (
+                      <Badge variant="secondary" className="ml-auto text-[10px]">
+                        <Bookmark className="mr-1 h-3 w-3" />
+                        Template
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="ml-auto text-[10px]">
+                        {entryType}
+                      </Badge>
+                    )}
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+            {filteredCommands.length > 0 && <CommandSeparator />}
+          </>
         )}
 
         {/* Actions */}
